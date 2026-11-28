@@ -300,6 +300,1609 @@
   }
 </style>
 
+=== 284 src/lib/components/index.ts	ts	module	-
+export * from "./toolbar";
+export * from "./process";
+export * from "./stats";
+export * from "./modals";
+export { default as AppInfo } from "./AppInfo.svelte";
+export { default as TitleBar } from "./TitleBar.svelte";
+export { default as ThemeSwitcher } from "./ThemeSwitcher.svelte";
+
+=== 203 src/lib/components/modals/index.ts	ts	module	-
+export { default as Modal } from "./Modal.svelte";
+export { default as ProcessDetailsModal } from "./ProcessDetailsModal.svelte";
+export { default as KillProcessModal } from "./KillProcessModal.svelte";
+
+=== 319 src/lib/components/process/index.ts	ts	module	-
+export { default as ProcessTable } from "./ProcessTable.svelte";
+export { default as ProcessRow } from "./ProcessRow.svelte";
+export { default as TableHeader } from "./TableHeader.svelte";
+export { default as ActionButtons } from "./ActionButtons.svelte";
+export { default as ProcessIcon } from "./ProcessIcon.svelte";
+
+=== 553 src/lib/components/stats/index.ts	ts	module	-
+export { default as StatsBar } from "./StatsBar.svelte";
+export { default as CpuPanel } from "./CpuPanel.svelte";
+export { default as MemoryPanel } from "./MemoryPanel.svelte";
+export { default as StoragePanel } from "./StoragePanel.svelte";
+export { default as SystemPanel } from "./SystemPanel.svelte";
+export { default as NetworkPanel } from "./NetworkPanel.svelte";
+export { default as PanelHeader } from "./PanelHeader.svelte";
+export { default as ProgressBar } from "./ProgressBar.svelte";
+export { default as StatItem } from "./StatItem.svelte";
+
+=== 457 src/lib/components/toolbar/index.ts	ts	module	-
+export { default as ToolBar } from "./ToolBar.svelte";
+export { default as SearchBox } from "./SearchBox.svelte";
+export { default as StatusFilter } from "./StatusFilter.svelte";
+export { default as PaginationControls } from "./PaginationControls.svelte";
+export { default as ColumnToggle } from "./ColumnToggle.svelte";
+export { default as RefreshControls } from "./RefreshControls.svelte";
+export { default as FilterToggle } from "./FilterToggle.svelte";
+
+=== 2357 src/lib/constants/index.ts	ts	module	-
+export const ASCII_ART = `
+███╗   ██╗███████╗ ██████╗ ██╗  ██╗████████╗ ██████╗ ██████╗ 
+████╗  ██║██╔════╝██╔═══██╗██║  ██║╚══██╔══╝██╔═══██╗██╔══██╗
+██╔██╗ ██║█████╗  ██║   ██║███████║   ██║   ██║   ██║██████╔╝
+██║╚██╗██║██╔══╝  ██║   ██║██╔══██║   ██║   ██║   ██║██╔═══╝ 
+██║ ╚████║███████╗╚██████╔╝██║  ██║   ██║   ╚██████╔╝██║     
+╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝     
+`;
+
+export const APP_INFO = {
+  name: "NeoHtop",
+  developer: "Abdenasser",
+  github: "https://github.com/Abdenasser/neohtop",
+  stack: ["Tauri", "Rust", "Svelte", "TypeScript"],
+};
+
+export const ITEMS_PER_PAGE_OPTIONS = [15, 25, 50, 100, 250, 500];
+
+export const REFRESH_RATE_OPTIONS = [
+  { value: 2000, label: "2s" },
+  { value: 3000, label: "3s" },
+  { value: 5000, label: "5s" },
+  { value: 10000, label: "10s" },
+  { value: 30000, label: "30s" },
+];
+
+export const STATUS_OPTIONS = [
+  { value: "all", label: "All Statuses" },
+  { value: "running", label: "Running" },
+  { value: "sleeping", label: "Sleeping" },
+  { value: "idle", label: "Idle" },
+  { value: "unknown", label: "Unknown" },
+];
+
+export const THEME_GROUPS = [
+  {
+    label: "Dark",
+    themes: [
+      "catppuccin",
+      "dracula",
+      "monokaiPro",
+      "tokyoNight",
+      "solarizedDark",
+      "ayuDark",
+      "ayuMirage",
+    ],
+  },
+  {
+    label: "Light",
+    themes: ["githubLight", "solarizedLight", "oneLight", "ayuLight"],
+  },
+  {
+    label: "Warm",
+    themes: ["gruvbox"],
+  },
+  {
+    label: "Cool",
+    themes: ["nord", "oneDark"],
+  },
+  {
+    label: "Fun",
+    themes: ["bubblegum", "rosePine", "cottonCandy", "synthwave", "candyfloss"],
+  },
+  {
+    label: "Retro",
+    themes: ["terminal", "amber", "ibmPC"],
+  },
+  {
+    label: "Accessibility",
+    themes: ["highContrast"],
+  },
+];
+
+=== 1901 src/lib/definitions/columns.ts	ts	module	-
+import type { Column } from "$lib/types";
+import { formatMemorySize } from "$lib/utils";
+
+export let column_definitions: Column[] = [
+  { id: "name", label: "Process Name", visible: true, required: true },
+  { id: "pid", label: "PID", visible: true, required: false },
+  {
+    id: "status",
+    label: "Status",
+    visible: true,
+  },
+  { id: "user", label: "User", visible: true },
+  {
+    id: "cpu_usage",
+    label: "CPU %",
+    visible: true,
+    format: (v) => v.toFixed(1) + "%",
+  },
+  {
+    id: "memory_usage",
+    label: "RAM",
+    visible: true,
+    format: (v) => (v / (1024 * 1024)).toFixed(1) + " MB",
+  },
+  {
+    id: "virtual_memory",
+    label: "VIRT",
+    visible: true,
+    format: (v) => formatMemorySize(v),
+  },
+  {
+    id: "disk_usage",
+    label: "Disk I/O (R/W)",
+    visible: true,
+    format: (v) => {
+      const readMB = (v[0] / (1024 * 1024)).toFixed(1);
+      const writeMB = (v[1] / (1024 * 1024)).toFixed(1);
+      return `${readMB}/${writeMB} MB`;
+    },
+  },
+  { id: "ppid", label: "Parent PID", visible: false },
+  { id: "root", label: "Root", visible: false },
+  { id: "command", label: "Command", visible: false },
+  { id: "environ", label: "Environment Variables", visible: false },
+  { id: "session_id", label: "Session ID", visible: false },
+  {
+    id: "start_time",
+    label: "Start Time",
+    visible: false,
+    format: (v) => new Date(v * 1000).toLocaleString(), // v is the time where the process was started (in seconds) from epoch
+  },
+  {
+    id: "run_time",
+    label: "Run Time",
+    visible: true,
+    format: (v) => {
+      const seconds = v; // v is the time the process has been running in seconds
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainingSeconds = seconds % 60;
+      return `${hours}h ${minutes}m ${remainingSeconds}s`; // Format as HH:MM:SS
+    },
+  },
+];
+
+=== 81 src/lib/definitions/index.ts	ts	module	-
+export * from "./columns";
+export * from "./settings";
+export * from "./themes";
+
+=== 568 src/lib/definitions/settings.ts	ts	module	-
+import type { AppConfig } from "$lib/types";
+
+export const DEFAULT_CONFIG: AppConfig = {
+  appearance: {
+    columnVisibility: {
+      name: true,
+      pid: true,
+      status: true,
+      user: true,
+      cpu_usage: true,
+      memory_usage: true,
+      virtual_memory: true,
+      disk_usage: true,
+      ppid: false,
+      root: false,
+      command: false,
+      environ: false,
+      session_id: false,
+      start_time: false,
+      run_time: true,
+    },
+  },
+  behavior: {
+    itemsPerPage: 15,
+    refreshRate: 3000,
+    defaultStatusFilter: "all",
+  },
+};
+
+=== 18639 src/lib/definitions/themes.ts	ts	module	-
+import type { Theme } from "$lib/types";
+
+export const themes: Record<string, Theme> = {
+  catppuccin: {
+    name: "catppuccin",
+    label: "Catppuccin",
+    colors: {
+      base: "#1e1e2e",
+      mantle: "#181825",
+      crust: "#11111b",
+      text: "#cdd6f4",
+      subtext0: "#a6adc8",
+      subtext1: "#bac2de",
+      surface0: "#313244",
+      surface1: "#45475a",
+      surface2: "#585b70",
+      overlay0: "#6c7086",
+      overlay1: "#7f849c",
+      blue: "#89b4fa",
+      lavender: "#b4befe",
+      sapphire: "#74c7ec",
+      sky: "#89dceb",
+      red: "#f38ba8",
+      maroon: "#eba0ac",
+      peach: "#fab387",
+      yellow: "#f9e2af",
+      green: "#a6e3a1",
+      teal: "#94e2d5",
+    },
+  },
+  dracula: {
+    name: "dracula",
+    label: "Dracula",
+    colors: {
+      base: "#282a36",
+      mantle: "#1e1f29",
+      crust: "#191a21",
+      text: "#f8f8f2",
+      subtext0: "#bfbfbf",
+      subtext1: "#e6e6e6",
+      surface0: "#44475a",
+      surface1: "#6272a4",
+      surface2: "#7970a9",
+      overlay0: "#6272a4",
+      overlay1: "#7970a9",
+      blue: "#8be9fd",
+      lavender: "#bd93f9",
+      sapphire: "#62d6e8",
+      sky: "#89ddff",
+      red: "#ff5555",
+      maroon: "#ff6e6e",
+      peach: "#ffb86c",
+      yellow: "#f1fa8c",
+      green: "#50fa7b",
+      teal: "#8be9fd",
+    },
+  },
+  monokaiPro: {
+    name: "monokaiPro",
+    label: "Monokai Pro",
+    colors: {
+      base: "#2d2a2e",
+      mantle: "#221f22",
+      crust: "#1b1b1b",
+      text: "#fcfcfa",
+      subtext0: "#939293",
+      subtext1: "#c1c0c0",
+      surface0: "#403e41",
+      surface1: "#565457",
+      surface2: "#69676c",
+      overlay0: "#727072",
+      overlay1: "#848486",
+      blue: "#78dce8",
+      lavender: "#ab9df2",
+      sapphire: "#66d9ef",
+      sky: "#78dce8",
+      red: "#ff6188",
+      maroon: "#ff6188",
+      peach: "#fc9867",
+      yellow: "#ffd866",
+      green: "#a9dc76",
+      teal: "#78dce8",
+    },
+  },
+  tokyoNight: {
+    name: "tokyoNight",
+    label: "Tokyo Night",
+    colors: {
+      base: "#1a1b26",
+      mantle: "#16161e",
+      crust: "#13131a",
+      text: "#a9b1d6",
+      subtext0: "#9aa5ce",
+      subtext1: "#9aa5ce",
+      surface0: "#232433",
+      surface1: "#2a2b3d",
+      surface2: "#32344a",
+      overlay0: "#565f89",
+      overlay1: "#6b7089",
+      blue: "#7aa2f7",
+      lavender: "#bb9af7",
+      sapphire: "#7dcfff",
+      sky: "#7dcfff",
+      red: "#f7768e",
+      maroon: "#ff9e64",
+      peach: "#ff9e64",
+      yellow: "#e0af68",
+      green: "#9ece6a",
+      teal: "#2ac3de",
+    },
+  },
+  gruvbox: {
+    name: "gruvbox",
+    label: "Gruvbox Dark",
+    colors: {
+      base: "#282828",
+      mantle: "#1d2021",
+      crust: "#1b1b1b",
+      text: "#ebdbb2",
+      subtext0: "#a89984",
+      subtext1: "#bdae93",
+      surface0: "#3c3836",
+      surface1: "#504945",
+      surface2: "#665c54",
+      overlay0: "#7c6f64",
+      overlay1: "#928374",
+      blue: "#83a598",
+      lavender: "#d3869b",
+      sapphire: "#83a598",
+      sky: "#8ec07c",
+      red: "#fb4934",
+      maroon: "#cc241d",
+      peach: "#fe8019",
+      yellow: "#fabd2f",
+      green: "#b8bb26",
+      teal: "#8ec07c",
+    },
+  },
+  nord: {
+    name: "nord",
+    label: "Nord",
+    colors: {
+      base: "#2e3440",
+      mantle: "#272c36",
+      crust: "#242933",
+      text: "#eceff4",
+      subtext0: "#d8dee9",
+      subtext1: "#e5e9f0",
+      surface0: "#3b4252",
+      surface1: "#434c5e",
+      surface2: "#4c566a",
+      overlay0: "#616e88",
+      overlay1: "#7b88a1",
+      blue: "#88c0d0",
+      lavender: "#b48ead",
+      sapphire: "#81a1c1",
+      sky: "#88c0d0",
+      red: "#bf616a",
+      maroon: "#d08770",
+      peach: "#d08770",
+      yellow: "#ebcb8b",
+      green: "#a3be8c",
+      teal: "#8fbcbb",
+    },
+  },
+  oneDark: {
+    name: "oneDark",
+    label: "One Dark",
+    colors: {
+      base: "#282c34",
+      mantle: "#21252b",
+      crust: "#1b1f23",
+      text: "#abb2bf",
+      subtext0: "#828997",
+      subtext1: "#9da5b4",
+      surface0: "#31353f",
+      surface1: "#393f4a",
+      surface2: "#4b5263",
+      overlay0: "#636d83",
+      overlay1: "#767d8d",
+      blue: "#61afef",
+      lavender: "#c678dd",
+      sapphire: "#56b6c2",
+      sky: "#56b6c2",
+      red: "#e06c75",
+      maroon: "#be5046",
+      peach: "#d19a66",
+      yellow: "#e5c07b",
+      green: "#98c379",
+      teal: "#56b6c2",
+    },
+  },
+  highContrast: {
+    name: "highContrast",
+    label: "High Contrast",
+    colors: {
+      base: "#000000", // Pure black background
+      mantle: "#0a0a0a", // Slightly lighter black for layering
+      crust: "#141414", // Even lighter black for depth
+      text: "#ffffff", // Pure white text
+      subtext0: "#e0e0e0", // Very light grey for secondary text
+      subtext1: "#f0f0f0", // Almost white for important secondary text
+      surface0: "#1a1a1a", // Dark surface for contrast
+      surface1: "#2a2a2a", // Lighter surface for hover states
+      surface2: "#3a3a3a", // Even lighter surface for active states
+      overlay0: "#4a4a4a", // Medium grey for overlays
+      overlay1: "#5a5a5a", // Lighter grey for overlay hover states
+      blue: "#00ffff", // Cyan for primary actions
+      lavender: "#ff00ff", // Magenta for accents
+      sapphire: "#00ccff", // Bright blue for links
+      sky: "#00ffee", // Bright cyan for highlights
+      red: "#ff0000", // Pure red for errors/warnings
+      maroon: "#ff3333", // Lighter red for secondary warnings
+      peach: "#ffaa00", // Bright orange for notifications
+      yellow: "#ffff00", // Pure yellow for important highlights
+      green: "#00ff00", // Pure green for success states
+      teal: "#00ffcc", // Bright teal for special actions
+    },
+  },
+  githubLight: {
+    name: "githubLight",
+    label: "GitHub Light",
+    colors: {
+      base: "#ffffff",
+      mantle: "#f6f8fa",
+      crust: "#eaeef2",
+      text: "#24292f",
+      subtext0: "#57606a",
+      subtext1: "#6e7781",
+      surface0: "#f3f6fa",
+      surface1: "#eaeef2",
+      surface2: "#d0d7de",
+      overlay0: "#8c959f",
+      overlay1: "#6e7781",
+      blue: "#0969da",
+      lavender: "#8250df",
+      sapphire: "#0550ae",
+      sky: "#218bff",
+      red: "#cf222e",
+      maroon: "#a40e26",
+      peach: "#bc4c00",
+      yellow: "#9a6700",
+      green: "#1a7f37",
+      teal: "#0969da",
+    },
+  },
+  solarizedLight: {
+    name: "solarizedLight",
+    label: "Solarized Light",
+    colors: {
+      base: "#fdf6e3",
+      mantle: "#eee8d5",
+      crust: "#e4dcc9",
+      text: "#657b83",
+      subtext0: "#839496",
+      subtext1: "#93a1a1",
+      surface0: "#f7f2e4",
+      surface1: "#eee8d5",
+      surface2: "#dcd4c4",
+      overlay0: "#93a1a1",
+      overlay1: "#839496",
+      blue: "#268bd2",
+      lavender: "#6c71c4",
+      sapphire: "#2aa198",
+      sky: "#2aa198",
+      red: "#dc322f",
+      maroon: "#cb4b16",
+      peach: "#cb4b16",
+      yellow: "#b58900",
+      green: "#859900",
+      teal: "#2aa198",
+    },
+  },
+  solarizedDark: {
+    name: "solarizedDark",
+    label: "Solarized Dark",
+    colors: {
+      base: "#002b36",
+      mantle: "#073642",
+      crust: "#0A4C5C",
+      text: "#839496",
+      subtext0: "#657b83",
+      subtext1: "#586e75",
+      surface0: "#00313D",
+      surface1: "#073642",
+      surface2: "#083C49",
+      overlay0: "#586e75",
+      overlay1: "#657b83",
+      blue: "#268bd2",
+      lavender: "#6c71c4",
+      sapphire: "#2aa198",
+      sky: "#2aa198",
+      red: "#dc322f",
+      maroon: "#cb4b16",
+      peach: "#cb4b16",
+      yellow: "#b58900",
+      green: "#859900",
+      teal: "#2aa198",
+    },
+  },
+  oneLight: {
+    name: "oneLight",
+    label: "One Light",
+    colors: {
+      base: "#fafafa",
+      mantle: "#f0f0f0",
+      crust: "#e5e5e5",
+      text: "#383a42",
+      subtext0: "#4f525e",
+      subtext1: "#696c77",
+      surface0: "#f2f2f2",
+      surface1: "#e5e5e5",
+      surface2: "#d4d4d4",
+      overlay0: "#a0a1a7",
+      overlay1: "#696c77",
+      blue: "#4078f2",
+      lavender: "#a626a4",
+      sapphire: "#0184bc",
+      sky: "#0997b3",
+      red: "#e45649",
+      maroon: "#ca1243",
+      peach: "#d75f00",
+      yellow: "#c18401",
+      green: "#50a14f",
+      teal: "#0184bc",
+    },
+  },
+  bubblegum: {
+    name: "bubblegum",
+    label: "Bubblegum",
+    colors: {
+      base: "#ff9ac1", // Light pink background
+      mantle: "#ffa7cc", // Slightly darker pink
+      crust: "#ffb4d8", // Even darker pink for depth
+      text: "#2d1c2d", // Dark purple text
+      subtext0: "#4b384b", // Medium purple for secondary text
+      subtext1: "#5c465c", // Lighter purple for tertiary text
+      surface0: "#ffc1e0", // Light pink surface
+      surface1: "#ffcee7", // Lighter pink surface
+      surface2: "#ffdaf0", // Even lighter pink surface
+      overlay0: "#7e5c7e", // Muted purple overlay
+      overlay1: "#6e4f6e", // Darker purple overlay
+      blue: "#7287fd", // Soft blue
+      lavender: "#b4befe", // Soft lavender
+      sapphire: "#89dceb", // Soft cyan
+      sky: "#89dceb", // Matching cyan
+      red: "#ff8089", // Soft red
+      maroon: "#ff9999", // Soft maroon
+      peach: "#ffb4a1", // Soft peach
+      yellow: "#ffe5a0", // Soft yellow
+      green: "#a6e3a1", // Soft green
+      teal: "#94e2d5", // Soft teal
+    },
+  },
+  rosePine: {
+    name: "rosePine",
+    label: "Rosé Pine",
+    colors: {
+      base: "#191724", // Deep purple base
+      mantle: "#1f1d2e", // Slightly lighter purple
+      crust: "#26233a", // Even lighter purple
+      text: "#e0def4", // Soft white text
+      subtext0: "#908caa", // Muted purple text
+      subtext1: "#6e6a86", // Darker muted text
+      surface0: "#2a2837", // Surface purple
+      surface1: "#343145", // Lighter surface
+      surface2: "#3e3b54", // Even lighter surface
+      overlay0: "#524f67", // Overlay purple
+      overlay1: "#6e6a86", // Lighter overlay
+      blue: "#9ccfd8", // Soft blue
+      lavender: "#c4a7e7", // Soft lavender
+      sapphire: "#31748f", // Deep blue
+      sky: "#9ccfd8", // Light blue
+      red: "#eb6f92", // Soft pink
+      maroon: "#ebbcba", // Soft rose
+      peach: "#f6c177", // Soft peach
+      yellow: "#f6c177", // Gold
+      green: "#31748f", // Sage
+      teal: "#9ccfd8", // Soft teal
+    },
+  },
+  cottonCandy: {
+    name: "cottonCandy",
+    label: "Cotton Candy",
+    colors: {
+      base: "#f5d1eb", // Light pink
+      mantle: "#f7d7ee", // Slightly darker pink
+      crust: "#fae1f3", // Even darker pink
+      text: "#2d0c3a", // Deep purple text
+      subtext0: "#4a1259", // Medium purple text
+      subtext1: "#671878", // Light purple text
+      surface0: "#f9def1", // Surface pink
+      surface1: "#fde9f5", // Lighter surface
+      surface2: "#fff2fa", // Even lighter surface
+      overlay0: "#b87dd3", // Purple overlay
+      overlay1: "#9c5fb8", // Darker overlay
+      blue: "#79c7ff", // Baby blue
+      lavender: "#d5a6ff", // Soft purple
+      sapphire: "#7cb8ff", // Light blue
+      sky: "#89dcff", // Bright blue
+      red: "#ff9ed2", // Soft pink
+      maroon: "#ff8ac4", // Darker pink
+      peach: "#ffb2c7", // Peachy pink
+      yellow: "#ffffc2", // Pastel yellow
+      green: "#b6ffd7", // Mint green
+      teal: "#89ffea", // Turquoise
+    },
+  },
+  synthwave: {
+    name: "synthwave",
+    label: "Synthwave",
+    colors: {
+      base: "#2b213a", // Deep purple
+      mantle: "#2f2444", // Slightly lighter purple
+      crust: "#33274f", // Even lighter purple
+      text: "#ff7edb", // Neon pink text
+      subtext0: "#e58ee0", // Softer pink text
+      subtext1: "#cb9ee6", // Lavender text
+      surface0: "#392662", // Surface purple
+      surface1: "#443773", // Lighter surface
+      surface2: "#504785", // Even lighter surface
+      overlay0: "#625997", // Purple overlay
+      overlay1: "#7267aa", // Lighter overlay
+      blue: "#36f9f6", // Cyan
+      lavender: "#ff7edb", // Pink
+      sapphire: "#72f1b8", // Mint
+      sky: "#36f9f6", // Bright cyan
+      red: "#fe4450", // Hot red
+      maroon: "#ff558f", // Hot pink
+      peach: "#ff8b39", // Orange
+      yellow: "#fede5d", // Yellow
+      green: "#72f1b8", // Neon green
+      teal: "#36f9f6", // Bright teal
+    },
+  },
+  candyfloss: {
+    name: "candyfloss",
+    label: "Candyfloss",
+    colors: {
+      base: "#f8e2ff", // Light purple
+      mantle: "#ffe2f8", // Pink tint
+      crust: "#ffe9f3", // Lighter pink
+      text: "#5c1b99", // Deep purple text
+      subtext0: "#7a3aaf", // Medium purple text
+      subtext1: "#944bc6", // Light purple text
+      surface0: "#ffeaf8", // Surface pink
+      surface1: "#fff2fb", // Lighter surface
+      surface2: "#fff7fd", // Even lighter surface
+      overlay0: "#d59bff", // Purple overlay
+      overlay1: "#c77dff", // Darker overlay
+      blue: "#79baff", // Soft blue
+      lavender: "#cc8fff", // Light purple
+      sapphire: "#85a5ff", // Periwinkle
+      sky: "#8aceff", // Light blue
+      red: "#ff8fab", // Soft red
+      maroon: "#ff7fa6", // Pink
+      peach: "#ffb2c7", // Peach
+      yellow: "#fff3b2", // Soft yellow
+      green: "#b8ffda", // Mint
+      teal: "#8affef", // Aqua
+    },
+  },
+  terminal: {
+    name: "terminal",
+    label: "Green Terminal",
+    colors: {
+      base: "#0D1117", // Deep black background
+      mantle: "#161B22", // Slightly lighter black
+      crust: "#1B2127", // Terminal border color
+      text: "#00FF00", // Classic terminal green
+      subtext0: "#00D700", // Dimmer green
+      subtext1: "#00BB00", // Even dimmer green
+      surface0: "#1C2128", // Slightly lifted surface
+      surface1: "#21262D", // Terminal input area
+      surface2: "#282E35", // Selected area
+      overlay0: "#008800", // Darker green for overlays
+      overlay1: "#006600", // Even darker green
+      blue: "#00FF00", // Keep everything in green shades
+      lavender: "#00FF66", // Slight variation
+      sapphire: "#00DD88", // Another variation
+      sky: "#00FFBB", // Lighter green
+      red: "#FF0000", // Error red (keep for errors)
+      maroon: "#AA0000", // Darker error
+      peach: "#00FF99", // Another green variation
+      yellow: "#FFFF00", // Warning yellow (keep for warnings)
+      green: "#00FF00", // Main green
+      teal: "#00FFCC", // Cyan-ish green
+    },
+  },
+  amber: {
+    name: "amber",
+    label: "Amber Terminal",
+    colors: {
+      base: "#0D0904", // Deep black with amber tint
+      mantle: "#160E06", // Slightly lighter black
+      crust: "#1B1109", // Terminal border color
+      text: "#FFB000", // Classic amber
+      subtext0: "#CC8800", // Dimmer amber
+      subtext1: "#995500", // Even dimmer amber
+      surface0: "#1C1409", // Slightly lifted surface
+      surface1: "#211909", // Terminal input area
+      surface2: "#281E0A", // Selected area
+      overlay0: "#663300", // Darker amber for overlays
+      overlay1: "#442200", // Even darker amber
+      blue: "#FFB000", // Keep everything in amber shades
+      lavender: "#FFAA00", // Slight variation
+      sapphire: "#FF9500", // Another variation
+      sky: "#FFB000", // Main amber
+      red: "#FF3300", // Error red (keep for errors)
+      maroon: "#CC3300", // Darker error
+      peach: "#FFAA55", // Lighter amber
+      yellow: "#FFDD00", // Warning yellow
+      green: "#FFB000", // Main amber
+      teal: "#FFC000", // Lighter amber
+    },
+  },
+  ibmPC: {
+    name: "ibmPC",
+    label: "IBM PC",
+    colors: {
+      base: "#000000", // Classic black background
+      mantle: "#0A0A0A", // Slightly lighter black
+      crust: "#141414", // Border color
+      text: "#AAAAAA", // Light gray text
+      subtext0: "#888888", // Dimmer text
+      subtext1: "#666666", // Even dimmer text
+      surface0: "#1C1C1C", // Slightly lifted surface
+      surface1: "#212121", // Input area
+      surface2: "#282828", // Selected area
+      overlay0: "#444444", // Overlay
+      overlay1: "#333333", // Darker overlay
+      blue: "#5555FF", // CGA blue
+      lavender: "#FF55FF", // CGA magenta
+      sapphire: "#5555FF", // Another blue
+      sky: "#55FFFF", // CGA cyan
+      red: "#FF5555", // CGA red
+      maroon: "#AA0000", // Darker red
+      peach: "#FF5555", // Another red shade
+      yellow: "#FFFF55", // CGA yellow
+      green: "#55FF55", // CGA green
+      teal: "#55FFFF", // Another cyan
+    },
+  },
+  glassy: {
+    name: "glassy",
+    label: "Glassy",
+    colors: {
+      base: "#1e1e2e",
+      mantle: "#181825",
+      crust: "#11111b",
+      text: "#cdd6f4",
+      subtext0: "#a6adc8",
+      subtext1: "#bac2de",
+      surface0: "#313244",
+      surface1: "#45475a",
+      surface2: "#585b70",
+      overlay0: "#6c7086",
+      overlay1: "#7f849c",
+      blue: "#89b4fa",
+      lavender: "#b4befe",
+      sapphire: "#74c7ec",
+      sky: "#89dceb",
+      red: "#f38ba8",
+      maroon: "#eba0ac",
+      peach: "#fab387",
+      yellow: "#f9e2af",
+      green: "#a6e3a1",
+      teal: "#94e2d5",
+    },
+  },
+  ayuDark: {
+    name: "ayuDark",
+    label: "Ayu Dark",
+    colors: {
+      base: "#0D1017",
+      mantle: "#131721",
+      crust: "#232834",
+      text: "#BFBDB6",
+      subtext0: "#707a8c",
+      subtext1: "#8b939e",
+      surface0: "#0f1419",
+      surface1: "#131721",
+      surface2: "#212733",
+      overlay0: "#E6B450",
+      overlay1: "#434c5e",
+      blue: "#36a3d9",
+      lavender: "#d2a8ff",
+      sapphire: "#0f958a",
+      sky: "#c9d1d9",
+      red: "#D95757",
+      maroon: "#e06c75",
+      peach: "#f07178",
+      yellow: "#ffb454",
+      green: "#b8cc52",
+      teal: "#95e6cb",
+    },
+  },
+  ayuMirage: {
+    name: "ayuMirage",
+    label: "Ayu Mirage",
+    colors: {
+      base: "#242936",
+      mantle: "#1A1F29",
+      crust: "#232834",
+      text: "#CCCAC2",
+      subtext0: "#707a8c",
+      subtext1: "#8b939e",
+      surface0: "#0f1419",
+      surface1: "#131721",
+      surface2: "#212733",
+      overlay0: "#FFCC66",
+      overlay1: "#434c5e",
+      blue: "#36a3d9",
+      lavender: "#d2a8ff",
+      sapphire: "#0f958a",
+      sky: "#c9d1d9",
+      red: "#FF6666",
+      maroon: "#e06c75",
+      peach: "#f07178",
+      yellow: "#ffb454",
+      green: "#b8cc52",
+      teal: "#95e6cb",
+    },
+  },
+  ayuLight: {
+    name: "ayuLight",
+    label: "Ayu Light",
+    colors: {
+      base: "#FCFCFC",
+      mantle: "#8A91991A",
+      crust: "#eaeef2",
+      text: "#5C6166",
+      subtext0: "#57606a",
+      subtext1: "#6e7781",
+      surface0: "#f3f6fa",
+      surface1: "#eaeef2",
+      surface2: "#d0d7de",
+      overlay0: "#FFAA33",
+      overlay1: "#6e7781",
+      blue: "#0969da",
+      lavender: "#8250df",
+      sapphire: "#0550ae",
+      sky: "#218bff",
+      red: "#E65050",
+      maroon: "#a40e26",
+      peach: "#bc4c00",
+      yellow: "#9a6700",
+      green: "#1a7f37",
+      teal: "#0969da",
+    },
+  },
+};
+
+=== 109 src/lib/stores/index.ts	ts	module	-
+export * from "./processes";
+export * from "./theme";
+export * from "./settings";
+export * from "./overlay";
+
+=== 655 src/lib/stores/overlay.ts	ts	module	-
+import { writable } from "svelte/store";
+
+type OverlayType =
+  | "pagination"
+  | "refresh"
+  | "columns"
+  | "theme"
+  | "searchHelp"
+  | "filters"
+  | "status"
+  | null;
+
+function createOverlayStore() {
+  const { subscribe, set } = writable<OverlayType>(null);
+
+  return {
+    subscribe,
+    open: (overlayType: OverlayType) => set(overlayType),
+    close: () => set(null),
+    isOpen: (overlayType: OverlayType) => {
+      let currentValue: OverlayType = null;
+      subscribe((value) => (currentValue = value))();
+      return currentValue === overlayType;
+    },
+  };
+}
+
+export const overlayStore = createOverlayStore();
+export default overlayStore;
+
+=== 5289 src/lib/stores/processes.ts	ts	module	-
+import { writable, derived } from "svelte/store";
+import type { Process, SystemStats } from "$lib/types";
+import { invoke } from "@tauri-apps/api/core";
+
+interface ProcessStore {
+  processes: Process[];
+  systemStats: SystemStats | null;
+  error: string | null;
+  isLoading: boolean;
+  searchTerm: string;
+  currentPage: number;
+  pinnedProcesses: Set<string>;
+  selectedProcess: Process | null;
+  showInfoModal: boolean;
+  showConfirmModal: boolean;
+  processToKill: Process | null;
+  isKilling: boolean;
+  isFrozen: boolean;
+  selectedProcessPid: number | null;
+  sortConfig: {
+    field: keyof Process;
+    direction: "asc" | "desc";
+  };
+}
+
+const initialState: ProcessStore = {
+  processes: [],
+  systemStats: null,
+  error: null,
+  isLoading: true,
+  searchTerm: "",
+  currentPage: 1,
+  pinnedProcesses: new Set(),
+  selectedProcess: null,
+  showInfoModal: false,
+  showConfirmModal: false,
+  processToKill: null,
+  isKilling: false,
+  isFrozen: false,
+  selectedProcessPid: null,
+  sortConfig: {
+    field: "cpu_usage",
+    direction: "desc",
+  },
+};
+
+function createProcessStore() {
+  const { subscribe, set, update } = writable<ProcessStore>(initialState);
+
+  // Define all methods first
+  const setIsLoading = (isLoading: boolean) =>
+    update((state) => ({ ...state, isLoading }));
+
+  const getProcesses = async () => {
+    try {
+      const result = await invoke<[Process[], SystemStats]>("get_processes");
+      update((state) => {
+        let updatedSelectedProcess = state.selectedProcess;
+        if (state.selectedProcessPid) {
+          updatedSelectedProcess =
+            result[0].find((p) => p.pid === state.selectedProcessPid) || null;
+        }
+
+        return {
+          ...state,
+          processes: result[0],
+          systemStats: result[1],
+          error: null,
+          selectedProcess: updatedSelectedProcess,
+        };
+      });
+    } catch (e: unknown) {
+      update((state) => ({
+        ...state,
+        error: e instanceof Error ? e.message : String(e),
+      }));
+    }
+  };
+
+  const killProcess = async (pid: number) => {
+    try {
+      update((state) => ({ ...state, isKilling: true }));
+      const success = await invoke<boolean>("kill_process", { pid });
+      if (success) {
+        await getProcesses();
+      } else {
+        throw new Error("Failed to kill process");
+      }
+    } catch (e: unknown) {
+      update((state) => ({
+        ...state,
+        error: e instanceof Error ? e.message : String(e),
+      }));
+    } finally {
+      update((state) => ({ ...state, isKilling: false }));
+    }
+  };
+
+  const toggleSort = (field: keyof Process) => {
+    update((state) => ({
+      ...state,
+      sortConfig: {
+        field,
+        direction:
+          state.sortConfig.field === field
+            ? state.sortConfig.direction === "asc"
+              ? "desc"
+              : "asc"
+            : "desc",
+      },
+    }));
+  };
+
+  const togglePin = (command: string) => {
+    update((state) => {
+      const newPinnedProcesses = new Set(state.pinnedProcesses);
+      if (newPinnedProcesses.has(command)) {
+        newPinnedProcesses.delete(command);
+      } else {
+        newPinnedProcesses.add(command);
+      }
+      return { ...state, pinnedProcesses: newPinnedProcesses };
+    });
+  };
+
+  const setSearchTerm = (searchTerm: string) =>
+    update((state) => ({ ...state, searchTerm, currentPage: 1 }));
+
+  const setIsFrozen = (isFrozen: boolean) =>
+    update((state) => ({ ...state, isFrozen }));
+
+  const setCurrentPage = (currentPage: number) =>
+    update((state) => ({ ...state, currentPage }));
+
+  const showProcessDetails = (process: Process) => {
+    update((state) => ({
+      ...state,
+      selectedProcessPid: process.pid,
+      selectedProcess: process,
+      showInfoModal: true,
+    }));
+  };
+
+  const closeProcessDetails = () => {
+    update((state) => ({
+      ...state,
+      showInfoModal: false,
+      selectedProcess: null,
+      selectedProcessPid: null,
+    }));
+  };
+
+  const confirmKillProcess = (process: Process) => {
+    update((state) => ({
+      ...state,
+      processToKill: process,
+      showConfirmModal: true,
+    }));
+  };
+
+  const closeConfirmKill = () => {
+    update((state) => ({
+      ...state,
+      showConfirmModal: false,
+      processToKill: null,
+    }));
+  };
+
+  const handleConfirmKill = async () => {
+    let processToKill: Process | null = null;
+
+    let currentState: ProcessStore | undefined;
+    const unsubscribe = subscribe((state) => {
+      currentState = state;
+    });
+    unsubscribe();
+
+    if (currentState?.processToKill && "pid" in currentState.processToKill) {
+      processToKill = currentState.processToKill;
+    }
+
+    if (!processToKill?.pid) {
+      return;
+    }
+
+    try {
+      await killProcess(processToKill.pid);
+    } finally {
+      update((state) => ({
+        ...state,
+        showConfirmModal: false,
+        processToKill: null,
+      }));
+    }
+  };
+
+  // Return all methods
+  return {
+    subscribe,
+    set,
+    update,
+    setIsLoading,
+    getProcesses,
+    killProcess,
+    toggleSort,
+    togglePin,
+    setSearchTerm,
+    setIsFrozen,
+    setCurrentPage,
+    showProcessDetails,
+    closeProcessDetails,
+    confirmKillProcess,
+    closeConfirmKill,
+    handleConfirmKill,
+  };
+}
+
+export const processStore = createProcessStore();
+
+=== 1065 src/lib/stores/settings.ts	ts	module	-
+import { writable } from "svelte/store";
+import type { AppConfig } from "$lib/types";
+import { DEFAULT_CONFIG } from "$lib/definitions/settings";
+
+function createSettingsStore() {
+  const { subscribe, set, update } = writable<AppConfig>(DEFAULT_CONFIG);
+
+  return {
+    subscribe,
+    init: () => {
+      if (typeof window !== "undefined") {
+        const stored = localStorage.getItem("neohtop_config");
+        if (stored) {
+          try {
+            const config = JSON.parse(stored);
+            set({ ...DEFAULT_CONFIG, ...config });
+          } catch (e) {
+            console.error("Failed to parse stored config:", e);
+            set(DEFAULT_CONFIG);
+          }
+        }
+      }
+    },
+    updateConfig: (newConfig: Partial<AppConfig>) => {
+      update((config) => {
+        const updated = { ...config, ...newConfig };
+        if (typeof window !== "undefined") {
+          localStorage.setItem("neohtop_config", JSON.stringify(updated));
+        }
+        return updated;
+      });
+    },
+  };
+}
+
+export const settingsStore = createSettingsStore();
+
+=== 1732 src/lib/stores/theme.ts	ts	module	-
+import { writable } from "svelte/store";
+import { themes } from "$lib/definitions/themes";
+import type { Theme } from "$lib/types";
+function createThemeStore() {
+  // Default theme
+  const defaultTheme = themes.catppuccin;
+
+  // Initialize with default theme
+  const { subscribe, set } = writable<Theme>(defaultTheme);
+
+  // Initialize theme on client-side only
+  if (typeof window !== "undefined") {
+    const storedTheme = localStorage.getItem("theme");
+    if (storedTheme && themes[storedTheme]) {
+      set(themes[storedTheme]);
+    }
+  }
+
+  return {
+    subscribe,
+    setTheme: (themeName: string) => {
+      const theme = themes[themeName];
+      if (theme) {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("theme", themeName);
+          // Add this line to set the data-theme attribute
+          document.documentElement.setAttribute("data-theme", themeName);
+        }
+        set(theme);
+        applyTheme(theme);
+      }
+    },
+    init: () => {
+      const storedTheme =
+        typeof window !== "undefined" ? localStorage.getItem("theme") : null;
+      const theme = (storedTheme && themes[storedTheme]) || defaultTheme;
+      if (typeof window !== "undefined") {
+        // Add this line to set the data-theme attribute on init
+        document.documentElement.setAttribute(
+          "data-theme",
+          storedTheme || "catppuccin",
+        );
+      }
+      applyTheme(theme);
+    },
+  };
+}
+
+function applyTheme(theme: Theme) {
+  if (typeof window !== "undefined") {
+    const root = document.documentElement;
+    Object.entries(theme.colors).forEach(([key, value]) => {
+      root.style.setProperty(`--${key}`, value);
+    });
+  }
+}
+
+export const themeStore = createThemeStore();
+
+=== 2219 src/lib/types/index.ts	ts	module	-
+// Create a new types file to centralize interfaces
+export interface Process {
+  pid: number;
+  ppid: number;
+  name: string;
+  cpu_usage: number;
+  memory_usage: number;
+  status: string;
+  user: string;
+  command: string;
+  threads?: number;
+  environ: string[];
+  root: string;
+  virtual_memory: number;
+  start_time: number;
+  run_time: number;
+  disk_usage: [number, number]; // [read_bytes, written_bytes]
+  session_id?: number;
+}
+
+export interface SystemStats {
+  cpu_usage: number[];
+  memory_total: number;
+  memory_used: number;
+  memory_free: number;
+  memory_cached: number;
+  uptime: number;
+  load_avg: [number, number, number];
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+  disk_total_bytes: number;
+  disk_used_bytes: number;
+  disk_free_bytes: number;
+}
+
+export interface Column {
+  id: keyof Process;
+  label: string;
+  visible: boolean;
+  required?: boolean;
+  format?: (value: any) => string;
+}
+
+export interface Theme {
+  name: string;
+  label: string;
+  colors: {
+    base: string;
+    mantle: string;
+    crust: string;
+    text: string;
+    subtext0: string;
+    subtext1: string;
+    surface0: string;
+    surface1: string;
+    surface2: string;
+    overlay0: string;
+    overlay1: string;
+    blue: string;
+    lavender: string;
+    sapphire: string;
+    sky: string;
+    red: string;
+    maroon: string;
+    peach: string;
+    yellow: string;
+    green: string;
+    teal: string;
+  };
+}
+
+export interface AppConfig {
+  appearance: {
+    columnVisibility: Record<string, boolean>;
+  };
+  behavior: {
+    itemsPerPage: number;
+    refreshRate: number;
+    defaultStatusFilter: string;
+  };
+}
+
+export interface ColumnDefinition {
+  id: string;
+  label: string;
+  visible: boolean;
+  required?: boolean;
+}
+
+export interface StatusOption {
+  value: string;
+  label: string;
+}
+
+export interface RefreshRateOption {
+  value: number;
+  label: string;
+}
+
+export interface ToolBarProps {
+  searchTerm: string;
+  statusFilter: string;
+  itemsPerPage: number;
+  currentPage: number;
+  totalPages: number;
+  totalResults: number;
+  columns: ColumnDefinition[];
+  refreshRate: number;
+  isFrozen: boolean;
+}
+
+export interface SortConfig {
+  field: keyof Process;
+  direction: "asc" | "desc";
+}
+
+=== 7250 src/lib/utils/index.ts	ts	module	-
+import type { Process } from "$lib/types";
+import type { SortConfig } from "$lib/types";
+
+export interface ProcessStatus {
+  label: string;
+  emoji: string;
+  color: string;
+}
+
+export function formatMemorySize(bytes: number): string {
+  const gb = bytes / (1024 * 1024 * 1024);
+  return `${gb.toFixed(1)} GB`;
+}
+
+export function formatPercentage(value: number): string {
+  return `${value.toFixed(1)}%`;
+}
+
+export function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${days}d ${hours}h ${minutes}m`;
+}
+
+export function getUsageClass(percentage: number): string {
+  if (percentage >= 90) return "critical";
+  if (percentage >= 60) return "high";
+  if (percentage >= 30) return "medium";
+  return "low";
+}
+
+export function formatBytes(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unitIndex = 0;
+
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+
+  return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+export function formatDate(timestamp: number) {
+  return new Date(timestamp * 1000).toLocaleString();
+}
+
+// Debounce utility to reduce frequency of expensive operations
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number,
+): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+// Cache for compiled regex patterns
+const regexCache = new Map<string, RegExp>();
+
+export function filterProcesses(
+  processes: Process[],
+  searchTerm: string,
+  filters: {
+    cpu: { operator: string; value: number; enabled: boolean };
+    ram: { operator: string; value: number; enabled: boolean };
+    runtime: { operator: string; value: number; enabled: boolean };
+    status: { values: string[]; enabled: boolean };
+  },
+): Process[] {
+  // Early return for empty search and no active filters
+  if (
+    searchTerm.length === 0 &&
+    !Object.values(filters).some((f) => f.enabled)
+  ) {
+    return processes;
+  }
+
+  // Pre-process search terms once
+  const terms =
+    searchTerm.length > 0
+      ? searchTerm.split(",").map((term) => term.trim())
+      : [];
+
+  return processes.filter((process) => {
+    // Apply status filter
+    if (filters.status.enabled && filters.status.values.length > 0) {
+      if (!filters.status.values.includes(process.status)) {
+        return false;
+      }
+    }
+
+    // Apply CPU filter
+    if (filters.cpu.enabled) {
+      const cpuValue = process.cpu_usage;
+      if (!compareValue(cpuValue, filters.cpu.operator, filters.cpu.value)) {
+        return false;
+      }
+    }
+
+    // Apply RAM filter (convert bytes to MB)
+    if (filters.ram.enabled) {
+      const ramMB = process.memory_usage / (1024 * 1024);
+      if (!compareValue(ramMB, filters.ram.operator, filters.ram.value)) {
+        return false;
+      }
+    }
+
+    // Apply runtime filter (convert to minutes)
+    if (filters.runtime.enabled) {
+      const runtimeMin = process.run_time / 60;
+      if (
+        !compareValue(
+          runtimeMin,
+          filters.runtime.operator,
+          filters.runtime.value,
+        )
+      ) {
+        return false;
+      }
+    }
+
+    // Skip search if no terms
+    if (terms.length === 0) {
+      return true;
+    }
+
+    // Cache lowercase values
+    const processNameLower = process.name.toLowerCase();
+    const processCommandLower = process.command.toLowerCase();
+    const processPidString = process.pid.toString();
+
+    // Check each term
+    return terms.some((term) => {
+      const termLower = term.toLowerCase();
+
+      // Try exact matches first (faster)
+      if (
+        processNameLower.includes(termLower) ||
+        processCommandLower.includes(termLower) ||
+        processPidString.includes(term)
+      ) {
+        return true;
+      }
+
+      // Try regex match last (slower)
+      try {
+        let regex = regexCache.get(term);
+        if (!regex) {
+          regex = new RegExp(term, "i");
+          regexCache.set(term, regex);
+        }
+        return regex.test(process.name);
+      } catch {
+        return false;
+      }
+    });
+  });
+}
+
+// Helper function to compare values based on operator
+function compareValue(
+  value: number,
+  operator: string,
+  target: number,
+): boolean {
+  switch (operator) {
+    case ">":
+      return value > target;
+    case "<":
+      return value < target;
+    case "=":
+      return value === target;
+    case ">=":
+      return value >= target;
+    case "<=":
+      return value <= target;
+    default:
+      return true;
+  }
+}
+
+// Create a Map for quick pinned status lookup
+const isPinned = new Map<string, boolean>();
+
+export function sortProcesses(
+  processes: Process[],
+  sortConfig: SortConfig,
+  pinnedProcesses: Set<string>,
+): Process[] {
+  // Clear the cache before sorting
+  isPinned.clear();
+
+  return [...processes].sort((a, b) => {
+    // Cache pinned status
+    let aPin = pinnedProcesses.has(a.command);
+    isPinned.set(a.command, aPin);
+
+    let bPin = pinnedProcesses.has(b.command);
+    isPinned.set(b.command, bPin);
+
+    // Quick pin comparison
+    if (aPin !== bPin) {
+      return aPin ? -1 : 1;
+    }
+
+    // Only compute direction once
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+    const aValue = a[sortConfig.field];
+    const bValue = b[sortConfig.field];
+
+    // Special handling for disk_usage which is an array [read_bytes, written_bytes]
+    if (sortConfig.field === "disk_usage") {
+      const aRead = (aValue as [number, number])[0];
+      const aWrite = (aValue as [number, number])[1];
+      const bRead = (bValue as [number, number])[0];
+      const bWrite = (bValue as [number, number])[1];
+
+      // Smart sorting: analyze if this is a read-heavy or write-heavy comparison
+      const totalReads = aRead + bRead;
+      const totalWrites = aWrite + bWrite;
+
+      if (totalWrites > totalReads * 1.5) {
+        // Write-heavy scenario: prioritize writes, use reads as tiebreaker
+        if (aWrite !== bWrite) {
+          return direction * (aWrite - bWrite);
+        }
+        return direction * (aRead - bRead);
+      } else if (totalReads > totalWrites * 1.5) {
+        // Read-heavy scenario: prioritize reads, use writes as tiebreaker
+        if (aRead !== bRead) {
+          return direction * (aRead - bRead);
+        }
+        return direction * (aWrite - bWrite);
+      } else {
+        // Balanced I/O: sort by total, use max as tiebreaker
+        const aTotalDisk = aRead + aWrite;
+        const bTotalDisk = bRead + bWrite;
+        if (aTotalDisk !== bTotalDisk) {
+          return direction * (aTotalDisk - bTotalDisk);
+        }
+        // Tiebreaker: use the dominant operation
+        const aMaxDisk = Math.max(aRead, aWrite);
+        const bMaxDisk = Math.max(bRead, bWrite);
+        return direction * (aMaxDisk - bMaxDisk);
+      }
+    }
+
+    // Type-specific comparisons
+    if (typeof aValue === "string") {
+      return direction * aValue.localeCompare(bValue as string);
+    }
+    return direction * (Number(aValue) - Number(bValue));
+  });
+}
+
 === 52 src/routes/+layout.svelte	svelte	runes	neutral
 <script>
   import "../app.css";

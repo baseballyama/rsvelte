@@ -428,3 +428,84 @@ fn typecheck_reports_a_let_whose_name_ends_in_an_astral_character_at_its_start()
             .native()
     );
 }
+
+/// svelte2tsx makes the slot function that reads `$$Slots` between its ignore comments, so a
+/// `$$Slots` declared inside a function, which the top level does not see, reports nothing. The
+/// slot's name is outside them. svelte-check 4.7.8 reports this one line.
+#[test]
+fn typecheck_hides_what_the_slot_function_reads_of_a_nested_slots_interface() {
+    let nested = |slot: &str| {
+        format!(
+            "<script lang=\"ts\">\n  function setup() {{\n    interface $$Slots {{\n      \
+             default: {{}};\n    }}\n  }}\n</script>\n\n{slot}\n"
+        )
+    };
+    let report = check(&[
+        ("src/Nested.svelte", &nested("<slot name=\"named\" />")),
+        ("src/NestedValid.svelte", &nested("<slot />")),
+        (
+            "src/TopLevel.svelte",
+            "<script lang=\"ts\">\n  interface $$Slots {\n    default: {};\n  }\n</script>\n\n\
+             <slot name=\"named\" />\n",
+        ),
+    ]);
+    assert_eq!(
+        report,
+        "src/TopLevel.svelte(7,13): error TS2345: Argument of type '\"named\"' is not assignable \
+         to parameter of type '\"default\"'.\n\
+         \nFound 1 error in 1 file.\n"
+            .native(),
+    );
+}
+
+/// A slot that misses a required prop reports at its start tag. svelte-check 4.7.8 reports these
+/// lines, with TypeScript 6's TS2345 where TypeScript 7 reports TS2741 (`DIVERGENCES.md`, "The
+/// TypeScript 7 checker"). Without attributes, the props' braces map to `<slot` here, where
+/// svelte-check reports `<slot/>`, `<slot></slot>` and `<slot>fallback</slot>` one character after
+/// it, and `<slot  />`, `<slot name="named" />` and a named slot whose attribute is on the next
+/// line six characters after it.
+#[test]
+fn typecheck_reports_a_missing_slot_prop_at_the_slot_tag() {
+    let tags = [
+        "<slot />",
+        "<slot/>",
+        "<slot></slot>",
+        "<slot  />",
+        "<slot name=\"named\" />",
+        "<slot b={1} />",
+        "<slot name=\"named\" b={1}></slot>",
+        "<div><slot /></div>",
+        "<slot>fallback</slot>",
+        "<slot\n  name=\"named\"\n/>",
+    ];
+    let components: Vec<(String, String)> = (tags.iter().enumerate())
+        .map(|(i, tag)| {
+            (
+                format!("src/V{:02}.svelte", i + 1),
+                format!(
+                    "<script lang=\"ts\">\n  type $$Slots = {{ default: {{ x: number }}; named: \
+                     {{ x: number }} }};\n</script>\n{tag}\n"
+                ),
+            )
+        })
+        .collect();
+    let files: Vec<(&str, &str)> = (components.iter())
+        .map(|(path, text)| (path.as_str(), text.as_str()))
+        .collect();
+    let missing = "error TS2741: Property 'x' is missing in type '{}' but required in type '{ x: \
+                   number; }'.";
+    let unknown = "error TS2353: Object literal may only specify known properties, and '\"b\"' \
+                   does not exist in type '{ x: number; }'.";
+    assert_eq!(
+        check(&files),
+        format!(
+            "src/V01.svelte(4,1): {missing}\nsrc/V02.svelte(4,1): {missing}\n\
+             src/V03.svelte(4,1): {missing}\nsrc/V04.svelte(4,1): {missing}\n\
+             src/V05.svelte(4,1): {missing}\nsrc/V06.svelte(4,7): {unknown}\n\
+             src/V07.svelte(4,20): {unknown}\nsrc/V08.svelte(4,6): {missing}\n\
+             src/V09.svelte(4,1): {missing}\nsrc/V10.svelte(4,1): {missing}\n\
+             \nFound 10 errors in 10 files.\n"
+        )
+        .native(),
+    );
+}

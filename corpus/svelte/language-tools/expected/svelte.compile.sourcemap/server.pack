@@ -1,0 +1,1483 @@
+# rsvelte pack 1
+=== 81 packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	js.map
+{"version":3,"mappings":";;AACI,CAAC,EAAE,OAAO,CAAC,GAAG,CAAC,KAAK,CAAC,CAAC;;"}
+
+=== 32 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action-rel.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 125 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action-ts.svelte	js.map
+{"version":3,"mappings":";;iEAAA,CAAC;CAIG,KAAK,CAAC,CAAI,GAAG,EAAE,CAAC,EAAE,IAAI,EAAE,CAAC;;;;KAKxB,IAAI;;;;;;;AAJD,CAAC"}
+
+=== 140 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action.svelte	js.map
+{"version":3,"mappings":";;8DAUA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,EAAE,CAAE;CAEvB,GAAG,CAAC,CAAC,GAAG,KAAK,CAAC;;;;KAXV,IAAI;;;;;;;AAYD,CAAC"}
+
+=== 123 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-correct-script-placement.svelte	js.map
+{"version":3,"mappings":";;2EAKA,CAAC;CACA,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;;;AACX,CAAC"}
+
+=== 92 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,MAAM,MAAM,0BAA0B,CAAC;;0CADlD,CAAC;;;;;AAEO,CAAC"}
+
+=== 262 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EAQG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;;EAEzC,QAAQ,CAAC,KAAK,EAAE,KAAK,CAAC,CAAC;;;EAEvB,QAAQ,CAAC,KAAK,EAAE,IAAI,CAAC,CAAC;;EACtB,QAAQ,CAAC,OAAO,EAAE,EAAE,CAAC,CAAC;;CAClB,CAAC;"}
+
+=== 52 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$generic-filter-out-unused/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;;AAIO,CAAC"}
+
+=== 173 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props-usage/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,+BAA+B,CAAC;AAElD,MAAM,CAAC,aAAa,MAAM,2BAA2B,CAAC;;0CAH1D,CAAC;;;;;;EAQyB,IAAI;;;;gCAEZ,IAAI;;0EACkC,IAAI;;;;AAPpD,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,kBAAkB,CAAC;;0CADzC,CAAC;;AAEO,CAAC"}
+
+=== 208 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,yBAAyB,CAAC;;0CADhD,CAAC;;;;;uCAKI,MAAM,KAAK,IAAI;eACf,mBAAmB,KAAK,IAAI;eAC5B,YAAY;;;;gDAER,MAAM,KAAK,IAAI;mBACf,mBAAmB,KAAK,IAAI;mBAC5B,YAAY;;;;AATb,CAAC"}
+
+=== 163 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;kDAaa,IAAI,uBAAuB,IAAI;;kDAC/B,IAAI,gBAAgB,IAAI;;8CACb,IAAI,uBAAuB,IAAI;;8CAC/B,IAAI,gBAAgB,IAAI;;gDACtB,IAAI;;AANvB,CAAC"}
+
+=== 168 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$bindable-reassign.v5/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EACA,GAAG,SAAc,EACjB,IAAI,EACP,WAAY;;EAEb,SAAS,OAAO,GAAG,CAAC;GAChB,GAAG,GAAG,EAAE,CAAC;EACb,CAAC;;;;CACG,CAAC;"}
+
+=== 501 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-bind/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;AACxC,MAAM,GAAG,SAAS,QAAQ,cAAc,CAAA;;;sCAF1C,CAAC;;EAIC,KAAK,CAAC,OAAO,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;EAC5B,KAAK,CAAC,SAAS,GAAG,QAAQ,CAAC,IAAI,CAAC,CAAC;EACjC,KAAK,CAAC,UAAU,GAAG,QAAQ,CAAC,EAAC,GAAG,EAAE,CAAC,EAAC,CAAC,CAAC;EACtC,KAAK,CAAC,YAAY,GAAG,QAAQ,CAAC,EAAC,GAAG,EAAE,IAAI,EAAC,CAAC,CAAC;;;;;;;;;;;;;;;;;;;;;;YAOvB,4DAAY,GAAG;;;;oEAAf,4DAAY,GAAG;;;;;;;;;;;;;;;;;;;;;;YAMf,gEAAc,GAAG;;;;wEAAjB,gEAAc,GAAG;;;;;;;;;;;;;;;;;CAZ/B,CAAC;"}
+
+=== 1247 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-control-flow/input.svelte	js.map
+{"version":3,"mappings":";AAKA,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;AAJpC,KAAK,CAAC,WAAW,GAAG,QAAQ,CAAsC,EAAC,CAAC,EAAE,IAAI,EAAC,CAAC,CAAC;;;sCAGjF,CAAC;;EAGD,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAqD,EAAC,CAAC,EAAE,IAAI,EAAC,CAAC,CAAC;;EACtF,SAAS,SAAS,CAAC,CAAmB,EAAgB,CAAC;GACnD,MAAM,CAAC,CAAC,CAAC,CAAC,CAAC;EACf,CAAC;;EACD,GAAG,CAAC,IAAa,CAAC;;EAElB,EAAE,qDAAU,CAAC;GACT,EAAE,EAAE,MAAM,CAAC,kDAAO,CAAC,KAAK,QAAQ,EAAE,CAAC;IAC/B,IAAI,GAAG,kDAAO,CAAC,KAAK,QAAQ,IAAI,kDAAO,CAAC,KAAK,IAAI,CAAC;GACtD,CAAC,MAAM,CAAC;IACJ,EAAE,EAAE,SAAS,CAAC,kDAAO,CAAC,CAAC,CAAC,CAAC,EAAE,CAAC;KACxB,IAAI,GAAG,kDAAO,CAAC,CAAC,CAAC,CAAC;KAClB,IAAI,CAAC;IACT,CAAC,MAAM,CAAC;KACJ,IAAI,GAAG,kDAAO,CAAC,CAAC,CAAC,CAAC;IACtB,CAAC;GACL,CAAC;EACL,CAAC;;EAED,EAAE,iEAAgB,CAAC;GACf,EAAE,EAAE,MAAM,CAAC,8DAAa,CAAC,KAAK,QAAQ,EAAE,CAAC;IACrC,IAAI,GAAG,8DAAa,CAAC,KAAK,QAAQ,IAAI,8DAAa,CAAC,KAAK,IAAI,CAAC;GAClE,CAAC;EACL,CAAC;;;;;OAIQ,MAAM,CAAC,kDAAO,CAAC,KAAK,QAAQ;yCAC5B,IAAI,GAAG,kDAAO,CAAC,KAAK,QAAQ,IAAI,kDAAO,CAAC,KAAK,IAAI;;;;QAE7C,SAAS,CAAC,kDAAO,CAAC,CAAC,CAAC,CAAC;0CACrB,IAAI,GAAG,kDAAO,CAAC,CAAC,CAAC;;2CAEjB,IAAI,GAAG,kDAAO,CAAC,CAAC,CAAC;;;;;;;;;;;;;;;;OAMrB,MAAM,CAAC,8DAAa,CAAC,KAAK,QAAQ;yCAClC,IAAI,GAAG,8DAAa,CAAC,KAAK,QAAQ,IAAI,8DAAa,CAAC,KAAK,IAAI;;;;;;;;;;;;;CAhB9D,CAAC;"}
+
+=== 322 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-undefined/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CAMC,GAAG,CAAC,cAA+C,CAAC;;;CAEpD,oEAAgB,EAAE,EAAE,CAAC;;CACrB,KAAK,CAAC,OAAO,GAAG;IAAkB,oEAAgB,EAAE,EAAE,KAAK,GAAG;IAAG,KAAK,CAAC;;CAAA,OAAO,CAAC;;;CAE/E,qEAAiB,EAAE,EAAE,CAAC;;CACtB,KAAK,CAAC,OAAO,GAAG;IAAkB,oEAAgB,EAAE,EAAE,KAAK,CAAC;IAAG,KAAK,CAAC;;CAAA,OAAO,CAAC;;;AACvE,CAAC"}
+
+=== 93 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-uninitialized/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CAGA,GAAG,CAAC,IAAuB,CAAC;;CAC5B,gDAAM;;;;AACC,CAAC"}
+
+=== 186 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	js.map
+{"version":3,"mappings":";;AACI,KAAK,CAAC,aAAa,GAAG,aAAa,CAAC;;0CAGxC,CAAC;;CACD,GAAG,CAAC,KAAK,GAAG,aAAa,CAAC;;CAC1B,kDAAO;;CACP,EAAE,qDAAS,CAAC,CAAC;;CACb,kEAAe;;;;;;;;;;;;AACP,CAAC"}
+
+=== 379 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,SAAS,MAAM,CAAC,IAAS,EAAE,CAAC;EACxB,IAAI,CAAC;;EACL,MAAM,CAAC;;GAEH,aAAa,EAAE;IACX,GAAG,EAAE,QAAQ;IACb,QAAQ,EAAE,CAAC,CAAuB,KAAK,CAAC;KAAA,CAAC,CAAC;IAAA,CAAC;IAC9C;GACJ,CAAA;CACL,CAAC;;CAED,SAAS,KAAK,CAAC,CAAuB,EAAE,CAAC;EACrC,CAAC,CAAC;CACN,CAAC;;CAED,SAAS,UAAU,CAAC,CAAsB,EAAE,CAAC;EACzC,CAAC,CAAC;CACN,CAAC;;8DAOgB,CAAC;AANd,CAAC"}
+
+=== 243 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAC;;0CAD/C,CAAC;CAGG,GAAG,CAAC,OAAO,GAAG,KAAK,CAAC;CACpB,GAAG,CAAC,KAAoB,GAAG,KAAK,CAAC;;;;;;;MAKhC,OAAO,KAAK,IAAI;;;;;;;;MAIhB,KAAK,KAAK,KAAK;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AARZ,CAAC"}
+
+=== 169 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/Runes.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,QAAQ,EAAE,QAAQ,SAAc,EAA4C,WAAY;;EAEvF,SAAS,SAAS,GAAG,CAAC;GACzB,MAAM,CAAC,IAAI,CAAC;EAChB,CAAC;;;CACG,CAAC;"}
+
+=== 169 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/RunesGeneric.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,QAAQ,EAAE,QAAQ,SAAc,EAAkC,WAAY;;EAE7E,SAAS,SAAS,GAAG,CAAC;GACzB,MAAM,CAAC,IAAI,CAAC;EAChB,CAAC;;;CACG,CAAC;"}
+
+=== 572 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;AACrC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;AACnC,MAAM,CAAC,YAAY,MAAM,uBAAuB,CAAC;;0CAHrD,CAAC;CAKG,GAAG,CAAC,aAA4B,CAAC;CACjC,GAAG,CAAC,KAAK,GAAG,EAAE,CAAC;CAEf,GAAG,CAAC,SAAwB,CAAC;CAC7B,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAC;CAClB,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAA;CAEjB,GAAG,CAAC,QAAkC,CAAC;;CACvC,QAAQ,CAAE,SAAS,EAAE,KAAK,IAAI,CAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;uBAM1B,KAAK;;uBACL,aAAa;;;;;;;;;;;;;;;sBAEd,QAAQ;;sBACR,QAAQ;;;;;;;;;;;;;;;;;;;;;;;;;;;;sBAKR,SAAS;;;;;;;;;;;;;;;;;;;;;;;;;;;;6BAIF,SAAS;;;;;;;;;;;AAlBhB,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/boolean-literal-props/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAA;;0CAD9C,CAAC;;AAEO,CAAC"}
+
+=== 424 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-js/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,QAAQ,MAAM,8BAA8B,CAAC;AACpD,MAAM,CAAC,QAAQ,MAAM,8BAA8B,CAAC;;0CAFxD,CAAC;;;kCAOmB,SAAS;;;;YACT,GAAG;aAAa,GAAG;aAAa,GAAG;eAAe,IAAI;;;;kCACtD,IAAI,aAAa,IAAI,aAAa,IAAI;;;;kCAEtC,SAAS;;kCACT,IAAI,aAAa,IAAI,aAAa,IAAI;;kCAGtC,GAAG;;kCACH,GAAG,aAAa,GAAG,aAAa,GAAG;;kCACnC,GAAG,aAAa,GAAG,aAAa,SAAS;;kCACzC,GAAG;;kCACH,GAAG,aAAa,GAAG,aAAa,GAAG;;kCACnC,GAAG,aAAa,GAAG,aAAa,SAAS;;AAjBrD,CAAC"}
+
+=== 424 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-ts/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,QAAQ,MAAM,8BAA8B,CAAC;AACpD,MAAM,CAAC,QAAQ,MAAM,8BAA8B,CAAC;;0CAFxD,CAAC;;;kCAOmB,SAAS;;;;YACT,GAAG;aAAa,GAAG;aAAa,GAAG;eAAe,IAAI;;;;kCACtD,IAAI,aAAa,IAAI,aAAa,IAAI;;;;kCAEtC,SAAS;;kCACT,IAAI,aAAa,IAAI,aAAa,IAAI;;kCAGtC,GAAG;;kCACH,GAAG,aAAa,GAAG,aAAa,GAAG;;kCACnC,GAAG,aAAa,GAAG,aAAa,SAAS;;kCACzC,GAAG;;kCACH,GAAG,aAAa,GAAG,aAAa,GAAG;;kCACnC,GAAG,aAAa,GAAG,aAAa,SAAS;;AAjBrD,CAAC"}
+
+=== 287 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/each-anytype/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,OAAO,CAAC;;EAEZ,eAAe,IAAI,GAAG,CAAC;GACrB,OAAO,GAAI,KAAK,CAAC,AAAC,CAAA,KAAK,CAAC,KAAK,CAAC,EAAE,CAAC,CAAA,CAAE,IAAI,EAAE,AAAC,CAAC;EAC7C,CAAC;;EACD,IAAI,EAAE,CAAC;;;yCAGF,OAAO;;;OAAI,QAAQ;;sCACrB,QAAQ,CAAC,GAAG,EAAE;;;;CAHX,CAAC;"}
+
+=== 42 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs/no-script-tag/input.svelte	js.map
+{"version":3,"mappings":";;;kCACK,EAAE;"}
+
+=== 32 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 483 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,QAAQ,MAAM,mBAAmB,CAAC;AACzC,MAAM,GAAG,KAAK,EAAE,MAAM,EAAE,MAAM,EAAE,MAAM,EAAE,UAAU,QAAQ,cAAc,CAAA;;0CAF5E,CAAC;;;;;;;;;;;uCASI,GAAG,CAAC,iBAAiB,EAAE;;;;;;;;;KAGJ,KAAK;;EAAL,KAAK;;;;;;;;;KACL,MAAM;;;EAAN,MAAM;;;;;wCACzB,GAAG,CAAC,iBAAiB,EAAE;;;;;;;;;;;;;KAEJ,MAAM;;EAAN,MAAM;;;;;;;;;;yCAIH,IAAI;;;KACP,UAAU;;EAAV,UAAU;;;;;;;;;;;;;;uCAI7B,GAAG;;;;;;;KAEgB,UAAU;;;EAAV,UAAU;;;;;wCAC7B,GAAG;;;;;;;;;;;;;;;KAKgB,MAAM;;EAAN,MAAM;;;;;;AA9BtB,CAAC"}
+
+=== 152 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-slot-prop-in-snippet.v5/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;AACrC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;;0CAFnD,CAAC;;WAMa,KAAK;;;;uBAAL,KAAK;;AAHX,CAAC"}
+
+=== 579 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag-if/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,GAAG,CAAC,KAAgC,CAAC;;CAErC,SAAS,WAAW,GAAG,CAAC;EACpB,KAAK,GAAG,OAAO,CAAC;CACpB,CAAC;;KAIA,MAAM,CAAC,KAAK,KAAK,QAAQ;;;QAClB,QAAQ,GAAG,KAAK;QAChB,SAAS,GAAG,QAAQ;;mCAEtB,QAAQ,CAAC,SAAS,CAAC,CAAC,CAAC,aAAE,SAAS,CAAC,SAAS,CAAC,CAAC,CAAC;YAG7C,MAAM,CAAC,KAAK,KAAK,QAAQ;uCAC9B,KAAK,CAAC,OAAO,EAAE;;;;;;;KAIf,MAAM,CAAC,KAAK,KAAK,QAAQ;;;QAClB,QAAQ,GAAG,KAAK;QAChB,SAAS,GAAG,QAAQ;;mCAEtB,QAAQ,CAAC,OAAO,EAAE,aAAE,SAAS,CAAC,OAAO,EAAE;YACvC,MAAM,CAAC,KAAK,KAAK,QAAQ;uCAC9B,KAAK,CAAC,SAAS,CAAC,CAAC,CAAC;;wCAElB,KAAK,CAAC,OAAO,EAAE;;;;AAvBZ,CAAC"}
+
+=== 614 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,KAAK,CAAC,OAAO,GAAG,OAAO,CAAC,OAAO,CAAC,EAAC,GAAG,EAAE,IAAI,EAAC,CAAC,CAAC;CAC7C,KAAK,CAAC,QAAQ,GAAG,IAAI,CAAC;;CACtB,QAAQ,CAAC;;qBAIL,OAAO,aAAM,MAAM;QACf,GAAG,GAAG,MAAM;QACZ,GAAG,GAAG,OAAO;QACb,QAAQ,GAAG,UAAU;;8BAC5B,GAAG,KAAK,MAAM;;;;;;;wCAUZ,CAAC,CAAC,EAAE,CAAC,CAAC;;;MAAI,IAAI;QACT,CAAC,GAAG,IAAI,GAAG,CAAC;QACZ,QAAQ,GAAG,IAAI,GAAG,CAAC;;qCAC1B,CAAC,KAAK,QAAQ;;;;;qBAIX,OAAO,aAAM,MAAM;QACf,MAAM,GAAG,WAAW;QACpB,GAAG,GAAG,OAAO;;;;;;;0CAQlB,CAAC,CAAC,EAAE,CAAC,CAAC;;;MAAI,IAAI;QACT,MAAM,GAAG,WAAW;QACpB,CAAC,GAAG,IAAI,GAAG,CAAC;;qCACnB,CAAC,KAAK,KAAK;;;;AArCR,CAAC"}
+
+=== 96 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/custom-types/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;iPAeuB,KAAK,yFAIf,KAAK,yCACE,KAAK,6EAIO,KAAK;AAxBZ,CAAC"}
+
+=== 460 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/declaration-tag.v5/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CAGG,GAAG,CAAC,KAAY,GAAG,CACf,EAAE,KAAK,EAAE,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,EACvB,EAAE,KAAK,EAAE,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,CAC1B,CAAC;;;;wCAGC,KAAK;;;MAAI,GAAG;EACd,KAAK,CAAC,IAAI,GAAG,GAAG,CAAC,KAAK,GAAG,GAAG,CAAC,MAAM,CAAA;EACnC,GAAG,CAAC,KAAa,GAAU,GAAG,IAAI,gBAAgB,CAAC;EACnD,KAAK,CAAC,OAAe,GAAG,IAAI,GAAG,CAAC,CAAA;;iCAE7B,OAAO,KAAK,CAAC,cAAG,KAAK,KAAK,OAAO;;;GAEhC,KAAK,CAAC,IAAI,GAAG,QAAQ,CAAA;;;;;;;AATtB,CAAC"}
+
+=== 118 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/deprecated-unused-hints/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CAEG,GAAG,CAAC,CAAC,CAAC;;CACN,CAAC,CAAC;;CACF,GAAG,CAAC,CAAC,CAAC;AACF,CAAC"}
+
+=== 611 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/each/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CAMD,KAAK,CAAC,aAAuB,GAAG,EAAE,CAAC;CACnC,KAAK,CAAC,cAAyC,GAAG,EAAE,CAAC;CACrD,KAAK,CAAC,cAA2C,GAAG,IAAI,CAAQ;CAChE,KAAK,CAAC,UAAU,GAAG,EACjB,MAAM,EAAE,EAAE,EACV,MAAM,EAAE,CAAC,EACV,CAAC;;;;wCAIK,aAAa;;;MAAI,MAAM;;mCACtB,MAAM,eAAI,CAAC;;;;;0CAEZ,aAAa;;;MAAI,MAAM;;mCACtB,MAAM,eAAI,CAAC;;;;;0CAIZ,cAAc;;;MAAI,MAAM;;mCACvB,MAAM,CAAC,MAAM,KAAK,QAAQ,GAAG,MAAM,GAAG,MAAM,CAAC,KAAK,eAAI,CAAC;;;;;0CAIxD,UAAU,CAAC,MAAM;;;MAAI,MAAM;;mCAC1B,MAAM,cAAG,CAAC;;;;;0CAGX,UAAU,CAAC,MAAM;;;MAAI,MAAM;;mCAC1B,MAAM,cAAG,CAAC;;;;;0CAIX,cAAc;;;MAAI,MAAM;;mCACvB,MAAM,eAAI,CAAC;;;;AA1BX,CAAC"}
+
+=== 119 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-attributes/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;;uDAII,GAAG,oCACf,GAAG,2DAIT,GAAG;AARD,CAAC"}
+
+=== 51 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;AACO,CAAC"}
+
+=== 169 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/exports-map-svelte/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,mBAAmB,MAAM,SAAS,CAAC;AAC1C,MAAM,CAAC,UAAU,MAAM,WAAW,CAAC;AACnC,MAAM,CAAC,qBAAqB,MAAM,WAAW,CAAC;;0CAHlD,CAAC;;;;;;;;AAIO,CAAC"}
+
+=== 119 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/ValueComponent.svelte	js.map
+{"version":3,"mappings":";;4DAAA,CAAC;CACG,GAAG,CAAC,EAAE,KAAK,EAAE,YAAY,EAAkC,WAAY;;oCAG1E,KAAK;WACL,YAAY;AAHL,CAAC"}
+
+=== 174 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,cAAc,MAAM,yBAAyB,CAAC;;0CADzD,CAAC;CAGG,GAAG,CAAC,KAAK,GAAU,MAAM,CAAE;;8BAId,KAAK,gBAAgB,KAAK;;8BAG1B,KAAK,gBAAgB,CAAC;;AAN/B,CAAC"}
+
+=== 384 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,QAAQ,MAAM,mBAAmB,CAAC;;0CAD3C,CAAC;;KAKY,CAAC,GAAG,EAAE,GAAG,CAAC;KAAK,QAAQ;KAAK,KAAK;;;;uCAC3C,CAAC,KAAK,KAAK,aAAE,CAAC,KAAK,QAAQ;;;;;;;;KAIjB,CAAC,EAAC,CAAC,EAAC,CAAC,EAAE,CAAC,EAAC,CAAC,EAAC,CAAC;KAAK,KAAK;KAAK,EAAE;;;;uCACvC,CAAC,KAAK,IAAI;;;;;;;;KAGA,CAAC,GAAG,EAAE,GAAG,CAAC;KAAK,QAAQ;KAAK,KAAK;;;;uCACzC,CAAC,KAAK,KAAK;;;;;;AAbR,CAAC"}
+
+=== 181 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte	js.map
+{"version":3,"mappings":";;oEAAA,CAAC;CACU,SAAS,IAAI,GAAG,CAAC;EACpB,MAAM,CAAC,CAAC,CAAC;CACb,CAAC;;CACM,MAAM,GAAG,CAAC,CAAC,CAAC;;CACZ,KAAK,CAAC,GAAG,GAAG,IAAI,CAAC;;;AACpB,CAAC"}
+
+=== 235 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,oBAAoB,MAAM,iCAAiC,CAAC;;;sCADvE,CAAC;EAEG,KAAK,CAAC,IAA0B,GAAG,IAAI,CAAQ;;EAC/C,IAAI,CAAC,IAAI,EAAE,CAAC;EACZ,GAAG,CAAC,IAAI,CAAC,GAAG,EAAE,CAAC;EACf,IAAI,CAAC,GAAG,KAAK,KAAK,CAAC;CACf,CAAC;"}
+
+=== 111 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/diagnostics-if-control-flow-imported.svelte	js.map
+{"version":3,"mappings":";;kFAAA,CAAC;CACG,KAAK,CAAC,GAAqB,GAAG,EAAE,CAAQ;;;0CAGrC,GAAG,KAAK,GAAG;;AAFV,CAAC"}
+
+=== 822 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,IAAI,MAAM,+CAA+C,CAAC;AACjE,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCAF5C,CAAC;;EAIG,GAAG,CAAC,CAAmB,GAAG,IAAI,CAAQ;EACtC,GAAG,CAAC,CAAsC,GAAG,SAAS,CAAQ;EAC9D,GAAG,CAAC,OAAe,GAAG,EAAE,CAAC;;EACzB,OAAO,CAAC;;EACR,KAAK,CAAC,QAA0B,GAAG,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC;EACzD,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAmB,IAAI,CAAC,CAAC;;MAG9C,MAAM,CAAC,CAAC,KAAK,QAAQ;;eAErB,OAAO,GAAG,CAAC;;0CACL,CAAC,IAAI,CAAC;;;QAAI,CAAC;;uCACb,CAAC,KAAK,IAAI;mBACV,OAAO,GAAG,CAAC;;;;;OAEX,CAAC;;;;;KACM,QAAQ;;kCACX,CAAC,CAAC,CAAC;;MACD,CAAC;kCACH,CAAC,CAAC,CAAC;;;;yCAEP,CAAC,CAAC,CAAC;;;;;;;;0CAIC,CAAC,CAAC,CAAC;;WACC,MAAM,CAAC,CAAC,KAAK,SAAS;6CACtB,CAAC,KAAK,CAAC;;8CAEP,CAAC,KAAK,CAAC;;;;;;;;;;;;;;;OAKf,MAAM,kDAAO,KAAK,QAAQ;;;6CACpB,EAAE;;;SAAI,CAAC;;wCACT,sDAAW,CAAC;;;;;0CAGhB,sDAAW,CAAC;;;;;;;;;CAjCb,CAAC;"}
+
+=== 1030 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,IAAI,MAAM,+CAA+C,CAAC;AACjE,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCAF5C,CAAC;;EAIG,GAAG,CAAC,CAAmB,GAAG,IAAI,CAAQ;EACtC,GAAG,CAAC,CAAsC,GAAG,SAAS,CAAQ;EAC9D,GAAG,CAAC,OAAe,GAAG,EAAE,CAAC;;EACzB,OAAO,CAAC;;EACR,KAAK,CAAC,QAA0B,GAAG,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC;EACzD,KAAK,CAAC,cAA4C,GAAG,IAAI,CAAQ;EACjE,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAmB,IAAI,CAAC,CAAC;;MAG9C,MAAM,CAAC,CAAC,KAAK,QAAQ;;eAErB,OAAO,GAAG,CAAC;;0CACL,EAAE;;;;;;SAAI,GAAG;;;mBAEX,OAAO,GAAG,CAAC;mBACX,GAAG;;;;mBAGH,OAAO,GAAG,CAAC;;;;;OAEX,CAAC;;;;;KACM,QAAQ;;kCACX,CAAC,CAAC,CAAC;;MACD,CAAC;kCACH,CAAC,CAAC,CAAC,KAAK,CAAC;;;;yCAEb,CAAC,CAAC,CAAC;;;;;;;;0CAIC,CAAC,CAAC,CAAC,KAAK,GAAG;;WACP,MAAM,CAAC,GAAG,KAAK,SAAS;6CACxB,GAAG,KAAK,CAAC;;8CAET,GAAG,KAAK,CAAC;;;;;;;;;;;;;;;OAKjB,MAAM,kDAAO,KAAK,QAAQ;;;6CACpB,EAAE;;;SAAI,GAAG;;wCACX,sDAAW,CAAC;uBACZ,GAAG;;;;;0CAGP,sDAAW,CAAC;;;;;;;WAKpB,OAAO,GAAG,CAAC;;sBAEJ,cAAc,CAAC,CAAC,aAAM,CAAC;+BAC1B,CAAC;;;;;MAED,cAAc;;;uBACP,cAAc,CAAC,CAAC,aAAM,CAAC;gCAC1B,CAAC;;;;;;;;;;;CAlDF,CAAC;"}
+
+=== 254 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ignore-generated-code/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,IAAI,MAAM,gDAAgD,CAAC;;0CADtE,CAAC;KAII,MAAM,CAAC,CAAC,KAAK,QAAQ;uCACrB,CAAC,KAAK,IAAI;;yCACJ,CAAC,IAAI,CAAC;;;OAAI,CAAC;;sCACb,CAAC,KAAK,IAAI;;;;;MAEV,CAAC;wCACD,CAAC;;;;;;;;;;;4CAMD,GACL,CAAC,EACD;;AAhBI,CAAC"}
+
+=== 85 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/SnippetParent.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACG,GAAG,CAAC,EAAE,GAAG,EAIR,WAAY;AACT,CAAC"}
+
+=== 168 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,aAAa,MAAM,wBAAwB,CAAC;;0CADvD,CAAC;;WAKa,GAAG,aAAC,CAAC;sCACV,CAAC,KAAK,GAAG;;;;GADJ,GAAG;;IAIJ,GAAG,aAAC,EAAE;;;;;AAPX,CAAC"}
+
+=== 330 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,CAAC,QAAQ,YAAY,CAAC;AAC/B,MAAM,CAAC,CAAC,MAAM,YAAY,CAAC;AAC3B,MAAM,GAAG,CAAC,QAAQ,eAAe,CAAC;AAClC,MAAM,GAAG,CAAC,QAAQ,YAAY,CAAC;AAC/B,MAAM,CAAC,CAAC,MAAM,YAAY,CAAC;AAC3B,MAAM,GAAG,CAAC,QAAQ,eAAe,CAAC;;0CANtC,CAAC;CAOG,CAAC,CAAC;CACF,CAAC,CAAC;CACF,CAAC,CAAC;CACF,CAAC,CAAC;;;;;AACE,CAAC"}
+
+=== 157 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/invalid-import/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,aAAa,MAAM,uBAAuB,CAAC;AAClD,MAAM,CAAC,WAAW,MAAM,uBAAuB,CAAC;;0CAFlD,CAAC;CAIC,aAAa,CAAC;CAAA,WAAW,CAAC;AACpB,CAAC"}
+
+=== 128 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/js-untyped/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,OAAO,MAAM,qBAAqB,CAAC;;0CAD9C,CAAC;;WAIiB,IAAI;;;;uCAAe,OAAO,CAAC,eAAe;;;;AAFpD,CAAC"}
+
+=== 83 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/modulescript-boolean-not-assignable-to-string/input.svelte	js.map
+{"version":3,"mappings":";;AAAmC,KAAK,CAAC,GAAW,GAAG,IAAI,CAAC;;AAAA,GAAG,CAAC;;"}
+
+=== 144 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/no-typechecks-for-js/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACD,SAAS,CAAC,GAAG,CAAC;GACV,MAAM,CAAC,IAAI,CAAC;EAChB,CAAC;;EACD,CAAC,EAAE,CAAC,CAAC,CAAC;CACE,CAAC;"}
+
+=== 208 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/input.svelte	js.map
+{"version":3,"mappings":";AAEE,MAAM,GAAG,GAAG,QAAQ,UAAU,CAAC;AAC/B,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;AAEnC,MAAM,GAAG,GAAG,QAAQ,OAAO,CAAC;;0CAL9B,CAAC;;;CAOC,GAAG,CAAC;;CAAA,GAAG,CAAC;CAAA,KAAK,CAAC;AACR,CAAC"}
+
+=== 155 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/other.svelte	js.map
+{"version":3,"mappings":";AAEE,MAAM,GAAG,GAAG,QAAQ,UAAU,CAAC;AAE/B,MAAM,GAAG,GAAG,QAAQ,OAAO,CAAC;;0CAJ9B,CAAC;;;CAMC,GAAG,CAAC;;CAAA,GAAG,CAAC;AACF,CAAC"}
+
+=== 203 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,EAAE,QAAQ,KAAK,CAAC;;;sCAD7B,CAAC;EAGG,EAAE,CAAC,CAAC,GAAG,KAAK,GAAG,CAAC,QAAQ,EAAE,CAAC,CAAA;;;EAG3B,GAAG,CAAC,CAAS,GAAG,GAAG,CAAC;;EAAA,CAAC,CAAC;CAClB,CAAC;"}
+
+=== 202 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/paths/input.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,GAAG,EAAE,QAAQ,IAAI,CAAC;;;sCADxB,CAAC;EAGD,EAAE,CAAC,CAAC,GAAG,KAAK,GAAG,CAAC,QAAQ,EAAE,CAAC,CAAA;;;EAG3B,GAAG,CAAC,CAAS,GAAG,GAAG,CAAC;;EAAC,CAAC,CAAC;CACf,CAAC;"}
+
+=== 484 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/props-untyped/input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,qBAAqB,CAAA;;0CAD5C,CAAC;qCAIsB,SAAS,WAAW,SAAS;;qCAC7B,IAAI,WAAW,IAAI;;qCACnB,IAAI,WAAW,IAAI;;qCACnB,GAAG,WAAW,GAAG;;;;qCAEjB,EAAC,IAAI,EAAE,QAAQ,EAAC,WAAW,EAAC,IAAI,EAAE,QAAQ,EAAC;;;;cAC3C,CAAC,QAAQ,EAAE,OAAO,CAAC;WAAW,CAAC,QAAQ,EAAE,OAAO,CAAC;;;;;;cACjD,CAAC,OAAO,EAAE,GAAG,EAAE,KAAK,CAAC;WAAW,CAAC,OAAO,EAAE,GAAG,EAAE,KAAK,CAAC;;;;;;cACrD,CAAC,OAAO,EAAE,GAAG,EAAE,KAAK,CAAC;WAAW,CAAC,OAAO,EAAE,GAAG,EAAE,KAAK,CAAC;;;;AAVpE,CAAC"}
+
+=== 217 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	js.map
+{"version":3,"mappings":";AACG,MAAM,CAAC,GAAG,MAAM,GAAG,CAAC;AACpB,MAAM,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,QAAQ,GAAG,CAAC;;0CAF/B,CAAC;CAIE,KAAK,CAAC,CAAkB,GAAG,IAAI,CAAC;;;kBAK3B,CAAC,CAAC,OAAO,CAAC,CAAC,CAAC;AAJZ,CAAC"}
+
+=== 180 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACC,SAAS,QAAQ,GAAG,CAAC;EACnB,CAAC,EAAE,CAAC;GACF,OAAO,CAAC,GAAG,CAAC,iBAAiB,CAAC,CAAC;EACjC,CAAC;CACH,CAAC;;CAED,QAAQ,EAAE,CAAC;AACL,CAAC"}
+
+=== 102 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/script-boolean-not-assignable-to-string/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CAAiB,KAAK,CAAC,GAAW,GAAG,IAAI,CAAC;;CAAA,GAAG,CAAC;AAAQ,CAAC"}
+
+=== 301 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/slot-typechecks/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,qCAAqC,CAAC;;0CAD5D,CAAC;;QAIgC,eAAe;;;;uCAC7C,eAAe,KAAK,CAAC;aACrB,eAAe,KAAK,KAAK,cAMzB,aAAa;;;;+GAJX,aAAa,KAAK,CAAC;eACnB,aAAa,KAAK,KAAK;eACvB,eAAe;;;gCAGY,CAAC;iDAC5B,CAAC,KAAK,IAAI;eACV,CAAC,KAAK,EAAE;eACR,CAAC,KAAK,EAAE;eACR,CAAC;;;;AAfE,CAAC"}
+
+=== 182 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAQU,EAAE,aAAmB,CAAC,EAAE,CAAC,GAAG,CAAC;oCAClC,CAAC;;KACG,CAAC,KAAK,GAAG;uCACT,CAAC;;;;;;;;0CAXV,CAAC;CAgBQ;;;;;CAAA,EAAE,cAAC,GAAG,EAAE,GAAG;AAXZ,CAAC"}
+
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-scope.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAYU,GAAG;;0CAZb,CAAC;;CAEG,GAAG,CAAA;;UAMO,OAAO;;;CACR,OAAO;;CAMX,OAAO;;AAZR,CAAC"}
+
+=== 92 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,YAAY,MAAM,uBAAuB,CAAC;;0CADrD,CAAC;;;;;AAEO,CAAC"}
+
+=== 176 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EAGG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;EACzC,QAAQ,CAAC,KAAK,EAAE,KAAK,CAAC,CAAC;;CACnB,CAAC;"}
+
+=== 198 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAG,QAAQ,CAAC;CACrB,GAAG,CAAC,KAAK,GAAG,IAAI,CAAC;;qFAKA,KAAK,4CACL,EAAE,+FAEF,QAAQ,KAAK,EAAE,8FAEX,SAAS,2CACd,IAAI,+EAIH,KAAK;AAdf,CAAC"}
+
+=== 401 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAS,iBAAiB,CAAA;;0CADlC,CAAC;CAEC,GAAG,CAAC,GAAU,GAAG,KAAK,CAAC;CACvB,GAAG,CAAC,SAAiB,GAAG,EAAE,CAAC;CAC3B,GAAG,CAAC,UAA0B,CAAC;CAC/B,GAAG,CAAC,YAAmD,CAAC;CACxD,GAAG,CAAC,aAAgC,CAAC;;CAErC,MAAM,CAAC;EACL,UAAU,CAAC;EACX,YAAY,CAAC;EACb,aAAa,CAAC;CAChB,CAAC,CAAA;;uBAImB,GAAG;;;uBACH,GAAG;;;;;uBACH,GAAG;;uBACH,SAAS;;uBAGT,GAAG;;;uBACH,GAAG;2CAAgB,CAAC;;AAVlC,CAAC"}
+
+=== 90 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	js.map
+{"version":3,"mappings":";;0CAUA,CAAC;CACG,GAAG,CAAC,OAAe,GAAG,yBAAyB,CAAA;;;AAC3C,CAAC"}
+
+=== 101 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAG,GAAG,QAAQ,cAAc,CAAC;;0CADrC,CAAC;CAEC,GAAG,CAAC;AACE,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings-arrow/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,IAAI,MAAM,gBAAgB,CAAC;;0CADtC,CAAC;;AAEO,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,IAAI,MAAM,gBAAgB,CAAC;;0CADtC,CAAC;;AAGO,CAAC"}
+
+=== 53 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/tags-without-attrs/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;;AAAyB,CAAC"}
+
+=== 149 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,SAAS,YAAY,CACnB,KAAkB,EAClB,OAA0B,EAC1B,QAA8C,EAC9C,CAAC;EACD,MAAM,CAAC,EAAE,CAAC;CACZ,CAAC;;;AACG,CAAC"}
+
+=== 100 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC;;;;;EAKR,CAAC;;AAJF,CAAC"}
+
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CAED,KAAK,CAAC,GAAG,GAAG,CAAC,CAAC;;CACd,GAAG,CAAC,GAAG,CAAC;AACA,CAAC"}
+
+=== 55 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/undeclared-component/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;;;;AAAyB,CAAC"}
+
+=== 55 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-catch/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW;;qBAIX,WAAW;;"}
+
+=== 70 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-peding-catch/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,WAAW;;;;;;;;;;;EAMX,WAAW;;;;;;;;"}
+
+=== 50 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-only/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,WAAW;;;;;;;;"}
+
+=== 113 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then-catch/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,WAAW;;;;GAEZ,KAAK;oDACc,KAAK;;;;;;;;EAKvB,WAAW;;;;GAGT,KAAK;oDACW,KAAK;;;;;"}
+
+=== 50 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,WAAW;;;;;;;;"}
+
+=== 82 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch-shorthand/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,OAAO,CAAC,OAAO,EAAE,aAAM,KAAK;8BAC/B,KAAK;;;;"}
+
+=== 82 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,OAAO,CAAC,OAAO,EAAE,aAAM,KAAK;8BAC/B,KAAK;;;;"}
+
+=== 83 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW,aAAM,KAAK;;;;;;qBAItB,WAAW,aAEV,KAAK;;;;;"}
+
+=== 110 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-block/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;qCACf,IAAI;;;;;0CAGF,KAAK;;;MACR,IAAI;;qCACH,IAAI;;;;"}
+
+=== 75 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-else/input.svelte	js.map
+{"version":3,"mappings":";;;wCAAO,KAAK;;;;;;OAAI,IAAI;;sCACf,IAAI;;;;;;;"}
+
+=== 81 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-keyed/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MACZ,EAAC,EAAE,EAAC;;qCAEC,EAAE;;;;"}
+
+=== 152 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/if-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK,IAAI,OAAO;iDACN,KAAK;YACV,KAAK,IAAI,QAAQ;iDACZ,KAAK;;gDAEP,KAAK;;;;;KAGb,MAAM;;;;;;;;KAIN,KAAK,GAAG,IAAI;;;;;;;"}
+
+=== 64 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/key-block/input.svelte	js.map
+{"version":3,"mappings":";;;;;;8BACK,EAAE;;;;;;8BAMF,EAAE;;;;"}
+
+=== 139 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAS,QAAQ,CAAC;AACxB,MAAM,CAAS,mBAAmB,CAAC;;0CAFvC,CAAC;CAIG,SAAS,EAAE,GAAG,CAAC,AAEf,CAAC;AACG,CAAC"}
+
+=== 80 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$$slots/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;;KAEI,OAAO,CAAC,OAAO;;;;;;;;;AAFJ,CAAC"}
+
+=== 90 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$store/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CACG,GAAG,CAAC,CAAC,CAAC;;CAEN,0CAAE;;;AACE,CAAC"}
+
+=== 108 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/action/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,SAAS,MAAM,CAAC,GAAG,EAAE,CAAC,EAAE,CAAC,AAAC,CAAC;;;AACvB,CAAC"}
+
+=== 185 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/animation/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,IAAI,QAAQ,gBAAgB,CAAA;;0CADzC,CAAC;CAGG,GAAG,CAAC,KAAK,GAAG,CAAC,EAAE,EAAE,EAAE,CAAC,EAAE,CAAC,CAAC;;;;wCAGrB,KAAK;;;MAAI,IAAI;;;;;;AAFZ,CAAC"}
+
+=== 162 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,oBAAoB,QAAQ,QAAQ,CAAC;;0CADlD,CAAC;CAGG,GAAG,CAAC,SAAqE,CAAC;;CAE1E,SAAS,GAAG,CAAC,OAAY,EAAE,CAAC,CAAC;;;;;;AACzB,CAAC"}
+
+=== 164 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-argument-name-match/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,SAAS,GAAG,CAAC,OAAe,EAAE,CAAC,AAC/B,CAAC;;CAED,GAAG,CAAC,OAAe,GAAG,aAAa,CAAC;;CACpC,GAAG,CAAC,OAAO,CAAC,CAAC;AACT,CAAC"}
+
+=== 85 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-type-name-match/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,GAAG,CAAC,MAAM,GAAG,CAAC,CAAC;AACX,CAAC"}
+
+=== 137 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/each/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC,CAAC,CAAA;;;;wCAGV,KAAK;;;MAAI,IAAI;;qCACjB,IAAI;;;;AAHC,CAAC"}
+
+=== 93 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/element-handler/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,SAAS,GAAG,CAAC,OAAY,EAAQ,CAAC,CAAC;;;AAC/B,CAAC"}
+
+=== 183 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,oBAAoB,QAAQ,QAAQ,CAAC;;0CADlD,CAAC;CAGG,GAAG,CAAC,SAAsC,CAAC;;CAC3C,SAAS,EAAE,CAAC,IAAY,EAAE,CAAC,CAAC;;+BAGf,EAAE,CAAC,EAAE,CAAC;AAFf,CAAC"}
+
+=== 110 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/property-declaration/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,MAAM,CAAC,CAAC,CAAC;EACL,CAAC,GAAG,CAAC,CAAA;CACT,CAAC;AACG,CAAC"}
+
+=== 86 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/snippet.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAAU,GAAG,aAAC,CAAC,GAAG,CAAC;;;;;;;CAKV,GAAG,aAAC,CAAC;"}
+
+=== 89 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/transition/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,IAAI,QAAQ,mBAAmB,CAAC;;0CAD7C,CAAC;;AAEO,CAAC"}
+
+=== 134 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/another-ref-format-date.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,UAAU,QAAQ,QAAQ,CAAC;;;sCADxC,CAAC;EAGG,UAAU,CAAC,GAAG,CAAC,IAAI,EAAE,CAAC,CAAA;CAClB,CAAC;"}
+
+=== 278 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/call-hierarchy-import.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,UAAU,QAAQ,QAAQ,CAAC;;;sCADxC,CAAC;EAGG,UAAU,CAAC,GAAG,CAAC,IAAI,EAAE,CAAC,CAAC;;EAEvB,SAAS,GAAG,GAAG,CAAC;GACZ,UAAU,CAAC,GAAG,CAAC,IAAI,EAAE,CAAC,CAAA;EAC1B,CAAC;;EAED,GAAG,EAAE,CAAA;qCAGR,UAAU,CAAC,GAAG,CAAC,IAAI,EAAE,CAAC;CAFf,CAAC;"}
+
+=== 199 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/outgoing-component.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,oBAAoB,MAAM,kCAAkC,CAAC;;uDADxE,CAAC;CAGG,SAAS,EAAE,GAAG,CAAC;EACX,GAAG,CAAC,IAAI,CAAC,CAAA;CACb,CAAC;;CAED,SAAS,GAAG,CAAC,GAAW,EAAE,CAAC,CAAC;;;AACxB,CAAC"}
+
+=== 35 packages/language-server/test/plugins/typescript/testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte	js.map
+{"version":3,"mappings":";;;;;;;"}
+
+=== 92 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	js.map
+{"version":3,"mappings":";;AAEI,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;AACV,CAAC,GAAG,EAAE,CAAA;;"}
+
+=== 82 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte	js.map
+{"version":3,"mappings":";;gEAAA,CAAC;CACG,MAAM,KAAK,CAAC,CAAC,CAAC;;;AACV,CAAC"}
+
+=== 54 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	js.map
+{"version":3,"mappings":";;wEAAA,CAAC;;;;;AAEO,CAAC"}
+
+=== 66 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component2.svelte	js.map
+{"version":3,"mappings":";;yEAAA,CAAC;CAEG,eAAe,CAAA;;AACX,CAAC"}
+
+=== 54 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component3.svelte	js.map
+{"version":3,"mappings":";;yEAAA,CAAC;;;;;AAEO,CAAC"}
+
+=== 86 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte	js.map
+{"version":3,"mappings":";;yEAAA,CAAC;CACD,MAAM,eAAe,CAAC,CAAC,CAAC;;;;;;AAChB,CAAC"}
+
+=== 54 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component5.svelte	js.map
+{"version":3,"mappings":";;yEAAA,CAAC;;;;;AAEO,CAAC"}
+
+=== 130 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component6.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,cAAc,MAAM,mCAAmC,CAAC;AAC/D,MAAM,CAAC,eAAe,MAAM,oCAAoC,CAAC;;yEAFrE,CAAC;;;;;AAKO,CAAC"}
+
+=== 381 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,GAAE,CAAC,QAAO,OAAO,CAAC;AACxB,MAAM,GAAE,CAAC,QAAO,KAAK,CAAC;AACtB,MAAM,GAAE,CAAC,QAAO,KAAK,CAAC;AACtB,MAAM,GAAE,CAAC,QAAO,GAAG,CAAC;;gDAJpB,CAAC;CAMD,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC;;CACb,CAAC,CAAC;CAAA,CAAC,CAAC;;CACJ,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC,MAAM,EAAE,GAAG,GAAG,GAAG,IAAI,GAAG,KAAK,CAAC;;CAC3C,GAAG,EAAE,CAAC;oCAEL,GAAG,EAAE;;;AADE,CAAC"}
+
+=== 51 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	js.map
+{"version":3,"mappings":";;iEAAA,CAAC;;AAEO,CAAC"}
+
+=== 224 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-import-all-remove.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,SAAS,QAAQ,eAAe,CAAC;AAC1C,MAAM,GAAG,SAAS,IAAI,cAAc,QAAQ,eAAe,CAAC;AAE5D,MAAM,GAAG,SAAS,IAAI,eAAe,QAAQ,eAAe,CAAC;AAC7D,MAAM,GAAG,SAAS,IAAI,eAAe,QAAQ,eAAe,CAAC;;+DALjE,CAAC,AAMO,CAAC"}
+
+=== 132 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAU,QAAQ,CAAC;AAEzB,MAAM,CAAU,6BAA6B,CAAC;AAC9C,MAAM,CAAU,mBAAmB,CAAC;;2DAJxC,CAAC,AAKO,CAAC"}
+
+=== 103 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-leading-comment.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAU,SAAS,CAAA;AAEzB,MAAM,CAAU,eAAe,CAAA;;qEAHnC,CAAC;;AAIO,CAAC"}
+
+=== 97 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	js.map
+{"version":3,"mappings":";AAII,MAAM,GAAG,GAAG,QAAQ,eAAe,CAAC;;SAG9B,GAAG;;6DAJb,CAAC,AAEO,CAAC"}
+
+=== 115 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged1.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAE,CAAC,QAAO,KAAK,CAAC;;AACtB,KAAK,CAAC,CAAC,GAAG,IAAI,CAAC;;;oCAGhB,CAAC;"}
+
+=== 161 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged2.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAE,CAAC,QAAO,KAAK,CAAC;AACtB,MAAM,GAAE,CAAC,QAAO,KAAK,CAAC;;AACtB,KAAK,CAAC,CAAC,GAAG,IAAI,CAAC;;;oCAGhB,CAAC,aAAE,CAAC;"}
+
+=== 174 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-with-module.svelte	js.map
+{"version":3,"mappings":";AAME,MAAM,CAAC,CAAC,MAAM,KAAK,CAAC;AACpB,MAAM,CAAC,CAAC,MAAM,KAAK,CAAC;AANpB,MAAM,GAAE,CAAC,QAAO,KAAK,CAAC;;iEAIxB,CAAC;;;sCAKG,CAAC;;;;AAFG,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte	js.map
+{"version":3,"mappings":";AAAQ,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAA;;0DAAtD,CAAC,AAA6D,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,UAAU,MAAM,qBAAqB,CAAC;;8CADjD,CAAC;;AAGO,CAAC"}
+
+=== 106 packages/language-server/test/plugins/typescript/testfiles/codelens/references.svelte	js.map
+{"version":3,"mappings":";;+CAAA,CAAC;CAKG,GAAG,CAAC,GAAQ,GAAG,EAAE,GAAG,EAAE,KAAK,EAAE,CAAC;AAC1B,CAAC"}
+
+=== 50 packages/language-server/test/plugins/typescript/testfiles/completions/ScndImport.svelte	js.map
+{"version":3,"mappings":";;+CAAA,CAAC,AAAe,CAAC"}
+
+=== 76 packages/language-server/test/plugins/typescript/testfiles/completions/UpperCase/dirCasing.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAS,IAAI,CAAA;;8CADvB,CAAC,AAEO,CAAC"}
+
+=== 104 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,YAAY,EAAE,aAAa,QAAQ,gBAAgB,CAAC;;uEADjE,CAAC;;;;;;;AAEO,CAAC"}
+
+=== 130 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,GAAG,MAAM,qCAAqC,CAAC;AACtD,MAAM,CAAC,GAAG,MAAM,4CAA4C,CAAC;;gEAFjE,CAAC;;;;;AAGO,CAAC"}
+
+=== 134 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-event-dispatcher.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EAGG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAGlC,CAAA;;CACA,CAAC;"}
+
+=== 53 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-interface.svelte	js.map
+{"version":3,"mappings":";;+DAAA,CAAC;;;;AASO,CAAC"}
+
+=== 132 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,kBAAkB,MAAM,+BAA+B,CAAA;AAC9D,MAAM,GAAG,aAAa,QAAQ,gBAAgB,CAAA;;oEAFlD,CAAC;;;;;AAGO,CAAC"}
+
+=== 87 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-rune.svelte	js.map
+{"version":3,"mappings":";;kEAAA,CAAC;CACG,GAAG,CAAC,EAAE,CAAC,EAAiB,WAAY;AAChC,CAAC"}
+
+=== 32 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 89 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,6BAA6B,CAAC;;uDADlD,CAAC;;AAEO,CAAC"}
+
+=== 101 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,UAAU,QAAQ,aAAa,CAAC;;iEAD7C,CAAC;CAEG,SAAS,CAAA;AACL,CAAC"}
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-new-line.svelte	js.map
+{"version":3,"mappings":";;+DAAA,CAAC;CACG,GAAG,CAAA;AACC,CAAC"}
+
+=== 100 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACC,GAAG,CAAC,GAAG,GAAG,EAAE,CAAC;;;;;;;;;;;;;;;;AACP,CAAC"}
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	js.map
+{"version":3,"mappings":";;uDAAA,CAAC;CACD,GAAG,CAAA;AACK,CAAC"}
+
+=== 93 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions2.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,CAAS,kBAAkB,CAAA;;uDADjC,CAAC;CAED,GAAG,CAAA;AACK,CAAC"}
+
+=== 106 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	js.map
+{"version":3,"mappings":";AAKC,MAAM,CAAC,KAAK,IAAI,MAAM,aAAa,CAAC;;uDADrC,CAAC;CAGA,MAAM,CAAA;AACC,CAAC"}
+
+=== 93 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions8.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAU,gBAAgB,CAAC;;uDAGrC,CAAC;CACG,IAAI,CAAA;AACA,CAAC"}
+
+=== 81 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions9.svelte	js.map
+{"version":3,"mappings":";;AACC,MAAM,CAAA;;uDAGP,CAAC;CACA,MAAM,CAAA;AACC,CAAC"}
+
+=== 124 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;;CAEG,GAAG,CAAC,CAAC,CAAC;;;CAGN,SAAS,GAAG,CAAC,UAAU,EAAE,CAAC,AAE1B,CAAC;AACG,CAAC"}
+
+=== 303 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,UAAU,MAAM,gBAAgB,CAAA;AAC5C,MAAM,GAAG,aAAa,EAAE,aAAa,QAAQ,gBAAgB,CAAA;;+CAFjE,CAAC;CAIG,KAAK,CAAC,WAAW,GAAG,EAChB,aAAa,EAAE,aAAa,EAC/B,CAAA;;;;6CAG0B,EAAE;;;;;;;;;;;8CACD,EAAE;;;;;;;;;;;8CACF,EAAE;;;;;;;;;;;wDACQ,EAAE;;;;;;;;;;;iEACK,EAAE;;;;;;AAN3C,CAAC"}
+
+=== 243 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	js.map
+{"version":3,"mappings":";;kDAAA,CAAC;CAKG,KAAK,CAAC,CAAQ,GAAG,EACb,CAAC,EACJ,CAAA;;CAED,MAAM,CAAC,CAAkB,CAAC;EACtB,CAAC,CAAA;CACL,CAAC;;CAED,SAAS,WAAW,CAAC,OAAuC,EAAE,CAAC,CAAC;;CAChE,WAAW,CAAC,EAAE,GAAG,EAAE,KAAK,EAAI,CAAC,CAAA;AACzB,CAAC"}
+
+=== 123 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACG,GAAG,CAAC,GAAG,CAAC,CAAC;;CAET,SAAS,GAAG,CAAC,GAAyB,EAAE,CAAC,CAAC;AACtC,CAAC"}
+
+=== 52 packages/language-server/test/plugins/typescript/testfiles/completions/ts-directive-comment.svelte	js.map
+{"version":3,"mappings":";;yDAIA,CAAC;;;AAEO,CAAC"}
+
+=== 88 packages/language-server/test/plugins/typescript/testfiles/declaration-map/import-from-base64-sourcemap.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,EAAE,QAAQ,wCAAwC,CAAA;;iEAD/D,CAAC,AAEO,CAAC"}
+
+=== 88 packages/language-server/test/plugins/typescript/testfiles/declaration-map/importing.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,EAAE,QAAQ,iCAAiC,CAAA;;8CADxD,CAAC,AAEO,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/testfiles/definition/definition-rune.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,YAAY,MAAM,wBAAwB,CAAC;;oDADtD,CAAC;;AAEO,CAAC"}
+
+=== 75 packages/language-server/test/plugins/typescript/testfiles/definition/imported-rune.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACG,GAAG,CAAC,EAAE,WAAY;AACd,CAAC"}
+
+=== 366 packages/language-server/test/plugins/typescript/testfiles/definitions.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,GAAE,KAAK,QAAO,eAAe,CAAC;AACpC,MAAM,CAAC,YAAY,MAAM,wBAAwB,CAAC;;;sCAFlD,CAAC;;;EAGD,SAAS,GAAG,GAAG,CAAC;GAAA,MAAM,CAAC,IAAI,CAAC;EAAA,CAAC;;EAC7B,GAAG,EAAE,CAAC;EACN,KAAK,EAAE,CAAC;;EACR,GAAG,CAAC,KAAK,GAAG,IAAI,CAAC;;EACjB,kDAAO;;EACP,EAAE,qDAAU,CAAC,CAAC;;EACd,kDAAO;;EACP,EAAE,qDAAU,CAAC,CAAC;;;;;;;;;;;;;;;;;;;;;;CACN,CAAC;"}
+
+=== 103 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics-imported-js-update.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,GAAG,QAAQ,gBAAgB,CAAA;;mEADxC,CAAC;CAGG,GAAG,CAAC;AACA,CAAC"}
+
+=== 102 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics.svelte	js.map
+{"version":3,"mappings":";;gDAAA,CAAC;CAAiB,KAAK,CAAC,GAAW,GAAG,IAAI,CAAC;;CAAA,GAAG,CAAC;AAAQ,CAAC"}
+
+=== 156 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,GAAG,QAAQ,sBAAsB,CAAC;AAC3C,MAAM,GAAG,GAAG,QAAQ,kBAAkB,CAAC;;yDAF3C,CAAC;CAGG,GAAG,CAAC;CAAA,GAAG,CAAC;AACJ,CAAC"}
+
+=== 156 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,GAAG,QAAQ,uBAAuB,CAAC;AAC5C,MAAM,GAAG,GAAG,QAAQ,mBAAmB,CAAC;;yDAF5C,CAAC;CAGG,GAAG,CAAC;CAAA,GAAG,CAAC;AACJ,CAAC"}
+
+=== 103 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,GAAG,MAAM,kBAAkB,CAAC;;qDADrC,CAAC;CAEC,GAAG,CAAC;AACE,CAAC"}
+
+=== 103 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport2.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,GAAG,MAAM,yBAAyB,CAAC;;sDAD5C,CAAC;CAEC,GAAG,CAAC;AACE,CAAC"}
+
+=== 128 packages/language-server/test/plugins/typescript/testfiles/document-highlight/document-highlight.svelte	js.map
+{"version":3,"mappings":";;uDAAA,CAAC;CACG,GAAG,CAAC,IAAI,GAAG,CAAC,CAAC;;CAEb,EAAE,EAAE,IAAI,EAAE,CAAC,AAEX,CAAC;;;AACG,CAAC"}
+
+=== 103 packages/language-server/test/plugins/typescript/testfiles/documentation.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,GAAG,QAAQ,iBAAiB,CAAA;;kDADzC,CAAC;CAGG,EAAE,CAAA;AACE,CAAC"}
+
+=== 89 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-no-final-newline.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;qEADvC,CAAC;;AAEO,CAAC"}
+
+=== 374 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-snippets.v5/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,KAAK,CAAC,KAAK,GAAG,IAAI,CAAC;CACnB,KAAK,CAAC,KAAK,GAAG,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAC;;oCAG3B,KAAK,CAAC,GAAG,CAAC,CAAC,IAAI,KAAK,IAAI,CAAC;;wCAEnB,KAAK;;;MAAI,IAAI;QACR,MAAM,GAAG,MAAM,IAAI;;qCAC1B,MAAM,EAAE;;;;;;WAIC,QAAQ;uBACN,KAAK;;;0BADP,QAAQ;;;;;;WAMR,QAAQ,aAAC,EAAE,IAAI,EAAE;uBACf,IAAI;;;0BADN,QAAQ;;;;AAhBd,CAAC"}
+
+=== 142 packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte	js.map
+{"version":3,"mappings":";;oEAAA,CAAC;CACG,KAAK,CAAC,MAAM,GAAG,IAAI,CAAC;;CACpB,EAAE,EAAE,MAAM,EAAE,CAAC;EACT,MAAM,CAAC;CACX,CAAC;AACG,CAAC"}
+
+=== 447 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,UAAU,MAAM,0CAA0C,CAAC;;;sCADpE,CAAC;EAGC,IAAI,EAAE,CAAC;;EAEP,KAAK,CAAC,UAAU,GAAG,MAAM,CAAC,0CAA0C,CAAC,CAAC;;EAEtE,MAAM,CAAC,0CAA0C,CAAC,CAAC,IAAI,CAAC,CAAC,MAAM,KAAK,CAAC;GACnE,GAAG,CAAC,MAAM,CAAC,OAAO,CAAC,EACjB,MAAM,EAAE,QAAQ,CAAC,IAAI,AAAe,EACrC,CAAC,CAAC;EACL,CAAC,CAAC,CAAC;;EAEH,eAAe,IAAI,GAAG,CAAC;GACrB,KAAK,CAAC,SAAS,GAAG,KAAK,CAAC,MAAM,CAAC,0CAA0C,CAAC,CAAC;EAC7E,CAAC;;;;;;;;;;;;;CACK,CAAC;"}
+
+=== 88 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,UAAU,MAAM,0CAA0C,CAAC;;sEADpE,CAAC,AAEO,CAAC"}
+
+=== 184 packages/language-server/test/plugins/typescript/testfiles/find-file-references-parent.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,CAAC,uBAAuB,MAAM,qCAAqC,CAAC;;gEAD1E,CAAC;CAGG,KAAK,CAAC,MAAM,GAAG,IAAI,CAAC;;CACpB,EAAE,EAAE,MAAM,EAAE,CAAC;EACT,MAAM,CAAC;CACX,CAAC;;;AACG,CAAC"}
+
+=== 136 packages/language-server/test/plugins/typescript/testfiles/find-references-$store-other.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,MAAM,QAAQ,iCAAiC,CAAC;;iEAD7D,CAAC;;;CAEG,EAAE,uDAAW,CAAC;EACV,oDAAQ;CACZ,CAAC;;;;;AACG,CAAC"}
+
+=== 160 packages/language-server/test/plugins/typescript/testfiles/find-references-$store.svelte	js.map
+{"version":3,"mappings":";;AACI,MAAM,CAAC,KAAK,CAAC,MAAM,GAAG,QAAQ,CAAC,EAAE,CAAC,CAAC;;2DAGvC,CAAC;;;CACG,EAAE,uDAAW,CAAC;EACV,oDAAQ;CACZ,CAAC;;;;;AACG,CAAC"}
+
+=== 231 packages/language-server/test/plugins/typescript/testfiles/find-references-ignore-generated.svelte	js.map
+{"version":3,"mappings":";;qEAAA,CAAC;CACG,GAAG,CAAC,CAAmB,GAAG,IAAI,CAAQ;CACtC,GAAG,CAAC,OAAO,GAAG,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC,CAAC;;KAGnC,CAAC;;;;;GACM,OAAO;;QACN,MAAM,CAAC,CAAC,KAAK,QAAQ;0CACrB,OAAO;;;;;;;;;;;;;;;;AALZ,CAAC"}
+
+=== 285 packages/language-server/test/plugins/typescript/testfiles/hover/hover-$store.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCAD5C,CAAC;;EAEG,KAAK,CAAC,CAAC,GAAG,QAAQ,CAAiC,EAAE,CAAC,CAAA;;EACtD,0CAAE;;EACF,EAAE,EAAE,MAAM,0CAAG,KAAK,QAAQ,EAAE,CAAC;GACzB,0CAAG;EACP,CAAC;;EACD,CAAC,CAAC;;;MAID,MAAM,0CAAG,KAAK,QAAQ;;;;;;uCAG1B,CAAC;;;CANM,CAAC;"}
+
+=== 56 packages/language-server/test/plugins/typescript/testfiles/hover/hover-events-interface.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;;;;;;;AAYO,CAAC"}
+
+=== 205 packages/language-server/test/plugins/typescript/testfiles/hover/hoverinfo.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,oBAAoB,MAAM,iCAAiC,CAAC;;8CADvE,CAAC;;CAIG,KAAK,CAAC,QAAQ,GAAG,IAAI,CAAA;;CAErB,KAAK,CAAC,WAAW,GAAG,IAAI,CAAA;;;CAGxB,KAAK,CAAC,YAAY,GAAG,IAAI,CAAC;;;;AACtB,CAAC"}
+
+=== 384 packages/language-server/test/plugins/typescript/testfiles/performance.svelte	js.map
+{"version":3,"mappings":";;yDAAA,CAAC;CACG,SAAS,SAAS,CAAC,KAAa,EAAE,CAAC;EAC/B,KAAK,IAAI,CAAC,CAAC;;EACX,KAAK,CAAC,GAAG,GAAG,WAAW,EAAE,CAAC;;EAE1B,SAAS,WAAW,GAAG,CAAC;GACpB,MAAM,CAAC,KAAK,GAAG,CAAC,GAAG,CAAC,CAAC;EACzB,CAAC;CACL,CAAC;;CAED,SAAS,WAAW,CAAC,CAAQ,EAAE,CAAC;EAC5B,SAAS,CAAC,IAAI,CAAC,CAAC;;EAChB,KAAK,CAAC,GAAG,GAAG,KAAK,CAAC;CACtB,CAAC;;;;;;;SASM,CAAC;;;;;;;;AARJ,CAAC"}
+
+=== 93 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAS,gBAAgB,CAAA;;6DADnC,CAAC;CAEG,GAAG,CAAA;AACC,CAAC"}
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action.svelte	js.map
+{"version":3,"mappings":";;gDAAA,CAAC;CACG,UAAU,CAAA;AACN,CAAC"}
+
+=== 101 packages/language-server/test/plugins/typescript/testfiles/preferences/imports.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,UAAU,QAAQ,cAAc,CAAA;;4CAD7C,CAAC;CAEG,UAAU,CAAA;AACN,CAAC"}
+
+=== 66 packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACG,EAAE,CAAA;;AACE,CAAC"}
+
+=== 71 packages/language-server/test/plugins/typescript/testfiles/preferences/with-context-module.svelte	js.map
+{"version":3,"mappings":";;AACI,MAAM,CAAC,SAAS,EAAE,GAAG,CAAC,CAAC;;"}
+
+=== 236 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes-importer.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,WAAW,MAAM,uBAAuB,CAAC;;0DADpD,CAAC;CAEG,GAAG,CAAC,GAAG,GAAU,EAAE,CAAE;CACrB,GAAG,CAAC,GAAG,GAAU,EAAE,CAAE;;;;;;GAGX,GAAG;;;;;;;;;;;;;;GACC,GAAG;;WAAY,GAAG;;;;IAAH,GAAG;;;;;;;;;;;;;;;AAH5B,CAAC"}
+
+=== 128 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,GAAG,EAAE,GAAG,SAAc,EAAmC,WAAY;;qCAG9E,GAAG;WACH,GAAG;;;CAHI,CAAC;"}
+
+=== 118 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-events-importer.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,CAAC,MAAM,uCAAuC,CAAC;;gEADxD,CAAC;;QAIQ,CAAC;;;;uCAA+B,KAAK;;;;AAFtC,CAAC"}
+
+=== 108 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-let.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,CAAC,MAAM,uCAAuC,CAAC;;oDAD1D,CAAC;;;;;uCAIoB,KAAK;;;;AAFlB,CAAC"}
+
+=== 152 packages/language-server/test/plugins/typescript/testfiles/rename/rename2.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;AACrC,MAAM,CAAC,OAAO,MAAM,kBAAkB,CAAC;;4CAFvC,CAAC;oCAKqB,CAAC;;2CACM,CAAC;;AAHtB,CAAC"}
+
+=== 119 packages/language-server/test/plugins/typescript/testfiles/rename/rename4.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,kBAAkB,CAAC;;4CADzC,CAAC;CAGG,GAAG,CAAC,YAAY,CAAC;;;;;;;AACb,CAAC"}
+
+=== 191 packages/language-server/test/plugins/typescript/testfiles/rename/rename5.svelte	js.map
+{"version":3,"mappings":";;4CAAA,CAAC;;CACG,GAAG,CAAC,KAAK,GAAG,IAAI,CAAC;;CACjB,kDAAO;;CACP,EAAE,qDAAS,CAAC,CAAC;;CACb,KAAK,CAAC,GAAG,GAAG,EAAE,MAAM,mDAAA,EAAE,CAAC;;;;;;;;;;;;;AACnB,CAAC"}
+
+=== 190 packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	js.map
+{"version":3,"mappings":";;4CAAA,CAAC;CACC,SAAS,MAAM,CAAC,CAAM,EAAE,KAAoB,EAAE,CAAC,CAAC;;CAEhD,KAAK,CAAC,GAAG,GAAG,CAAC,CAAC;;CACd,MAAM,CAAC,IAAI,EAAE,EAAC,GAAG,EAAC,CAAC,CAAC;;AACd,CAAC"}
+
+=== 112 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range-import.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAS,QAAQ,CAAA;AACvB,MAAM,GAAE,OAAO,QAAO,QAAQ,CAAA;;2DAFlC,CAAC,AAGO,CAAC"}
+
+=== 75 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range.svelte	js.map
+{"version":3,"mappings":";;oDAAA,CAAC;CACG,GAAG,CAAC,CAAC,CAAC;AACF,CAAC"}
+
+=== 80 packages/language-server/test/plugins/typescript/testfiles/semantic-tokens/jsToken.svelte	js.map
+{"version":3,"mappings":";;4CAAA,CAAC;CACG,OAAO,CAAC,GAAG,EAAE,CAAC;AACV,CAAC"}
+
+=== 289 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,GAAG,QAAQ,kBAAkB,CAAA;;;sCAD1C,CAAC;EAGG,GAAG,EAAE,CAAA;EACL,GAAG,CAAC,CAAC,EAAE,EAAE,CAAC,CAAA;;;;;EAOV,SAAS,GAAG,CAAC,CAAS,EAAE,CAAkB,EAAU,CAAC,AAErD,CAAC;;EAED,GAAG,CAAC,KAAe,GAAG,EAAE,CAAC;;;;yCAGtB,KAAK;;;OAAI,IAAI;;sCACf,IAAI;;;;CAHD,CAAC;"}
+
+=== 230 packages/language-server/test/plugins/typescript/testfiles/typedefinition/typedefinition.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,iBAAiB,QAAQ,cAAc,CAAC;;;sCADrD,CAAC;EAGG,MAAM,SAAS,CAAC,CAAC,CAAC;;EAElB,GAAG,CAAC,kBAAkB,GAAG,GAAG,CAAC,iBAAiB,EAAE,CAAC;EACjD,GAAG,CAAC,kBAAkB,GAAG,GAAG,CAAC,SAAS,EAAE,CAAC;CACrC,CAAC;"}
+
+=== 122 packages/language-server/test/plugins/typescript/testfiles/update-imports/+page.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,GAAG,GAAG,QAAQ,aAAa,CAAC;;mDADlC,CAAC;CAGD,KAAK,CAAC,EAAC,MAAM,EAAC,WAAY;AAClB,CAAC"}
+
+=== 88 packages/language-server/test/plugins/typescript/testfiles/update-imports/updateimports.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,CAAC,GAAG,MAAM,mBAAmB,CAAC;;kDADpC,CAAC,AAEO,CAAC"}
+
+=== 175 packages/language-server/test/plugins/typescript/testfiles/workspace-symbols/workspace-symbols.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,aAAa,QAAQ,YAAY,CAAA;;sDAD9C,CAAC;CAEG,SAAS,YAAY,GAAG,CAAC,AACzB,CAAC;;;;;wCAKE,CAAC,EAAE,CAAC;;;MAAI,aAAa;;qCACvB,aAAa;;;;AALV,CAAC"}
+
+=== 287 packages/svelte-check/test-error/Index.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;AACnC,MAAM,GAAG,GAAG,QAAQ,YAAY,CAAC;AACjC,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;0CAHrC,CAAC;CAKG,GAAG,CAAC,KAAa,GAAG,MAAM,CAAC;CAC3B,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;;CAEV,CAAC,KACG,GAAG,CAAC;;CAER,GAAG,KAAK,EAAE,CAAC;;;;AACP,CAAC"}
+
+=== 112 packages/svelte-check/test-success/Index.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,KAAK,CAAC,CAAC,GAAG,IAAI,CAAC;;CACf,CAAC,KAAK,IAAI,CAAC;;AACP,CAAC"}
+
+=== 32 packages/svelte-vscode/test/grammar/samples/action/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 112 packages/svelte-vscode/test/grammar/samples/animation/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,IAAI;;;MAAI,IAAI;;kCACA,IAAI;;;;;0CAGhB,IAAI;;;MAAI,IAAI;;kCACiB,IAAI;;;;"}
+
+=== 219 packages/svelte-vscode/test/grammar/samples/await-block/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,OAAO,CAAC,OAAO,CAAC,EAAE,CAAC,aAAM,CAAC;8BAC7B,CAAC;;;;;qBAGE,OAAO,CAAC,OAAO,CAAC,EAAE,CAAC;8BAEtB,CAAC;;;;qBAGE,OAAO,CAAC,MAAM,CAAC,EAAE,CAAC;;qBAKlB,OAAO,CAAC,MAAM,CAAC,EAAE,CAAC;;"}
+
+=== 102 packages/svelte-vscode/test/grammar/samples/bind/input.svelte	js.map
+{"version":3,"mappings":";;4CAAA,CAAC;CACG,GAAG,CAAC,KAAK,CAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;AACN,CAAC"}
+
+=== 48 packages/svelte-vscode/test/grammar/samples/class-directive/input.svelte	js.map
+{"version":3,"mappings":";;;0HAEmB,CAAC,MAAM;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/component-docs/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 152 packages/svelte-vscode/test/grammar/samples/const/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;QACR,KAAK,GAAG,IAAI;QAEZ,EAAE,CAAC,EAAE,GAAG,GAAG;QACX,CAAE,CAAC,CAAE,GAAG,GAAG;;qCAFlB,IAAI;;;;"}
+
+=== 43 packages/svelte-vscode/test/grammar/samples/debug/input.svelte	js.map
+{"version":3,"mappings":";;;eAAQ,GAAG;;;"}
+
+=== 195 packages/svelte-vscode/test/grammar/samples/each-block/input.svelte	js.map
+{"version":3,"mappings":";;;wCAAO,KAAK;;;;;;OAAI,IAAI;;oCACV,IAAI;;;;;;;;0CAKP,UAAU;;;MAAI,CAAC,GAAG,EAAE,KAAK,CAAC;;;;;0CAI1B,CAAC;;;;;;;;0CAID,CAAC;;;;;;;;0CAID,CAAC;;;;;;;;0CAID,CAAC;;;;;;;"}
+
+=== 32 packages/svelte-vscode/test/grammar/samples/element-namespace/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 44 packages/svelte-vscode/test/grammar/samples/elements/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;"}
+
+=== 34 packages/svelte-vscode/test/grammar/samples/handler/input.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 97 packages/svelte-vscode/test/grammar/samples/if-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,GAAG;4CACE,GAAG;YACH,CAAC;;;;;;;;KAKN,GAAG;;;YAGE,GAAG;;;;;;;"}
+
+=== 36 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 43 packages/svelte-vscode/test/grammar/samples/namespaced-component/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;"}
+
+=== 149 packages/svelte-vscode/test/grammar/samples/props/input.svelte	js.map
+{"version":3,"mappings":";;;6DACc,CAAC,6BACP,KAAK,6BACE,CAAC,sFAKD,CAAC,mCACV,QAAQ,mCACR,QAAQ,mCACE,CAAC;;;4BAGH,CAAC;;qBACP,KAAK;;;;;4BAKC,KAAK;;"}
+
+=== 75 packages/svelte-vscode/test/grammar/samples/script-coffee/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,GAAG,GAAG,CAAC,CAAA;AACH,CAAC"}
+
+=== 66 packages/svelte-vscode/test/grammar/samples/script-context-lang/input.svelte	js.map
+{"version":3,"mappings":";;AACI,KAAK,CAAC,CAAC,GAAW,GAAG,CAAC;;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/script-type-no-semicolon/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 51 packages/svelte-vscode/test/grammar/samples/script-type-single-line/input.svelte	js.map
+{"version":3,"mappings":";;0CACA,CAAC,AAAyB,CAAC"}
+
+=== 43 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	js.map
+{"version":3,"mappings":";;;2CAAqB,QAAQ;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/style-less/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/style-postcss/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 34 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 packages/svelte-vscode/test/grammar/samples/style/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 32 packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte-vscode/test/grammar/samples/transition/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 93 packages/svelte2tsx/repl/index.svelte	js.map
+{"version":3,"mappings":";;SAIU,UAAU;;;;SAIV,UAAU;;;;AAPhB,GAAG,CAAC,GAAG,GAAG,IAAI,CAAC;;"}
+
+=== 138 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,GAAG,EAAE,GAAG,SAAc,EAAiC,WAAY;;EAElE,SAAS,GAAG,GAAG,CAAC,CAAC;;;CACpB,CAAC;"}
+
+=== 34 packages/svelte2tsx/test/emitDts/samples/javascript/src/TestNoScript.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 201 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,KAAK,QAAQ,iBAAiB,CAAC;;;sCAD5C,CAAC;EAEG,GAAG,CAAC,EAAE,IAAI,GAAG,OAAO,EAAqB,WAAY;EACrD,KAAK,CAAC,QAAQ,mBAAY,KAAK,CAAC,IAAI,CAAC,EAAE;;iCAGvC,QAAQ;CAFJ,CAAC;"}
+
+=== 138 packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,GAAG,EAAE,GAAG,SAAc,EAAuB,WAAY;;EAExD,SAAS,GAAG,GAAM,CAAC,CAAC;;;CACvB,CAAC;"}
+
+=== 97 packages/svelte2tsx/test/emitDts/samples/typescript-runes.v5/src/TestRunes2.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;;CAOG,GAAG,CAAC,EAAE,GAAG,EAAE,GAAG,EAAS,WAAY;AAC/B,CAAC"}
+
+=== 50 packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	js.map
+{"version":3,"mappings":";;+CAAA,CAAC,AAWO,CAAC"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/action-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/action-nested/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/action-params/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 30 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 36 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 33 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;;"}
+
+=== 42 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-data/input.svelte	js.map
+{"version":3,"mappings":";;;2CAAe,IAAI;"}
+
+=== 53 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-element/input.svelte	js.map
+{"version":3,"mappings":";;;iFACM,eAAe,0CACC,eAAe;"}
+
+=== 33 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	js.map
+{"version":3,"mappings":";;;;;"}
+
+=== 67 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;qBAKQ,KAAK;;;;;;;qBAQL,KAAK;;"}
+
+=== 53 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-nullish-coalescing/input.svelte	js.map
+{"version":3,"mappings":";;;mCAAsB,GAAG,IAAI,WAAW;"}
+
+=== 55 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-number/input.svelte	js.map
+{"version":3,"mappings":";;;;+EACyC,CAAC,mBAAS,CAAC;"}
+
+=== 53 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-optional-chaining/input.svelte	js.map
+{"version":3,"mappings":";;;mCAAsB,GAAG,EAAE,SAAS;"}
+
+=== 56 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-quoted/input.svelte	js.map
+{"version":3,"mappings":";;;mCAAsB,SAAS;;mCACT,SAAS;;"}
+
+=== 43 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-shorthand/input.svelte	js.map
+{"version":3,"mappings":";;;6BAAgB,SAAS;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-text/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-value-escape/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/auto-closing-tag/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 56 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic-catch/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW,aAAM,KAAK;;;;;"}
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW,aAAM,KAAK;;;;;;;;EAItB,WAAW;;;;;;;;;;"}
+
+=== 81 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-array/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,UAAU;;;;GAEX,CAAE,CAAC,EAAE,CAAC,CAAE;;;;;;"}
+
+=== 227 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-default/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,MAAM,aAAM,EAAE,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,CAAC,EAAE,CAAC,EAAE;;;;;;qBAI/B,KAAK,aAAM,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,GAAG,CAAC,CAAC;;;;;;qBAIxB,YAAY,aAAM,KAAK;;;;;;qBAMvB,WAAW,aAAM,KAAK;;;;;"}
+
+=== 81 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-object/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,UAAU;;;;GAEX,EAAE,MAAM,EAAE,KAAK,EAAE;;;;;;"}
+
+=== 197 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-rest/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,MAAM,aAAM,EAAE,CAAC,EAAE,GAAG,IAAI,EAAE;;;;;;qBAI1B,KAAK,aAAM,CAAC,CAAC,EAAE,CAAC,EAAE,GAAG,IAAI,CAAC;;;;;;qBAI1B,YAAY,aAAM,KAAK;;;;;;qBAMvB,WAAW,aAAM,KAAK;;;;;"}
+
+=== 70 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-no-then/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,QAAQ;;;;;;;;;;;EAIR,QAAQ;;;;;;;;"}
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-parentheses/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAS,WAAW,aAAO,KAAK;;;;;;;;EAIvB,WAAW;;;;;;;;;;"}
+
+=== 71 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending-catch/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,WAAW;;;;GAEZ,KAAK;oDACc,KAAK;;;;;"}
+
+=== 71 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,WAAW;;;;GAEZ,KAAK;oDACc,KAAK;;;;;"}
+
+=== 43 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch-no-var/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW;;"}
+
+=== 43 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW;;"}
+
+=== 46 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-then-no-var/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,WAAW;;;;;"}
+
+=== 182 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;iBAMmB,GAAG;iBAAE,GAAG;mBACR,MAAM,CAAC;mBAAE,CAAA,KAAK,KAAI,CAAC,GAAG,KAAK;;2CAP3B,GAAG,+BACH,CAAA,MAAM,CAAC,CAAA;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 36 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-get-set.v5/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 30 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-body/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 58 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-component/input.svelte	js.map
+{"version":3,"mappings":";;;KAAwB,CAAC;;EAAD,CAAC;;;;;;"}
+
+=== 49 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-self/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK;;;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 130 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI,IAAI,OAAO;;;;;;;;wCAAc,CAAC;;;MAAI,CAAC;;;;;;;qBAAiB,CAAC,aAAM,CAAC;;;;;;KAAe,GAAG;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/class-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 53 packages/svelte2tsx/test/htmlx2jsx/samples/class-parentheses/input.svelte	js.map
+{"version":3,"mappings":";;;4DAAmB,MAAM,IAAE,MAAM;"}
+
+=== 74 packages/svelte2tsx/test/htmlx2jsx/samples/class/input.svelte	js.map
+{"version":3,"mappings":";;;4DAAkB,MAAM,IAAE,MAAM,0DACb,MAAM,IAAE,MAAM;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/comment/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	js.map
+{"version":3,"mappings":";;;;;KACQ,IAAI;;YAEC,CAAC,IAAI;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-empty/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 60 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let-destructure/input.svelte	js.map
+{"version":3,"mappings":";;;;;;oCAAwB,CAAC;0CACT,CAAC;;;;"}
+
+=== 70 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let/input.svelte	js.map
+{"version":3,"mappings":";;;;;;iCAAqB,CAAC;0CACP,KAAK,cAAG,CAAC;;;;"}
+
+=== 37 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;"}
+
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/component-multi-slot/input.svelte	js.map
+{"version":3,"mappings":";;;;;;gCAAoB,OAAO;0CACZ,OAAO;;;qCACgB,MAAM;kHACvB,MAAM;;;;;;;uDAGmC,QAAQ;;;;;;;;;"}
+
+=== 35 packages/svelte2tsx/test/htmlx2jsx/samples/component-name-dot/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;"}
+
+=== 108 packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte	js.map
+{"version":3,"mappings":";;;;;;qCAAyB,GAAG;;;;;0CAKnB,KAAK;;;;;;;;;;yCAHL,GAAG,cAAG,GAAG,cAAG,GAAG;;;;;;;"}
+
+=== 56 packages/svelte2tsx/test/htmlx2jsx/samples/component-no-slots/input.svelte	js.map
+{"version":3,"mappings":";;;mCAAqB,IAAI;;mCACJ,IAAI;;"}
+
+=== 68 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-attribute-as-prop.v5/input.svelte	js.map
+{"version":3,"mappings":";;;;WACc,KAAK;;;;;;;;;;;;;;;uBAAL,KAAK;;"}
+
+=== 182 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	js.map
+{"version":3,"mappings":";;;;;;GAAc,SAAS;;;0BAAmC,CAAC,iBAAG,CAAC;;YAAyB,IAAI;eAAc,KAAK;YAAW,EAAC,CAAC,EAAC;uBAAoB,EAAC,CAAC,EAAC;;;;sCAK3I,GAAG;;;;;;;0CAHH,GAAG,cAAG,GAAG;;;;;;;;"}
+
+=== 236 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	js.map
+{"version":3,"mappings":";;;;EACK,WAAW;OACP,WAAW;EACf,QAAQ;EACR,SAAS;gBACE,SAAS;kCACH,OAAO;WACf,EAAC,OAAO,EAAC;;;iCACT,CAAC;;KASL,QAAQ;;;;0CAAkC,KAAK,aAAE,QAAQ;;;;;;;+CAJlC,KAAK,aAAE,QAAQ;;;;;;KAE1B,QAAQ;;yCAAkC,KAAK,aAAE,QAAQ;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 100 packages/svelte2tsx/test/htmlx2jsx/samples/debug-block/input.svelte	js.map
+{"version":3,"mappings":";;;eAAQ,MAAM;;;;eACN,MAAM,EAAK,aAAa;;;;eACxB,MAAM,EAAE,aAAa,EAAE,aAAa;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 92 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic-sequence/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,CAAA,IAAI,EAAE,KAAK,CAAA;;;MAAI,IAAI;;mCAChB,IAAI;;;;"}
+
+=== 71 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;mCACV,IAAI;;;;"}
+
+=== 81 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-index/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;mCACV,IAAI,aAAE,CAAC;;;;"}
+
+=== 85 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key-else/input.svelte	js.map
+{"version":3,"mappings":";;;wCAAO,KAAK;;;;;;OAAI,IAAI;;oCACV,IAAI,aAAE,CAAC;;;;;;;"}
+
+=== 81 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;mCACV,IAAI,aAAE,CAAC;;;;"}
+
+=== 82 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-nullish-coalescing/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK,IAAI,EAAE;;;MAAI,IAAI;;mCAChB,IAAI;;;;"}
+
+=== 82 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-optional-chaining/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,UAAU,EAAE,KAAK;;;MAAI,IAAI;;mCACtB,IAAI;;;;"}
+
+=== 118 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,EAAE,MAAM,EAAE,CAAC,EAAE;;;;;;;;0CAIb,EAAE,MAAM,EAAE,CAAC,EAAE;;;qCACf,KAAK;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 136 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-infer-props/input.svelte	js.map
+{"version":3,"mappings":";;;;;;GAAiB,SAAS;;;0BAAmC,CAAC,iBAAG,CAAC;;YAAyB,IAAI;eAAc,KAAK;YAAW,EAAC,CAAC,EAAC;uBAAoB,EAAC,CAAC,EAAC;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-customname/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-modifiers/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-quoted/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 58 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-svelte-component/input.svelte	js.map
+{"version":3,"mappings":";;;KAAwB,QAAQ;;EAAR,QAAQ;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 62 packages/svelte2tsx/test/htmlx2jsx/samples/expression-nullish-coalescing-optional-chaining/input.svelte	js.map
+{"version":3,"mappings":";;;uCAAW,IAAI,EAAE,IAAI,IAAI,SAAS;"}
+
+=== 52 packages/svelte2tsx/test/htmlx2jsx/samples/html-block/input.svelte	js.map
+{"version":3,"mappings":";;;2BAAO,MAAM,GAAG,aAAa;"}
+
+=== 427 packages/svelte2tsx/test/htmlx2jsx/samples/if-block-const/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI,IAAI,OAAO;;;QACR,KAAK,GAAG,IAAI;;wCACT,KAAK;YACV,IAAI;;;QACF,KAAK,GAAG,IAAI;;wCACT,KAAK;;;;QAER,KAAK,GAAG,IAAI;;wCACT,KAAK;;;;;KAGf,MAAM,CAAC,CAAC,KAAK,QAAQ;;;QACd,IAAI,GAAG,CAAC;QACR,KAAK,GAAG,IAAI;;8BAEnB,CAAC;YACI,MAAM,CAAC,CAAC,KAAK,QAAQ;;;QACnB,IAAI,GAAG,CAAC;;;;;;;KAGf,MAAM,CAAC,CAAC,KAAK,QAAQ;;;QACd,IAAI,GAAG,CAAC;;;;;;;KAGf,MAAM,CAAC,CAAC,KAAK,QAAQ;;;QACd,IAAI,GAAG,CAAC;;;;;;"}
+
+=== 67 packages/svelte2tsx/test/htmlx2jsx/samples/if-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI,IAAI,OAAO;iDACT,IAAI;;;;;;"}
+
+=== 77 packages/svelte2tsx/test/htmlx2jsx/samples/if-comma-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAM,CAAA,IAAI,EAAE,KAAK,CAAA;iDACN,IAAI;;;;;;"}
+
+=== 458 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block-nested/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI,IAAI,OAAO;;;MAAM,GAAG;;;;;;;;MAAc,GAAG;;;;;;;YAAmB,GAAG;;;MAAM,GAAG;;;;;;;;;;MAA+B,GAAG;;aAAc,KAAK;;;;;;;;;;;KAE7H,IAAI,IAAI,OAAO;;;MACX,GAAG;;;;;;;;MACH,GAAG;;;;;;;;MAKH,GAAG;;aAEE,KAAK;;;;;;;;MAGV,GAAG;;aAEE,KAAK;;;;;;;YAKT,GAAG;;;MACJ,GAAG;;;;;;;;MACH,GAAG;;;;;;;;MAKH,GAAG;;aAEE,KAAK;;;;;;;;MAGV,GAAG;;aAEE,KAAK;;;;;;;;;;MAMV,GAAG;;;;;;;;MACH,GAAG;;;;;;;;MAKH,GAAG;;aAEE,KAAK;;;;;;;;MAGV,GAAG;;aAEE,KAAK;;;;;;;;;;"}
+
+=== 77 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI,IAAI,OAAO;iDACL,IAAI;;kDAEJ,IAAI;;;;"}
+
+=== 98 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK,IAAI,OAAO;iDACN,KAAK;YACV,KAAK,IAAI,QAAQ;iDACZ,KAAK;;;;;;"}
+
+=== 124 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-nullish-coalescing/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,AAAC,CAAA,KAAK,IAAI,KAAK,CAAA,IAAK,OAAO;iDACjB,KAAK;YACV,KAAK,IAAI,OAAO;iDACX,KAAK;;;;;;"}
+
+=== 119 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-optional-chaining/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,GAAG,EAAE,KAAK,IAAI,OAAO;iDACX,KAAK;YACV,GAAG,EAAE,KAAK,IAAI,QAAQ;iDACjB,KAAK;;;;;;"}
+
+=== 762 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK;;;sBACE,QAAQ,aAAM,KAAK;+BACtB,KAAK;;;;;sBAIF,QAAQ,aAAM,GAAG;SACb,KAAK,GAAG,GAAG;;+BAClB,KAAK;;;;;sBAIF,QAAQ,aAAM,EAAE;+BACnB,KAAK;;;;;sBAIF,KAAK,aAAM,KAAK;+BACnB,KAAK;;OACD,KAAK;;;;;KACE,QAAQ;;kCACX,KAAK;;;;;;;;;KAEF,QAAQ;;kCACX,KAAK;;;;;;;wBAIF,CAAC,aAAM,KAAK;SACX,KAAK;2CACL,KAAK;;;;;;;;;;wBAGN,CAAC,aAAM,GAAG;WACN,KAAK,GAAG,GAAG;;SACd,KAAK;2CACL,KAAK;;;;;;;;;;;;;;;;;;MAKjB,EAAE,IAAI,GAAG;;;uBACF,CAAC,aAAM,GAAG;gCACb,GAAG;;;;aAMF,IAAI;;;;;IACF,IAAI;;;;KAEL,IAAI;SACF,IAAI;2CACJ,IAAI;;;;;;;;;;;;;IAKL,QAAQ;;;;KAET,IAAI;iCACN,IAAI;;;;;;;;uBAGD,CAAC,aAAM,KAAK;QACX,KAAK;0CACL,KAAK;;;;;;;;;;;;;;;;;;;;EAMd,IAAI;;OACH,IAAI;yCACJ,IAAI;cACC,KAAK;yCACV,KAAK;;;;;;;GAEP,IAAI;OACF,IAAI;yCACJ,IAAI;cACC,KAAK;yCACV,KAAK;;;;;;;;;;"}
+
+=== 311 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK;;;sBACE,KAAK,CAAC,GAAG,aAAM,CAAC;+BACnB,CAAC;;;;;sBAEE,CAAC,aAAM,CAAC;+BACX,CAAC;;;;;;;GAEE,QAAQ;;gCACb,KAAK;;;;;;;MAEH,EAAE,IAAI,GAAG;;;uBACF,CAAC,aAAM,CAAC;gCACX,CAAC;;;;aAIA,IAAI;;;;;IACF,CAAC;;;;KAEF,CAAC;iCACH,CAAC;;;;;;;;uBAKE,CAAC,aAAM,CAAC;gCACX,CAAC;;;;;;;;;;;;"}
+
+=== 826 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block-shadowed/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK;;;yCACC,KAAK;;;;;;QAAI,KAAK;;qCACX,KAAK,aAAE,CAAC;;QACT,KAAK;;;8CACC,KAAK;;;UAAI,KAAK;;UACZ,KAAK;4CACL,KAAK;;;;;;;;;;8CAGP,KAAK;;;UAAI,GAAG;YACP,KAAK,GAAG,GAAG;;UACd,KAAK;4CACL,KAAK;;;;;;;;;;;;;;;;;;OAKb,KAAK;yCACL,KAAK;;;;;;;;;;MAGT,EAAE,IAAI,GAAG;;;4CACH,KAAK;;;;;;SAAI,GAAG;;sCACT,GAAG;;;;;QAEJ,GAAG;0CACH,GAAG;;;;;;;;;aAGN,IAAI;;;4CACH,KAAK;;;QAAI,IAAI;;qCACV,IAAI,aAAE,IAAI;;;;;;;4CAGb,KAAK;;;QAAI,KAAK;;qCACX,KAAK;;;;;;;;;;;;;0CAKhB,KAAK;;;;;;OAAI,KAAK;;OACZ,KAAK,IAAI,CAAC,IAAI,GAAG;yCACjB,KAAK,cAAG,CAAC,cAAG,GAAG;cACV,KAAK,IAAI,CAAC,IAAI,GAAG;yCACtB,KAAK,cAAG,CAAC,cAAG,GAAG;;0CAEf,KAAK,cAAG,CAAC,cAAG,GAAG;;;;;;;;MAGf,KAAK,IAAI,CAAC,IAAI,GAAG;wCACjB,KAAK,cAAG,CAAC,cAAG,GAAG;aACV,KAAK,IAAI,CAAC,IAAI,GAAG;wCACtB,KAAK,cAAG,CAAC,cAAG,GAAG;;yCAEf,KAAK,cAAG,CAAC,cAAG,GAAG;;;;;;;"}
+
+=== 267 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK;;;yCACC,KAAK;;;OAAI,IAAI;;oCACV,IAAI,aAAE,CAAC;;;;;MAEZ,EAAE,IAAI,GAAG;;;4CACH,KAAK;;;;;;SAAI,IAAI;;sCACV,IAAI;;;;;;;aAIR,IAAI;;;4CACH,KAAK;;;QAAI,IAAI;;qCACV,IAAI,aAAE,CAAC;;;;;;;4CAGV,KAAK;;;QAAI,IAAI;;qCACV,IAAI;;;;;;;;;;;;"}
+
+=== 974 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let-shadowed/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK,IAAI,MAAM;;;;;;;wCAEX,KAAK;;;;;;YAEG,KAAK;8CACL,KAAK;;;;;;;;;;;;;MAGP,KAAK;;;;YACH,KAAK;8CACL,KAAK;;;;;;;;;;;;SAkBT,KAAK;;;;;;;aAEG,KAAK;+CACL,KAAK;;;;;;;;;;;;;;;;eAIF,KAAK,GAAG,GAAG;;aACd,KAAK;+CACL,KAAK;;;;;;;;;;;;;;;;;;;;UAvBT,KAAK;4CACL,KAAK;;;;;;;;;;;;SAIL,KAAK;2CACL,KAAK;;;;;;;;;;;;WAIL,KAAK;6CACL,KAAK;;;;;;;;;;;;;;;MAiBb,EAAE,IAAI,GAAG;;;;;;kCACK,GAAG;yCACb,GAAG;;;;aAEF,IAAI;;;;;;oDAGD,KAAK;;;;;;;;;gCAKiB,KAAK,UAAc,KAAK;oDAC9C,KAAK;;;;;;;;;;;;;;;;;QAOb,KAAK,IAAI,GAAG;0CACZ,KAAK,cAAG,GAAG;eACN,KAAK,IAAI,GAAG;0CACjB,KAAK,cAAG,GAAG;;2CAEX,KAAK,cAAG,GAAG;;;;;;;;SAGP,KAAK,IAAI,GAAG;2CACZ,KAAK,cAAG,GAAG;gBACN,KAAK,IAAI,GAAG;2CACjB,KAAK,cAAG,GAAG;;4CAEX,KAAK,cAAG,GAAG;;;;;;;;;;QAIX,KAAK,IAAI,GAAG;0CACZ,KAAK,cAAG,GAAG;eACN,KAAK,IAAI,GAAG;0CACjB,KAAK,cAAG,GAAG;;2CAEX,KAAK,cAAG,GAAG;;;;;;;UAIR,KAAK,GAAG,GAAG;;;;QACd,KAAK,IAAI,GAAG;0CACZ,KAAK,cAAG,GAAG;eACN,KAAK,IAAI,GAAG;0CACjB,KAAK,cAAG,GAAG;;2CAEX,KAAK,cAAG,GAAG;;;;;;;;;"}
+
+=== 183 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,KAAK;;;;;;;wCAED,GAAG;;;;;;;MAEH,EAAE,IAAI,GAAG;;;;;;kCACK,GAAG;yCACb,GAAG;;;;aAEF,IAAI;;;;;;oDAGD,GAAG;;;;;;;;;gCAKmB,GAAG;oDACzB,GAAG;;;;;;;;;;;;"}
+
+=== 156 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	js.map
+{"version":3,"mappings":";;;;qCAAC;GACG,QAAQ,GAAG,CAAC;IAAC,MAAM,CAAC,aAAa,CAAA;GAAC,CAAC;GACtC;;WAEA,CAAA,EAAE,CAAC,EAAE,EAAE,EAAE,CAAA,CAAC,GAAG,CAAC;;"}
+
+=== 43 packages/svelte2tsx/test/htmlx2jsx/samples/namespaced-attributes/input.svelte	js.map
+{"version":3,"mappings":";;;6CACkB,IAAI;"}
+
+=== 103 packages/svelte2tsx/test/htmlx2jsx/samples/nested-if-else-if-and-each-block/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI;;;MACF,IAAI;;aAAW,IAAI;;;;;;;;;;yCAEjB,EAAE;;;OAAI,CAAC;;;;;;;"}
+
+=== 313 packages/svelte2tsx/test/htmlx2jsx/samples/nested-snippet.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAeU,YAAY;UAER,GAAG;UACH,IAAI;;CAFL,GAAG;;;;UAaF,GAAG;;KA7BZ,IAAI;;;WAEK,GAAG;;EADJ,GAAG;;;;;;;wCAIT,GAAG;;;MAAI,IAAI;;WAEJ,GAAG;;EADJ,GAAG;;;;;;WAMF,GAAG;;EADJ,GAAG;;;;;qBAUR,OAAO,CAAC,OAAO,EAAE,aAAM,GAAG;WAEpB,GAAG;;EADJ,GAAG;;;;CAMH,GAAG;;;;WAMF,GAAG;;;GAAH,GAAG;;IADJ,GAAG;;;;;;;"}
+
+=== 35 packages/svelte2tsx/test/htmlx2jsx/samples/quotes-inside-quotes/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-noscroll/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-prefetch/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 42 packages/svelte2tsx/test/htmlx2jsx/samples/simple-expression/input.svelte	js.map
+{"version":3,"mappings":";;;uCAAW,IAAI;"}
+
+=== 621 packages/svelte2tsx/test/htmlx2jsx/samples/snippet.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAAU,GAAG,aAAC,CAAC;qCACL,CAAC;;;SAGD,GAAG;;;;SAIH,YAAY;qBACb,GAAG,aAAM,GAAG;8BAAE,GAAG;;;;;;SAGhB,YAAY,aAAC,CAAC,GAAG,EAAE;qCACnB,CAAC;;;SAuCD,KAAK,aAAoB,CAAC;oCAClC,CAAC;;;;CArCM,GAAG,aAAC,CAAC;;CACL,GAAG;;CACH,YAAY;;;;WAIV,GAAG,aAAC,CAAC;uCACL,CAAC;;;;GADD,GAAG;;qCADP,GAAG;;;;;;;;;WAOC,GAAG,aAAC,IAAI;sCAChB,IAAI;;;WAEI,YAAY;uBACb,GAAG,aAAM,GAAG;gCAAE,GAAG;;;;;;;SALf,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC;GACV,GAAG;GAGH,YAAY;;;;;;;;;;;;;;;;;WAUZ,IAAI,aAAC,IAAI;sCACjB,IAAI;;;WAGI,IAAI,aAAC,IAAI;sCACjB,IAAI;;;;SANK,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC;GACV,IAAI;GAIJ,IAAI;;;;;;;;;CAKN,QAAQ;;"}
+
+=== 130 packages/svelte2tsx/test/htmlx2jsx/samples/style-directive/input.svelte	js.map
+{"version":3,"mappings":";;;oGACiB,KAAK,0CACJ,KAAK,gDACL,KAAK,qLAGC,KAAK,wEACN,KAAK,kEACV,KAAK,8EACC,KAAK,yDACZ,WAAW,OAAO,EAAE;"}
+
+=== 85 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-boundary.v5/input.svelte	js.map
+{"version":3,"mappings":";;;;WAEc,MAAM,aAAC,CAAC;yCACH,CAAC;;;wBADN,MAAM;;;;;;;;;;"}
+
+=== 132 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-fragment/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;qCAWsC,GAAG;;oCAC7B,GAAG,cAAG,GAAG;;;;mCAG8B,GAAG;;oCAC1C,GAAG,cAAG,GAAG;;;;;;;"}
+
+=== 36 packages/svelte2tsx/test/htmlx2jsx/samples/sveltehead-title/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 36 packages/svelte2tsx/test/htmlx2jsx/samples/sveltekit-anchor-attrs/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/svg-attributes/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 42 packages/svelte2tsx/test/htmlx2jsx/samples/transition-modifiers/input.svelte	js.map
+{"version":3,"mappings":";;;kCACK,IAAI;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/transition-params/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 509 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;kCACd,IAAI,CAAC,IAAI,gBAAK,IAAI,CAAC,GAAG;;;;;0CAGrB,KAAK;;;MAAI,IAAI;;kCACd,CAAC,GAAG,CAAC,eAAI,IAAI,CAAC,IAAI,gBAAK,IAAI,CAAC,GAAG;;;;;0CAG9B,KAAK;;;MAAI,EAAE,EAAE,EAAE,IAAI,EAAE,GAAG,EAAE;;kCAC3B,CAAC,GAAG,CAAC,eAAI,IAAI,gBAAK,GAAG;;;;;0CAGpB,OAAO;;;MAAI,EAAE,EAAE,EAAE,GAAG,IAAI,EAAE;;wCACrB,EAAE;0CAAyB,IAAI;;;;;;0CAGpC,KAAK;;;MAAI,CAAC,EAAE,EAAE,GAAG,IAAI,CAAC;;wCACjB,EAAE;oCAA6B,IAAI;;;;;;0CAGxC,KAAK;;;;;;OAAI,IAAI;;kCACf,IAAI,CAAC,IAAI;;;;;;;"}
+
+=== 42 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	js.map
+{"version":3,"mappings":";;;2CAAS,KAAK;"}
+
+=== 32 packages/svelte2tsx/test/sourcemaps/samples/simple-element/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 81 packages/svelte2tsx/test/sourcemaps/samples/slot-let/input.svelte	js.map
+{"version":3,"mappings":";;;;;;oCAA2B,IAAI;uCAC1B,EAAE,aAAE,IAAI,aAAE,GAAG;;;;"}
+
+=== 93 packages/svelte2tsx/test/sourcemaps/samples/slots/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;sCAIW,GAAG,EAAc,GAAG;;;;;;sCAGzB,GAAG,EACP,GAAG;;;;;"}
+
+=== 477 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CACG,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,EAAE,CAAC,CAAC;;CAE3B,qDAAA,kDAAO,CAAC,CAAC,GAAG,IAAI,EAAC;CACjB,qDAAA,kDAAO,GAAG,GAAG,IAAI,EAAC;CAElB,qDAAA,kDAAO,CAAC,CAAC,GAAG,IAAI,EAAA;CAChB,qDAAA,kDAAO,GAAG,GAAG,IAAI,EAAA;CAEjB,mBAAS,IAAI,EAAA;CACb,mBAAS,IAAI,EAAC;CAEd,KAAK,mDAAQ,GAAG,IAAI,CAAC;;CAErB;qBAAS,IAAI;qBACJ,KAAK;;uDAEd,kDAAO,CAAC,GAAG,IAAI;EAAA,CAAA;;CAEf;uDAAA,kDAAO,CAAC,GAAG,IAAI;uDACf,kDAAO,CAAC,GAAG,KAAK;EAAA,CAAC;;;AACb,CAAC"}
+
+=== 109 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,MAAM,QAAQ,aAAa,CAAC;;AACrC,KAAK,CAAC,MAAM,GAAG,EAAE,CAAC;;;;;;;;;"}
+
+=== 193 packages/svelte2tsx/test/svelte2tsx/samples/$store-prop-init/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CACG,GAAG,CAAC,KAAK,GAAG,IAAI,CAAC;CACjB,KAAK,CAAC,GAAG,GAAG,EAAE,MAAM,mDAAA,EAAE,CAAC;CACvB,KAAK,CAAC,GAAG,GAAG,EAAE,MAAM,mDAAQ,EAAE,CAAC;;;AAC3B,CAAC"}
+
+=== 45 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	js.map
+{"version":3,"mappings":";;;;mDACmC,CAAC;;"}
+
+=== 219 packages/svelte2tsx/test/svelte2tsx/samples/await-with-$store/input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCADzC,CAAC;;EAEA,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,OAAO,CAAC,OAAO,CAAC,MAAM,CAAC,EAAE,MAAM,CAAC,CAAC,CAAC,CAAC;;;;;;;;IAKpD,IAAI;gCACT,IAAI;;;;;;;CALE,CAAC;"}
+
+=== 1778 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	js.map
+{"version":3,"mappings":";;0CAQA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,SAAS,GAAG,CAAC,EAAE,CAAC,CAAC;CACrB,GAAG,CAAC,OAAO,GAAG,EAAE,CAAC;CACjB,GAAG,CAAC,QAAQ,CAAC;CACb,GAAG,CAAC,SAAS,GAAG,KAAK,CAAC;CACtB,GAAG,CAAC,QAAQ,GAAG,KAAK,CAAC;;CAErB,SAAS,WAAW,CAAC,KAAK,EAAE,CAAC;EAC5B,EAAE,EAAE,SAAS,EAAE,CAAC;GACf,SAAS,GAAG,KAAK,CAAC;;;;GAIlB,EAAE,EAAE,QAAQ,EAAE,IAAI,EAAE,CAAC;;GACrB,MAAM,CAAC;EACR,CAAC;;EAED,KAAK,CAAC,MAAM,GAAG,EACd,EAAE,EAAE,KAAK,CAAC,OAAO,EACjB,EAAE,EAAE,KAAK,CAAC,OAAO,EACjB,CAAC,EAAE,EAAE,EACL,CAAC;;EAEF,OAAO,GAAG,OAAO,CAAC,MAAM,CAAC,MAAM,CAAC,CAAC;EACjC,QAAQ,GAAG,MAAM,CAAC;EAElB,IAAI,EAAE,CAAC;CACR,CAAC;;CAED,SAAS,MAAM,CAAC,KAAK,EAAE,CAAC;EACvB,QAAQ,CAAC,CAAC,GAAG,CAAC,KAAK,CAAC,MAAM,CAAC,KAAK,CAAC;EACjC,OAAO,GAAG,OAAO,CAAC;EAClB,QAAQ,GAAG,IAAI,CAAC;CACjB,CAAC;;CAED,SAAS,MAAM,CAAC,MAAM,EAAE,KAAK,EAAE,CAAC;EAC/B,EAAE,EAAE,CAAC,SAAS,EAAE,CAAC;GAChB,KAAK,CAAC,eAAe,EAAE,CAAC;GACxB,QAAQ,GAAG,MAAM,CAAC;EACnB,CAAC;CACF,CAAC;;CAED,SAAS,IAAI,GAAG,CAAC;EAChB,KAAK,CAAC,YAAY,GAAG,SAAS,CAAC,KAAK,CAAC,CAAC,EAAE,EAAE,CAAC,CAAC,CAAC;;EAC7C,YAAY,CAAC,IAAI,CAAC,KAAK,CAAC,OAAO,CAAC,CAAC,CAAC;EAClC,SAAS,GAAG,YAAY,CAAC;CAC1B,CAAC;;CAED,SAAS,MAAM,CAAC,CAAC,EAAE,CAAC;EACnB,OAAO,GAAG,KAAK,CAAC,SAAS,CAAC,CAAC,IAAI,CAAC,CAAC,CAAC,CAAC;EACnC,SAAS,GAAG,KAAK,CAAC;CACnB,CAAC;;CAED,SAAS,KAAK,CAAC,OAAO,EAAE,CAAC;EACxB,MAAM,CAAC,OAAO,CAAC,GAAG,CAAC,CAAC,EAAE,EAAE,EAAE,EAAE,EAAE,CAAC,EAAE,KAAM,CAAA,EAAE,EAAE,EAAE,EAAE,EAAE,CAAC,EAAE,CAAA,AAAC,CAAC,CAAC;CACxD,CAAC;;kFAsCgD,CAAC,KAAK,CAAC,mDACP,CAAC,KAAK,SAAS,CAAC,MAAM,GAAE,CAAC;;wCAInE,OAAO;;;MAAI,MAAM;;yCACX,MAAM,CAAC,EAAE,iBAAM,MAAM,CAAC,EAAE,gBAAK,MAAM,CAAC,CAAC,mBAMzC,MAAM,KAAK,QAAQ,GAAG,MAAM,GAAE,OAAO;;;;;KAK1C,SAAS;2GAEqB,QAAQ,CAAC,EAAE,eAAI,QAAQ,CAAC,EAAE,4CAChC,QAAQ,CAAC,CAAC;;;;;;AAzD/B,CAAC"}
+
+=== 51 packages/svelte2tsx/test/svelte2tsx/samples/commented-out-script/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;AAEO,CAAC"}
+
+=== 103 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;;;6CAGD,CAAC;;;;;AAFN,CAAC"}
+
+=== 129 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-constant/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,KAAK,CAAC,CAAC,GAAG,GAAG,CAAC;OACR,CAAC,GAAG,GAAG;OAAE,CAAC,GAAG,GAAG;;;;AASlB,CAAC"}
+
+=== 136 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-dispatcher/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;;;;EAYG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;CACrC,CAAC;"}
+
+=== 53 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-string-literals/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;;;AASO,CAAC"}
+
+=== 53 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;;;AASO,CAAC"}
+
+=== 165 packages/svelte2tsx/test/svelte2tsx/samples/component-events-strictEvents/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EAGG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;EACzC,QAAQ,CAAC,KAAK,CAAC,CAAC;;CACZ,CAAC;"}
+
+=== 53 packages/svelte2tsx/test/svelte2tsx/samples/component-events-type/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;;;AASO,CAAC"}
+
+=== 198 packages/svelte2tsx/test/svelte2tsx/samples/component-multiple-slots/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;;;6CAGD,CAAC;;;;;0CACW,CAAC,EAAG,CAAC;;;;AAHtB,CAAC"}
+
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CASG,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;;6CAID,CAAC;;sCACQ,CAAC;;AAJf,CAAC"}
+
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-type/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CASG,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;;6CAID,CAAC;;sCACQ,CAAC;;AAJf,CAAC"}
+
+=== 126 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-crazy-attributes/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;;;6CAGD,CAAC,EAAG,CAAC,sBAAmB,CAAC;;;;;AAF9B,CAAC"}
+
+=== 55 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-fallback/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;sCACkB,GAAG;;;;;"}
+
+=== 88 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-forward-with-props/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAe,KAAK;;;yBAAmC,CAAC,iBAAG,CAAC;;;;;6CACjD,GAAG;;;;;"}
+
+=== 124 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-await/input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,OAAO,aAAM,KAAK;;;8CACb,KAAK;;;;;;;;;qBAIV,QAAQ,aAAM,EAAE,CAAC,EAAE;;;6CACA,CAAC;;;;;;;;"}
+
+=== 132 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-each/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;;;8CACP,IAAI;;;;;;;;;0CAEV,MAAM;;;MAAI,EAAE,CAAC,EAAE;;;;0CACG,CAAC;;;;;;;;"}
+
+=== 50 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward-named-slot/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;6CAEe,CAAC;;;;;"}
+
+=== 95 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward/input.svelte	js.map
+{"version":3,"mappings":";;;;;;iCAAqB,CAAC,qBAA4B,GAAG;;6CAC1C,CAAC,EAAG,KAAK,EAAG,GAAG;;;;;"}
+
+=== 208 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-nest-scope/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;;;2CACT,IAAI;;;OAAI,EAAE,CAAC,EAAE;;;;4CACT,CAAC;;;;;;;;0CAEU,CAAC;;;;;;;;;;uCAER,CAAC;;;;;;;qBACZ,OAAO,aAAM,CAAC;8BACjB,CAAC;;;;wCAEc,CAAC,EAAG,CAAC;;"}
+
+=== 98 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-no-space/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;0CADrC,CAAC;;;;;;;;;;;;;AAEO,CAAC"}
+
+=== 77 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,KAAK;;;;8CACR,KAAK;;;;;;;;"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/component-with-documentation/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/component-with-indented-multiline-documentation/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/component-with-multiline-documentation/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 96 packages/svelte2tsx/test/svelte2tsx/samples/creates-no-script-dts/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;qBACQ,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC,aAAM,CAAC;8BAC9B,CAAC;;;;"}
+
+=== 88 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,KAAK,CAAC,KAAK,GAAG,kBAAkB,CAAC;AAC7B,CAAC"}
+
+=== 186 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EAGG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;EACzC,QAAQ,CAAC,OAAO,EAAE,EAAE,KAAK,EAAE,CAAC,CAAC;;CACzB,CAAC;"}
+
+=== 35 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-multi/input.svelte	js.map
+{"version":3,"mappings":";;;;;;;"}
+
+=== 70 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-with-props/input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAkB,KAAK;;;yBAAmC,CAAC,iBAAG,CAAC;;"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-element/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-svelte-element/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 350 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events-alias/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,IAAI,GAAG,EAAE,GAAG,QAAQ,QAAQ,CAAC;;;sCAD/D,CAAC;EAGG,KAAK,CAAC,WAAW,GAAG,GAAG,EAAE,CAAC;EAC1B,KAAK,CAAC,QAAQ,GAAG,GAAG,EAAE,CAAC;;EAEvB,QAAQ,CAAC,IAAI,EAAE,IAAI,CAAC,CAAC;;EAErB,SAAS,GAAG,GAAG,CAAC;GACZ,KAAK,CAAC,GAAG,GAAG,KAAK,CAAC;;GAClB,QAAQ,CAAC,GAAG,EAAE,KAAK,CAAC,CAAC;EACzB,CAAC;;;CACG,CAAC;"}
+
+=== 342 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,EAAE,GAAG,QAAQ,QAAQ,CAAC;;;sCADxD,CAAC;EAGG,KAAK,CAAC,WAAW,GAAG,GAAG,EAAE,CAAC;EAC1B,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;EAEzC,QAAQ,CAAC,IAAI,EAAE,IAAI,CAAC,CAAC;;EAErB,SAAS,GAAG,GAAG,CAAC;GACZ,KAAK,CAAC,GAAG,GAAG,KAAK,CAAC;;GAClB,QAAQ,CAAC,GAAG,EAAE,KAAK,CAAC,CAAC;EACzB,CAAC;;;CACG,CAAC;"}
+
+=== 311 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatchers/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,EAAE,GAAG,QAAQ,QAAQ,CAAC;;;sCADxD,CAAC;EAGG,KAAK,CAAC,WAAW,GAAG,GAAG,EAAE,CAAC;EAC1B,KAAK,CAAC,SAAS,GAAG,qBAAqB,EAAE,CAAC;EAC1C,KAAK,CAAC,SAAS,GAAG,qBAAqB,EAAE,CAAC;;EAE1C,SAAS,CAAC,IAAI,EAAE,IAAI,CAAC,CAAC;EACtB,SAAS,CAAC,KAAK,EAAE,IAAI,CAAC,CAAC;;CACnB,CAAC;"}
+
+=== 82 packages/svelte2tsx/test/svelte2tsx/samples/export-class/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACU,MAAM,GAAG,CAAC,CAAC,CAAC;;;AACf,CAAC"}
+
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/export-const-array-destructuring/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACD,KAAK,CAAC,KAAK,GAAG,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,CAAC;CAEtB,KAAK,CAAC,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,GAAG,KAAK,CAAC;;;AAC5B,CAAC"}
+
+=== 293 packages/svelte2tsx/test/svelte2tsx/samples/export-const-object-destructuring/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACD,KAAK,CAAC,GAAG,GAAG,EACR,CAAC,EAAE,CAAC,EACJ,CAAC,EAAE,CAAC,EACJ,MAAM,EAAE,EACJ,CAAC,EAAE,CAAC,EACJ,CAAC,EAAE,CAAC,EACP,EACJ,CAAC;CAEK,KAAK,CAAC,EACT,CAAC,EAAE,CAAC,EAAE,MAAM,EAAE,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,EAC5B,GAAG,GAAG,CAAC;;;AACA,CAAC"}
+
+=== 385 packages/svelte2tsx/test/svelte2tsx/samples/export-list-runes.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAEA,CAAC;CACG,GAAG,CAAC,KAAK,GAAG,OAAO,CAAA;CACnB,GAAG,CAAC,KAAK,CAAA;CAET,GAAG,CAAC,OAAO,GAAG,EAAE,CAAC;CACjB,GAAG,CAAC,OAAO,CAAC;;CAEZ,MAAM,GAAG,CAAC,CAAC,CAAC;;CACZ,SAAS,GAAG,GAAG,CAAC,CAAC;;CACjB,KAAK,CAAC,GAAG,GAAG,EAAE,CAAC;;CAEf,MAAM,SAAS,CAAC,CAAC,CAAC;;CAClB,SAAS,SAAS,GAAG,CAAC,CAAC;;CACvB,KAAK,CAAC,SAAS,GAAG,EAAE,CAAC;;;;;;;;;;;;;;AAGjB,CAAC"}
+
+=== 385 packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,KAAK,GAAG,OAAO,CAAA;CACnB,GAAG,CAAC,KAAK,CAAA;CAET,GAAG,CAAC,OAAO,GAAG,EAAE,CAAC;CACjB,GAAG,CAAC,OAAO,CAAC;;CAEZ,MAAM,GAAG,CAAC,CAAC,CAAC;;CACZ,SAAS,GAAG,GAAG,CAAC,CAAC;;CACjB,KAAK,CAAC,GAAG,GAAG,EAAE,CAAC;;CAEf,MAAM,SAAS,CAAC,CAAC,CAAC;;CAClB,SAAS,SAAS,GAAG,CAAC,CAAC;;CACvB,KAAK,CAAC,SAAS,GAAG,EAAE,CAAC;;;;;;;;;;;;;;AAGjB,CAAC"}
+
+=== 171 packages/svelte2tsx/test/svelte2tsx/samples/generics-attribute.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;CAEG,KAAK,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,WAAY;;CAEtB,SAAS,IAAI,GAAG,CAAC;EACpB,MAAM,CAAC,CAAC,CAAC;CACb,CAAC;;;AACG,CAAC"}
+
+=== 160 packages/svelte2tsx/test/svelte2tsx/samples/import-leading-comment/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,CAAC,MAAM,YAAY,CAAC;AAE3B,MAAM,CAAC,CAAC,MAAM,YAAY,CAAC;AACrB,MAAM,CAAC,CAAC,MAAM,YAAY,CAAC;;0CAJrC,CAAC;;;AAKO,CAAC"}
+
+=== 87 packages/svelte2tsx/test/svelte2tsx/samples/import-single-quote/input.svelte	js.map
+{"version":3,"mappings":";AAEI,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;0CADrC,CAAC;;AAEO,CAAC"}
+
+=== 102 packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/input.svelte	js.map
+{"version":3,"mappings":";AAKI,MAAM,CAAU,QAAQ,CAAC;AAJzB,MAAM,CAAU,eAAe,CAAC;;0CAGpC,CAAC,AAEO,CAAC"}
+
+=== 77 packages/svelte2tsx/test/svelte2tsx/samples/js-jsdoc-before-first-import/input.svelte	js.map
+{"version":3,"mappings":";AAII,MAAM,CAAC,EAAE,CAAA;;0CAJb,CAAC;;;AAKO,CAAC"}
+
+=== 179 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-runes.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,WAAY;CACxB,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,CAAC,mBAAY,CAAC,GAAG,CAAC,EAAE;AACpB,CAAC"}
+
+=== 134 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-sveltekit-autotypes-runes.v5/+page.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,EAAE,IAAI,EAAE,IAAI,EAAE,WAAY;CACvB,KAAK,CAAC,QAAQ,GAAG,EAAE,CAAC;;;AACvB,CAAC"}
+
+=== 150 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-various.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAMU,GAAG,aAAC,GAAG;oCACd,GAAG;;;mDAPN,CAAC;;CAEC,GAAG,CAAC,EAAE,CAAC,EAAE,WAAY;;CACrB,GAAG,CAAC,IAAI,CAAC;;;;;AACH,CAAC"}
+
+=== 137 packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAIA,CAAC;CACC,KAAK,CAAC,EAAE,IAAI,EAAE,IAAI,EAAE,WAAY;;UAGxB,WAAW;;;4BACP,EAAE;;;;;;;;CAGP,WAAW;AANZ,CAAC"}
+
+=== 118 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;OAEI,EAAE;CADN,GAAG,CAAC,EAAE,KAAK,EAAE,WAAY;;oCAIzB,EAAE,cAAG,KAAK;AAFH,CAAC"}
+
+=== 157 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-not-$props-init.v5/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CACA,GAAG,CAAC,KAAK,GAAG,EAAE,CAAC;CACf,GAAG,CAAC,EAAE,GAAG,kDAAO,EAAE,EAAE,CAAC;;oCAGrB,EAAE,cAAG,KAAK;;;AAFH,CAAC"}
+
+=== 124 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-spread.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;OAEI,EAAE;CADN,GAAG,CAAC,qBAAC,GAAG,KAAK,EAAC,WAAY;;oCAI1B,EAAE,cAAG,KAAK;AAFH,CAAC"}
+
+=== 100 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;OAEI,EAAE;CADN,GAAG,2CAAkB;;oCAIrB,EAAE,cAAG,KAAK;AAFH,CAAC"}
+
+=== 123 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAEA,CAAC;CACG,GAAG,CAAC,IAAI,GAAG,OAAO,CAAA;CAClB,GAAG,CAAC,KAAK,GAAG,OAAO,CAAA;;;AAEf,CAAC"}
+
+=== 123 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,IAAI,GAAG,OAAO,CAAA;CAClB,GAAG,CAAC,KAAK,GAAG,OAAO,CAAA;;;AAEf,CAAC"}
+
+=== 345 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	js.map
+{"version":3,"mappings":";AAUI,MAAM,CAAC,IAAI,MAAM,WAAW,CAAC;AAT7B,MAAM,CAAC,IAAI,MAAM,WAAW,CAAC;;AAC7B,MAAM,CAAC,WAAW,CAAC,CAAC;;AACpB,MAAM,GAAG,CAAC,QAAQ,SAAS,CAAC;;AAG5B,SAAS,CAAC,CAAC,GAAG,EAAE,CAAC,CAAC;;0CAGtB,CAAC;CAEG,MAAM,CAAC,WAAW,CAAC,CAAC;;;CAGpB,GAAG,CAAC,GAAG,GAAG,IAAI,CAAC;;;CAGf,SAAS,CAAC,CAAC,GAAG,EAAE,CAAC,CAAC;;;AACd,CAAC"}
+
+=== 320 packages/svelte2tsx/test/svelte2tsx/samples/runes-best-effort-types.v5/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC;GAAE,CAAC;GAAE,CAAC,GAAG,IAAI;GAAE,CAAC,GAAG,CAAC;GAAE,CAAC,GAAG,EAAE;GAAE,CAAC,GAAG,IAAI;GAAE,CAAC,GAAG,EAAE;GAAE,CAAC,GAAG,GAAG;GAAE,CAAC,GAAG,EAAE;GAAE,CAAC,GAAG,SAAS;GAAE,CAAC,SAAc;GAAE,CAAC,GAAa,CAAC,AAAC;GAAE,CAAC,GAAG,MAAM,CAAC,CAAC;GAAE,WAAY;;;CAC7I,CAAC;"}
+
+=== 115 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable-reserved-name.v5/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,CAAC,EAAE,KAAK,EAAE,SAAS,SAAc,EAAE,WAAY;;;CACjD,CAAC;"}
+
+=== 105 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable.v5/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,SAAc,EAAE,WAAY;;;CAClC,CAAC;"}
+
+=== 171 packages/svelte2tsx/test/svelte2tsx/samples/runes-looking-like-stores.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,EAAE,KAAK,EAAE,WAAY;CACzB,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,GAAG,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;;AAC9B,CAAC"}
+
+=== 140 packages/svelte2tsx/test/svelte2tsx/samples/runes-only-export.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,CAAC,UAAY;;CACV,SAAS,GAAG,GAAG,CAAC;EAAC,MAAM,CAAC,IAAI,CAAC;CAAC,CAAC;;;;AAClC,CAAC"}
+
+=== 205 packages/svelte2tsx/test/svelte2tsx/samples/runes-with-slots.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;CAEG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,WAAY;;CACxB,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,CAAC,mBAAY,CAAC,GAAG,CAAC,EAAE;;;0CAGrB,CAAC,KAAG,CAAC;;AAFJ,CAAC"}
+
+=== 181 packages/svelte2tsx/test/svelte2tsx/samples/runes.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;CAEG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,WAAY;;CACxB,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,CAAC,mBAAY,CAAC,GAAG,CAAC,EAAE;AACpB,CAAC"}
+
+=== 155 packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,KAAK,CAAC,MAAM,GAAG,EACX,GAAG,EAAE,OAAO,EACf,CAAC;;2BAGC,sCAAsC,IAAI,CAAC,SAAS,CAAC,MAAM,CAAC,WAAW;AAFtE,CAAC"}
+
+=== 97 packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	js.map
+{"version":3,"mappings":";;0CAIA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,WAAW,CAAC;;;;;;;;;;;;;AACd,CAAC"}
+
+=== 81 packages/svelte2tsx/test/svelte2tsx/samples/script-style-like-component/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;KACO,MAAM;KAAE,KAAK;;;;;;;;;;;;AACb,CAAC"}
+
+=== 85 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	js.map
+{"version":3,"mappings":";;0CAIA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;AACH,CAAC"}
+
+=== 51 packages/svelte2tsx/test/svelte2tsx/samples/script-with-src/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC,AAA8B,CAAC"}
+
+=== 123 packages/svelte2tsx/test/svelte2tsx/samples/self-closing-component/input.svelte	js.map
+{"version":3,"mappings":";AAEA,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;0CADjC,CAAC;CAED,GAAG,CAAC,CAAC,GAAG,GAAG,CAAC;;;AACJ,CAAC"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 114 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACG,GAAG,CAAC,GAAG,GAAG,IAAI,CAAC;;CACf,GAAG,CAAC;;UAGE,GAAG;;;AAFL,CAAC"}
+
+=== 439 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-1.v5/input.svelte	js.map
+{"version":3,"mappings":";AAKI,MAAM,GAAG,QAAQ,QAAQ,KAAK,CAAC;;SAIzB,UAAU;;;;SAIV,UAAU,aAAC,GAAG;kCACd,GAAG;;;SAGH,UAAU,aAAC,GAAW;kCACtB,GAAG;;;SAGH,UAAU,aAAC,GAAG;kCACd,GAAG;;;SAGH,UAAU;;;;SAIV,UAAU;;;;SAIV,UAAU;kCACV,QAAQ;;;SAGR,UAAU;kCACV,MAAM;;;SAGN,UAAU,aAAC,KAAqC;;;;SAIhD,WAAW,aAAC,GAAG;OACf,GAAG,GAAG,GAAG;;oCAChB,GAAG;;;AA9CF,GAAG,CAAC,MAAM,GAAG,IAAI,CAAC;;0CAGtB,CAAC;CAEG,GAAG,CAAC,GAAG,GAAG,IAAI,CAAC;;UA4CT,aAAa;;;AA3Cf,CAAC"}
+
+=== 148 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-2.v5/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,QAAQ,QAAQ,KAAK,CAAC;;SAIzB,SAAS;;;;0CALnB,CAAC;CAEG,GAAG,CAAC,GAAG,GAAG,IAAI,CAAC;;UAOT,aAAa;;;AANf,CAAC"}
+
+=== 158 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-4.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAoBU,SAAS;;;;0CAhBnB,CAAC;CACG,GAAG,CAAC,GAAG,GAAG,IAAI,CAAC;;UAGT,KAAK;;;;UAIL,MAAM;EACH,KAAK;;;UAGR,MAAM;EACH,MAAM;;AAXX,CAAC"}
+
+=== 67 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-5.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAIU,GAAG;;AAHT,MAAM,CAAS,QAAQ,CAAA;;"}
+
+=== 87 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-6.v5/input.svelte	js.map
+{"version":3,"mappings":";;SAIU,IAAI;;AAHV,MAAM,CAAC,KAAK,CAAC,GAAG,GAAG,IAAI,CAAC;;"}
+
+=== 151 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-7.v5/input.svelte	js.map
+{"version":3,"mappings":";AAKI,MAAM,GAAG,KAAK,QAAQ,OAAO,CAAC;AAJ9B,MAAM,GAAG,MAAM,QAAQ,OAAO,CAAC;;0CAGnC,CAAC;;;UAIS,IAAI;;;;UAIJ,KAAK;;;;;AANP,CAAC"}
+
+=== 123 packages/svelte2tsx/test/svelte2tsx/samples/store-derived-import/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,OAAO,QAAQ,cAAc,CAAC;;0CAD3C,CAAC;CAGG,GAAG,CAAC,CAAC,mBAAY,CAAC,EAAE;AAChB,CAAC"}
+
+=== 226 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAE,MAAM,EAAE,MAAM,QAAO,SAAS,CAAC;;AACvC,KAAK,CAAC,MAAM,GAAG,QAAQ,CAAC,EAAE,CAAC,CAAC;AAC5B,KAAK,CAAC,MAAM,GAAG,QAAQ,CAAC,EAAE,CAAC,CAAC;;0CAGhC,CAAC;;;CACG,oDAAQ;CACR,oDAAQ;;;;AACJ,CAAC"}
+
+=== 173 packages/svelte2tsx/test/svelte2tsx/samples/store-import/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,MAAM,MAAM,SAAS,CAAC;AAC7B,MAAM,GAAG,MAAM,QAAQ,SAAS,CAAC;AACjC,MAAM,GAAG,MAAM,IAAI,MAAM,QAAQ,SAAS,CAAC;;0CAH/C,CAAC;;;;;;AAIO,CAAC"}
+
+=== 592 packages/svelte2tsx/test/svelte2tsx/samples/store-property-access/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CACG,KAAK,CAAC,KAAK,GAAG,SAAS,EAAE,CAAC;;CAC1B,kDAAO;CACP,kDAAO,IAAI,CAAC;CACZ,kDAAO,MAAM,CAAC,CAAC;CACf,kDAAO,IAAI,CAAC,WAAW,CAAC;CACxB,kDAAO,MAAM,CAAC,CAAC,WAAW,CAAC;CAC3B,kDAAO,IAAI,CAAC,aAAa,CAAC,CAAC;CAC3B,kDAAO,MAAM,CAAC,CAAC,aAAa,CAAC,CAAC;CAC9B,mDAAQ,IAAI,CAAC,WAAW,CAAC;CACzB,mDAAQ,IAAI,EAAE,WAAW,CAAC;sGAG1B,kDAAO,IAAI,qBACX,kDAAO,MAAM,CAAC,qBACd,kDAAO,IAAI,CAAC,WAAW,qBACvB,kDAAO,MAAM,CAAC,CAAC,WAAW,qBAC1B,kDAAO,IAAI,CAAC,aAAa,CAAC,qBAC1B,kDAAO,MAAM,CAAC,CAAC,aAAa,CAAC,qBAC7B,mDAAQ,IAAI,CAAC,WAAW,qBACxB,mDAAQ,IAAI,EAAE,WAAW;;;AATrB,CAAC"}
+
+=== 200 packages/svelte2tsx/test/svelte2tsx/samples/stores-looking-like-runes/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;CACG,KAAK,CAAC,KAAK,GAAG,IAAI,CAAC;;CACnB,kDAAO;;CACP,KAAK,CAAC,KAAK,GAAG,IAAI,CAAC;;CACnB,kDAAO;;CACP,KAAK,CAAC,OAAO,GAAG,IAAI,CAAC;;CACrB,sDAAS;;;;AACL,CAAC"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute-bare/input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 210 packages/svelte2tsx/test/svelte2tsx/samples/style-in-script/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;OACM,MAAM,GAAG,EAAE,QAAQ,EAAE,EAAE,YAAY,EAAE,SAAS,EAAE,EAAE;OACvD,QAAQ,GAAG,MAAM,EAAE,QAAQ;CAE5B,KAAK,CAAC,SAAS,GAAG,kCACjB,QAAQ,EAAE,YAAY,IAAI,SAAS,YACxB,CAAC;AACN,CAAC"}
+
+=== 51 packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-script-comment-with-real-style/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;;AAEO,CAAC"}
+
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 175 packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CACC,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;;uBAGI,GAAG;;;;uBAEH,GAAG,GAAG,GAAG,GAAG,GAAG;;;uBACf,GAAG;;;;;uBACH,GAAG;;;uBACH,GAAG;;;AAPjB,CAAC"}
+
+=== 210 packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EAGG,GAAG,CAAC,CAAC,GAAG,CAAC,EAAE,CAAC,CAAC;EACb,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAElC,CAAC;;;;yCAGF,CAAC;;;OAAI,IAAI;;;;;;;CAFR,CAAC;"}
+
+=== 137 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune-no-changes.v5/+page.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;CAEG,GAAG,CAAC,EAAE,IAAI,EAAE,IAAI,EAAE,WAAY;;;CAEvB,KAAK,CAAC,QAAQ,GAAG,EAAE,CAAC;;;AACvB,CAAC"}
+
+=== 144 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune.v5/+page.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,EAAE,IAAI,EAAE,IAAI,EAAE,MAAM,EAAE,WAAY;CAC/B,KAAK,CAAC,QAAQ,GAAG,EAAE,CAAC;;;AACvB,CAAC"}
+
+=== 50 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC,AASO,CAAC"}
+
+=== 439 packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CAGG,GAAG,CAAC,KAAY,GAAG,CACf,EAAE,KAAK,EAAE,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,EACvB,EAAE,KAAK,EAAE,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,CAC1B,CAAC;;;;wCAGC,KAAK;;;MAAI,GAAG;EACd,KAAK,CAAC,IAAI,GAAG,GAAG,CAAC,KAAK,GAAG,GAAG,CAAC,MAAM,CAAA;EACnC,GAAG,CAAC,KAAK,GAAU,GAAG,IAAI,gBAAgB,CAAC;EAC3C,KAAK,CAAC,OAAO,GAAG,IAAI,GAAG,CAAC,CAAA;;iCAErB,OAAO,cAAG,KAAK;;;GAEd,KAAK,CAAC,IAAI,GAAG,QAAQ,CAAA;;;;;;;AATtB,CAAC"}
+
+=== 291 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADnD,CAAC;EASG,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAU,CAAC;;EAEjD,QAAQ,CAAC,IAAI,EAAE,IAAI,CAAC,CAAC;;EAErB,SAAS,GAAG,GAAG,CAAC;GACZ,KAAK,CAAC,GAAG,GAAG,KAAK,CAAC;;GAClB,QAAQ,CAAC,GAAG,EAAE,KAAK,CAAC,CAAC;EACzB,CAAC;;;CACG,CAAC;"}
+
+=== 130 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,SAAc,EAAE,CAAC,GAAa,CAAC,AAAW,EAAE,WAAY;;;CAC9D,CAAC;"}
+
+=== 180 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-generics.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAuB,WAAY;CAC7C,GAAG,CAAC,CAAC,GAAa,CAAC,CAAE;CACrB,GAAG,CAAC,CAAC,mBAAY,CAAC,GAAG,CAAC,EAAE;AACpB,CAAC"}
+
+=== 135 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	js.map
+{"version":3,"mappings":";;AACI,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;mDAGlB,CAAC;;CAcG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAkB,WAAY;AACpC,CAAC"}
+
+=== 134 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	js.map
+{"version":3,"mappings":";;AACI,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;mDAGlB,CAAC;CAMG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAgC,WAAY;AAClD,CAAC"}
+
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-4.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CASG,GAAG,CAAC,EAAE,GAAG,EAAS,WAAY;AAC1B,CAAC"}
+
+=== 218 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	js.map
+{"version":3,"mappings":";AAKI,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;AAJxC,MAAM,CAAC,CAAC,MAAM,KAAK,CAAC;;;sCAGxB,CAAC;;EAGG,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAA;;;EAMzB,GAAG,CAAC,EAAE,GAAG,EAAS,WAAW;;;;;CACzB,CAAC;"}
+
+=== 76 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-6.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAQG,KAAK,CAAC,EAAU,WAAY;AACxB,CAAC"}
+
+=== 85 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-7.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAGA,CAAC;CAQD,GAAG,CAAC,EAAC,GAAG,EAAI,WAAW;AACf,CAAC"}
+
+=== 85 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-8.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAGA,CAAC;CAKD,GAAG,CAAC,EAAC,GAAG,EAAI,WAAW;AACf,CAAC"}
+
+=== 121 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAKG,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;CAGZ,GAAG,CAAC,EAAE,GAAG,EAAS,WAAY;AAC1B,CAAC"}
+
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAID,GAAG,CAAC,EAAE,IAAI,EAAS,WAAY;AAIvB,CAAC"}
+
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;CAUhB,GAAG,CAAC,EAAO,WAAY;AACf,CAAC"}
+
+=== 110 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACD,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;CAUZ,GAAG,CAAC,EAAO,WAAY;AACf,CAAC"}
+
+=== 85 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-13.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAMA,CAAC;CAKD,GAAG,CAAC,EAAC,GAAG,EAAI,WAAW;AACf,CAAC"}
+
+=== 121 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	js.map
+{"version":3,"mappings":";AAIA,MAAM,GAAG,KAAK,QAAQ,OAAO,CAAC;;mDAD9B,CAAC;CAMD,GAAG,CAAC,EAAC,GAAG,EAAI,WAAW;AACf,CAAC"}
+
+=== 122 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,KAAK,CAAC,CAAS,GAAG,EAAE,CAAC;CAMrB,GAAG,CAAC,EAAE,GAAG,EAAS,WAAY;AAC1B,CAAC"}
+
+=== 87 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-3.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAKA,CAAC;CACG,GAAG,CAAC,EAAE,QAAQ,EAA8B,WAAY;AACpD,CAAC"}
+
+=== 158 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	js.map
+{"version":3,"mappings":";;AACI,GAAG,CAAC,CAAC,GAAG,EAAE,CAAC;;mDAGf,CAAC;CACG,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC;CACb,GAAG,CAAC,EAAE,QAAQ,EAA0B,WAAY;AAChD,CAAC"}
+
+=== 87 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAIA,CAAC;CAEG,GAAG,CAAC,EAAE,QAAQ,EAA0B,WAAY;AAChD,CAAC"}
+
+=== 123 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,KAAK,GAAG,IAAI,CAAC;CACjB,GAAG,CAAC,EAAE,QAAQ,EAA+B,WAAY;AACrD,CAAC"}
+
+=== 132 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACA,GAAG,CAAC,EAAE,YAAY,EAAE,GAAG,EAAE,CAAC;CAI1B,GAAG,CAAC,EAAE,IAAI,EAAS,WAAY;AACxB,CAAC"}
+
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAQA,GAAG,CAAC,EAAE,IAAI,EAAS,WAAY;AACxB,CAAC"}
+
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAGA,GAAG,CAAC,EAAE,CAAC,EAAS,WAAY;AACrB,CAAC"}
+
+=== 203 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAEG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAS,WAAY;CAC/B,GAAG,CAAC,CAAC,GAAa,CAAC,CAAE;CACrB,GAAG,CAAC,CAAC,mBAAY,CAAC,GAAG,CAAC,EAAE;;;0CAGrB,CAAC,KAAG,CAAC;;AAFJ,CAAC"}
+
+=== 180 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes.v5/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAA4B,WAAY;CAClD,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,CAAC,mBAAY,CAAC,GAAG,CAAC,EAAE;AACpB,CAAC"}
+
+=== 134 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CACU,KAAK,CAAC,QAAQ,GAAG,EAAE,CAAC;CAC3B,GAAG,CAAC,EAAE,IAAI,EAAE,IAAI,EAAE,WAAY;;;AAC1B,CAAC"}
+
+=== 149 packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	js.map
+{"version":3,"mappings":";;AACI,GAAG,CAAC,CAAC,GAAW,EAAE,CAAC;;0CAGvB,CAAC;CACG,GAAG,CAAC,CAAC,GAAqB,QAAQ,CAAC,aAAa,CAAC,KAAK,CAAC,CAAC;AACpD,CAAC"}
+
+=== 139 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAE,QAAQ,QAAO,cAAc,CAAC;;;sCADvC,CAAC;EAEA,KAAK,CAAC,GAAG,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;CAEjB,CAAC;"}
+
+=== 166 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;CACG,GAAG,CAAC,IAAI,GAAG,OAAO,CAAC,GAAG,CAAC;CACvB,GAAG,CAAC,UAAU,GAAG,OAAO,CAAC,aAAa,CAAC,CAAC;;iCAGvC,IAAI;;;;;;;AAFD,CAAC"}
+
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots/input.svelte	js.map
+{"version":3,"mappings":";;;;;iCAAK,OAAO,CAAC,GAAG,uBACX,OAAO,CAAC,aAAa,CAAC;;;;;;;"}
+
+=== 101 packages/svelte2tsx/test/svelte2tsx/samples/uses-$property/input.svelte	js.map
+{"version":3,"mappings":";;0CAAA,CAAC;CAOA,MAAM,CAAC,CAAC,CAAC;EACP,IAAI,CAAU;CAChB,CAAC;AACQ,CAAC"}
+
+=== 755 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-assignment-operators/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCAD1C,CAAC;;EAEC,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;EAC1B,GAAG,CAAC,KAAK,GAAG,EAAE,CAAA;EACd,KAAK,CAAC,QAAQ,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACtC,KAAK,CAAC,QAAQ,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACtC,KAAK,CAAC,QAAQ,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACtC,KAAK,CAAC,QAAQ,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACtC,KAAK,CAAC,QAAQ,GAAG,8EAAiB,KAAK,CAAA,CAAA;EACvC,KAAK,CAAC,QAAQ,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACtC,KAAK,CAAC,QAAQ,GAAG,8EAAiB,KAAK,CAAA,CAAA;EACvC,KAAK,CAAC,QAAQ,GAAG,8EAAiB,KAAK,CAAA,CAAA;EACvC,KAAK,CAAC,QAAQ,GAAG,+EAAkB,KAAK,CAAA,CAAA;EACxC,KAAK,CAAC,SAAS,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACvC,KAAK,CAAC,SAAS,GAAG,6EAAgB,KAAK,CAAA,CAAA;EACvC,KAAK,CAAC,SAAS,GAAG,6EAAgB,KAAK,CAAA,CAAA;;;;;CACjC,CAAC;"}
+
+=== 218 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-increments/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCAD1C,CAAC;;EAEC,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;EAC1B,KAAK,CAAC,QAAQ,GAAG,8DAAc,CAAA;EAC/B,KAAK,CAAC,QAAQ,GAAG,8DAAc,CAAA;;;;;CACzB,CAAC;"}
+
+=== 332 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-unary-operators/input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCAD1C,CAAC;;EAEC,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;EAC1B,KAAK,CAAC,QAAQ,GAAG,MAAM,CAAC,iDAAM,CAAA;EAC9B,KAAK,CAAC,QAAQ,GAAG,MAAM,CAAC,iDAAM,CAAA;EAC9B,KAAK,CAAC,QAAQ,GAAG,MAAM,CAAC,iDAAM,CAAA;EAC9B,KAAK,CAAC,QAAQ,GAAG,MAAM,CAAC,iDAAM,CAAA;;;;;CACxB,CAAC;"}
+
+=== 119 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,IAAI;;;;;;;;8CAEE,IAAI;;;;;;;;;;;;;KAGS,aAAa;;;EAAb,aAAa;;;;;8CAC1B,IAAI;;;;;;;;;;;"}
+

@@ -70,11 +70,12 @@ The commands are "rsvelte: Restart the language server" and "rsvelte: Show the o
 
 ```sh
 node --run build        # bundle dist/extension.cjs
+node --run package      # dist/rsvelte.vsix, for `code --install-extension`
 node --run test         # the program lookup
 cargo build -p rsvelte_command_line --bin rsvelte
 node --run test:editor  # a real editor, with the debug build
 ```
 
-`test:editor` downloads Visual Studio Code into `generated/`; `VSCODE_VERSION=stable` tests the latest
+`test:editor` runs the files the package ships and downloads Visual Studio Code into `generated/`; `VSCODE_VERSION=stable` tests the latest
 release instead of the oldest one `engines` accepts. Other editors can run `rsvelte lsp` too: it
 talks on standard input and output.

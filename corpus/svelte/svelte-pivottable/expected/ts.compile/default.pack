@@ -1,0 +1,861 @@
+# rsvelte pack 1
+=== 9595 src/lib/PivotData.ts	js
+import { aggregators, getSort, naturalSort } from "./Utilities";
+// [1,2,3] -> [[1], [1,2], [1,2,3]]
+const subarrays = (array) => array.map((_, i) => array.slice(0, i + 1));
+// NULL_CHAR is used as a separator for composite keys. Values containing \u0000 will produce key collisions.
+const NULL_CHAR = String.fromCharCode(0);
+const flatKey = (arr) => arr.join(NULL_CHAR);
+/*
+Data Model class
+*/
+class PivotData {
+    static defaultProps = {
+        cols: [],
+        rows: [],
+        vals: [],
+        sorters: {},
+        valueFilter: {},
+        rowOrder: 'key_a_to_z',
+        colOrder: 'key_a_to_z',
+        derivedAttributes: {},
+        grouping: false,
+        rowGroupBefore: true,
+        colGroupBefore: false,
+        aggregator: aggregators["Count"],
+        data: []
+    };
+    props;
+    rowKeys;
+    colKeys;
+    tree;
+    rowTotals;
+    colTotals;
+    allTotal;
+    sorted;
+    aggregator;
+    _hasFilter;
+    _leafColKeys;
+    _leafRowKeys;
+    constructor(inputProps = {}) {
+        this.props = Object.assign({}, PivotData.defaultProps, inputProps);
+        this.aggregator = this.props.aggregator(this.props.vals);
+        this.tree = {};
+        this.rowKeys = [];
+        this.colKeys = [];
+        this.rowTotals = {};
+        this.colTotals = {};
+        this.allTotal = this.aggregator(this, [], []);
+        this.sorted = false;
+        this._hasFilter = Object.keys(this.props.valueFilter).length > 0;
+        // iterate through input, accumulating data for cells
+        PivotData.forEachRecord(this.props.data, this.props.derivedAttributes, (record) => {
+            if (this.filter(record)) {
+                this.processRecord(record);
+            }
+        });
+    }
+    filter(record) {
+        if (!this._hasFilter)
+            return true;
+        for (const k in this.props.valueFilter) {
+            const filterSet = this.props.valueFilter[k];
+            if (filterSet && (`${record[k]}` in filterSet)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    forEachMatchingRecord(criteria, callback) {
+        // Note: derivedAttributes are re-applied here. For array-of-objects inputs, records were
+        // already mutated during construction, so derived attrs are computed a second time per call.
+        return PivotData.forEachRecord(this.props.data, this.props.derivedAttributes, (record) => {
+            if (!this.filter(record)) {
+                return;
+            }
+            for (const k in criteria) {
+                const v = criteria[k];
+                if (v !== (k in record ? record[k] : 'null')) {
+                    return;
+                }
+            }
+            callback(record);
+        });
+    }
+    arrSort(attrs, nulls_first) {
+        const sortersArr = attrs.map((a) => getSort(this.props.sorters, a));
+        return function (a, b) {
+            for (let i = 0; i < sortersArr.length; i++) {
+                const comparison = sortersArr[i](a[i], b[i], nulls_first);
+                if (comparison !== 0) {
+                    return comparison;
+                }
+            }
+            return 0;
+        };
+    }
+    sortKeys() {
+        if (!this.sorted) {
+            this.sorted = true;
+            const v = (r, c) => this.getAggregator(r, c).value();
+            switch (this.props.rowOrder) {
+                case 'value_a_to_z': {
+                    const rowVals = new Map(this.rowKeys.map((k) => [k, v(k, [])]));
+                    this.rowKeys.sort((a, b) => naturalSort(rowVals.get(a), rowVals.get(b)));
+                    break;
+                }
+                case 'value_z_to_a': {
+                    const rowVals = new Map(this.rowKeys.map((k) => [k, v(k, [])]));
+                    this.rowKeys.sort((a, b) => -naturalSort(rowVals.get(a), rowVals.get(b)));
+                    break;
+                }
+                default:
+                    this.rowKeys.sort(this.arrSort(this.props.rows, this.props.rowGroupBefore));
+            }
+            switch (this.props.colOrder) {
+                case 'value_a_to_z': {
+                    const colVals = new Map(this.colKeys.map((k) => [k, v([], k)]));
+                    this.colKeys.sort((a, b) => naturalSort(colVals.get(a), colVals.get(b)));
+                    break;
+                }
+                case 'value_z_to_a': {
+                    const colVals = new Map(this.colKeys.map((k) => [k, v([], k)]));
+                    this.colKeys.sort((a, b) => -naturalSort(colVals.get(a), colVals.get(b)));
+                    break;
+                }
+                default:
+                    this.colKeys.sort(this.arrSort(this.props.cols, this.props.colGroupBefore));
+            }
+        }
+    }
+    getColKeys(all_keys = false) {
+        this.sortKeys();
+        if (all_keys)
+            return this.colKeys;
+        return (this._leafColKeys ??= this.colKeys.filter((x) => x.length === this.props.cols.length));
+    }
+    getRowKeys(all_keys = false) {
+        this.sortKeys();
+        if (all_keys)
+            return this.rowKeys;
+        return (this._leafRowKeys ??= this.rowKeys.filter((x) => x.length === this.props.rows.length));
+    }
+    processRecord(record) {
+        // this code is called in a tight loop
+        const cols = this.props.cols;
+        const rows = this.props.rows;
+        const grouping = this.props.grouping;
+        const colLen = cols.length;
+        const rowLen = rows.length;
+        const _colKeys = new Array(colLen);
+        const _rowKeys = new Array(rowLen);
+        for (let i = 0; i < colLen; i++) {
+            const x = cols[i];
+            _colKeys[i] = x in record ? record[x] : 'null';
+        }
+        for (let i = 0; i < rowLen; i++) {
+            const x = rows[i];
+            _rowKeys[i] = x in record ? record[x] : 'null';
+        }
+        const colKeys = grouping ? subarrays(_colKeys) : [_colKeys];
+        const rowKeys = grouping ? subarrays(_rowKeys) : [_rowKeys];
+        const flatColKeys = colKeys.map(flatKey);
+        this.allTotal.push(record);
+        for (const rowKey of rowKeys) {
+            const flatRowKey = flatKey(rowKey);
+            if (rowKey.length !== 0) {
+                if (!this.rowTotals[flatRowKey]) {
+                    this.rowKeys.push(rowKey);
+                    this.rowTotals[flatRowKey] = this.aggregator(this, rowKey, []);
+                }
+                this.rowTotals[flatRowKey].push(record);
+            }
+            for (let ci = 0; ci < colKeys.length; ci++) {
+                const colKey = colKeys[ci];
+                const flatColKey = flatColKeys[ci];
+                if (colKey.length !== 0) {
+                    if (!this.colTotals[flatColKey]) {
+                        this.colKeys.push(colKey);
+                        this.colTotals[flatColKey] = this.aggregator(this, [], colKey);
+                    }
+                    if (!(grouping && rowKey.length !== 1)) {
+                        this.colTotals[flatColKey].push(record);
+                    }
+                }
+                if (colKey.length !== 0 && rowKey.length !== 0) {
+                    if (!this.tree[flatRowKey]) {
+                        this.tree[flatRowKey] = {};
+                    }
+                    if (!this.tree[flatRowKey][flatColKey]) {
+                        this.tree[flatRowKey][flatColKey] = this.aggregator(this, rowKey, colKey);
+                    }
+                    this.tree[flatRowKey][flatColKey].push(record);
+                }
+            }
+        }
+    }
+    getAggregator(rowKey, colKey) {
+        let agg;
+        const flatRowKey = flatKey(rowKey);
+        const flatColKey = flatKey(colKey);
+        if (rowKey.length === 0 && colKey.length === 0) {
+            agg = this.allTotal;
+        }
+        else if (rowKey.length === 0) {
+            agg = this.colTotals[flatColKey];
+        }
+        else if (colKey.length === 0) {
+            agg = this.rowTotals[flatRowKey];
+        }
+        else {
+            agg = this.tree[flatRowKey]?.[flatColKey];
+        }
+        return (agg || {
+            value() {
+                return null;
+            },
+            format() {
+                return '';
+            },
+        });
+    }
+    static forEachRecord(input, derivedAttributes, func) {
+        let addRecord;
+        if (Object.keys(derivedAttributes).length === 0) {
+            addRecord = func;
+        }
+        else {
+            addRecord = function (record) {
+                for (const k in derivedAttributes) {
+                    const derived = derivedAttributes[k](record);
+                    if (derived !== null) {
+                        record[k] = derived;
+                    }
+                }
+                return func(record);
+            };
+        }
+        // if it's a function, have it call us back
+        if (typeof input === 'function') {
+            return input(addRecord);
+        }
+        else if (Array.isArray(input)) {
+            if (Array.isArray(input[0])) {
+                // array of arrays
+                const headers = input[0];
+                for (let i = 1; i < input.length; i++) {
+                    const compactRecord = input[i];
+                    const record = {};
+                    for (let j = 0; j < headers.length; j++) {
+                        record[headers[j]] = compactRecord[j];
+                    }
+                    addRecord(record);
+                }
+                return;
+            }
+            // array of objects
+            return input.forEach(addRecord);
+        }
+        throw new Error('unknown input format');
+    }
+    ;
+}
+export default PivotData;
+
+=== 1350 src/lib/PlotlyRenderers.ts	js
+import PlotlyComponent from './PlotlyRenderer.svelte';
+import ScatterRenerer from './ScatterRenderer.svelte';
+import { initPlotly } from './UI/Plotly.svelte';
+import { partial } from './UI/utils';
+function makeRenderer(component, traceOptions = {}, layoutOptions = {}, transpose = false) {
+    return partial(component, { traceOptions, layoutOptions, transpose });
+}
+export default function (Plotly) {
+    if (!Plotly) {
+        return {};
+    }
+    ;
+    initPlotly(Plotly);
+    return {
+        'Grouped Column Chart': makeRenderer(PlotlyComponent, { type: 'bar' }, { barmode: 'group' }),
+        'Stacked Column Chart': makeRenderer(PlotlyComponent, { type: 'bar' }, { barmode: 'relative' }),
+        'Grouped Bar Chart': makeRenderer(PlotlyComponent, { type: 'bar', orientation: 'h' }, { barmode: 'group' }, true),
+        'Stacked Bar Chart': makeRenderer(PlotlyComponent, { type: 'bar', orientation: 'h' }, { barmode: 'relative' }, true),
+        'Line Chart': makeRenderer(PlotlyComponent),
+        'Dot Chart': makeRenderer(PlotlyComponent, { mode: 'markers' }, {}, true),
+        'Area Chart': makeRenderer(PlotlyComponent, { stackgroup: 1 }),
+        'Scatter Chart': ScatterRenerer,
+        'Multiple Pie Chart': makeRenderer(PlotlyComponent, { type: 'pie', scalegroup: 1, hoverinfo: 'label+value', textinfo: 'none' }, {}, true),
+    };
+}
+
+=== 476 src/lib/TableRenderers.ts	js
+import TsvExportRenderer from './TSVExportRenderer.svelte';
+import TableRenderer from './TableRenderer.svelte';
+import { partial } from './UI/utils';
+export default {
+    Table: TableRenderer,
+    'Table Heatmap': partial(TableRenderer, { opts: { heatmapMode: 'full' } }),
+    'Table Col Heatmap': partial(TableRenderer, { opts: { heatmapMode: 'col' } }),
+    'Table Row Heatmap': partial(TableRenderer, { opts: { heatmapMode: 'row' } }),
+    TsvExport: TsvExportRenderer,
+};
+
+=== 1554 src/lib/UI/SortableAttachment.ts	js
+import Sortable from "sortablejs";
+export default function (options = {}, onchange) {
+    const notify = (el) => {
+        const val = Array.from(el.children).map((i) => i.dataset.id); //.filter(x => x);
+        onchange(val);
+    };
+    return function (node) {
+        if (node.parentElement) {
+            const sortable = Sortable.create(node.parentElement, {
+                ...options,
+                onStart({ item }) {
+                    const oldIndex = Array.prototype.indexOf.call(item.parentElement?.childNodes, item);
+                    item.dataset.oldIndex = String(oldIndex);
+                },
+                onUpdate: (ev) => notify(ev.to),
+                onAdd: (ev) => notify(ev.to),
+                onRemove: (ev) => notify(ev.from),
+                onEnd: (ev) => {
+                    // sortablejs doesn't work perfectly with Svelte5
+                    // https://github.com/sveltejs/svelte/issues/11826#issuecomment-2141791882
+                    // cancel the UI update so Svelte will take care of it
+                    ev.item.remove();
+                    if (ev.oldIndex !== undefined) {
+                        ev.from.insertBefore(ev.item, ev.from.childNodes[Number(ev.item.dataset.oldIndex)]);
+                        // ev.from.insertBefore(ev.item, ev.from.childNodes[(ev.oldIndex + 1) * 2 - 1]);
+                    }
+                },
+            });
+            // Temporary node removal
+            // node.parentElement.removeChild(node);
+            // return () => sortable?.destroy();
+        }
+    };
+}
+
+=== 2217 src/lib/UI/utils.ts	js
+import {} from "svelte";
+export function partial(component, partialProps) {
+    const wrapper = (anchor, props) => {
+        const proxy = new Proxy(partialProps, {
+            get(target, p, receiver) {
+                return Reflect.get(props, p, receiver) ?? Reflect.get(target, p, receiver);
+            },
+            set(target, p, newValue, receiver) {
+                return Reflect.set(props, p, newValue, receiver) || Reflect.set(target, p, newValue, receiver);
+            },
+            has(target, p) {
+                return Reflect.has(props, p) || Reflect.has(target, p);
+            },
+            getOwnPropertyDescriptor(target, p) {
+                return Reflect.getOwnPropertyDescriptor(props, p) ?? Reflect.getOwnPropertyDescriptor(target, p);
+            },
+            ownKeys(target) {
+                return [...new Set([...Reflect.ownKeys(props), ...Reflect.ownKeys(target)])];
+            },
+        });
+        return component(anchor, proxy);
+    };
+    // Do we need to copy the symbols attached as well?
+    return copySymbols(wrapper, component);
+    // Object.assign(wrapper, ...Object.getOwnPropertySymbols(component).map(sym => ({ [sym]: component[sym] })));
+}
+export function clickOutside(node) {
+    const handleClick = (event) => {
+        if (node && event.target && !node.contains(event.target) && !event.defaultPrevented) {
+            node.dispatchEvent(new CustomEvent('outside', { detail: node }));
+        }
+    };
+    document.addEventListener('click', handleClick, true);
+    return {
+        destroy() {
+            document.removeEventListener('click', handleClick, true);
+        },
+    };
+}
+export function copySymbols(target, source) {
+    for (const sym of Object.getOwnPropertySymbols(source)) {
+        const desc = Object.getOwnPropertyDescriptor(source, sym);
+        if (desc) {
+            Object.defineProperty(target, sym, desc);
+        }
+    }
+    return target;
+}
+export function copySymbols2(target, source) {
+    for (const sym of Object.getOwnPropertySymbols(source)) {
+        const desc = Object.getOwnPropertyDescriptor(source, sym);
+        if (desc) {
+            Object.defineProperty(target, sym, desc);
+        }
+    }
+    return target;
+}
+
+=== 15888 src/lib/Utilities.ts	js
+/*
+ * decaffeinate suggestions:
+ * DS101: Remove unnecessary use of Array.from
+ * DS102: Remove unnecessary code created because of implicit returns
+ * DS104: Avoid inline assignments
+ * DS201: Simplify complex destructure assignments
+ * DS205: Consider reworking code to avoid use of IIFEs
+ * DS207: Consider shorter variations of null checks
+ * Full docs: https://github.com/decaffeinate/decaffeinate/blob/master/docs/suggestions.md
+ */
+import { fmt, fmtInt, fmtPct } from "./formatters";
+const rx = /(\d+)|(\D+)/g;
+const rd = /\d/;
+const rz = /^0/;
+const naturalSort = (as = null, bs = null, nulls_first = true) => {
+    // nulls first or last
+    if (bs !== null && as === null) {
+        return nulls_first ? -1 : 1;
+    }
+    if (as !== null && bs === null) {
+        return nulls_first ? 1 : -1;
+    }
+    // then raw NaNs
+    if (typeof as === 'number' && isNaN(as)) {
+        return -1;
+    }
+    if (typeof bs === 'number' && isNaN(bs)) {
+        return 1;
+    }
+    // numbers and numbery strings group together
+    const nas = Number(as);
+    const nbs = Number(bs);
+    if (nas < nbs) {
+        return -1;
+    }
+    if (nas > nbs) {
+        return 1;
+    }
+    // within that, true numbers before numbery strings
+    if (typeof as === 'number' && typeof bs !== 'number') {
+        return -1;
+    }
+    if (typeof bs === 'number' && typeof as !== 'number') {
+        return 1;
+    }
+    if (typeof as === 'number' && typeof bs === 'number') {
+        return 0;
+    }
+    // 'Infinity' is a textual number, so less than 'A'
+    if (isNaN(nbs) && !isNaN(nas)) {
+        return -1;
+    }
+    if (isNaN(nas) && !isNaN(nbs)) {
+        return 1;
+    }
+    // finally, "smart" string sorting per http://stackoverflow.com/a/4373421/112871
+    let a = String(as);
+    let b = String(bs);
+    if (a === b) {
+        return 0;
+    }
+    if (!rd.test(a) || !rd.test(b)) {
+        return a > b ? 1 : -1;
+    }
+    // special treatment for strings containing digits
+    let am = a.match(rx) ?? [];
+    let bm = b.match(rx) ?? [];
+    while (a.length && b.length) {
+        const a1 = am.shift() ?? "";
+        const b1 = bm.shift() ?? "";
+        if (a1 !== b1) {
+            if (rd.test(a1) && rd.test(b1)) {
+                return parseFloat(a1.replace(rz, '.0')) - parseFloat(b1.replace(rz, '.0'));
+            }
+            return a1 > b1 ? 1 : -1;
+        }
+    }
+    return a.length - b.length;
+};
+const sortAs = function (order) {
+    const mapping = {};
+    // sort lowercased keys similarly
+    const l_mapping = {};
+    for (const i in order) {
+        const x = order[i];
+        mapping[x] = +i;
+        if (typeof x === 'string') {
+            l_mapping[x.toLowerCase()] = +i;
+        }
+    }
+    return function (a = null, b = null, nulls_first = true) {
+        if (b === null && a === null) {
+            return 0;
+        }
+        else if (a === null) {
+            return nulls_first ? -1 : 1;
+        }
+        else if (b === null) {
+            return nulls_first ? 1 : -1;
+        }
+        if (a in mapping && b in mapping) {
+            return mapping[a] - mapping[b];
+        }
+        else if (a in mapping) {
+            return -1;
+        }
+        else if (b in mapping) {
+            return 1;
+        }
+        else if (a in l_mapping && b in l_mapping) {
+            return l_mapping[a] - l_mapping[b];
+        }
+        else if (a in l_mapping) {
+            return -1;
+        }
+        else if (b in l_mapping) {
+            return 1;
+        }
+        return naturalSort(a, b, nulls_first);
+    };
+};
+const getSort = function (sorters, attr) {
+    if (sorters) {
+        if (typeof sorters === 'function') {
+            const sort = sorters(attr);
+            if (typeof sort === 'function') {
+                return sort;
+            }
+        }
+        else if (attr in sorters) {
+            return sorters[attr];
+        }
+    }
+    return naturalSort;
+};
+const aggregatorTemplates = {
+    count(formatter = fmtInt) {
+        return () => function () {
+            return {
+                count: 0,
+                push() {
+                    this.count++;
+                },
+                value() {
+                    return this.count;
+                },
+                format: formatter,
+            };
+        };
+    },
+    uniques(fn, formatter = fmtInt) {
+        return function ([attr]) {
+            return function () {
+                return {
+                    uniq: [],
+                    seen: new Set(),
+                    push(record) {
+                        const v = record[attr];
+                        if (!this.seen.has(v)) {
+                            this.seen.add(v);
+                            this.uniq.push(v);
+                        }
+                    },
+                    value() {
+                        return fn(this.uniq);
+                    },
+                    format: formatter,
+                    numInputs: typeof attr !== 'undefined' ? 0 : 1,
+                };
+            };
+        };
+    },
+    sum(formatter = fmt) {
+        return function ([attr]) {
+            return function () {
+                return {
+                    sum: 0,
+                    push(record) {
+                        if (!isNaN(parseFloat(record[attr]))) {
+                            this.sum += parseFloat(record[attr]);
+                        }
+                    },
+                    value() {
+                        return this.sum;
+                    },
+                    format: formatter,
+                    numInputs: typeof attr !== 'undefined' ? 0 : 1,
+                };
+            };
+        };
+    },
+    extremes(mode, formatter = fmt) {
+        return function ([attr]) {
+            return function (data) {
+                return {
+                    val: null,
+                    sorter: getSort(typeof data !== 'undefined' ? data.sorters : null, attr),
+                    push(record) {
+                        let x = record[attr];
+                        if (mode === 'min' || mode === 'max') {
+                            const n = parseFloat(x);
+                            if (!isNaN(n)) {
+                                this.val = Math[mode](n, (this.val !== null ? this.val : n));
+                            }
+                        }
+                        if (mode === 'first' && this.sorter(x, this.val !== null ? this.val : x) <= 0) {
+                            this.val = x;
+                        }
+                        if (mode === 'last' && this.sorter(x, this.val !== null ? this.val : x) >= 0) {
+                            this.val = x;
+                        }
+                    },
+                    value() {
+                        return this.val;
+                    },
+                    format(x) {
+                        if (isNaN(x)) {
+                            return x;
+                        }
+                        return formatter(x);
+                    },
+                    numInputs: typeof attr !== 'undefined' ? 0 : 1,
+                };
+            };
+        };
+    },
+    quantile(q, formatter = fmt) {
+        return function ([attr]) {
+            return function () {
+                return {
+                    vals: [],
+                    push(record) {
+                        const x = parseFloat(record[attr]);
+                        if (!isNaN(x)) {
+                            this.vals.push(x);
+                        }
+                    },
+                    value() {
+                        if (this.vals.length === 0) {
+                            return null;
+                        }
+                        this.vals.sort((a, b) => a - b);
+                        const i = (this.vals.length - 1) * q;
+                        return (this.vals[Math.floor(i)] + this.vals[Math.ceil(i)]) / 2.0;
+                    },
+                    format: formatter,
+                    numInputs: typeof attr !== 'undefined' ? 0 : 1,
+                };
+            };
+        };
+    },
+    runningStat(mode = 'mean', ddof = 1, formatter = fmt) {
+        return function ([attr]) {
+            return function () {
+                return {
+                    n: 0.0,
+                    m: 0.0,
+                    s: 0.0,
+                    push(record) {
+                        const x = parseFloat(record[attr]);
+                        if (isNaN(x)) {
+                            return;
+                        }
+                        this.n += 1.0;
+                        if (this.n === 1.0) {
+                            this.m = x;
+                        }
+                        const m_new = this.m + (x - this.m) / this.n;
+                        this.s = this.s + (x - this.m) * (x - m_new);
+                        this.m = m_new;
+                    },
+                    value() {
+                        if (mode === 'mean') {
+                            if (this.n === 0) {
+                                return 0 / 0;
+                            }
+                            return this.m;
+                        }
+                        if (this.n <= ddof) {
+                            return 0;
+                        }
+                        switch (mode) {
+                            case 'var':
+                                return this.s / (this.n - ddof);
+                            case 'stdev':
+                                return Math.sqrt(this.s / (this.n - ddof));
+                            default:
+                                throw new Error('unknown mode for runningStat');
+                        }
+                    },
+                    format: formatter,
+                    numInputs: typeof attr !== 'undefined' ? 0 : 1,
+                };
+            };
+        };
+    },
+    sumOverSum(formatter = fmt) {
+        return function ([num, denom]) {
+            return function () {
+                return {
+                    sumNum: 0,
+                    sumDenom: 0,
+                    push(record) {
+                        const _num = parseFloat(record[num]);
+                        if (!isNaN(_num)) {
+                            this.sumNum += _num;
+                        }
+                        const _denom = parseFloat(record[denom]);
+                        if (!isNaN(_denom)) {
+                            this.sumDenom += _denom;
+                        }
+                    },
+                    value() {
+                        return this.sumNum / this.sumDenom;
+                    },
+                    format: formatter,
+                    numInputs: typeof num !== 'undefined' && typeof denom !== 'undefined' ? 0 : 2,
+                };
+            };
+        };
+    },
+    fractionOf(wrapped, type = 'total', formatter = fmtPct) {
+        return (...x) => function (data, rowKey, colKey) {
+            return {
+                selector: { total: [[], []], row: [rowKey, []], col: [[], colKey] }[type] ?? [],
+                inner: wrapped(...Array.from(x || []))(data, rowKey, colKey),
+                push(record) {
+                    this.inner.push(record);
+                },
+                format: formatter,
+                value() {
+                    return (this.inner.value() /
+                        data.getAggregator(this.selector[0], this.selector[1]).inner.value());
+                },
+                numInputs: wrapped(...Array.from(x || []))().numInputs,
+            };
+        };
+    },
+};
+aggregatorTemplates.countUnique = (f) => aggregatorTemplates.uniques((x) => x.length, f);
+aggregatorTemplates.listUnique = (s) => aggregatorTemplates.uniques((x) => x.join(s), (x) => x);
+aggregatorTemplates.max = (f) => aggregatorTemplates.extremes('max', f);
+aggregatorTemplates.min = (f) => aggregatorTemplates.extremes('min', f);
+aggregatorTemplates.first = (f) => aggregatorTemplates.extremes('first', f);
+aggregatorTemplates.last = (f) => aggregatorTemplates.extremes('last', f);
+aggregatorTemplates.median = (f) => aggregatorTemplates.quantile(0.5, f);
+aggregatorTemplates.average = (f) => aggregatorTemplates.runningStat('mean', 1, f);
+aggregatorTemplates.var = (ddof, f) => aggregatorTemplates.runningStat('var', ddof, f);
+aggregatorTemplates.stdev = (ddof, f) => aggregatorTemplates.runningStat('stdev', ddof, f);
+// default aggregators & renderers use US naming and number formatting
+const aggregators = ((tpl) => ({
+    Count: tpl.count(fmtInt),
+    'Count Unique Values': tpl.countUnique(fmtInt),
+    'List Unique Values': tpl.listUnique(', '),
+    Sum: tpl.sum(fmt),
+    'Integer Sum': tpl.sum(fmtInt),
+    Average: tpl.average(fmt),
+    Median: tpl.median(fmt),
+    'Sample Variance': tpl.var(1, fmt),
+    'Sample Standard Deviation': tpl.stdev(1, fmt),
+    Minimum: tpl.min(fmt),
+    Maximum: tpl.max(fmt),
+    First: tpl.first(fmt),
+    Last: tpl.last(fmt),
+    'Sum over Sum': tpl.sumOverSum(fmt),
+    'Sum as Fraction of Total': tpl.fractionOf(tpl.sum(), 'total', fmtPct),
+    'Sum as Fraction of Rows': tpl.fractionOf(tpl.sum(), 'row', fmtPct),
+    'Sum as Fraction of Columns': tpl.fractionOf(tpl.sum(), 'col', fmtPct),
+    'Count as Fraction of Total': tpl.fractionOf(tpl.count(), 'total', fmtPct),
+    'Count as Fraction of Rows': tpl.fractionOf(tpl.count(), 'row', fmtPct),
+    'Count as Fraction of Columns': tpl.fractionOf(tpl.count(), 'col', fmtPct),
+}))(aggregatorTemplates);
+const locales = {
+    en: {
+        aggregators,
+        localeStrings: {
+            renderError: 'An error occurred rendering the PivotTable results.',
+            computeError: 'An error occurred computing the PivotTable results.',
+            uiRenderError: 'An error occurred rendering the PivotTable UI.',
+            selectAll: 'Select All',
+            selectNone: 'Select None',
+            tooMany: '(too many to list)',
+            filterResults: 'Filter values',
+            apply: 'Apply',
+            cancel: 'Cancel',
+            totals: 'Totals',
+            vs: 'vs',
+            by: 'by',
+        },
+    },
+};
+// dateFormat deriver l10n requires month and day names to be passed in directly
+const mthNamesEn = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dayNamesEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const zeroPad = (num) => String(num).padStart(2, '0');
+const derivers = {
+    bin(col, binWidth) {
+        return (record) => record[col] - (record[col] % binWidth);
+    },
+    dateFormat(col, formatString, utcOutput = false, mthNames = mthNamesEn, dayNames = dayNamesEn) {
+        const utc = utcOutput ? 'UTC' : '';
+        return function (record) {
+            const date = new Date(Date.parse(record[col]));
+            if (isNaN(+date)) {
+                return '';
+            }
+            /** @ts-ignore */
+            return formatString.replace(/%(.)/g, function (m, p) {
+                switch (p) {
+                    case 'y':
+                        return date[`get${utc}FullYear`]();
+                    case 'm':
+                        return zeroPad(date[`get${utc}Month`]() + 1);
+                    case 'n':
+                        return mthNames[date[`get${utc}Month`]()];
+                    case 'd':
+                        return zeroPad(date[`get${utc}Date`]());
+                    case 'w':
+                        return dayNames[date[`get${utc}Day`]()];
+                    case 'x':
+                        return date[`get${utc}Day`]();
+                    case 'H':
+                        return zeroPad(date[`get${utc}Hours`]());
+                    case 'M':
+                        return zeroPad(date[`get${utc}Minutes`]());
+                    case 'S':
+                        return zeroPad(date[`get${utc}Seconds`]());
+                    default:
+                        return `%${p}`;
+                }
+            });
+        };
+    },
+};
+export { aggregatorTemplates, aggregators, derivers, locales, naturalSort, getSort, sortAs, };
+
+=== 417 src/lib/formatters.ts	js
+export const fmt = new Intl.NumberFormat('default', {
+    style: 'decimal',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+}).format;
+export const fmtInt = new Intl.NumberFormat('default', {
+    style: 'decimal',
+    maximumFractionDigits: 0,
+}).format;
+export const fmtPct = new Intl.NumberFormat('default', {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+}).format;
+
+=== 11 src/lib/types.ts	js
+export {};
+
+=== 146 vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+export default defineConfig({
+    plugins: [sveltekit()]
+});
+

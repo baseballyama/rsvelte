@@ -1,4 +1,1963 @@
 # rsvelte pack 1
+=== 8432 src/lib/DateInput.svelte	svelte	runes	rejected
+<script lang="ts">
+	import { fly } from 'svelte/transition'
+	import { cubicInOut } from 'svelte/easing'
+	import { toText, cloneDate, toValidDate } from './date-utils.js'
+	import type { Locale } from './locale.js'
+	import { parse, createFormat, type FormatToken } from './parse.js'
+	import DateTimePicker from './DatePicker.svelte'
+	import type { ClassValue } from 'svelte/elements'
+
+	interface Props {
+		/** Date value. It's `null` if no date is selected */
+		value?: Date | null
+		/** Initial date to show in the calendar when no value is selected */
+		initialBrowseDate?: Date
+		/** The earliest value the user can select */
+		min?: Date
+		/** The latest value the user can select */
+		max?: Date
+		/** Set the input element's ID attribute */
+		id?: string | null
+		/** Placeholder text to show when input field is empty */
+		placeholder?: string
+		/** Whether the text is valid */
+		valid?: boolean
+		/** Disable the input */
+		disabled?: boolean
+		/** Require a value to submit form */
+		required?: boolean
+		class?: ClassValue
+		/** Locale object for internationalization */
+		locale?: Locale
+		/** Format string */
+		format?: string
+		text?: string
+		/** Whether the date popup is visible */
+		visible?: boolean
+		/** Close the date popup when a date is selected */
+		closeOnSelection?: boolean
+		/** Wait with updating the date until a date is selected */
+		browseWithoutSelecting?: boolean
+		/** Show a time picker with the specified precision */
+		timePrecision?: 'minute' | 'second' | 'millisecond' | null
+		/** Disallow specific dates */
+		isDisabledDate?: ((dateToCheck: Date) => boolean) | null
+		/** Automatically adjust date popup position to not appear outside the screen */
+		dynamicPositioning?: boolean
+		/** Fires when the user selects a new value by clicking on a date or by pressing enter */
+		onselect?: (date: Date) => void
+		children?: import('svelte').Snippet
+	}
+
+	let {
+		value = $bindable(null),
+		initialBrowseDate = new Date(),
+		min = new Date(initialBrowseDate.getFullYear() - 20, 0, 1),
+		max = new Date(initialBrowseDate.getFullYear(), 11, 31, 23, 59, 59, 999),
+		id = null,
+		placeholder = '2020-12-31 23:00:00',
+		valid = $bindable(true),
+		disabled = false,
+		required = false,
+		class: containerClass = undefined,
+		locale = {},
+		format = 'yyyy-MM-dd HH:mm:ss',
+		isDisabledDate = null,
+		text = $bindable(
+			toText(
+				value ? toValidDate(initialBrowseDate, value, min, max, isDisabledDate) : value,
+				createFormat(format, locale),
+			),
+		),
+		visible = $bindable(false),
+		closeOnSelection = false,
+		browseWithoutSelecting = false,
+		timePrecision = null,
+		dynamicPositioning = true,
+		onselect,
+		children,
+	}: Props = $props()
+
+	// prevent updates when date is unchanged
+	function setValue(date: Date | null) {
+		if (date === null || date === undefined) {
+			value = date
+		} else if (date?.getTime() !== value?.getTime()) {
+			value = cloneDate(date)
+		}
+	}
+
+	$effect(() => {
+		setValue(value ? toValidDate(initialBrowseDate, value, min, max, isDisabledDate) : null)
+	})
+
+	let formatTokens = $derived(createFormat(format, locale))
+
+	$effect(() => {
+		text = toText(value, formatTokens)
+	})
+
+	function textUpdate(text: string, formatTokens: FormatToken[]) {
+		if (text.length) {
+			const result = parse(text, formatTokens, value)
+			if (result.date !== null) {
+				valid = true
+				setValue(toValidDate(initialBrowseDate, result.date, min, max, isDisabledDate))
+			} else {
+				valid = false
+			}
+		} else {
+			valid = true // <-- empty string is always valid
+			// value resets to null if you clear the field
+			if (value) {
+				value = null
+				setValue(null)
+			}
+		}
+	}
+	$effect(() => {
+		textUpdate(text, formatTokens)
+	})
+
+	// handle onfocusout for parent element. If the parent element loses
+	// focus (e.g input element), visible is set to false
+	function onFocusOut(e: FocusEvent) {
+		if (
+			e?.currentTarget instanceof HTMLElement &&
+			e.relatedTarget &&
+			e.relatedTarget instanceof Node &&
+			e.currentTarget.contains(e.relatedTarget)
+		) {
+			return
+		} else {
+			visible = false
+		}
+	}
+	function keydown(e: KeyboardEvent) {
+		if (e.key === 'Escape' && visible) {
+			visible = false
+			e.preventDefault()
+			// When the date picker is open, we prevent 'Escape' from propagating,
+			// so for example a parent modal won't be closed
+			e.stopPropagation()
+		} else if (e.key === 'Enter') {
+			visible = !visible
+			e.preventDefault()
+		}
+	}
+
+	function onSelect(date: Date) {
+		onselect?.(date)
+		if (closeOnSelection) {
+			visible = false
+		}
+	}
+
+	let InputElement: HTMLInputElement
+	let pickerElement: HTMLElement | undefined = $state()
+	let showAbove = $state(false)
+	let pickerLeftPosition: number | null = $state(null)
+
+	function setDatePickerPosition() {
+		// Defaults
+		showAbove = false
+		pickerLeftPosition = null
+
+		if (visible && pickerElement && dynamicPositioning) {
+			// The child of the dateField is what is visually seen, all calculations should use this to make sure they line up properly
+			const inputRect = InputElement.getBoundingClientRect()
+			const horizontalOverflow = pickerElement.offsetWidth - inputRect.width
+
+			const bottomThreshold = inputRect.bottom + pickerElement.offsetHeight + 5
+			const rightThreshold = inputRect.left + pickerElement.offsetWidth + 5
+
+			if (bottomThreshold > window.innerHeight) {
+				// If .date-time-field is on the bottom half of the screen, open above
+				showAbove = true
+			}
+			if (rightThreshold > window.innerWidth) {
+				// If date-time-field is on the right of the screen, open to the left
+				pickerLeftPosition = -horizontalOverflow
+
+				if (inputRect.left < horizontalOverflow + 5) {
+					// If it would overflow on the left too, open in the middle of the screen
+					const windowCenterPos = window.innerWidth / 2
+					const newPos = windowCenterPos - pickerElement.offsetWidth / 2
+					pickerLeftPosition = newPos - inputRect.left
+				}
+			}
+		}
+	}
+
+	function flyAutoPosition(node: HTMLElement) {
+		setDatePickerPosition()
+		return fly(node, {
+			duration: 200,
+			easing: cubicInOut,
+			y: showAbove ? 5 : -5,
+		})
+	}
+</script>
+
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class={['date-time-field', containerClass]} onfocusout={onFocusOut} onkeydown={keydown}>
+	<input
+		bind:this={InputElement}
+		class:invalid={!valid}
+		type="text"
+		autocomplete="off"
+		value={text}
+		{id}
+		{placeholder}
+		{disabled}
+		{required}
+		onfocus={() => (visible = true)}
+		onmousedown={() => (visible = true)}
+		oninput={(e) => {
+			if (
+				e instanceof InputEvent &&
+				e.inputType === 'insertText' &&
+				typeof e.data === 'string' &&
+				e.currentTarget.value === text + e.data
+			) {
+				// check for missing punctuation, and add if there is any
+				let result = parse(text, formatTokens, value)
+				if (result.missingPunctuation !== '' && !result.missingPunctuation.startsWith(e.data)) {
+					text = text + result.missingPunctuation + e.data
+					return
+				}
+			}
+			text = e.currentTarget.value
+		}}
+	/>
+	{#if visible && !disabled}
+		<div
+			class="picker"
+			class:visible
+			class:above={showAbove}
+			transition:flyAutoPosition
+			bind:this={pickerElement}
+			style:--picker-left-position="{pickerLeftPosition}px"
+		>
+			<DateTimePicker
+				onfocusout={onFocusOut}
+				onselect={onSelect}
+				bind:value
+				{initialBrowseDate}
+				{min}
+				{max}
+				{locale}
+				{browseWithoutSelecting}
+				{timePrecision}
+				{isDisabledDate}
+			>
+				{@render children?.()}
+			</DateTimePicker>
+		</div>
+	{/if}
+</div>
+
+<style lang="sass">
+	.date-time-field
+		position: relative
+	input
+		color: var(--date-picker-foreground, #000000)
+		background: var(--date-picker-background, #ffffff)
+		min-width: 0px
+		box-sizing: border-box
+		padding: 4px 6px
+		margin: 0px
+		border: 1px solid rgba(103, 113, 137, 0.3)
+		border-radius: 3px
+		width: var(--date-input-width, 150px)
+		outline: none
+		transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		&:focus-visible
+			border-color: var(--date-picker-highlight-border, #0269f7)
+			box-shadow: 0px 0px 0px 2px var(--date-picker-highlight-shadow, rgba(#0269f7, 0.4))
+		&:disabled
+			opacity: 0.5
+	.invalid
+		border: 1px solid rgba(#f92f72, 0.5)
+		background-color: rgba(#f92f72, 0.1)
+		&:focus-visible
+			border-color: #f92f72
+			box-shadow: 0px 0px 0px 2px rgba(#f92f72, 0.5)
+	.picker
+		display: none
+		position: absolute
+		padding: 1px
+		&.above
+			bottom: 100%
+		left: var(--picker-left-position)
+		z-index: 10
+		&.visible
+			display: block
+</style>
+
+=== 13995 src/lib/DatePicker.svelte	svelte	runes	rejected
+<script lang="ts">
+	import TimePicker from './TimePicker.svelte'
+	import {
+		getMonthLength,
+		getCalendarDays,
+		type CalendarDay,
+		applyTimePrecision,
+		clampDate,
+		clamp,
+	} from './date-utils.js'
+	import { getInnerLocale, type Locale } from './locale.js'
+	import { cloneDate, toValidDate } from './date-utils.js'
+	import type { SvelteHTMLElements } from 'svelte/elements'
+	import { untrack } from 'svelte'
+
+	interface Props {
+		/** Date value. It's `null` if no date is selected */
+		value?: Date | null
+		/** Initial date to show in the calendar when no value is selected */
+		initialBrowseDate?: Date
+		/** Show a time picker with the specified precision */
+		timePrecision?: 'minute' | 'second' | 'millisecond' | null
+		/** The earliest value the user can select */
+		min?: Date
+		/** The latest value the user can select */
+		max?: Date
+		/** Disallow specific dates */
+		isDisabledDate?: ((dateToCheck: Date) => boolean) | null
+		/** Locale object for internationalization */
+		locale?: Locale
+		/** Wait with updating the date until a date is selected */
+		browseWithoutSelecting?: boolean
+		/** Fires when the user selects a new value by clicking on a date or by pressing enter */
+		onselect?: (date: Date) => void
+		onfocusout?: SvelteHTMLElements['div']['onfocusout']
+		children?: import('svelte').Snippet
+	}
+	let {
+		value = $bindable(null),
+		initialBrowseDate = new Date(),
+		timePrecision = null,
+		min = new Date(initialBrowseDate.getFullYear() - 20, 0, 1),
+		max = new Date(initialBrowseDate.getFullYear(), 11, 31, 23, 59, 59, 999),
+		isDisabledDate = null,
+		locale = {},
+		browseWithoutSelecting = false,
+		onselect,
+		onfocusout,
+		children,
+	}: Props = $props()
+
+	function setValue(d: Date) {
+		if (d.getTime() !== value?.getTime()) {
+			browseDate = toValidDate(value ?? browseDate, d, min, max, isDisabledDate)
+			applyTimePrecision(browseDate, timePrecision)
+			value = cloneDate(browseDate)
+		}
+	}
+
+	/** Set the browseDate */
+	function browse(d: Date) {
+		browseDate = clampDate(d, min, max)
+		if (!browseWithoutSelecting && value) {
+			setValue(browseDate)
+		}
+	}
+
+	function setTime(d: Date) {
+		browseDate = clamp(d, min, max)
+		if (value) {
+			setValue(browseDate)
+		}
+		return browseDate
+	}
+
+	const todayDate = new Date()
+
+	function handleDisabledDate(date: CalendarDay) {
+		return isDisabledDate?.(new Date(date.year, date.month, date.number))
+	}
+
+	// Prevents a invalid date from being typed into the Dateinput text box
+	$effect(() => {
+		if (value && value > max) {
+			setValue(toValidDate(value, max, min, max, isDisabledDate))
+		} else if (value && value < min) {
+			setValue(toValidDate(value, min, min, max, isDisabledDate))
+		} else if (value && isDisabledDate?.(value)) {
+			setValue(toValidDate(browseDate, value, min, max, isDisabledDate))
+		}
+	})
+
+	/** The date shown in the popup when none is selected */
+	// svelte-ignore state_referenced_locally
+	let browseDate = $state(
+		value ? cloneDate(value) : cloneDate(clampDate(initialBrowseDate, min, max)),
+	)
+	$effect(() => {
+		const v = value
+		untrack(() => {
+			setBrowseDate(v)
+		})
+	})
+	function setBrowseDate(value: Date | null) {
+		if (browseDate.getTime() !== value?.getTime()) {
+			browseDate = value ? cloneDate(value) : browseDate
+			// If the value was updated externally, this fixes the time precision
+			applyTimePrecision(browseDate, timePrecision)
+		}
+	}
+
+	let years = $derived(getYears(min, max))
+	function getYears(min: Date, max: Date) {
+		let years = []
+		for (let i = min.getFullYear(); i <= max.getFullYear(); i++) {
+			years.push(i)
+		}
+		return years
+	}
+
+	let iLocale = $derived(getInnerLocale(locale))
+
+	let browseYear = $derived(browseDate.getFullYear())
+	function setYear(newYear: number) {
+		browseDate.setFullYear(newYear)
+		browse(browseDate)
+	}
+
+	let browseMonth = $derived(browseDate.getMonth())
+	function setMonth(newMonth: number) {
+		let newYear = browseDate.getFullYear()
+		if (newMonth === 12) {
+			newMonth = 0
+			newYear++
+		} else if (newMonth === -1) {
+			newMonth = 11
+			newYear--
+		}
+
+		const maxDate = getMonthLength(newYear, newMonth)
+		const newDate = Math.min(browseDate.getDate(), maxDate)
+		browse(
+			new Date(
+				newYear,
+				newMonth,
+				newDate,
+				browseDate.getHours(),
+				browseDate.getMinutes(),
+				browseDate.getSeconds(),
+				browseDate.getMilliseconds(),
+			),
+		)
+	}
+
+	let calendarDays = $derived(getCalendarDays(browseDate, iLocale.weekStartsOn))
+
+	function selectDay(calendarDay: CalendarDay) {
+		if (dayIsInRange(calendarDay, min, max) && !handleDisabledDate(calendarDay)) {
+			browseDate.setFullYear(0)
+			browseDate.setMonth(0)
+			browseDate.setDate(1)
+			browseDate.setFullYear(calendarDay.year)
+			browseDate.setMonth(calendarDay.month)
+			browseDate.setDate(calendarDay.number)
+			setValue(browseDate)
+			onselect?.(cloneDate(browseDate))
+		}
+	}
+	function dayIsInRange(calendarDay: CalendarDay, min: Date, max: Date) {
+		const date = new Date(calendarDay.year, calendarDay.month, calendarDay.number)
+		const minDate = new Date(min.getFullYear(), min.getMonth(), min.getDate())
+		const maxDate = new Date(max.getFullYear(), max.getMonth(), max.getDate())
+		return date >= minDate && date <= maxDate
+	}
+	function shiftKeydown(e: KeyboardEvent) {
+		if (e.shiftKey && e.key === 'ArrowUp') {
+			setYear(browseDate.getFullYear() - 1)
+		} else if (e.shiftKey && e.key === 'ArrowDown') {
+			setYear(browseDate.getFullYear() + 1)
+		} else if (e.shiftKey && e.key === 'ArrowLeft') {
+			setMonth(browseDate.getMonth() - 1)
+		} else if (e.shiftKey && e.key === 'ArrowRight') {
+			setMonth(browseDate.getMonth() + 1)
+		} else {
+			return false
+		}
+		e.preventDefault()
+		return true
+	}
+	function yearKeydown(e: KeyboardEvent) {
+		let shift = e.shiftKey || e.altKey
+		if (shift) {
+			shiftKeydown(e)
+			return
+		} else if (e.key === 'ArrowUp') {
+			setYear(browseDate.getFullYear() - 1)
+		} else if (e.key === 'ArrowDown') {
+			setYear(browseDate.getFullYear() + 1)
+		} else if (e.key === 'ArrowLeft') {
+			setMonth(browseDate.getMonth() - 1)
+		} else if (e.key === 'ArrowRight') {
+			setMonth(browseDate.getMonth() + 1)
+		} else {
+			shiftKeydown(e)
+			return
+		}
+		e.preventDefault()
+	}
+	function monthKeydown(e: KeyboardEvent) {
+		let shift = e.shiftKey || e.altKey
+		if (shift) {
+			shiftKeydown(e)
+			return
+		} else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+			setMonth(browseDate.getMonth() - 1)
+		} else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+			setMonth(browseDate.getMonth() + 1)
+		} else {
+			shiftKeydown(e)
+			return
+		}
+		e.preventDefault()
+	}
+	function keydown(e: KeyboardEvent) {
+		let shift = e.shiftKey || e.altKey
+		if (
+			(e.target as HTMLElement)?.tagName === 'SELECT' ||
+			(e.target as HTMLElement)?.tagName === 'SPAN'
+		) {
+			// Ignore date/month <select> & TimePicker <input>
+			return
+		}
+		if (shift) {
+			shiftKeydown(e)
+			return
+		} else if (e.key === 'ArrowUp') {
+			browseDate.setDate(browseDate.getDate() - 7)
+			setValue(browseDate)
+		} else if (e.key === 'ArrowDown') {
+			browseDate.setDate(browseDate.getDate() + 7)
+			setValue(browseDate)
+		} else if (e.key === 'ArrowLeft') {
+			browseDate.setDate(browseDate.getDate() - 1)
+			setValue(browseDate)
+		} else if (e.key === 'ArrowRight') {
+			browseDate.setDate(browseDate.getDate() + 1)
+			setValue(browseDate)
+		} else if (e.key === 'Enter') {
+			setValue(browseDate)
+			onselect?.(cloneDate(browseDate))
+		} else {
+			return
+		}
+		e.preventDefault()
+	}
+</script>
+
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="date-time-picker" {onfocusout} tabindex="0" onkeydown={keydown}>
+	<div class="tab-container" tabindex="-1">
+		<div class="top">
+			<button
+				type="button"
+				aria-label="Previous month"
+				class="page-button"
+				tabindex="-1"
+				onclick={() => setMonth(browseDate.getMonth() - 1)}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+					><path
+						d="M5 3l3.057-3 11.943 12-11.943 12-3.057-3 9-9z"
+						transform="rotate(180, 12, 12)"
+					/></svg
+				>
+			</button>
+			<div class="dropdown month">
+				<select
+					value={browseMonth}
+					onkeydown={monthKeydown}
+					oninput={(e) => setMonth(parseInt(e.currentTarget.value))}
+				>
+					{#each iLocale.months as monthName, i}
+						<option
+							disabled={new Date(browseYear, i, getMonthLength(browseYear, i), 23, 59, 59, 999) <
+								min || new Date(browseYear, i) > max}
+							value={i}>{monthName}</option
+						>
+					{/each}
+				</select>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+					><path d="M6 0l12 12-12 12z" transform="rotate(90, 12, 12)" /></svg
+				>
+			</div>
+			<div class="dropdown year">
+				<select
+					value={browseYear}
+					oninput={(e) => setYear(parseInt(e.currentTarget.value))}
+					onkeydown={yearKeydown}
+				>
+					{#each years as v}
+						<option value={v}>{v}</option>
+					{/each}
+				</select>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+					><path d="M6 0l12 12-12 12z" transform="rotate(90, 12, 12)" /></svg
+				>
+			</div>
+			<button
+				type="button"
+				aria-label="Next month"
+				class="page-button"
+				tabindex="-1"
+				onclick={() => setMonth(browseDate.getMonth() + 1)}
+			>
+				<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+					><path d="M5 3l3.057-3 11.943 12-11.943 12-3.057-3 9-9z" /></svg
+				>
+			</button>
+		</div>
+		<div class="header">
+			<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+			{#each Array(7) as _, i}
+				{#if i + iLocale.weekStartsOn < 7}
+					<div class="header-cell">{iLocale.weekdays[iLocale.weekStartsOn + i]}</div>
+				{:else}
+					<div class="header-cell">{iLocale.weekdays[iLocale.weekStartsOn + i - 7]}</div>
+				{/if}
+			{/each}
+		</div>
+		<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+		{#each Array(6) as _, weekIndex}
+			<div class="week">
+				{#each calendarDays.slice(weekIndex * 7, weekIndex * 7 + 7) as calendarDay}
+					<!-- svelte-ignore a11y_click_events_have_key_events -->
+					<div
+						class="cell"
+						onclick={() => selectDay(calendarDay)}
+						class:disabled={!dayIsInRange(calendarDay, min, max) || handleDisabledDate(calendarDay)}
+						class:selected={value &&
+							calendarDay.year === value.getFullYear() &&
+							calendarDay.month === value.getMonth() &&
+							calendarDay.number === value.getDate()}
+						class:today={calendarDay.year === todayDate.getFullYear() &&
+							calendarDay.month === todayDate.getMonth() &&
+							calendarDay.number === todayDate.getDate()}
+						class:other-month={calendarDay.month !== browseMonth}
+					>
+						<span>{calendarDay.number}</span>
+					</div>
+				{/each}
+			</div>
+		{/each}
+
+		<TimePicker {timePrecision} bind:browseDate {setTime} />
+
+		{@render children?.()}
+	</div>
+</div>
+
+<style lang="sass">
+	.date-time-picker
+		display: inline-block
+		color: var(--date-picker-foreground, #000000)
+		background: var(--date-picker-background, #ffffff)
+		user-select: none
+		-webkit-user-select: none
+		padding: 0.5rem
+		cursor: default
+		font-size: 0.75rem
+		border: 1px solid rgba(103, 113, 137, 0.3)
+		border-radius: 3px
+		box-shadow: 0px 2px 6px rgba(#000000,0.08), 0px 2px 6px rgba(#000000,0.11)
+		outline: none
+		transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		&:focus-visible
+			border-color: var(--date-picker-highlight-border, #0269f7)
+			box-shadow: 0px 0px 0px 2px var(--date-picker-highlight-shadow, rgba(#0269f7, 0.4))
+	.tab-container
+		outline: none
+	.top
+		display: flex
+		justify-content: center
+		align-items: center
+		padding-bottom: 0.5rem
+	.dropdown
+		margin-left: 0.25rem
+		margin-right: 0.25rem
+		position: relative
+		display: flex
+		svg
+			position: absolute
+			right: 0px
+			top: 0px
+			height: 100%
+			width: 8px
+			padding: 0rem 0.5rem
+			pointer-events: none
+			box-sizing: content-box
+	.month
+		flex-grow: 1
+	.year
+		flex-grow: 1
+	svg
+		display: block
+		fill: var(--date-picker-foreground, #000000)
+		opacity: 0.75
+		outline: none
+	.page-button
+		background-color: transparent
+		width: 1.5rem
+		height: 1.5rem
+		flex-shrink: 0
+		border-radius: 5px
+		box-sizing: border-box
+		border: 1px solid transparent
+		display: flex
+		align-items: center
+		justify-content: center
+		&:hover
+			background-color: rgba(#808080, 0.08)
+			border: 1px solid rgba(#808080, 0.08)
+		svg
+			width: 0.68rem
+			height: 0.68rem
+	select
+		font-size: inherit
+		font-family: inherit
+		-webkit-appearance: none
+		-moz-appearance: none
+		appearance: none
+		flex-grow: 1
+		padding: 0rem 0.35rem
+		height: 1.5rem
+		padding-right: 1.3rem
+		margin: 0px
+		border: 1px solid rgba(108, 120, 147, 0.3)
+		outline: none
+		transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		background-image: none
+		color: var(--date-picker-foreground, #000000)
+		background-color: var(--date-picker-background, #ffffff)
+		border-radius: 3px
+	select:focus-visible
+		border-color: var(--date-picker-highlight-border, #0269f7)
+		box-shadow: 0px 0px 0px 2px var(--date-picker-highlight-shadow, rgba(#0269f7, 0.4))
+
+	.header
+		display: flex
+		font-weight: 600
+		padding-bottom: 2px
+	.header-cell
+		width: 1.875rem
+		text-align: center
+		flex-grow: 1
+
+	.week
+		display: flex
+	.cell
+		display: flex
+		align-items: center
+		justify-content: center
+		width: 2rem
+		height: 1.94rem
+		flex-grow: 1
+		border-radius: 5px
+		box-sizing: border-box
+		border: 2px solid transparent
+		&:hover
+			border: 1px solid rgba(#808080, 0.08)
+		&.today
+			font-weight: 600
+			border: 2px solid var(--date-picker-today-border, rgba(#808080, 0.3))
+		&:hover
+			background-color: rgba(#808080, 0.08)
+		&.disabled
+			visibility: hidden
+		&.disabled:hover
+			border: none
+			background-color: transparent
+		&.other-month span
+			opacity: 0.4
+		&.selected
+			color: var(--date-picker-selected-color, inherit)
+			background: var(--date-picker-selected-background, rgba(2, 105, 247, 0.2))
+			border: 2px solid var(--date-picker-highlight-border, #0269f7)
+</style>
+
+=== 6059 src/lib/TimePicker.svelte	svelte	runes	rejected
+<script lang="ts">
+	interface Props {
+		browseDate: Date
+		timePrecision: 'minute' | 'second' | 'millisecond' | null
+		setTime: (d: Date) => Date
+	}
+	let { browseDate = $bindable(), timePrecision, setTime }: Props = $props()
+
+	let fields: (HTMLSpanElement | undefined | null)[] = $state([])
+	function select(node: Node) {
+		const selection = window.getSelection()
+		const range = document.createRange()
+		range.selectNodeContents(node)
+		selection?.removeAllRanges()
+		selection?.addRange(range)
+	}
+
+	type SpanEvent = { currentTarget: EventTarget & HTMLSpanElement }
+	function keydown(e: KeyboardEvent & SpanEvent) {
+		if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+			const value = getValue(e.currentTarget)
+			const delta = e.key === 'ArrowUp' ? 1 : -1
+			setValue(e.currentTarget, value + delta, true)
+			e.preventDefault()
+			select(e.currentTarget)
+		} else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || ':;-,.'.includes(e.key)) {
+			const fieldIndex = fields.indexOf(e.currentTarget)
+			const delta = e.key === 'ArrowLeft' ? -1 : 1
+			const el = fields[fieldIndex + delta]
+			e.preventDefault()
+			if (el) {
+				el.focus()
+				select(el)
+			}
+		}
+	}
+
+	function getValue(node: HTMLElement) {
+		const label = getField(node).label
+		if (label === 'Hours') {
+			return browseDate.getHours()
+		} else if (label === 'Minutes') {
+			return browseDate.getMinutes()
+		} else if (label === 'Seconds') {
+			return browseDate.getSeconds()
+		} else {
+			return browseDate.getMilliseconds()
+		}
+	}
+	function clamp(value: number, max: number, loopAround: boolean) {
+		if (loopAround && value < 0) {
+			return max
+		} else if (loopAround && value > max) {
+			return 0
+		} else {
+			return Math.max(0, Math.min(max, value))
+		}
+	}
+
+	function getField(element: HTMLElement) {
+		const label = element.getAttribute('aria-label')
+		if (label === 'Hours') {
+			return { label, len: 2, max: 23 } as const
+		} else if (label === 'Minutes') {
+			return { label, len: 2, max: 59 } as const
+		} else if (label === 'Seconds') {
+			return { label, len: 2, max: 59 } as const
+		} else if (label === 'Milliseconds') {
+			return { label, len: 3, max: 999 } as const
+		} else {
+			throw new Error('Invalid label ' + label)
+		}
+	}
+
+	$effect(() => {
+		setText(browseDate)
+	})
+	function setText(d: Date) {
+		const hours = ('00' + d.getHours()).slice(-2)
+		const minutes = ('00' + d.getMinutes()).slice(-2)
+		const seconds = ('00' + d.getSeconds()).slice(-2)
+		const milliseconds = ('000' + d.getMilliseconds()).slice(-3)
+		if (fields[0] && fields[0].innerText !== hours) {
+			fields[0].innerText = hours
+		}
+		if (fields[1] && fields[1].innerText !== minutes) {
+			fields[1].innerText = minutes
+		}
+		if (fields[2] && fields[2].innerText !== seconds) {
+			fields[2].innerText = seconds
+		}
+		if (fields[3] && fields[3].innerText !== milliseconds) {
+			fields[3].innerText = milliseconds
+		}
+	}
+
+	function setValue(node: HTMLElement, value: number, loopAround = false) {
+		const field = getField(node)
+		value = clamp(value, field.max, loopAround)
+		if (field.label === 'Hours') {
+			browseDate.setHours(value)
+		} else if (field.label === 'Minutes') {
+			browseDate.setMinutes(value)
+		} else if (field.label === 'Seconds') {
+			browseDate.setSeconds(value)
+		} else if (field.label === 'Milliseconds') {
+			browseDate.setMilliseconds(value)
+		}
+
+		browseDate = setTime(browseDate)
+		setText(browseDate)
+	}
+
+	function parse(text: string, length: number) {
+		return parseInt(text.replace(/[^\d]/g, '').slice(-length))
+	}
+
+	function input(eUnknown: unknown) {
+		const e = eUnknown as InputEvent & SpanEvent // type error workaround
+
+		const field = getField(e.currentTarget)
+		let newValue: number
+
+		if (e.inputType === 'insertText') {
+			const originalText = '000' + getValue(e.currentTarget)
+			newValue = parse(originalText + e.currentTarget.innerText, field.len)
+			if (newValue > field.max && e.data) {
+				newValue = parse(e.data, field.len)
+			}
+		} else {
+			newValue = parse('000' + e.currentTarget.innerText, field.len)
+		}
+
+		setValue(e.currentTarget, newValue)
+		select(e.currentTarget)
+	}
+
+	function focus(e: FocusEvent & SpanEvent) {
+		select(e.currentTarget)
+	}
+</script>
+
+{#if timePrecision}
+	<div
+		class="time-picker"
+		role="none"
+		onmousedown={(e) => {
+			if (e.target instanceof HTMLElement && e.target.tagName === 'SPAN') {
+				e.target.focus()
+				e.preventDefault() // prevent text dragging
+			}
+		}}
+	>
+		<span
+			bind:this={fields[0]}
+			role="spinbutton"
+			aria-label="Hours"
+			tabindex="0"
+			contenteditable
+			inputmode="numeric"
+			onkeydown={keydown}
+			oninput={input}
+			onfocus={focus}>{('00' + browseDate.getHours()).slice(-2)}</span
+		>:
+		<span
+			bind:this={fields[1]}
+			role="spinbutton"
+			aria-label="Minutes"
+			tabindex="0"
+			contenteditable
+			inputmode="numeric"
+			onkeydown={keydown}
+			oninput={input}
+			onfocus={focus}>{('00' + browseDate.getMinutes()).slice(-2)}</span
+		>
+		{#if timePrecision !== 'minute'}
+			:<span
+				bind:this={fields[2]}
+				role="spinbutton"
+				aria-label="Seconds"
+				tabindex="0"
+				contenteditable
+				inputmode="numeric"
+				onkeydown={keydown}
+				oninput={input}
+				onfocus={focus}>{('00' + browseDate.getSeconds()).slice(-2)}</span
+			>
+			{#if timePrecision !== 'second'}
+				.<span
+					bind:this={fields[3]}
+					role="spinbutton"
+					aria-label="Milliseconds"
+					tabindex="0"
+					contenteditable
+					inputmode="numeric"
+					onkeydown={keydown}
+					oninput={input}
+					onfocus={focus}>{('000' + browseDate.getMilliseconds()).slice(-3)}</span
+				>
+			{/if}
+		{/if}
+	</div>
+{/if}
+
+<style lang="sass">
+	.time-picker
+		font-size: 1.1em
+		display: flex
+		align-items: center
+		width: fit-content
+		border: 1px solid rgba(108, 120, 147, 0.3)
+		border-radius: 3px
+		margin: auto
+		font-variant-numeric: tabular-nums
+		margin-top: 6px
+	span
+		user-select: all
+		outline: none
+		position: relative
+		z-index: 1
+		padding: 4px 0px
+		&:not(:focus-visible)::selection
+			background-color: transparent
+		&:first-child
+			padding-left: 6px
+		&:last-child
+			padding-right: 6px
+</style>
+
+=== 4721 src/lib/date-utils.ts	ts	module	-
+import type { FormatToken } from './parse.js'
+
+export function isLeapYear(year: number): boolean {
+	return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+}
+export function getMonthLength(year: number, month: number): number {
+	const feb = isLeapYear(year) ? 29 : 28
+	const monthLengths = [31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+	return monthLengths[month]
+}
+
+export function toText(date: Date | null, formatTokens: FormatToken[]): string {
+	let text = ''
+	if (date) {
+		for (const token of formatTokens) {
+			if (typeof token === 'string') {
+				text += token
+			} else {
+				text += token.toString(date)
+			}
+		}
+	}
+	return text
+}
+
+export function isSameDate(date1: Date, date2: Date) {
+	return (
+		date1.getFullYear() === date2.getFullYear() &&
+		date1.getMonth() === date2.getMonth() &&
+		date1.getDate() === date2.getDate()
+	)
+}
+
+export type CalendarDay = {
+	year: number
+	month: number
+	number: number
+}
+export function getMonthDays(year: number, month: number): CalendarDay[] {
+	const monthLength = getMonthLength(year, month)
+	const days: CalendarDay[] = []
+	for (let i = 0; i < monthLength; i++) {
+		days.push({
+			year: year,
+			month: month,
+			number: i + 1,
+		})
+	}
+	return days
+}
+export function getCalendarDays(value: Date, weekStartsOn: number): CalendarDay[] {
+	const year = value.getFullYear()
+	const month = value.getMonth()
+	const firstWeekday = new Date(year, month, 1).getDay()
+
+	let days: CalendarDay[] = []
+
+	// add last month
+	const daysBefore = (firstWeekday - weekStartsOn + 7) % 7
+	if (daysBefore > 0) {
+		let lastMonth = month - 1
+		let lastMonthYear = year
+		if (lastMonth === -1) {
+			lastMonth = 11
+			lastMonthYear = year - 1
+		}
+		days = getMonthDays(lastMonthYear, lastMonth).slice(-daysBefore)
+	}
+
+	// add current month
+	days = days.concat(getMonthDays(year, month))
+
+	// add next month
+	let nextMonth = month + 1
+	let nextMonthYear = year
+	if (nextMonth === 12) {
+		nextMonth = 0
+		nextMonthYear = year + 1
+	}
+	const daysAfter = 42 - days.length
+	days = days.concat(getMonthDays(nextMonthYear, nextMonth).slice(0, daysAfter))
+
+	return days
+}
+
+export function applyTimePrecision(
+	date: Date,
+	timePrecision: 'minute' | 'second' | 'millisecond' | null,
+) {
+	// Set unused time components to 0
+	if (timePrecision === null) {
+		date.setHours(0, 0, 0, 0)
+	} else if (timePrecision === 'minute') {
+		date.setSeconds(0, 0)
+	} else if (timePrecision === 'second') {
+		date.setMilliseconds(0)
+	}
+}
+
+export function cloneDate(d: Date) {
+	return new Date(d)
+}
+
+export function toValidDate(
+	oldDate: Date,
+	newDate: Date,
+	minDate: Date,
+	maxDate: Date,
+	isDisabledDate: ((date: Date) => boolean) | null,
+): Date {
+	// Don't mutate the original newDate to avoid unintended side effects
+	let adjustedDate = cloneDate(newDate)
+
+	if (oldDate > newDate) {
+		adjustDate(adjustedDate, -1, minDate, maxDate, isDisabledDate)
+		if (adjustedDate < minDate) {
+			adjustedDate = clampDate(adjustedDate, minDate, maxDate)
+			// Adjusts the date one more time if the min date is disabled, to ensure a valid, enabled date is selected
+			adjustDate(adjustedDate, 1, minDate, maxDate, isDisabledDate)
+		}
+	} else {
+		adjustDate(adjustedDate, 1, minDate, maxDate, isDisabledDate)
+		if (adjustedDate > maxDate) {
+			adjustedDate = clampDate(adjustedDate, minDate, maxDate)
+			// Adjusts the date one more time if the max date is disabled, to ensure a valid, enabled date is selected
+			adjustDate(adjustedDate, -1, minDate, maxDate, isDisabledDate)
+		}
+	}
+	// Finally, clamp the time
+	if (adjustedDate < minDate || adjustedDate > maxDate) {
+		adjustedDate = clamp(adjustedDate, minDate, maxDate)
+	}
+	return adjustedDate
+}
+
+function adjustDate(
+	date: Date,
+	increment: number,
+	minDate: Date,
+	maxDate: Date,
+	isDisabledDate: ((date: Date) => boolean) | null,
+) {
+	// Prevents accidental infinite loops
+	const MAXLOOPS = 36525 // ~100 years, should be large enough
+	let loopCount = 0
+
+	while (isDisabledDate?.(date) && date >= minDate && date <= maxDate && loopCount <= MAXLOOPS) {
+		date.setDate(date.getDate() + increment)
+		loopCount++
+	}
+}
+
+export function clamp(value: Date, min: Date, max: Date) {
+	if (value > max) {
+		return cloneDate(max)
+	} else if (value < min) {
+		return cloneDate(min)
+	} else {
+		return cloneDate(value)
+	}
+}
+
+/** Clamps the date, but keeps the time unchanged */
+export function clampDate(value: Date, min: Date, max: Date) {
+	const limit = clamp(value, min, max)
+	value = new Date(
+		limit.getFullYear(),
+		limit.getMonth(),
+		limit.getDate(),
+		value.getHours(),
+		value.getMinutes(),
+		value.getSeconds(),
+		value.getMilliseconds(),
+	)
+	if (value > max) {
+		value.setDate(max.getDate())
+	}
+	if (value < min) {
+		value.setDate(min.getDate())
+	}
+	return value
+}
+
+=== 231 src/lib/index.ts	ts	module	-
+export { default as DatePicker } from './DatePicker.svelte'
+export { default as DateInput } from './DateInput.svelte'
+
+export { localeFromDateFnsLocale, type Locale } from './locale.js'
+export { isSameDate } from './date-utils.js'
+
+=== 2218 src/lib/locale.ts	ts	module	-
+export type Locale = {
+	weekdays?: string[]
+	months?: string[]
+	shortMonths?: string[]
+	weekStartsOn?: number
+}
+export type InnerLocale = {
+	weekdays: string[]
+	months: string[]
+	shortMonths: string[]
+	weekStartsOn: number
+}
+export function getLocaleDefaults(): InnerLocale {
+	return {
+		weekdays: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+		months: [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July',
+			'August',
+			'September',
+			'October',
+			'November',
+			'December',
+		],
+		shortMonths: [
+			'Jan',
+			'Feb',
+			'Mar',
+			'Apr',
+			'May',
+			'Jun',
+			'Jul',
+			'Aug',
+			'Sep',
+			'Oct',
+			'Nov',
+			'Dec',
+		],
+		weekStartsOn: 1,
+	}
+}
+export function getInnerLocale(locale: Locale): InnerLocale {
+	const innerLocale = getLocaleDefaults()
+	if (typeof locale.weekStartsOn === 'number') {
+		innerLocale.weekStartsOn = locale.weekStartsOn
+	}
+	if (locale.months) innerLocale.months = locale.months
+	if (locale.shortMonths) innerLocale.shortMonths = locale.shortMonths
+	if (locale.weekdays) innerLocale.weekdays = locale.weekdays
+	return innerLocale
+}
+
+type Month = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+type Day = 0 | 1 | 2 | 3 | 4 | 5 | 6
+type LocaleWidth = 'short' | 'wide' | 'abbreviated' | 'narrow' | 'any'
+type DateFnsLocale = {
+	options?: {
+		weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
+	}
+	localize?: {
+		month: (n: Month, options?: { width?: LocaleWidth }) => string
+		day: (i: Day, options?: { width?: LocaleWidth }) => string
+	}
+}
+/** Create a Locale from a date-fns locale */
+export function localeFromDateFnsLocale(dateFnsLocale: DateFnsLocale): InnerLocale {
+	const locale = getLocaleDefaults()
+	if (typeof dateFnsLocale.options?.weekStartsOn === 'number') {
+		locale.weekStartsOn = dateFnsLocale.options.weekStartsOn
+	}
+	if (dateFnsLocale.localize) {
+		for (let i = 0; i < 7; i++) {
+			// widths: narrow, short, abbreviated, wide, any
+			locale.weekdays[i] = dateFnsLocale.localize.day(i as Day, { width: 'short' })
+		}
+
+		for (let i = 0; i < 12; i++) {
+			locale.months[i] = dateFnsLocale.localize.month(i as Month, { width: 'wide' })
+			locale.shortMonths[i] = dateFnsLocale.localize.month(i as Month, { width: 'abbreviated' })
+		}
+	}
+	return locale
+}
+
+=== 4971 src/lib/parse.ts	ts	module	-
+import { getMonthLength } from '$lib/date-utils.js'
+import { type Locale, type InnerLocale, getInnerLocale } from '$lib/locale'
+
+type RuleToken = {
+	id: string
+	allowedValues?: string[]
+	toString: (d: Date) => string
+}
+
+export type FormatToken = string | RuleToken
+
+type ParseResult = {
+	date: Date | null
+	missingPunctuation: string
+}
+
+/** Parse a string according to the supplied format tokens. Returns a date if successful, and the missing punctuation if there is any that should be after the string */
+export function parse(str: string, tokens: FormatToken[], baseDate: Date | null): ParseResult {
+	let missingPunctuation = ''
+	let valid = true
+
+	baseDate = baseDate || new Date(new Date().getFullYear(), 0, 1, 0, 0, 0, 0)
+	let year = baseDate.getFullYear()
+	let month = baseDate.getMonth()
+	let day = baseDate.getDate()
+	let hours = baseDate.getHours()
+	let minutes = baseDate.getMinutes()
+	let seconds = baseDate.getSeconds()
+	const ms = baseDate.getMilliseconds()
+
+	function parseString(token: string) {
+		for (let i = 0; i < token.length; i++) {
+			if (str.startsWith(token[i])) {
+				str = str.slice(1)
+			} else {
+				valid = false
+				if (str.length === 0) missingPunctuation = token.slice(i)
+				return
+			}
+		}
+	}
+
+	function parseUint(pattern: RegExp, min: number, max: number) {
+		const matches = str.match(pattern)
+		if (matches?.[0]) {
+			str = str.slice(matches[0].length)
+			const n = parseInt(matches[0])
+			if (n > max || n < min) {
+				valid = false
+				return null
+			} else {
+				return n
+			}
+		} else {
+			valid = false
+			return null
+		}
+	}
+
+	function parseEnum(allowedValues: string[]) {
+		const n = allowedValues.findIndex((allowedValue) => {
+			return allowedValue.toLowerCase() === str.slice(0, allowedValue.length).toLowerCase()
+		})
+
+		if (n >= 0) {
+			str = str.slice(allowedValues[n].length)
+			return n
+		} else {
+			valid = false
+			return null
+		}
+	}
+
+	function parseToken(token: FormatToken) {
+		if (typeof token === 'string') {
+			parseString(token)
+		} else if (token.id === 'yy') {
+			const value = parseUint(/^[0-9]{2}/, 0, 99)
+			if (value !== null) year = 2000 + value
+		} else if (token.id === 'yyyy') {
+			const value = parseUint(/^[0-9]{4}/, 0, 9999)
+			if (value !== null) year = value
+		} else if (token.id === 'MM') {
+			const value = parseUint(/^[0-9]{2}/, 1, 12)
+			if (value !== null) month = value - 1
+		} else if (token.id === 'MMM') {
+			const value = parseEnum(token.allowedValues || [])
+			if (value !== null) month = value
+		} else if (token.id === 'dd') {
+			const value = parseUint(/^[0-9]{2}/, 1, 31)
+			if (value !== null) day = value
+		} else if (token.id === 'HH') {
+			const value = parseUint(/^[0-9]{2}/, 0, 23)
+			if (value !== null) hours = value
+		} else if (token.id === 'mm') {
+			const value = parseUint(/^[0-9]{2}/, 0, 59)
+			if (value !== null) minutes = value
+		} else if (token.id === 'ss') {
+			const value = parseUint(/^[0-9]{2}/, 0, 59)
+			if (value !== null) seconds = value
+		}
+	}
+
+	for (const token of tokens) {
+		parseToken(token)
+		if (!valid) break
+	}
+
+	const monthLength = getMonthLength(year, month)
+	if (day > monthLength) {
+		valid = false
+	}
+
+	return {
+		date: valid ? new Date(year, month, day, hours, minutes, seconds, ms) : null,
+		missingPunctuation: missingPunctuation,
+	}
+}
+
+function twoDigit(value: number) {
+	return ('0' + value.toString()).slice(-2)
+}
+
+function parseRule(s: string, innerLocale: InnerLocale) {
+	if (s.startsWith('yyyy')) {
+		return {
+			id: 'yyyy',
+			toString: (d: Date) => d.getFullYear().toString(),
+		}
+	} else if (s.startsWith('yy')) {
+		return {
+			id: 'yy',
+			toString: (d: Date) => d.getFullYear().toString().slice(-2),
+		}
+	} else if (s.startsWith('MMM')) {
+		return {
+			id: 'MMM',
+			allowedValues: innerLocale.shortMonths,
+			toString: (d: Date) => innerLocale.shortMonths[d.getMonth()],
+		}
+	} else if (s.startsWith('MM')) {
+		return {
+			id: 'MM',
+			toString: (d: Date) => twoDigit(d.getMonth() + 1),
+		}
+	} else if (s.startsWith('dd')) {
+		return {
+			id: 'dd',
+			toString: (d: Date) => twoDigit(d.getDate()),
+		}
+	} else if (s.startsWith('HH')) {
+		return {
+			id: 'HH',
+			toString: (d: Date) => twoDigit(d.getHours()),
+		}
+	} else if (s.startsWith('mm')) {
+		return {
+			id: 'mm',
+			toString: (d: Date) => twoDigit(d.getMinutes()),
+		}
+	} else if (s.startsWith('ss')) {
+		return {
+			id: 'ss',
+			toString: (d: Date) => twoDigit(d.getSeconds()),
+		}
+	}
+}
+
+export function createFormat(s: string, locale: Locale = {}): FormatToken[] {
+	const innerLocale = getInnerLocale(locale)
+	const tokens = []
+	while (s.length > 0) {
+		const token = parseRule(s, innerLocale)
+		if (token) {
+			// parsed a token like "yyyy"
+			tokens.push(token)
+			s = s.slice(token.id.length)
+		} else if (typeof tokens[tokens.length - 1] === 'string') {
+			// last token is a string token, so append to it
+			tokens[tokens.length - 1] += s[0]
+			s = s.slice(1)
+		} else {
+			// add string token
+			tokens.push(s[0])
+			s = s.slice(1)
+		}
+	}
+
+	return tokens
+}
+
+=== 6396 src/lib/utils.test.ts	ts	module	-
+import { describe, it, expect, test } from 'vitest'
+import { nb } from 'date-fns/locale'
+import { getCalendarDays, getMonthDays, toText } from './date-utils.js'
+import { createFormat, parse } from './parse.js'
+import { getInnerLocale, localeFromDateFnsLocale } from './locale.js'
+
+describe('getMonthDays', () => {
+	it('gets the correct amount of days', () => {
+		const feb2021 = getMonthDays(2021, 1)
+		expect(feb2021.length).toEqual(28)
+	})
+	it('works with leap years', () => {
+		const feb2020 = getMonthDays(2020, 1)
+		expect(feb2020.length).toEqual(29)
+	})
+})
+
+describe('getCalendarDays', () => {
+	it('works for all months in 1995-2025', () => {
+		const weekdayStartsOn = 1 // monday
+		for (let year = 1995; year < 2025; year++) {
+			for (let month = 0; month < 11; month++) {
+				testMonth(year, month)
+			}
+		}
+		function testMonth(year: number, month: number) {
+			const calDays = getCalendarDays(new Date(year, month, 1), weekdayStartsOn)
+			expect(calDays.length).toEqual(42)
+			for (let i = 0; i < calDays.length; i++) {
+				const calDay = calDays[i]
+				expect({
+					year: calDay.year,
+					month: calDay.month,
+					number: calDay.number,
+					weekday: new Date(calDay.year, calDay.month, calDay.number).getDay(),
+				}).toEqual({
+					year: calDay.year,
+					month: calDay.month,
+					number: calDay.number,
+					weekday: ((i % 7) + weekdayStartsOn) % 7,
+				})
+			}
+		}
+	})
+
+	it('gets the correct correct days from the prev/next month', () => {
+		const jan2020 = new Date(2020, 0, 1, 0, 0, 0, 0)
+		const jan2020CalDays = getCalendarDays(jan2020, 1)
+		expect(jan2020CalDays).toEqual([
+			{ year: 2019, month: 11, number: 30 },
+			{ year: 2019, month: 11, number: 31 },
+			...getMonthDays(2020, 0),
+			{ year: 2020, month: 1, number: 1 },
+			{ year: 2020, month: 1, number: 2 },
+			{ year: 2020, month: 1, number: 3 },
+			{ year: 2020, month: 1, number: 4 },
+			{ year: 2020, month: 1, number: 5 },
+			{ year: 2020, month: 1, number: 6 },
+			{ year: 2020, month: 1, number: 7 },
+			{ year: 2020, month: 1, number: 8 },
+			{ year: 2020, month: 1, number: 9 },
+		])
+
+		const dec2019 = new Date(2019, 11, 1, 0, 0, 0, 0)
+		const dec2019CalDays = getCalendarDays(dec2019, 1)
+		expect(dec2019CalDays).toEqual([
+			{ year: 2019, month: 10, number: 25 },
+			{ year: 2019, month: 10, number: 26 },
+			{ year: 2019, month: 10, number: 27 },
+			{ year: 2019, month: 10, number: 28 },
+			{ year: 2019, month: 10, number: 29 },
+			{ year: 2019, month: 10, number: 30 },
+			...getMonthDays(2019, 11),
+			{ year: 2020, month: 0, number: 1 },
+			{ year: 2020, month: 0, number: 2 },
+			{ year: 2020, month: 0, number: 3 },
+			{ year: 2020, month: 0, number: 4 },
+			{ year: 2020, month: 0, number: 5 },
+		])
+	})
+})
+
+describe('toText', () => {
+	test('basic conversion', () => {
+		const format = createFormat('yyyy-MM-dd HH:mm:ss')
+		const text = toText(new Date(2020, 0, 1, 0, 0, 0, 0), format)
+		expect(text).toEqual('2020-01-01 00:00:00')
+	})
+
+	test('conversion to month string', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss')
+		const text = toText(new Date(2020, 0, 1, 0, 0, 0, 0), format)
+		expect(text).toEqual('01 Jan 2020 00:00:00')
+	})
+
+	test('conversion to month string using non-en locale', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss', localeFromDateFnsLocale(nb))
+		const text = toText(new Date(2020, 0, 1, 0, 0, 0, 0), format)
+		expect(text).toEqual('01 jan. 2020 00:00:00')
+	})
+})
+
+describe('parse()', () => {
+	const baseDate = new Date(1234, 0, 1, 0, 0, 0, 999)
+	const format = createFormat('yyyy--MM-dd HH:mm:ss')
+
+	it('works with a basic date', () => {
+		const result = parse('1234--12-31 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: new Date(1234, 11, 31, 23, 59, 59, 999),
+			missingPunctuation: '',
+		})
+	})
+
+	it('works with a short month date', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss')
+		const result = parse('31 Dec 2022 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: new Date(2022, 11, 31, 23, 59, 59, 999),
+			missingPunctuation: '',
+		})
+	})
+
+	it('works with a short month date in non-En locale', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss', localeFromDateFnsLocale(nb))
+		const result = parse('31 des. 2022 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: new Date(2022, 11, 31, 23, 59, 59, 999),
+			missingPunctuation: '',
+		})
+	})
+
+	it('handles badly formed month name', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss')
+		const result = parse('31 Dex 2022 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+
+	it('handles missing punctuation', () => {
+		const result = parse('2345', format, baseDate)
+		expect(result).toEqual({
+			date: null,
+			missingPunctuation: '--',
+		})
+	})
+
+	it('fails with too high minute', () => {
+		const result = parse('1234--12-31 23:99:59', format, baseDate)
+		expect(result).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+
+	it('fails with too high date-of-month', () => {
+		// separate test because some months have less than 31 days
+		const dayOfMonthOverflow = parse('1234--02-31 23:59:59', format, baseDate)
+		expect(dayOfMonthOverflow).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+
+	it('fails when the second has a non-numeric character', () => {
+		const noNumber = parse('1234--02-31 23:59:5d', format, baseDate)
+		expect(noNumber).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+})
+
+describe('locale', () => {
+	const nbLocale = {
+		weekdays: ['sø', 'ma', 'ti', 'on', 'to', 'fr', 'lø'],
+		months: [
+			'januar',
+			'februar',
+			'mars',
+			'april',
+			'mai',
+			'juni',
+			'juli',
+			'august',
+			'september',
+			'oktober',
+			'november',
+			'desember',
+		],
+		shortMonths: [
+			'jan.',
+			'feb.',
+			'mars',
+			'apr.',
+			'mai',
+			'juni',
+			'juli',
+			'aug.',
+			'sep.',
+			'okt.',
+			'nov.',
+			'des.',
+		],
+		weekStartsOn: 1,
+	}
+
+	test('getInnerLocale', () => {
+		const locale = getInnerLocale({
+			months: nbLocale.months,
+			shortMonths: nbLocale.shortMonths,
+			weekStartsOn: 4,
+		})
+
+		expect(locale).toEqual({
+			weekdays: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+			months: nbLocale.months,
+			shortMonths: nbLocale.shortMonths,
+			weekStartsOn: 4,
+		})
+	})
+
+	test('localeFromDateFnsLocale', () => {
+		const locale = localeFromDateFnsLocale(nb)
+		expect(locale).toEqual(nbLocale)
+	})
+})
+
+=== 6578 src/routes/+layout.svelte	svelte	runes	rejected
+<script lang="ts">
+	import { resolve } from '$app/paths'
+	import { onMount } from 'svelte'
+
+	let { children } = $props()
+
+	let systemTheme: string | null = null
+	onMount(() => {
+		const prefersDarkMQ = matchMedia('(prefers-color-scheme: dark)')
+		systemTheme = prefersDarkMQ.matches ? 'dark' : 'light'
+		prefersDarkMQ.onchange = (e) => {
+			// Keep the systemTheme variable up to date
+			systemTheme = e.matches ? 'dark' : 'light'
+			// Update the theme, as long as there's no theme override
+			if (localStorage.getItem('theme') === null) {
+				setTheme(systemTheme)
+			}
+		}
+	})
+
+	let theme = 'dark'
+	if (typeof document === 'object') {
+		theme = document.documentElement.getAttribute('data-theme') || 'dark'
+	}
+	function setTheme(newTheme: string) {
+		document.documentElement.setAttribute('data-theme', newTheme)
+		theme = newTheme
+		if (newTheme === systemTheme) {
+			// Remove override if the user sets the theme to match
+			localStorage.removeItem('theme')
+		} else {
+			localStorage.setItem('theme', newTheme)
+		}
+	}
+	function toggleTheme() {
+		if (theme === 'dark') {
+			setTheme('light')
+		} else {
+			setTheme('dark')
+		}
+	}
+</script>
+
+<div class="layout">
+	<header>
+		<div class="left">
+			<a class="header-title" href={resolve('/')}>Date Picker Svelte</a>
+			<div class="links">
+				<a class="nav-link" href={resolve('/demo')}>Demo</a>
+				<a class="nav-link" href={resolve('/docs')}>Docs</a>
+				<a
+					class="nav-link"
+					href="https://svelte.dev/repl/044911429c4b4e659362518d9a5deaae?version=4">REPL</a
+				>
+			</div>
+		</div>
+		<div class="icons">
+			<a
+				aria-label="GitHub repository"
+				class="icon github"
+				href="https://github.com/kasper9n/date-picker-svelte"
+			>
+				<svg height="24" viewBox="-2 -2 28 28" width="24" xmlns="http://www.w3.org/2000/svg"
+					><path
+						d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"
+						fill="none"
+						stroke="#000"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+					/></svg
+				>
+			</a>
+			<button
+				aria-label="Toggle theme"
+				type="button"
+				class="icon theme-toggle"
+				onclick={toggleTheme}
+			>
+				<svg
+					xmlns="http://www.w3.org/2000/svg"
+					enable-background="new 0 0 24 24"
+					viewBox="0 0 24 24"
+					height="24px"
+					width="24px"
+					><rect fill="none" height="24" width="24" /><path
+						d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"
+					/></svg
+				>
+			</button>
+		</div>
+	</header>
+	<div class="page">
+		{@render children?.()}
+	</div>
+</div>
+
+<style lang="sass">
+	:global(:root)
+		--primary: #1a79ff
+		--input-highlight-border: rgb(2, 105, 247)
+		--input-highlight-shadow: rgba(2, 105, 247, 0.5)
+		--input-width: 150px
+		--date-input-width: var(--input-width)
+		color: var(--foreground)
+		transition: background 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+
+		// for demo editing
+		--date-picker-background: #ffffff
+		--date-picker-foreground: var(--foreground)
+		--date-picker-highlight-border: var(--input-highlight-border)
+		--date-picker-highlight-shadow: var(--input-highlight-shadow)
+		--date-picker-today-border: #8080804D
+		--date-picker-selected-color: var(--foreground)
+		--date-picker-selected-background: rgba(2, 105, 247, 0.2)
+	:global([data-theme='dark'])
+		--foreground: #f7f7f7
+		--background: #0d0e12
+		--card-background: var(--background)
+		--border: #1f2228
+		--input-background: #1b1e27
+		--date-picker-background: #1b1e27
+		--date-picker-foreground: var(--foreground)
+		--date-picker-highlight-border: var(--input-highlight-border)
+		--date-picker-highlight-shadow: var(--input-highlight-shadow)
+		color-scheme: dark
+		background: var(--background)
+	:global([data-theme='light'])
+		--foreground: #0d0e12
+		--background: #f6f9fe
+		--card-background: #ffffff
+		--border: #c6cddd
+		--input-background: #ffffff
+		color-scheme: light
+		background: var(--background)
+	:global(html)
+		min-height: 100%
+	:global(body)
+		font-family: Inter, sans-serif
+		margin: 0px
+	:global(a)
+		color: #3370ff
+		text-decoration: none
+	.layout
+		transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		min-height: 100vh
+		padding-bottom: 14rem
+	header
+		display: flex
+		align-items: center
+		height: 80px
+		padding: 5px 30px
+		margin-bottom: 25px
+		background-color: hsla(234, 20%, 70%, 0.07)
+		border-bottom: 1px solid hsla(234, 10%, 50%, 0.1)
+		@media screen and (min-width: 560px)
+			height: 60px
+		.left
+			display: flex
+			flex-direction: column
+			@media screen and (min-width: 560px)
+				flex-direction: row
+		.links
+			display: flex
+			align-items: center
+		.icons
+			display: flex
+			margin-left: auto
+			align-items: center
+	.page
+		max-width: 800px
+		margin: auto
+		padding-bottom: 100px
+		padding: 0px 15px
+		@media (min-width: 400px)
+			padding: 0px 30px
+	.header-title
+		color: var(--primary)
+		font-weight: 500
+		font-size: 1.5em
+		margin-right: 20px
+		padding: 2px 0px
+	:global(h1)
+		font-size: 2em
+	:global(h1, h2)
+		margin-block-start: 0.9em
+		margin-block-end: 0.9em
+	:global(::selection)
+		background: var(--primary)
+		color: #ffffff
+	a
+		color: inherit
+		user-select: none
+	a, button.theme-toggle
+		-webkit-tap-highlight-color: transparent
+		-moz-tap-highlight-color: rgba(0, 0, 0, 0)
+		&:hover
+			opacity: 0.7
+	a.nav-link
+		padding: 5px 2px
+		margin-right: 16px
+		transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+	.icon
+		display: block
+		border: none
+		background-color: transparent
+		padding: 5px 2px
+		margin: 0px 5px
+		cursor: pointer
+		svg
+			display: block
+			transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		&.theme-toggle svg
+			fill: var(--foreground)
+		&.github svg > path
+			transition: all 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+			stroke: var(--foreground)
+	:global(table)
+		border-collapse: collapse
+		:global(td), :global(th)
+			border: 1px solid var(--border)
+			padding: 6px 9px
+	:global(code)
+		background-color: hsla(231, 8%, 70%, 0.2)
+		border-radius: 6px
+		padding: .2em .3em
+		font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace
+		font-size: 95%
+	:global(code, p)
+		line-height: 1.5
+	:global(li)
+		margin-top: .25em
+</style>
+
+=== 30 src/routes/+layout.ts	ts	module	-
+export const prerender = true
+
 === 3112 src/routes/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import DemoDatePicker from './DemoDatePicker.svelte'
@@ -379,4 +2338,158 @@
 <a id="DatePicker"></a>
 <h2>DatePicker</h2>
 <DemoDatePicker />
+
+=== 2658 src/routes/prop.svelte	svelte	runes	rejected
+<script lang="ts">
+	import DateInput from '$lib/DateInput.svelte'
+	import { Color, ColorInput } from 'color-picker-svelte'
+
+	interface Props {
+		value?: unknown
+		values?: unknown[] | undefined
+		label: string
+		children?: import('svelte').Snippet
+		labelWide?: boolean
+	}
+	let { value = $bindable(), values, label, labelWide = false, children }: Props = $props()
+
+	let jsonValue = $state('')
+	$effect(() => {
+		if (value instanceof Object) {
+			jsonValue = JSON.stringify(value)
+		}
+	})
+	function jsonInput() {
+		try {
+			value = JSON.parse(jsonValue)
+		} catch (e) {
+			console.error(e)
+		}
+	}
+</script>
+
+<div class="prop">
+	{#if !(value instanceof Color)}
+		<div class="label" class:label-wide={labelWide}>{label}</div>
+	{/if}
+	{#if values}
+		<select bind:value>
+			{#each values as value}
+				{#if value && typeof value === 'object' && 'key' in value && 'value' in value}
+					<option {value}>{String(value.key)}</option>
+				{:else}
+					<option {value}>{String(value)}</option>
+				{/if}
+			{/each}
+		</select>
+	{:else if typeof value === 'string'}
+		<input type="text" bind:value />
+	{:else if typeof value === 'boolean'}
+		<input type="checkbox" bind:checked={value} />
+	{:else if value instanceof Date}
+		<DateInput
+			bind:value
+			min={new Date(new Date().getFullYear() - 20, 0)}
+			max={new Date(new Date().getFullYear() + 5, 0)}
+			dynamicPositioning
+		/>
+	{:else if value instanceof Color}
+		<div class="color-input" style:color="var(--date-picker-foreground, #000000)">
+			<ColorInput
+				bind:color={value}
+				showAlphaSlider
+				title={label}
+				--picker-background="var(--date-picker-background, #ffffff)"
+				--input-width="360px"
+				--picker-width="200px"
+			/>
+		</div>
+	{:else if value instanceof Object}
+		<textarea bind:value={jsonValue} oninput={jsonInput}></textarea>
+	{:else}
+		<div>
+			{@render children?.()}
+		</div>
+	{/if}
+</div>
+
+<style lang="sass">
+	.prop
+		padding: 5px 0px
+		align-items: center
+		display: block
+		@media (min-width: 600px)
+			display: flex
+	.label
+		width: 195px
+		flex-shrink: 0
+		&.label-wide
+			width: 290px
+			font-size: 15px
+	input[type='text'], textarea, select
+		color: var(--foreground)
+		background: var(--input-background)
+		border: 1px solid rgba(103, 113, 137, 0.3)
+		border-radius: 3px
+		box-sizing: border-box
+		padding: 4px 6px
+		outline: none
+		transition: 80ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		transition-property: border-color, box-shadow, background
+		&:focus-visible
+			border-color: var(--input-highlight-border)
+			box-shadow: 0px 0px 0px 2px var(--input-highlight-shadow)
+	input[type='text']
+		width: var(--input-width)
+	.color-input :global(.color-picker)
+		width: 290px
+</style>
+
+=== 944 src/routes/split.svelte	svelte	runes	rejected
+<div class="row">
+	<section class="left">
+		<div class="spacer"></div>
+		<slot name="left" />
+		<div class="spacer"></div>
+	</section>
+	<section class="right">
+		<div class="spacer"></div>
+		<slot name="right" />
+		<div class="spacer"></div>
+	</section>
+</div>
+
+<style lang="sass">
+	.row
+		display: flex
+		border: 1px solid hsla(222, 15%, 50%, 0.1)
+		background: var(--card-background)
+		transition: background 80ms cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 300ms cubic-bezier(0.4, 0.0, 0.2, 1)
+		box-shadow: 0px 1px 3px 0px rgba(#000000, 0.05)
+		border-radius: 5px
+		padding: 10px
+		flex-direction: column
+		box-shadow: 0px 1px 3px 0px rgba(#000000, 0.05)
+		@media (min-width: 401px)
+			padding: 20px
+		@media (min-width: 701px)
+			flex-direction: row
+		@media(max-width: 700px)
+	@media(min-width: 701px)
+		section.left
+			padding-right: 0px
+			flex-shrink: 0
+			min-width: 260px
+			padding-right: 10px
+		.spacer
+			margin-top: 20px
+</style>
+
+=== 142 vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+	plugins: [sveltekit()],
+})
 

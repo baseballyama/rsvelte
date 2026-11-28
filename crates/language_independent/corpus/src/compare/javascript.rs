@@ -16,11 +16,25 @@ pub(crate) enum Unparsed {
     Actual(String),
 }
 
+/// Whether the parentheses a text writes are part of its tree.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Parentheses {
+    /// As in `ESTree`, which acorn, the canonical tree's parser, makes: no node for them.
+    Dropped,
+    /// Each pair is a node: for an oracle that keeps the pairs of its source, as TypeScript's
+    /// emit does.
+    Kept,
+}
+
 /// Whether the two texts parse to the same tree.
-pub(crate) fn same_tree(expected: &str, actual: &str) -> Result<bool, Unparsed> {
+pub(crate) fn same_tree(
+    expected: &str,
+    actual: &str,
+    parentheses: Parentheses,
+) -> Result<bool, Unparsed> {
     let allocator = Allocator::default();
-    let mut expected = parse(&allocator, expected).map_err(Unparsed::Expected)?;
-    let mut actual = parse(&allocator, actual).map_err(Unparsed::Actual)?;
+    let mut expected = parse(&allocator, expected, parentheses).map_err(Unparsed::Expected)?;
+    let mut actual = parse(&allocator, actual, parentheses).map_err(Unparsed::Actual)?;
     Canonical.visit_program(&mut expected);
     Canonical.visit_program(&mut actual);
     Ok(expected.content_eq(&actual))
@@ -43,10 +57,13 @@ impl<'a> VisitMut<'a> for Canonical {
     }
 }
 
-fn parse<'a>(allocator: &'a Allocator, text: &'a str) -> Result<Program<'a>, String> {
+fn parse<'a>(
+    allocator: &'a Allocator,
+    text: &'a str,
+    parentheses: Parentheses,
+) -> Result<Program<'a>, String> {
     let options = ParseOptions {
-        // acorn, which made the canonical tree, has no node for parentheses.
-        preserve_parens: false,
+        preserve_parens: parentheses == Parentheses::Kept,
         ..ParseOptions::default()
     };
     let parsed = Parser::new(allocator, text, SourceType::mjs())

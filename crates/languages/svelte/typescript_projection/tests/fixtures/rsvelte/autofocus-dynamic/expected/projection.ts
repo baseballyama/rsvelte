@@ -1,15 +1,11 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { focus = false, a = true } = $props();
+	let /** @typedef {{ focus?: boolean, a?: boolean }} $$ComponentProps *//** @type {$$ComponentProps} */ { focus = false, a = true } = $props();
 	let s = $state(true);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    focus: false,
-    a: true,
-  }, false);
   async () => {
     {
       svelteHTML.createElement("input", {
@@ -47,7 +43,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const AutofocusDynamic__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof AutofocusDynamic__SvelteComponent_>} AutofocusDynamic__SvelteComponent_ */

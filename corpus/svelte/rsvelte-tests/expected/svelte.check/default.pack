@@ -8281,6 +8281,22 @@
 	}
 ]
 
+=== 248 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
 === 257 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/b42d1ee73ee0803f.svelte	json
 [
 	{
@@ -8710,122 +8726,6 @@
 	}
 ]
 
-=== 893 rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/4fd47e2cba0dad6e.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "'>' expected.",
-		"start": {
-			"line": 0,
-			"character": 28
-		},
-		"end": {
-			"line": 0,
-			"character": 35
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 0,
-			"character": 42
-		},
-		"end": {
-			"line": 0,
-			"character": 43
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 0,
-			"character": 42
-		},
-		"end": {
-			"line": 0,
-			"character": 43
-		}
-	},
-	{
-		"code": 7010,
-		"message": "'$$render', which lacks return-type annotation, implicitly has an 'any' return type.",
-		"start": {
-			"line": 0,
-			"character": 1
-		},
-		"end": {
-			"line": 0,
-			"character": 27
-		}
-	},
-	{
-		"code": 2693,
-		"message": "'string' only refers to a type, but is being used as a value here.",
-		"start": {
-			"line": 0,
-			"character": 36
-		},
-		"end": {
-			"line": 0,
-			"character": 42
-		}
-	}
-]
-
-=== 711 rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/583f2b2edcebe57c.svelte	json
-[
-	{
-		"code": 1139,
-		"message": "Type parameter declaration expected.",
-		"start": {
-			"line": 0,
-			"character": 28
-		},
-		"end": {
-			"line": 0,
-			"character": 29
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 0,
-			"character": 29
-		},
-		"end": {
-			"line": 0,
-			"character": 30
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 0,
-			"character": 29
-		},
-		"end": {
-			"line": 0,
-			"character": 30
-		}
-	},
-	{
-		"code": 7010,
-		"message": "'$$render', which lacks return-type annotation, implicitly has an 'any' return type.",
-		"start": {
-			"line": 0,
-			"character": 1
-		},
-		"end": {
-			"line": 0,
-			"character": 27
-		}
-	}
-]
-
 === 227 rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/956af5b1508146cd.svelte	json
 [
 	{
@@ -8842,82 +8742,6 @@
 	}
 ]
 
-=== 1015 rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/ad7d90b669ae5faf.svelte	json
-[
-	{
-		"code": 1005,
-		"message": "',' expected.",
-		"start": {
-			"line": 0,
-			"character": 45
-		},
-		"end": {
-			"line": 0,
-			"character": 46
-		}
-	},
-	{
-		"code": 1139,
-		"message": "Type parameter declaration expected.",
-		"start": {
-			"line": 0,
-			"character": 47
-		},
-		"end": {
-			"line": 0,
-			"character": 48
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 0,
-			"character": 49
-		},
-		"end": {
-			"line": 0,
-			"character": 50
-		}
-	},
-	{
-		"code": 1109,
-		"message": "Expression expected.",
-		"start": {
-			"line": 0,
-			"character": 52
-		},
-		"end": {
-			"line": 0,
-			"character": 53
-		}
-	},
-	{
-		"code": 1005,
-		"message": "';' expected.",
-		"start": {
-			"line": 0,
-			"character": 52
-		},
-		"end": {
-			"line": 0,
-			"character": 53
-		}
-	},
-	{
-		"code": 7010,
-		"message": "'$$render', which lacks return-type annotation, implicitly has an 'any' return type.",
-		"start": {
-			"line": 0,
-			"character": 1
-		},
-		"end": {
-			"line": 0,
-			"character": 27
-		}
-	}
-]
-
 === 227 rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/c19d9cbd4f7b82dc.svelte	json
 [
 	{
@@ -8926,22 +8750,6 @@
 		"start": {
 			"line": 0,
 			"character": 28
-		},
-		"end": {
-			"line": 0,
-			"character": 30
-		}
-	}
-]
-
-=== 178 rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/cffe1f9d59ce39ca.svelte	json
-[
-	{
-		"code": 1098,
-		"message": "Type parameter list cannot be empty.",
-		"start": {
-			"line": 0,
-			"character": 27
 		},
 		"end": {
 			"line": 0,
@@ -13160,22 +12968,6 @@
 
 === 3 rsvelte_projection/svelte2tsx_nested_special_types_2166/a_props_interface_declared_inside_a_function_is_still_detected/e2fd6698b4d69b0f.svelte	json
 []
-
-=== 224 rsvelte_projection/svelte2tsx_nested_special_types_2166/a_slots_interface_declared_inside_a_function_is_still_detected/4cfec2737432c169.svelte	json
-[
-	{
-		"code": 2345,
-		"message": "Argument of type '\"named\"' is not assignable to parameter of type '\"default\"'.",
-		"start": {
-			"line": 8,
-			"character": 12
-		},
-		"end": {
-			"line": 8,
-			"character": 17
-		}
-	}
-]
 
 === 3 rsvelte_projection/svelte2tsx_nested_special_types_2166/an_events_type_alias_declared_inside_a_function_is_still_detected/454eb27f270eea23.svelte	json
 []

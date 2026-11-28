@@ -552,6 +552,22 @@
 	}
 ]
 
+=== 197 sites/docs/src/packages/async-stack/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 119,
+			"character": 92
+		},
+		"end": {
+			"line": 119,
+			"character": 92
+		}
+	}
+]
+
 === 3 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	json
 []
 
@@ -594,6 +610,22 @@
 
 === 3 sites/docs/src/packages/avatar/_page/examples/uiAvatar.verbose.svelte	json
 []
+
+=== 289 sites/docs/src/packages/avatar/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 86,
+			"character": 0
+		},
+		"end": {
+			"line": 86,
+			"character": 0
+		}
+	}
+]
 
 === 227 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	json
 [
@@ -643,6 +675,22 @@
 	}
 ]
 
+=== 289 sites/docs/src/packages/clickoutside/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 56,
+			"character": 0
+		},
+		"end": {
+			"line": 56,
+			"character": 0
+		}
+	}
+]
+
 === 637 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	json
 [
 	{
@@ -679,6 +727,22 @@
 		"end": {
 			"line": 18,
 			"character": 16
+		}
+	}
+]
+
+=== 296 sites/docs/src/packages/cloudflare-turnstile/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+		"start": {
+			"line": 110,
+			"character": 65
+		},
+		"end": {
+			"line": 110,
+			"character": 72
 		}
 	}
 ]
@@ -750,6 +814,22 @@
 	}
 ]
 
+=== 197 sites/docs/src/packages/copy/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 126,
+			"character": 23
+		},
+		"end": {
+			"line": 126,
+			"character": 23
+		}
+	}
+]
+
 === 3 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	json
 []
 
@@ -772,8 +852,27 @@
 	}
 ]
 
+=== 3 sites/docs/src/packages/dragscroll/docs.md.svelte	json
+[]
+
 === 3 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	json
 []
+
+=== 195 sites/docs/src/packages/inline-svg/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 106,
+			"character": 5
+		},
+		"end": {
+			"line": 106,
+			"character": 5
+		}
+	}
+]
 
 === 224 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	json
 [
@@ -826,6 +925,9 @@
 	}
 ]
 
+=== 3 sites/docs/src/packages/intersect/docs.md.svelte	json
+[]
+
 === 3 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	json
 []
 
@@ -847,6 +949,22 @@
 
 === 3 sites/docs/src/packages/lockscroll/_page/examples/svelte-rune.svelte	json
 []
+
+=== 248 sites/docs/src/packages/lockscroll/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:body>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 89,
+			"character": 0
+		},
+		"end": {
+			"line": 89,
+			"character": 0
+		}
+	}
+]
 
 === 3 sites/docs/src/packages/modal/docs.md.svelte	json
 []
@@ -907,6 +1025,38 @@
 		"end": {
 			"line": 1,
 			"character": 46
+		}
+	}
+]
+
+=== 193 sites/docs/src/packages/movable/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 62,
+			"character": 5
+		},
+		"end": {
+			"line": 62,
+			"character": 5
+		}
+	}
+]
+
+=== 289 sites/docs/src/packages/noti/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 84,
+			"character": 0
+		},
+		"end": {
+			"line": 84,
+			"character": 0
 		}
 	}
 ]
@@ -981,6 +1131,22 @@
 === 3 sites/docs/src/packages/popover/_page/examples/tooltip/usage.svelte	json
 []
 
+=== 195 sites/docs/src/packages/popover/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 91,
+			"character": 51
+		},
+		"end": {
+			"line": 91,
+			"character": 51
+		}
+	}
+]
+
 === 224 sites/docs/src/packages/preaction/_page/examples/demo.svelte	json
 [
 	{
@@ -993,6 +1159,70 @@
 		"end": {
 			"line": 2,
 			"character": 52
+		}
+	}
+]
+
+=== 289 sites/docs/src/packages/preaction/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 58,
+			"character": 0
+		},
+		"end": {
+			"line": 58,
+			"character": 0
+		}
+	}
+]
+
+=== 195 sites/docs/src/packages/preprocess-auto-slug/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 56,
+			"character": 12
+		},
+		"end": {
+			"line": 56,
+			"character": 12
+		}
+	}
+]
+
+=== 195 sites/docs/src/packages/preprocess-external-link/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 50,
+			"character": 12
+		},
+		"end": {
+			"line": 50,
+			"character": 12
+		}
+	}
+]
+
+=== 195 sites/docs/src/packages/preprocess-inline-svg/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 46,
+			"character": 12
+		},
+		"end": {
+			"line": 46,
+			"character": 12
 		}
 	}
 ]
@@ -1050,6 +1280,22 @@
 	}
 ]
 
+=== 195 sites/docs/src/packages/qr/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 216,
+			"character": 5
+		},
+		"end": {
+			"line": 216,
+			"character": 5
+		}
+	}
+]
+
 === 439 sites/docs/src/packages/resize/_page/examples/example.svelte	json
 [
 	{
@@ -1078,6 +1324,38 @@
 	}
 ]
 
+=== 289 sites/docs/src/packages/resize/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 43,
+			"character": 0
+		},
+		"end": {
+			"line": 43,
+			"character": 0
+		}
+	}
+]
+
+=== 289 sites/docs/src/packages/shortcut/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 34,
+			"character": 0
+		},
+		"end": {
+			"line": 34,
+			"character": 0
+		}
+	}
+]
+
 === 223 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	json
 [
 	{
@@ -1090,6 +1368,38 @@
 		"end": {
 			"line": 8,
 			"character": 31
+		}
+	}
+]
+
+=== 289 sites/docs/src/packages/swipeable/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 28,
+			"character": 0
+		},
+		"end": {
+			"line": 28,
+			"character": 0
+		}
+	}
+]
+
+=== 289 sites/docs/src/packages/toc/docs.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 81,
+			"character": 0
+		},
+		"end": {
+			"line": 81,
+			"character": 0
 		}
 	}
 ]
@@ -1305,6 +1615,22 @@
 
 === 3 sites/docs/src/routes/(site)/docs/contributing/+page.md.svelte	json
 []
+
+=== 294 sites/docs/src/routes/(site)/docs/guidelines/+page.md.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 28
+		}
+	}
+]
 
 === 1488 sites/docs/src/routes/(site)/search/+page.svelte	json
 [

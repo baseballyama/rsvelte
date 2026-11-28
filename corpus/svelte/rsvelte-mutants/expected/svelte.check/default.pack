@@ -1,0 +1,2872 @@
+# rsvelte pack 1
+=== 2347 animotion/bind-sum/bind_invalid_expression/115e576d493188f9.svelte	json
+[
+	{
+		"code": 1005,
+		"message": "';' expected.",
+		"start": {
+			"line": 704,
+			"character": 26
+		},
+		"end": {
+			"line": 704,
+			"character": 27
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 69
+		},
+		"end": {
+			"line": 1,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 57
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/action.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 20
+		},
+		"end": {
+			"line": 19,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/code.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 18
+		},
+		"end": {
+			"line": 20,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@shikijs/magic-move/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 59
+		},
+		"end": {
+			"line": 21,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@shikijs/magic-move/renderer' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@shikijs/magic-move/types' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 8
+		},
+		"end": {
+			"line": 28,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './store.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 33
+		},
+		"end": {
+			"line": 29,
+			"character": 52
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../styles/shiki.css'.",
+		"start": {
+			"line": 30,
+			"character": 8
+		},
+		"end": {
+			"line": 30,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'code' implicitly has an 'any' type.",
+		"start": {
+			"line": 398,
+			"character": 36
+		},
+		"end": {
+			"line": 398,
+			"character": 40
+		}
+	}
+]
+
+=== 768 animotion/bind-sum/bind_invalid_expression/1aebddc9b32ae8b0.svelte	json
+[
+	{
+		"code": 1005,
+		"message": "';' expected.",
+		"start": {
+			"line": 34,
+			"character": 23
+		},
+		"end": {
+			"line": 34,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/action.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'el' is possibly 'undefined'.",
+		"start": {
+			"line": 34,
+			"character": 17
+		},
+		"end": {
+			"line": 34,
+			"character": 19
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'HTMLDivElement' and 'number'.",
+		"start": {
+			"line": 34,
+			"character": 17
+		},
+		"end": {
+			"line": 34,
+			"character": 23
+		}
+	}
+]
+
+=== 726 animotion/const-at-root/const_tag_invalid_placement/b399d6e564b0e75d.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/action.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'i'.",
+		"start": {
+			"line": 0,
+			"character": 25
+		},
+		"end": {
+			"line": 0,
+			"character": 26
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'actions' is possibly 'undefined'.",
+		"start": {
+			"line": 0,
+			"character": 42
+		},
+		"end": {
+			"line": 0,
+			"character": 49
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'i'.",
+		"start": {
+			"line": 0,
+			"character": 50
+		},
+		"end": {
+			"line": 0,
+			"character": 51
+		}
+	}
+]
+
+=== 1107 animotion/const-at-root/const_tag_invalid_placement/fbdc205b3b1919c1.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './slide.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 28
+		},
+		"end": {
+			"line": 4,
+			"character": 44
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'glob' does not exist on type 'ImportMeta'.",
+		"start": {
+			"line": 10,
+			"character": 14
+		},
+		"end": {
+			"line": 10,
+			"character": 18
+		}
+	},
+	{
+		"code": 2552,
+		"message": "Cannot find name 'Slide'. Did you mean 'slides'?",
+		"start": {
+			"line": 0,
+			"character": 18
+		},
+		"end": {
+			"line": 0,
+			"character": 23
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'Slide' is of type 'unknown'.",
+		"start": {
+			"line": 29,
+			"character": 6
+		},
+		"end": {
+			"line": 29,
+			"character": 11
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'Slide' is of type 'unknown'.",
+		"start": {
+			"line": 32,
+			"character": 3
+		},
+		"end": {
+			"line": 32,
+			"character": 8
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'Slide' is of type 'unknown'.",
+		"start": {
+			"line": 32,
+			"character": 19
+		},
+		"end": {
+			"line": 32,
+			"character": 24
+		}
+	}
+]
+
+=== 196 animotion/drop-close/block_unclosed/257243e1793b9e85.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 11,
+			"character": 0
+		},
+		"end": {
+			"line": 11,
+			"character": 1
+		}
+	}
+]
+
+=== 196 animotion/drop-close/block_unclosed/3b318146e67b6801.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 28,
+			"character": 0
+		},
+		"end": {
+			"line": 28,
+			"character": 1
+		}
+	}
+]
+
+=== 196 animotion/drop-close/block_unclosed/66eeea51011c5566.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 24,
+			"character": 0
+		},
+		"end": {
+			"line": 24,
+			"character": 1
+		}
+	}
+]
+
+=== 198 animotion/drop-close/block_unclosed/bb8e0555be00a0a9.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 703,
+			"character": 0
+		},
+		"end": {
+			"line": 703,
+			"character": 1
+		}
+	}
+]
+
+=== 194 animotion/drop-close/block_unclosed/bc3529d510fb02f9.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 1
+		}
+	}
+]
+
+=== 202 animotion/drop-close/element_unclosed/298b13dadbbb1994.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
+		"start": {
+			"line": 144,
+			"character": 0
+		},
+		"end": {
+			"line": 144,
+			"character": 1
+		}
+	}
+]
+
+=== 202 animotion/drop-close/element_unclosed/4b1c8b9edfc6e77f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<aside>` was left open\nhttps://svelte.dev/e/element_unclosed",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 1
+		}
+	}
+]
+
+=== 214 animotion/duplicate-attribute/attribute_duplicate/0a8d05b68f7173bc.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 147,
+			"character": 30
+		},
+		"end": {
+			"line": 147,
+			"character": 45
+		}
+	}
+]
+
+=== 212 animotion/duplicate-attribute/attribute_duplicate/179533f38d9f3bee.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 31,
+			"character": 22
+		},
+		"end": {
+			"line": 31,
+			"character": 33
+		}
+	}
+]
+
+=== 214 animotion/duplicate-attribute/attribute_duplicate/37a8468299cb0fbf.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 184,
+			"character": 20
+		},
+		"end": {
+			"line": 184,
+			"character": 34
+		}
+	}
+]
+
+=== 210 animotion/duplicate-attribute/attribute_duplicate/4881734dd963ad28.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 18
+		},
+		"end": {
+			"line": 0,
+			"character": 27
+		}
+	}
+]
+
+=== 212 animotion/duplicate-attribute/attribute_duplicate/a97fd4980c668486.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 10,
+			"character": 21
+		},
+		"end": {
+			"line": 10,
+			"character": 34
+		}
+	}
+]
+
+=== 214 animotion/duplicate-attribute/attribute_duplicate/c59c7906f2eac7f3.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 117,
+			"character": 41
+		},
+		"end": {
+			"line": 117,
+			"character": 66
+		}
+	}
+]
+
+=== 197 animotion/open-expression/expected_token/04a37a070739638b.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 704,
+			"character": 39
+		},
+		"end": {
+			"line": 704,
+			"character": 39
+		}
+	}
+]
+
+=== 195 animotion/open-expression/expected_token/4e279d268823aae0.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 31,
+			"character": 21
+		},
+		"end": {
+			"line": 31,
+			"character": 21
+		}
+	}
+]
+
+=== 209 animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unterminated string constant\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 145,
+			"character": 32
+		},
+		"end": {
+			"line": 145,
+			"character": 32
+		}
+	}
+]
+
+=== 209 animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unterminated string constant\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 185,
+			"character": 32
+		},
+		"end": {
+			"line": 185,
+			"character": 32
+		}
+	}
+]
+
+=== 232 animotion/rune-in-template/state_invalid_placement/42391e3708aa7376.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/action.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	}
+]
+
+=== 2191 animotion/rune-in-template/state_invalid_placement/db5c203aaf8c5ef6.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 69
+		},
+		"end": {
+			"line": 1,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'shiki' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 57
+		},
+		"end": {
+			"line": 2,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/action.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 20
+		},
+		"end": {
+			"line": 19,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/code.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 18
+		},
+		"end": {
+			"line": 20,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@shikijs/magic-move/core' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 59
+		},
+		"end": {
+			"line": 21,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@shikijs/magic-move/renderer' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 35
+		},
+		"end": {
+			"line": 22,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@shikijs/magic-move/types' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 8
+		},
+		"end": {
+			"line": 28,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './store.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 33
+		},
+		"end": {
+			"line": 29,
+			"character": 52
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../styles/shiki.css'.",
+		"start": {
+			"line": 30,
+			"character": 8
+		},
+		"end": {
+			"line": 30,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'code' implicitly has an 'any' type.",
+		"start": {
+			"line": 398,
+			"character": 36
+		},
+		"end": {
+			"line": 398,
+			"character": 40
+		}
+	}
+]
+
+=== 289 animotion/script-twice/script_duplicate/10566a228261770d.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 16,
+			"character": 0
+		},
+		"end": {
+			"line": 16,
+			"character": 0
+		}
+	}
+]
+
+=== 289 animotion/script-twice/script_duplicate/6b7b9879b366a353.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 27,
+			"character": 0
+		},
+		"end": {
+			"line": 27,
+			"character": 0
+		}
+	}
+]
+
+=== 194 animotion/swap-close/expected_token/41b1591f38d47f2f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token if\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 35,
+			"character": 2
+		},
+		"end": {
+			"line": 35,
+			"character": 2
+		}
+	}
+]
+
+=== 196 animotion/swap-close/expected_token/6aca7567d443f784.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token if\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 713,
+			"character": 2
+		},
+		"end": {
+			"line": 713,
+			"character": 2
+		}
+	}
+]
+
+=== 198 animotion/swap-close/expected_token/72d2e2ad3b4a8060.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token each\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 131,
+			"character": 6
+		},
+		"end": {
+			"line": 131,
+			"character": 6
+		}
+	}
+]
+
+=== 196 animotion/swap-close/expected_token/f82b6982cba413c7.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token each\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 33,
+			"character": 2
+		},
+		"end": {
+			"line": 33,
+			"character": 2
+		}
+	}
+]
+
+=== 212 attractions/duplicate-attribute/attribute_duplicate/5ff1e1e04aad50be.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 15,
+			"character": 28
+		},
+		"end": {
+			"line": 15,
+			"character": 48
+		}
+	}
+]
+
+=== 210 attractions/duplicate-attribute/attribute_duplicate/aa679f9a03e81487.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 25
+		},
+		"end": {
+			"line": 0,
+			"character": 41
+		}
+	}
+]
+
+=== 213 attractions/duplicate-attribute/attribute_duplicate/d3a4439dd06d6ad5.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 14,
+			"character": 63
+		},
+		"end": {
+			"line": 14,
+			"character": 118
+		}
+	}
+]
+
+=== 197 attractions/swap-close/expected_token/bc5f2234497403b0.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token await\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 54,
+			"character": 4
+		},
+		"end": {
+			"line": 54,
+			"character": 4
+		}
+	}
+]
+
+=== 218 bits-ui/bind-sum/attribute_invalid_name/06880dae52249363.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-toolbelt' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 42
+		},
+		"end": {
+			"line": 1,
+			"character": 59
+		}
+	}
+]
+
+=== 1239 bits-ui/bind-sum/attribute_invalid_name/5591bc9ac0badcba.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-toolbelt' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 37
+		},
+		"end": {
+			"line": 1,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../types.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../command.svelte.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 35
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/create-id.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 26
+		},
+		"end": {
+			"line": 4,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 5
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'v' implicitly has an 'any' type.",
+		"start": {
+			"line": 25,
+			"character": 4
+		},
+		"end": {
+			"line": 25,
+			"character": 5
+		}
+	}
+]
+
+=== 193 bits-ui/bind-sum/expected_token/f1c641d58729022f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 69,
+			"character": 6
+		},
+		"end": {
+			"line": 69,
+			"character": 6
+		}
+	}
+]
+
+=== 196 bits-ui/drop-close/block_unclosed/04a0cecbbef640d1.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 38,
+			"character": 0
+		},
+		"end": {
+			"line": 38,
+			"character": 1
+		}
+	}
+]
+
+=== 196 bits-ui/drop-close/block_unclosed/0c0c1f0cf4f5aab0.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 38,
+			"character": 0
+		},
+		"end": {
+			"line": 38,
+			"character": 1
+		}
+	}
+]
+
+=== 194 bits-ui/drop-close/block_unclosed/52d8f12f9f89e4b2.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 1
+		}
+	}
+]
+
+=== 196 bits-ui/drop-close/block_unclosed/53b47a9ebb0d59b8.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 16,
+			"character": 0
+		},
+		"end": {
+			"line": 16,
+			"character": 1
+		}
+	}
+]
+
+=== 196 bits-ui/drop-close/block_unclosed/edb20c83971d75fc.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 1
+		}
+	}
+]
+
+=== 200 bits-ui/drop-close/expected_token/7152e920ef7ae04b.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token </style>\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 27,
+			"character": 7
+		},
+		"end": {
+			"line": 27,
+			"character": 7
+		}
+	}
+]
+
+=== 200 bits-ui/drop-close/expected_token/9f40e77af21cc25d.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token </style>\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 39,
+			"character": 6
+		},
+		"end": {
+			"line": 39,
+			"character": 6
+		}
+	}
+]
+
+=== 212 bits-ui/duplicate-attribute/attribute_duplicate/00775f1dd4da52f1.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 19,
+			"character": 43
+		},
+		"end": {
+			"line": 19,
+			"character": 68
+		}
+	}
+]
+
+=== 212 bits-ui/duplicate-attribute/attribute_duplicate/741147987ead288f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 30,
+			"character": 14
+		},
+		"end": {
+			"line": 30,
+			"character": 21
+		}
+	}
+]
+
+=== 212 bits-ui/duplicate-attribute/attribute_duplicate/b47955a9b98ec15a.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 15,
+			"character": 18
+		},
+		"end": {
+			"line": 15,
+			"character": 34
+		}
+	}
+]
+
+=== 212 bits-ui/duplicate-attribute/attribute_duplicate/c1c2a259a99bfce6.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 32,
+			"character": 43
+		},
+		"end": {
+			"line": 32,
+			"character": 68
+		}
+	}
+]
+
+=== 210 bits-ui/duplicate-attribute/attribute_duplicate/f4f6da9a10d043e2.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 27,
+			"character": 4
+		},
+		"end": {
+			"line": 32,
+			"character": 3
+		}
+	}
+]
+
+=== 195 bits-ui/rune-in-template/expected_token/dc16ebc7943acc57.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 22,
+			"character": 13
+		},
+		"end": {
+			"line": 22,
+			"character": 13
+		}
+	}
+]
+
+=== 193 bits-ui/rune-in-template/expected_token/ece97342cd6fa900.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 49,
+			"character": 9
+		},
+		"end": {
+			"line": 49,
+			"character": 9
+		}
+	}
+]
+
+=== 199 bits-ui/swap-close/expected_token/1b7b7ce7f43051af.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token snippet\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 30,
+			"character": 2
+		},
+		"end": {
+			"line": 30,
+			"character": 2
+		}
+	}
+]
+
+=== 195 bits-ui/swap-close/expected_token/2bd46aed566d11bc.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token key\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 50,
+			"character": 2
+		},
+		"end": {
+			"line": 50,
+			"character": 2
+		}
+	}
+]
+
+=== 199 bits-ui/swap-close/expected_token/32c51c45000f5b2a.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token snippet\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 34,
+			"character": 2
+		},
+		"end": {
+			"line": 34,
+			"character": 2
+		}
+	}
+]
+
+=== 195 bits-ui/swap-close/expected_token/c4fb13497ae43160.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token key\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 50,
+			"character": 2
+		},
+		"end": {
+			"line": 50,
+			"character": 2
+		}
+	}
+]
+
+=== 259 cnblocks/drop-close/element_invalid_closing_tag/7bafc6617a5157e6.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</svelte:element>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 148,
+			"character": 0
+		},
+		"end": {
+			"line": 148,
+			"character": 0
+		}
+	}
+]
+
+=== 254 cnblocks/drop-close/element_invalid_closing_tag/fce097ac761af9df.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</svelte:head>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 42,
+			"character": 0
+		},
+		"end": {
+			"line": 42,
+			"character": 0
+		}
+	}
+]
+
+=== 200 cnblocks/drop-close/unexpected_eof/0c3e1a6ec645c96d.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 21,
+			"character": 1
+		},
+		"end": {
+			"line": 21,
+			"character": 1
+		}
+	}
+]
+
+=== 200 cnblocks/drop-close/unexpected_eof/23b79150accab06b.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 21,
+			"character": 1
+		},
+		"end": {
+			"line": 21,
+			"character": 1
+		}
+	}
+]
+
+=== 197 cnblocks/duplicate-attribute/expected_token/13ac5e85dcdb0ab7.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 15,
+			"character": 291
+		},
+		"end": {
+			"line": 15,
+			"character": 291
+		}
+	}
+]
+
+=== 193 cnblocks/duplicate-attribute/expected_token/1ffa51762f62b706.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 27
+		}
+	}
+]
+
+=== 193 cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 26
+		},
+		"end": {
+			"line": 0,
+			"character": 26
+		}
+	}
+]
+
+=== 193 cnblocks/duplicate-attribute/expected_token/974dfe20e053c714.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 27
+		}
+	}
+]
+
+=== 193 cnblocks/duplicate-attribute/expected_token/a22d6c3178e84aac.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 26
+		},
+		"end": {
+			"line": 0,
+			"character": 26
+		}
+	}
+]
+
+=== 3177 cnblocks/script-twice/js_parse_error/5556caa365c1a1d9.svelte	json
+[
+	{
+		"code": 1110,
+		"message": "Type expected.",
+		"start": {
+			"line": 4,
+			"character": 1
+		},
+		"end": {
+			"line": 4,
+			"character": 2
+		}
+	},
+	{
+		"code": 1005,
+		"message": "';' expected.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 13
+		}
+	},
+	{
+		"code": 1109,
+		"message": "Expression expected.",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Button'.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 14
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 20
+		},
+		"end": {
+			"line": 1,
+			"character": 61
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'seoMetaTags'.",
+		"start": {
+			"line": 2,
+			"character": 10
+		},
+		"end": {
+			"line": 2,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/seo' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 29
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'MetaTags'.",
+		"start": {
+			"line": 3,
+			"character": 10
+		},
+		"end": {
+			"line": 3,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-meta-tags' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Button'.",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 14
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 20
+		},
+		"end": {
+			"line": 6,
+			"character": 61
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'seoMetaTags'.",
+		"start": {
+			"line": 7,
+			"character": 10
+		},
+		"end": {
+			"line": 7,
+			"character": 21
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/seo' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 29
+		},
+		"end": {
+			"line": 7,
+			"character": 46
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'MetaTags'.",
+		"start": {
+			"line": 8,
+			"character": 10
+		},
+		"end": {
+			"line": 8,
+			"character": 18
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-meta-tags' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 44
+		}
+	},
+	{
+		"code": 2552,
+		"message": "Cannot find name 'script'. Did you mean 'WScript'?",
+		"start": {
+			"line": 5,
+			"character": 2
+		},
+		"end": {
+			"line": 5,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'lang'.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 13
+		}
+	}
+]
+
+=== 4197 cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.svelte	json
+[
+	{
+		"code": 1110,
+		"message": "Type expected.",
+		"start": {
+			"line": 9,
+			"character": 1
+		},
+		"end": {
+			"line": 9,
+			"character": 2
+		}
+	},
+	{
+		"code": 1005,
+		"message": "';' expected.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 13
+		}
+	},
+	{
+		"code": 1005,
+		"message": "';' expected.",
+		"start": {
+			"line": 17,
+			"character": 5
+		},
+		"end": {
+			"line": 17,
+			"character": 6
+		}
+	},
+	{
+		"code": 1128,
+		"message": "Declaration or statement expected.",
+		"start": {
+			"line": 17,
+			"character": 17
+		},
+		"end": {
+			"line": 17,
+			"character": 18
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'scrollY'.",
+		"start": {
+			"line": 1,
+			"character": 10
+		},
+		"end": {
+			"line": 1,
+			"character": 17
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Button'.",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 14
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 61
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'VeilCategoryNav'.",
+		"start": {
+			"line": 3,
+			"character": 8
+		},
+		"end": {
+			"line": 3,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/web/layouts/VeilCategoryNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 29
+		},
+		"end": {
+			"line": 3,
+			"character": 70
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Snippet'.",
+		"start": {
+			"line": 4,
+			"character": 15
+		},
+		"end": {
+			"line": 4,
+			"character": 22
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'fly'.",
+		"start": {
+			"line": 5,
+			"character": 10
+		},
+		"end": {
+			"line": 5,
+			"character": 13
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'scrollY'.",
+		"start": {
+			"line": 11,
+			"character": 10
+		},
+		"end": {
+			"line": 11,
+			"character": 17
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Button'.",
+		"start": {
+			"line": 12,
+			"character": 8
+		},
+		"end": {
+			"line": 12,
+			"character": 14
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/ui/button/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 20
+		},
+		"end": {
+			"line": 12,
+			"character": 61
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'VeilCategoryNav'.",
+		"start": {
+			"line": 13,
+			"character": 8
+		},
+		"end": {
+			"line": 13,
+			"character": 23
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/web/layouts/VeilCategoryNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 29
+		},
+		"end": {
+			"line": 13,
+			"character": 70
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Snippet'.",
+		"start": {
+			"line": 14,
+			"character": 15
+		},
+		"end": {
+			"line": 14,
+			"character": 22
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'fly'.",
+		"start": {
+			"line": 15,
+			"character": 10
+		},
+		"end": {
+			"line": 15,
+			"character": 13
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'visible'.",
+		"start": {
+			"line": 8,
+			"character": 5
+		},
+		"end": {
+			"line": 8,
+			"character": 12
+		}
+	},
+	{
+		"code": 2552,
+		"message": "Cannot find name 'script'. Did you mean 'WScript'?",
+		"start": {
+			"line": 10,
+			"character": 2
+		},
+		"end": {
+			"line": 10,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'lang'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 13
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'let'.",
+		"start": {
+			"line": 17,
+			"character": 1
+		},
+		"end": {
+			"line": 17,
+			"character": 4
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'visible'.",
+		"start": {
+			"line": 18,
+			"character": 5
+		},
+		"end": {
+			"line": 18,
+			"character": 12
+		}
+	}
+]
+
+=== 210 edra/duplicate-attribute/attribute_duplicate/9c4d455d8348b5f1.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 5,
+			"character": 45
+		},
+		"end": {
+			"line": 5,
+			"character": 62
+		}
+	}
+]
+
+=== 246 eslint-plugin-svelte/drop-close/svelte_meta_invalid_placement/5b0c8da3d20fe1a9.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 0
+		}
+	}
+]
+
+=== 246 eslint-plugin-svelte/drop-close/svelte_meta_invalid_placement/f07052f296a83c32.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 0
+		}
+	}
+]
+
+=== 210 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/2cc474032a381180.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 6,
+			"character": 19
+		},
+		"end": {
+			"line": 6,
+			"character": 31
+		}
+	}
+]
+
+=== 210 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/95f644cb0ac55354.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 6,
+			"character": 39
+		},
+		"end": {
+			"line": 6,
+			"character": 60
+		}
+	}
+]
+
+=== 210 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/b214083851676a5c.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 7,
+			"character": 56
+		},
+		"end": {
+			"line": 7,
+			"character": 76
+		}
+	}
+]
+
+=== 211 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/ba965b44a8b21b2d.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 7,
+			"character": 59
+		},
+		"end": {
+			"line": 7,
+			"character": 102
+		}
+	}
+]
+
+=== 210 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/beaec40f4153cde7.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 7,
+			"character": 58
+		},
+		"end": {
+			"line": 7,
+			"character": 79
+		}
+	}
+]
+
+=== 375 eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'thing'.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 23
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'thing'.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 37
+		}
+	}
+]
+
+=== 3 eslint-plugin-svelte/duplicate-attribute/transition_duplicate/13ea2106dfb5027e.svelte	json
+[]
+
+=== 3 eslint-plugin-svelte/duplicate-attribute/transition_duplicate/5b60fbfa5f089339.svelte	json
+[]
+
+=== 449 eslint-plugin-svelte/rune-in-template/svelte_options_invalid_customelement/9885ce99e4c41e74.svelte	json
+[
+	{
+		"code": -1,
+		"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 74
+		}
+	}
+]
+
+=== 197 eslint-plugin-svelte/swap-close/expected_token/a9278f39f5409db0.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token await\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 10,
+			"character": 3
+		},
+		"end": {
+			"line": 10,
+			"character": 3
+		}
+	}
+]
+
+=== 1848 flowbite-svelte/bind-sum/illegal_element_attribute/d373cfe71c3a6c7c.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/types' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 56
+		},
+		"end": {
+			"line": 1,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/actions' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/theme/themeUtils' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 49
+		},
+		"end": {
+			"line": 3,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'clsx' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/context' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 57
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './theme' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 35
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'SidebarProps' can't be used to index type '{ sm: number; md: number; lg: number; xl: number; \"2xl\": number; }'.",
+		"start": {
+			"line": 62,
+			"character": 88
+		},
+		"end": {
+			"line": 62,
+			"character": 116
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"+\"' does not exist in type 'SvelteWindowAttributes'.",
+		"start": {
+			"line": 106,
+			"character": 31
+		},
+		"end": {
+			"line": 106,
+			"character": 32
+		}
+	}
+]
+
+=== 219 flowbite-svelte/duplicate-attribute/transition_duplicate/69f152299ced34d9.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'tailwind-merge' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 26
+		},
+		"end": {
+			"line": 27,
+			"character": 42
+		}
+	}
+]
+
+=== 1546 joy-of-code/bind-sum/illegal_element_attribute/347b4013f7479821.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './logo.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './search' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 20
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './socials.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 21
+		},
+		"end": {
+			"line": 3,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './preferences/index.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './menu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 18
+		},
+		"end": {
+			"line": 5,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/site/config' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 25
+		},
+		"end": {
+			"line": 6,
+			"character": 43
+		}
+	},
+	{
+		"code": 2353,
+		"message": "Object literal may only specify known properties, and '\"+\"' does not exist in type 'SvelteWindowAttributes'.",
+		"start": {
+			"line": 12,
+			"character": 28
+		},
+		"end": {
+			"line": 12,
+			"character": 29
+		}
+	}
+]
+
+=== 194 language-tools/drop-close/block_unclosed/43bd7f768610379b.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 194 language-tools/drop-close/block_unclosed/ebc798d0bcf81db0.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 7,
+			"character": 0
+		},
+		"end": {
+			"line": 7,
+			"character": 1
+		}
+	}
+]
+
+=== 256 language-tools/drop-close/element_invalid_closing_tag/a5ca1f1b91573063.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</svelte:boundary>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 5,
+			"character": 0
+		},
+		"end": {
+			"line": 5,
+			"character": 0
+		}
+	}
+]
+
+=== 3 language-tools/duplicate-attribute/animation_duplicate/1ba73d2c465732ff.svelte	json
+[]
+
+=== 3 language-tools/duplicate-attribute/animation_duplicate/b0d71e2b6a1ed6ee.svelte	json
+[]
+
+=== 210 language-tools/duplicate-attribute/attribute_duplicate/492063be357dc570.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 34
+		},
+		"end": {
+			"line": 0,
+			"character": 50
+		}
+	}
+]
+
+=== 210 language-tools/duplicate-attribute/attribute_duplicate/a0983945ad9573b4.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 46
+		}
+	}
+]
+
+=== 600 language-tools/duplicate-attribute/declaration_duplicate/14a274839779d4b7.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../$$slots/input.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 22
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'valid1'.",
+		"start": {
+			"line": 4,
+			"character": 11
+		},
+		"end": {
+			"line": 4,
+			"character": 17
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'valid1'.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 28
+		}
+	}
+]
+
+=== 373 language-tools/duplicate-attribute/declaration_duplicate/f2387ee60051463c.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'prop'.",
+		"start": {
+			"line": 1,
+			"character": 17
+		},
+		"end": {
+			"line": 1,
+			"character": 21
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'prop'.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 30
+		}
+	}
+]
+
+=== 250 layerchart/drop-close/svelte_meta_invalid_placement/541d4997192da810.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 81,
+			"character": 0
+		},
+		"end": {
+			"line": 81,
+			"character": 0
+		}
+	}
+]
+
+=== 248 originui-svelte/drop-close/svelte_meta_invalid_placement/d2e0fd2ece014682.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 76,
+			"character": 0
+		},
+		"end": {
+			"line": 76,
+			"character": 0
+		}
+	}
+]
+
+=== 193 shadcn-svelte/bind-sum/expected_token/ea39f15a51c4a775.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 4
+		}
+	}
+]
+
+=== 248 svar-core/drop-close/svelte_meta_invalid_placement/5b881f08a9559cbd.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 14,
+			"character": 0
+		},
+		"end": {
+			"line": 14,
+			"character": 0
+		}
+	}
+]
+
+=== 248 svar-core/drop-close/svelte_meta_invalid_placement/5e682366181f7c35.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 14,
+			"character": 0
+		},
+		"end": {
+			"line": 14,
+			"character": 0
+		}
+	}
+]
+
+=== 248 svelte-bits/drop-close/svelte_meta_invalid_placement/d491bbb413e9d28f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 89,
+			"character": 0
+		},
+		"end": {
+			"line": 89,
+			"character": 0
+		}
+	}
+]
+
+=== 227 svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{@html ...} tag cannot be inside <textarea>\nhttps://svelte.dev/e/tag_invalid_placement",
+		"start": {
+			"line": 11,
+			"character": 0
+		},
+		"end": {
+			"line": 11,
+			"character": 0
+		}
+	}
+]
+
+=== 618 svelte-eslint-parser/duplicate-attribute/declaration_duplicate/d3c6daadd11cfea8.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './ts-slot-binding01-sveltev4-input-child.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 73
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'bar'.",
+		"start": {
+			"line": 5,
+			"character": 16
+		},
+		"end": {
+			"line": 5,
+			"character": 19
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'bar'.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 33
+		}
+	}
+]
+
+=== 609 svelte-eslint-parser/duplicate-attribute/declaration_duplicate/da8d54d13a6ba686.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './ts-slot-binding01-input-child.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 64
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'bar'.",
+		"start": {
+			"line": 5,
+			"character": 16
+		},
+		"end": {
+			"line": 5,
+			"character": 19
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'bar'.",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 33
+		}
+	}
+]
+
+=== 246 svelte/drop-close/element_invalid_closing_tag/4f9ef3d5db8771f5.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 0
+		}
+	}
+]
+
+=== 254 svelte/drop-close/element_invalid_closing_tag/87cd4e17776319cc.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</svelte:head>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 13,
+			"character": 0
+		},
+		"end": {
+			"line": 13,
+			"character": 0
+		}
+	}
+]
+
+=== 258 svelte/drop-close/element_invalid_closing_tag/ac13a599d66140ab.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</svelte:boundary>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 12,
+			"character": 0
+		},
+		"end": {
+			"line": 12,
+			"character": 0
+		}
+	}
+]
+
+=== 258 svelte/drop-close/element_invalid_closing_tag/c638d1ba9ae7923f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</svelte:boundary>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 22,
+			"character": 0
+		},
+		"end": {
+			"line": 22,
+			"character": 0
+		}
+	}
+]
+
+=== 195 svelte/drop-close/js_parse_error/8ba02cb57beef12d.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 14,
+			"character": 24
+		},
+		"end": {
+			"line": 14,
+			"character": 24
+		}
+	}
+]
+
+=== 3 svelte/drop-close/node_invalid_placement/57677e348b5302b3.svelte	json
+[]
+
+=== 246 svelte/drop-close/svelte_meta_invalid_placement/da76a605eaf94d39.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 0
+		}
+	}
+]
+
+=== 212 svelte/duplicate-attribute/attribute_duplicate/102b73aa6481d468.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 14,
+			"character": 27
+		},
+		"end": {
+			"line": 14,
+			"character": 36
+		}
+	}
+]
+
+=== 210 svelte/duplicate-attribute/attribute_duplicate/4bbd3e078729b0e5.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 5,
+			"character": 30
+		},
+		"end": {
+			"line": 5,
+			"character": 41
+		}
+	}
+]
+
+=== 210 svelte/duplicate-attribute/attribute_duplicate/783f314da31e52c7.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 43
+		},
+		"end": {
+			"line": 0,
+			"character": 72
+		}
+	}
+]
+
+=== 210 svelte/duplicate-attribute/attribute_duplicate/f90ee7029ad30d7f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 43
+		},
+		"end": {
+			"line": 0,
+			"character": 72
+		}
+	}
+]
+
+=== 242 svelte/rune-in-template/svelte_options_invalid_attribute_value/3192d662d0ff7a0c.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+		"start": {
+			"line": 0,
+			"character": 50
+		},
+		"end": {
+			"line": 0,
+			"character": 70
+		}
+	}
+]
+
+=== 242 svelte/rune-in-template/svelte_options_invalid_attribute_value/e9c2fb78b09368dc.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 36
+		}
+	}
+]
+
+=== 449 svelte/rune-in-template/svelte_options_invalid_customelement/d283efd45d300c0f.svelte	json
+[
+	{
+		"code": -1,
+		"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 93
+		}
+	}
+]
+

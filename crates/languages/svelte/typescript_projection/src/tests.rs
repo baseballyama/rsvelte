@@ -6,6 +6,8 @@ use rsvelte_svelte_syntax::parse::parse;
 
 use crate::syntax_tree::{Node, NodeIdentifier, SyntaxTree};
 
+mod stand_in;
+
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {
     let component = parse(source).expect("valid Svelte source");
     let before = format!("{component:?}");
@@ -164,9 +166,9 @@ fn svelte_self_renders_a_component_whose_props_are_not_checked() {
 #[test]
 fn props_beside_a_binding_called_props_subscribes_to_a_store() {
     let rune = "<script>let { a } = $props();</script>{a}";
-    assert!(project(rune).1.out.contains("__rsvelte_props"));
+    assert!(project(rune).1.out.contains("$$ComponentProps"));
     let store = "<script>import { props } from './p.js'; let { a } = $props();</script>{a}";
-    assert!(!project(store).1.out.contains("__rsvelte_props"));
+    assert!(!project(store).1.out.contains("$$ComponentProps"));
 }
 
 #[test]
@@ -270,23 +272,33 @@ fn a_typed_each_context_drops_its_annotation_as_svelte2tsx_does() {
 }
 
 #[test]
-fn a_prop_default_that_reads_a_sibling_infers_no_cycle() {
-    let source =
-        "<script lang=\"ts\">let { a, b = 5, c = b, d = a, e = a.length } = $props();</script>";
+fn a_prop_default_is_typed_by_its_syntax_as_svelte2tsx_types_it() {
+    let source = "<script lang=\"ts\">let { a, b = 5, c = b, d = a, e = a.length, \
+                  f = $bindable(\"x\"), g = 1 as 1 | 2, 'h': h, ...i } = $props();</script>";
     let (_, output) = project(source);
-    let props = &output.out[output
+    let start = output
         .out
-        .find("const __rsvelte_public_props0")
-        .expect("the props are inferred")..];
-    // From svelte2tsx: `c?: typeof b`, and `any` for a default that reads a prop another way.
+        .find("type $$ComponentProps = {")
+        .expect("the props are declared");
+    let props = &output.out[start..];
+    let props = &props[..props.find("$props()").expect("the declaration follows")];
     for expected in [
-        "b: 5,",
-        "c: 5,",
-        "d: __rsvelte_untyped_prop(),",
-        "e: __rsvelte_untyped_prop(),",
+        "{ a: any, ",
+        "b?: number, ",
+        "c?: typeof b, ",
+        "d?: typeof a, ",
+        "e?: any, ",
+        "f?: string, ",
+        "g?: 1 | 2 }",
+        "} & Record<string, any>; let",
     ] {
         assert!(props.contains(expected), "{expected}\n{}", output.out);
     }
+    assert!(
+        !props.contains("h?") && !props.contains("h:"),
+        "{}",
+        output.out
+    );
 }
 
 #[test]

@@ -11,6 +11,75 @@
   }
 </style>
 
+=== 1395 src/lib/components/common/ScrollbarContainer.svelte	svelte
+<script lang="ts">
+  import type { OverlayScrollbars } from "overlayscrollbars";
+  import { onDestroy, onMount } from "svelte";
+
+  export let scroll = true;
+  export let margin = "0";
+
+  let component: HTMLDivElement;
+  let osInstance: OverlayScrollbars | undefined;
+
+  export function scrollTo(options: {
+    left?: number;
+    top?: number;
+    behavior?: "auto" | "smooth";
+  }) {
+    osInstance?.elements().viewport.scroll(options);
+  }
+
+  onMount(async () => {
+    const { OverlayScrollbars } = await import("overlayscrollbars");
+    osInstance = OverlayScrollbars(component, {
+      overflow: {
+        x: "hidden",
+      },
+      scrollbars: {
+        autoHide: "leave",
+        autoHideDelay: 0,
+      },
+    });
+  });
+
+  onDestroy(() => {
+    osInstance?.destroy();
+  });
+</script>
+
+{#if scroll}
+  <div style="--margin: {margin}" bind:this={component}>
+    <slot />
+  </div>
+{:else}
+  <slot />
+{/if}
+
+<style lang="scss">
+  :global([data-overlayscrollbars]) {
+    width: 100%;
+    height: 100%;
+  }
+
+  :global(.os-scrollbar) {
+    @include themes.light {
+      --os-handle-bg: #{variables.$bg-4};
+      --os-handle-bg-hover: #d5d5d5;
+      --os-handle-bg-active: #c8c8c8;
+    }
+
+    @include themes.dark {
+      --os-handle-bg: #{variables.$bg-4};
+      --os-handle-bg-hover: #2d2d2d;
+      --os-handle-bg-active: #343434;
+    }
+
+    z-index: 10;
+    margin: var(--margin);
+  }
+</style>
+
 === 3177 src/lib/components/dashboard/Banner.svelte	svelte
 <script lang="ts">
   import { onDestroy, onMount } from "svelte";
@@ -215,6 +284,647 @@
       );
       inset: auto 0 0;
     }
+  }
+</style>
+
+=== 6713 src/lib/components/dashboard/sidebar/WatchedPersons.svelte	svelte
+<script lang="ts">
+  import { browser } from "$app/environment";
+  import { storage } from "$lib/features";
+  import { MuteIcon, MutedIcon, PersonIcon } from "$lib/icons";
+  import {
+    globalNotifications,
+    loading,
+    settings,
+    watchedPersons,
+  } from "$lib/stores";
+  import type { User, WatchedPerson } from "$lib/types";
+  import SidebarSection from "./SidebarSection.svelte";
+
+  let canSave = false;
+
+  // Update watched persons
+  $: if (browser && !$loading) {
+    const savedWatchedPersons = storage.get("watched-persons");
+
+    const persons = $globalNotifications.reduce<WatchedPerson[]>(
+      (previous, current) => {
+        if (current.status === "done") return previous;
+        if (current.creator) {
+          previous = addPerson(
+            previous,
+            current.creator,
+            1,
+            savedWatchedPersons,
+            current.from,
+          );
+          if (
+            current.author &&
+            current.author.login !== current.creator.login
+          ) {
+            previous = addPerson(
+              previous,
+              current.author,
+              0,
+              savedWatchedPersons,
+              current.from,
+            );
+          }
+        } else if (current.author) {
+          previous = addPerson(
+            previous,
+            current.author,
+            1,
+            savedWatchedPersons,
+            current.from,
+          );
+        }
+        return previous;
+      },
+      [],
+    );
+
+    persons.push(
+      ...(savedWatchedPersons
+        ? savedWatchedPersons
+            .filter(
+              (person) =>
+                !persons.find((p) => p.login === person.login) &&
+                (person.muted || !person.active),
+            )
+            .map((person) => ({ ...person, number: 0 }))
+        : []),
+    );
+
+    $watchedPersons = persons.sort((a, b) => b.number - a.number);
+    canSave = true;
+  }
+
+  function addPerson(
+    previous: WatchedPerson[],
+    person: User,
+    number: number,
+    savedWatchedPersons: WatchedPerson[] | null,
+    from: "github" | "gitlab",
+  ): WatchedPerson[] {
+    const saved = savedWatchedPersons?.find((p) => p.login === person.login);
+    const index = previous.findIndex((p) => p.login === person?.login);
+    if (index > -1) {
+      const person = previous.splice(index, 1)[0];
+      return [...previous, { ...person, number: person.number + number }];
+    }
+    return [
+      ...previous,
+      {
+        login: person.login,
+        avatar: person.avatar ?? "",
+        number,
+        bot: person.bot,
+        active: saved?.active ?? true,
+        muted: saved?.muted ?? false,
+        from,
+      },
+    ];
+  }
+
+  $: providerView = $settings.providerView;
+  $: displayedPersons =
+    providerView === "both"
+      ? $watchedPersons
+      : $watchedPersons.filter((person) => person.from === providerView);
+  $: botsHidden = displayedPersons.some(
+    (person) => person.bot && person.active,
+  );
+  $: botsMuted = displayedPersons.every((person) =>
+    person.bot ? person.muted : true,
+  );
+  $: botsPresent = displayedPersons.some((person) => person.bot);
+
+  // Save watched persons to storage
+  $: if (canSave) {
+    storage.set("watched-persons", $watchedPersons);
+  }
+
+  function handleToggle(login: string) {
+    return (event: MouseEvent) => {
+      if (event.altKey || event.ctrlKey || event.shiftKey || event.metaKey) {
+        $watchedPersons = $watchedPersons.map((person) => ({
+          ...person,
+          active: person.login === login,
+        }));
+      } else {
+        $watchedPersons = $watchedPersons.map((person) =>
+          person.login === login
+            ? { ...person, active: !person.active }
+            : person,
+        );
+      }
+    };
+  }
+
+  function handleMute(login: string) {
+    return () => {
+      let toSplice: number | null = null;
+      const persons = $watchedPersons.map((person) =>
+        person.login === login ? { ...person, muted: !person.muted } : person,
+      );
+      if (toSplice !== null) {
+        persons.splice(toSplice, 1);
+      }
+      $watchedPersons = persons;
+    };
+  }
+
+  function handleHideBots(active: boolean) {
+    $watchedPersons = $watchedPersons.map((person) =>
+      person.bot ? { ...person, active } : person,
+    );
+  }
+
+  function handleMuteBots(muted: boolean) {
+    $watchedPersons = $watchedPersons.map((person) =>
+      person.bot ? { ...person, muted } : person,
+    );
+  }
+</script>
+
+<SidebarSection
+  title="Persons"
+  description="Perons who created PRs and issues, and authors of notifications."
+  bind:items={$watchedPersons}
+  actions={[
+    {
+      text: "Show bots",
+      active: botsHidden,
+      onToggle: handleHideBots,
+      disabled: !botsPresent,
+    },
+    {
+      text: "Mute bots",
+      active: botsMuted,
+      onToggle: handleMuteBots,
+      disabled: !botsPresent,
+    },
+  ]}
+>
+  {#if displayedPersons.length}
+    {#each displayedPersons as { login, avatar, active, muted, number }}
+      <button class="wrapper" class:active on:click={handleToggle(login)}>
+        {#if avatar}
+          <img class="image" src={avatar} alt="" />
+        {:else}
+          <div class="image placeholder">
+            <PersonIcon />
+          </div>
+        {/if}
+        <h3 class="name">{login}</h3>
+        {#if number}
+          <span class="number">{number}</span>
+        {/if}
+        <button
+          class="mute"
+          class:muted
+          on:click|stopPropagation={handleMute(login)}
+        >
+          {#if muted}
+            <MutedIcon />
+          {:else}
+            <MuteIcon />
+          {/if}
+        </button>
+      </button>
+    {/each}
+  {:else}
+    <p class="empty">No persons to display</p>
+  {/if}
+</SidebarSection>
+
+<style lang="scss">
+  .wrapper {
+    @include mixins.item-list;
+
+    &:not(:hover) .mute {
+      opacity: 0;
+    }
+
+    .name {
+      position: relative;
+      overflow: hidden;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .image {
+      height: 1.5rem;
+      flex: 0 0 1.5rem;
+      border-radius: 50%;
+
+      &.placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: variables.$bg-3;
+
+        :global(svg) {
+          height: 1.2rem;
+          color: variables.$bg-5;
+        }
+      }
+
+      &:not(.placeholder) {
+        @include mixins.broken-img;
+      }
+    }
+
+    .number {
+      color: variables.$bg-5;
+    }
+
+    .mute {
+      margin-left: auto;
+      color: variables.$bg-5;
+
+      &.muted {
+        opacity: 1;
+      }
+
+      &:hover {
+        color: variables.$bg-6;
+      }
+
+      :global(svg) {
+        height: 1.25rem;
+      }
+    }
+  }
+
+  .empty {
+    color: variables.$bg-5;
+  }
+</style>
+
+=== 9290 src/lib/components/dashboard/sidebar/WatchedRepos.svelte	svelte
+<script lang="ts">
+  import { browser } from "$app/environment";
+  import { ShrinkableWrapper } from "$lib/components";
+  import { storage } from "$lib/features";
+  import { MuteIcon, RepositoryIcon, MutedIcon } from "$lib/icons";
+  import {
+    globalNotifications,
+    loading,
+    settings,
+    watchedRepos,
+  } from "$lib/stores";
+  import type { WatchedRepo } from "$lib/types";
+  import SidebarSection from "./SidebarSection.svelte";
+
+  type WatchedReposByOwner = {
+    name: string;
+    avatar?: string;
+    number: number;
+    active: boolean;
+    muted: boolean;
+    repos: WatchedRepo[];
+    from: "github" | "gitlab";
+  }[];
+
+  let canSave = false;
+
+  // Update watched repos
+  $: if (browser && !$loading) {
+    const savedWatchedRepos = storage.get("watched-repos");
+
+    const repos = $globalNotifications.reduce<WatchedRepo[]>(
+      (previous, current) => {
+        if (current.status === "done") return previous;
+        const saved = savedWatchedRepos?.find(
+          (repo) => repo.id === current.repository.id,
+        );
+        const index = previous.findIndex(
+          (repo) => repo.id === current.repository.id,
+        );
+        if (index > -1) {
+          const repo = previous.splice(index, 1)[0];
+          return [...previous, { ...repo, number: repo.number + 1 }];
+        }
+        const [ownerName, name] = current.repository.namespace.split("/");
+        return [
+          ...previous,
+          {
+            id: current.repository.id,
+            name,
+            ownerName,
+            ownerAvatar: current.ownerAvatar,
+            number: 1,
+            active: saved?.active ?? true,
+            muted: saved?.muted ?? false,
+            from: current.from,
+          },
+        ];
+      },
+      [],
+    );
+
+    repos.push(
+      ...(savedWatchedRepos
+        ? savedWatchedRepos
+            .filter(
+              (repo) =>
+                !repos.find((p) => p.id === repo.id) &&
+                (repo.muted || !repo.active),
+            )
+            .map((repo) => ({ ...repo, number: 0 }))
+        : []),
+    );
+
+    $watchedRepos = repos;
+    canSave = true;
+  }
+
+  $: providerView = $settings.providerView;
+  $: watchedReposByOwner = $watchedRepos
+    .reduce<WatchedReposByOwner>((previous, current) => {
+      if (providerView !== "both" && current.from !== providerView)
+        return previous;
+
+      const repos = previous.find(
+        (owner) => owner.name === current.ownerName,
+      )?.repos;
+
+      // If no owner
+      if (!repos) {
+        return [
+          ...previous,
+          {
+            name: current.ownerName,
+            avatar: current.ownerAvatar,
+            number: current.number,
+            active: true,
+            muted: false,
+            repos: [current],
+            from: current.from,
+          },
+        ];
+      }
+
+      // If repo already exists
+      const index = repos.findIndex((repo) => repo.id === current.id);
+      if (index > -1) {
+        const repo = repos.splice(index, 1)[0];
+        return previous.map((item) => {
+          if (item.name === current.name) {
+            return {
+              ...item,
+              number: item.number + repo.number,
+              repos: [...repos, { ...repo, number: repo.number + 1 }],
+            };
+          }
+          return item;
+        });
+      }
+
+      // New repo
+      return previous.map((item) => {
+        if (item.name === current.ownerName) {
+          return {
+            ...item,
+            number: item.number + current.number,
+            repos: [...item.repos, current],
+          };
+        }
+        return item;
+      });
+    }, [])
+    .sort((a, b) => b.number - a.number)
+    .map((item) => ({
+      ...item,
+      active: item.repos.some((repo) => repo.active),
+      muted: item.repos.every((repo) => repo.muted),
+      repos: item.repos.sort((a, b) => b.number - a.number),
+    }));
+
+  // Save watched repos to storage
+  $: if (canSave) {
+    storage.set("watched-repos", $watchedRepos);
+  }
+
+  function handleToggleRepo(id: number) {
+    return (event: MouseEvent) => {
+      if (event.altKey || event.ctrlKey || event.shiftKey || event.metaKey) {
+        $watchedRepos = $watchedRepos.map((item) => ({
+          ...item,
+          active: item.id === id,
+        }));
+      } else {
+        $watchedRepos = $watchedRepos.map((item) =>
+          item.id === id ? { ...item, active: !item.active } : item,
+        );
+      }
+    };
+  }
+
+  function handleToggleOwner(name: string, active: boolean) {
+    return (event: MouseEvent) => {
+      if (event.altKey || event.ctrlKey || event.shiftKey || event.metaKey) {
+        $watchedRepos = $watchedRepos.map((item) => ({
+          ...item,
+          active: item.ownerName === name,
+        }));
+      } else {
+        $watchedRepos = $watchedRepos.map((item) =>
+          item.ownerName === name ? { ...item, active } : item,
+        );
+      }
+    };
+  }
+
+  function handleMuteRepo(id: number) {
+    return () => {
+      $watchedRepos = $watchedRepos.map((item) =>
+        item.id === id ? { ...item, muted: !item.muted } : item,
+      );
+    };
+  }
+
+  function handleMuteOwner(name: string, value: boolean) {
+    return () => {
+      $watchedRepos = $watchedRepos.map((item) =>
+        item.ownerName === name ? { ...item, muted: !value } : item,
+      );
+    };
+  }
+</script>
+
+<SidebarSection
+  title="Repositories"
+  description="Repos from where notifications come."
+  bind:items={$watchedRepos}
+>
+  {#if watchedReposByOwner.length}
+    {#each watchedReposByOwner as { name, avatar, number, active, muted, repos }}
+      {#if repos.length === 1}
+        <button
+          class="wrapper"
+          class:active={repos[0].active}
+          on:click={handleToggleRepo(repos[0].id)}
+        >
+          {#if avatar}
+            <img class="image" src={avatar} alt="" />
+          {:else}
+            <div class="repo-icon">
+              <RepositoryIcon />
+            </div>
+          {/if}
+          <h3 class="name">{name}/{repos[0].name}</h3>
+          {#if number}
+            <span class="number">{number}</span>
+          {/if}
+          <button
+            class="mute"
+            class:muted
+            on:click|stopPropagation={handleMuteOwner(name, muted)}
+          >
+            {#if muted}
+              <MutedIcon />
+            {:else}
+              <MuteIcon />
+            {/if}
+          </button>
+        </button>
+      {:else}
+        <ShrinkableWrapper>
+          <button
+            slot="header"
+            class="wrapper smaller"
+            class:active
+            on:click={handleToggleOwner(name, !active)}
+          >
+            {#if avatar}
+              <img class="image" src={avatar} alt="" />
+            {:else}
+              <div class="repo-icon">
+                <RepositoryIcon />
+              </div>
+            {/if}
+            <h3 class="name">{name}</h3>
+            {#if number}
+              <span class="number">{number}</span>
+            {/if}
+            <button
+              class="mute"
+              class:muted
+              on:click|stopPropagation={handleMuteOwner(name, muted)}
+            >
+              {#if muted}
+                <MutedIcon />
+              {:else}
+                <MuteIcon />
+              {/if}
+            </button>
+          </button>
+          {#each repos as { id, name, number, active, muted }}
+            <button
+              class="wrapper"
+              class:active
+              on:click={handleToggleRepo(id)}
+            >
+              <div class="repo-icon">
+                <RepositoryIcon />
+              </div>
+              <h4 class="name">{name}</h4>
+              {#if number}
+                <span class="number">{number}</span>
+              {/if}
+              <button
+                class="mute"
+                class:muted
+                on:click|stopPropagation={handleMuteRepo(id)}
+              >
+                {#if muted}
+                  <MutedIcon />
+                {:else}
+                  <MuteIcon />
+                {/if}
+              </button>
+            </button>
+          {/each}
+        </ShrinkableWrapper>
+      {/if}
+    {/each}
+  {:else}
+    <p class="empty">No repositories to display</p>
+  {/if}
+</SidebarSection>
+
+<style lang="scss">
+  .wrapper {
+    @include mixins.item-list;
+
+    &:not(:hover) .mute {
+      opacity: 0;
+    }
+
+    &.smaller {
+      width: calc(100% - 1.5rem);
+    }
+
+    .name {
+      position: relative;
+      overflow: hidden;
+      max-width: 100%;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .image,
+    .repo-icon {
+      height: 1.5rem;
+      flex: 0 0 1.5rem;
+      border-radius: variables.$small-radius;
+    }
+
+    .image {
+      @include mixins.broken-img;
+    }
+
+    .repo-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: variables.$bg-3;
+
+      :global(svg) {
+        height: 1rem;
+        color: variables.$bg-5;
+      }
+    }
+
+    .number {
+      color: variables.$bg-5;
+    }
+
+    .mute {
+      flex: 0 0 1.25rem;
+      margin-left: auto;
+      color: variables.$bg-5;
+
+      &.muted {
+        opacity: 1;
+      }
+
+      &:hover {
+        color: variables.$bg-6;
+      }
+
+      :global(svg) {
+        height: 1.25rem;
+      }
+    }
+  }
+
+  .empty {
+    color: variables.$bg-5;
   }
 </style>
 

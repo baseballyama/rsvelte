@@ -1,0 +1,7 @@
+# rsvelte pack 1
+=== 65 src/Tags.svelte	ast.sha256
+0038df3aeb11367a22f9b1d3960ebd5f504ee580e1aa143cc4e2eca964a85ed5
+
+=== 65 tests/TagsWrapper.svelte	ast.sha256
+b51e9fe64dcc15d5be778ae73b53e0595e62d0a0df098ea7260155b63c3655d9
+

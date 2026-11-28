@@ -111,6 +111,147 @@
 
 <div data-layer-id={layerId}></div>
 
+=== 196 src/lib/index.ts	ts	module	-
+export { default as Canvas } from './components/Canvas.svelte';
+export { default as Layer } from './components/Layer.svelte';
+export type { Render, CanvasResizeEvent, LayerEvent } from './types';
+
+=== 2842 src/lib/types.ts	ts	module	-
+import type { Snippet } from 'svelte';
+import type {
+  ClassValue,
+  MouseEventHandler,
+  PointerEventHandler,
+} from 'svelte/elements';
+import type { HitCanvasRenderingContext2D } from 'hit-canvas';
+
+export type CanvasContext =
+  | CanvasRenderingContext2D
+  | HitCanvasRenderingContext2D;
+
+export type LayerEvents =
+  | 'click'
+  | 'contextmenu'
+  | 'dblclick'
+  | 'auxclick'
+  | 'mousedown'
+  | 'mouseenter'
+  | 'mouseleave'
+  | 'mousemove'
+  | 'mouseup'
+  | 'wheel'
+  | 'touchcancel'
+  | 'touchend'
+  | 'touchmove'
+  | 'touchstart'
+  | 'pointerenter'
+  | 'pointerleave'
+  | 'pointerdown'
+  | 'pointermove'
+  | 'pointerup'
+  | 'pointercancel';
+
+export type LayerEventHandler = `on${LayerEvents}`;
+
+type CanvasEvents =
+  | LayerEvents
+  | 'focus'
+  | 'blur'
+  | 'fullscreenchange'
+  | 'fullscreenerror'
+  | 'scroll'
+  | 'cut'
+  | 'copy'
+  | 'paste'
+  | 'keydown'
+  | 'keypress'
+  | 'keyup'
+  | 'mouseover'
+  | 'mouseout'
+  | 'select'
+  | 'drag'
+  | 'dragend'
+  | 'dragenter'
+  | 'dragstart'
+  | 'dragleave'
+  | 'dragover'
+  | 'drop'
+  | 'pointerover'
+  | 'pointerout'
+  | 'gotpointercapture'
+  | 'lostpointercapture';
+
+export type CanvasEventHandler = `on${CanvasEvents}`;
+
+export type CanvasEventHandlers = {
+  [key in CanvasEventHandler]?: (event: Event) => void;
+};
+
+export type CanvasResizeEvent = {
+  width: number;
+  height: number;
+  pixelRatio: number;
+};
+
+export type CanvasProps = {
+  width?: number;
+  height?: number;
+  pixelRatio?: number | 'auto';
+  class?: ClassValue | null;
+  style?: string;
+  autoplay?: boolean;
+  autoclear?: boolean;
+  layerEvents?: boolean;
+  onresize?: (detail: CanvasResizeEvent) => void;
+  contextSettings?: CanvasRenderingContext2DSettings;
+  children?: Snippet;
+} & CanvasEventHandlers;
+
+export type CanvasConfig = {
+  width: number;
+  height: number;
+  pixelRatio: number;
+  autoplay: boolean;
+  autoclear: boolean;
+  layerEvents: boolean;
+  contextSettings?: CanvasRenderingContext2DSettings;
+  onresize?: (detail: CanvasResizeEvent) => void;
+  handlers: CanvasEventHandlers;
+};
+
+export type Render = (props: {
+  context: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  time: number;
+}) => void;
+
+export type LayerEvent = {
+  x: number;
+  y: number;
+  originalEvent: MouseEvent | TouchEvent;
+};
+
+export type LayerEventHandlers = {
+  [key in LayerEventHandler]?: (detail: LayerEvent) => void;
+};
+
+export type LayerProps = {
+  setup?: Render;
+  render: Render;
+} & LayerEventHandlers;
+
+declare global {
+  namespace svelteHTML {
+    interface HTMLAttributes<T extends EventTarget> {
+      'onlayer.mouseenter'?: MouseEventHandler<T> | undefined | null;
+      'onlayer.mouseleave'?: MouseEventHandler<T> | undefined | null;
+      'onlayer.pointerenter'?: PointerEventHandler<T> | undefined | null;
+      'onlayer.pointerleave'?: PointerEventHandler<T> | undefined | null;
+    }
+  }
+}
+
 === 5158 src/lib/util/LayerManager.svelte.ts	svelte-module-ts	runes	-
 import type { HitCanvasRenderingContext2D as HitContext } from 'hit-canvas';
 import { onDestroy, setContext, untrack } from 'svelte';
@@ -307,6 +448,149 @@ class LayerManager {
 }
 
 export default LayerManager;
+
+=== 88 src/lib/util/console.ts	ts	module	-
+export const warn = (message: string) =>
+  console.warn('[svelte-canvas] %s', message);
+
+=== 1630 src/lib/util/events.ts	ts	module	-
+export const getEventCoords = (e: MouseEvent | TouchEvent) => {
+  if (window.TouchEvent && e instanceof TouchEvent) {
+    const { left, top } = (<Element>e.target).getBoundingClientRect();
+    const { clientX, clientY } = e.changedTouches[0];
+
+    return { x: clientX - left, y: clientY - top };
+  }
+
+  const { offsetX: x, offsetY: y } = <MouseEvent>e;
+  return { x, y };
+};
+
+export const dispatchLayerEvent = (
+  e: MouseEvent | TouchEvent,
+  type: 'enter' | 'leave',
+) => {
+  if (!(e instanceof MouseEvent)) return;
+
+  e.target?.dispatchEvent(new PointerEvent(`layer.pointer${type}`, e));
+  e.target?.dispatchEvent(new MouseEvent(`layer.mouse${type}`, e));
+};
+
+export const SUPPORTED_EVENTS = [
+  // Canvas and layer events
+  'onclick',
+  'oncontextmenu',
+  'ondblclick',
+  'onauxclick',
+  'onmousedown',
+  'onmouseenter',
+  'onmouseleave',
+  'onmouseup',
+  'onmousemove',
+  'onwheel',
+  'ontouchstart',
+  'ontouchcancel',
+  'ontouchend',
+  'ontouchmove',
+  'onpointerenter',
+  'onpointerleave',
+  'onpointerdown',
+  'onpointerup',
+  'onpointermove',
+  'onpointercancel',
+
+  // Layer custom events
+  'onlayer.mouseenter',
+  'onlayer.mouseleave',
+  'onlayer.pointerenter',
+  'onlayer.pointerleave',
+
+  // Canvas events
+  'onfocus',
+  'onblur',
+  'onfullscreenchange',
+  'onfullscreenerror',
+  'onscroll',
+  'oncut',
+  'oncopy',
+  'onpaste',
+  'onkeydown',
+  'onkeypress',
+  'onkeyup',
+  'onmouseover',
+  'onmouseout',
+  'onselect',
+  'ondrag',
+  'ondragend',
+  'ondragenter',
+  'ondragstart',
+  'ondragleave',
+  'ondragover',
+  'ondrop',
+  'onpointerover',
+  'onpointerout',
+  'ongotpointercapture',
+  'onlostpointercapture',
+];
+
+=== 371 src/lib/util/getMaxPixelRatio.ts	ts	module	-
+import canvasSize from 'canvas-size';
+
+const getMaxPixelRatio = (
+  width: number,
+  height: number,
+  target: number,
+  decrement: number = 0.1,
+): number => {
+  if (typeof window === 'undefined') return target;
+
+  while (!canvasSize.test({ sizes: [[width * target, height * target]] })) {
+    target -= decrement;
+  }
+
+  return target;
+};
+
+export { getMaxPixelRatio };
+
+=== 330 src/lib/util/registerLayer.ts	ts	module	-
+import { getContext } from 'svelte';
+import LayerManager from './LayerManager.svelte';
+import type { LayerProps } from '../types';
+
+export const REGISTER_KEY = Symbol('register');
+
+export const register = (layer: LayerProps) => {
+  const register = getContext<LayerManager['register']>(REGISTER_KEY);
+  return register(layer);
+};
+
+=== 657 src/routes/+layout.ts	ts	module	-
+export const prerender = true;
+
+const menu = {
+  'Getting started': '',
+  'Upgrading to v2': '/upgrading',
+  Components: {
+    Canvas: '/components/canvas',
+    Layer: '/components/layer',
+  },
+  Examples: {
+    'Hello world': '/examples/hello-world',
+    'Reactive render': '/examples/reactive-render',
+    'Layer events': '/examples/layer-events',
+    'Pixel ratio': '/examples/pixel-ratio',
+    Scatterplot: '/examples/scatterplot',
+    Globe: '/examples/globe',
+    'DVD bounce': '/examples/dvd-bounce',
+    'Canvas + SVG': '/examples/canvas-svg',
+    'Resizeable layer': '/examples/resize',
+  },
+};
+
+export async function load() {
+  return { menu };
+}
 
 === 5430 src/routes/_components/Code.svelte	svelte	runes	runes
 <script module>
@@ -1026,6 +1310,30 @@ export default LayerManager;
     margin: 1.5rem 0 0.25rem;
   }
 </style>
+
+=== 551 src/routes/examples/+layout.server.ts	ts	module	-
+export function load({ route }) {
+  const [, category, page] = route.id.split('/');
+
+  if (category === 'examples') {
+    const allFiles = import.meta.glob<string>('./*/**.svelte', {
+      query: '?raw',
+      import: 'default',
+      eager: true,
+    });
+
+    const files = Object.entries(allFiles)
+      .filter(([path]) => path.includes(`/${page}/`))
+      .map(([path, content]) => [
+        path.split('/').reverse()[0],
+        content.replace(/\$lib/g, 'svelte-canvas'),
+      ]);
+
+    return { category, files };
+  }
+
+  return { category };
+}
 
 === 1044 src/routes/examples/canvas-svg/App.svelte	svelte	runes	runes
 <script>
@@ -1800,4 +2108,20 @@ export default LayerManager;
 </script>
 
 <Layer {render} />
+
+=== 260 vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [sveltekit()],
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext',
+    },
+  },
+  build: {
+    target: 'esnext',
+  },
+});
 

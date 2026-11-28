@@ -6,6 +6,8 @@ packages:
   - apps/vscode
   - tools/*
 allowBuilds:
+  # vsce signs only on publish, which this repository does not run from an install.
+  '@vscode/vsce-sign': false
   esbuild: true
   workerd: true
 # Packages are taken as soon as they are published, as with pnpm 10 (pnpm 11 waits a day by default).

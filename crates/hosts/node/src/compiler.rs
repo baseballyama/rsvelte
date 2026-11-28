@@ -145,3 +145,26 @@ const fn position(at: &LineColumn) -> Position {
         character: at.character,
     }
 }
+
+/// The modern AST as JSON, or the parse error.
+#[napi(object)]
+#[derive(Debug)]
+pub struct Parsed {
+    #[napi(js_name = "ast")]
+    pub syntax_tree: Option<String>,
+    pub error: Option<Report>,
+}
+
+#[must_use]
+pub fn parse(source: &str) -> Parsed {
+    match rsvelte_svelte_compile::parse(source) {
+        Ok(syntax_tree) => Parsed {
+            syntax_tree: Some(syntax_tree),
+            error: None,
+        },
+        Err(error) => Parsed {
+            syntax_tree: None,
+            error: Some(report(&LineIndex::new(source), &error)),
+        },
+    }
+}

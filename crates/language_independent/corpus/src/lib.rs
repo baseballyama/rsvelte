@@ -14,5 +14,5 @@ mod run;
 mod sources;
 pub mod task_files;
 
-pub use run::Conformance;
+pub use run::{Applies, Conformance, Unit};
 pub use sources::{Source, sources};

@@ -1,0 +1,5021 @@
+# rsvelte pack 1
+=== 365 src/hooks.server.ts	js
+/**
+ * Remove large sveltekit `link` header to be able to run behind reverse proxy
+ * `upstream sent too big header while reading response header from upstream`
+ */
+/** @type {import('@sveltejs/kit').Handle} */
+export async function handle({ event, resolve }) {
+    const response = await resolve(event);
+    response.headers.delete('link');
+    return response;
+}
+
+=== 4933 src/lib/Conditional.ts	js
+import { get, writable } from 'svelte/store';
+/**
+ * Checks every section in a view
+ * Runs whenever paramerers changes
+ */
+export function handleVisibility($editMode, sections, states) {
+    const viewSections = [];
+    sections.forEach((section) => {
+        if (handleAllConditions($editMode, states, section)) {
+            // horizontal-stack
+            if (section.type === 'horizontal-stack' && section.sections) {
+                const stack = section.sections.filter((nested) => {
+                    return handleAllConditions($editMode, states, nested);
+                });
+                // if every section in a horizontal-stack are hidden
+                // hide horizontal-stack itself
+                if (stack.length > 0) {
+                    section = {
+                        ...section,
+                        sections: stack
+                    };
+                    viewSections.push(section);
+                }
+            }
+            else {
+                // section
+                viewSections.push(section);
+            }
+        }
+    });
+    return viewSections;
+}
+/**
+ * Handles every section in handleVisibility
+ */
+export function handleAllConditions($editMode, $states, section) {
+    // early return if no states or visibility array
+    if (!$states || !section?.visibility)
+        return true;
+    return section.visibility.every((condition) => validateCondition($editMode, $states, section, condition));
+}
+/**
+ * Validates every condition in handleAllConditions
+ */
+export function validateCondition($editMode, $states, section, condition) {
+    switch (condition?.condition) {
+        case 'and':
+            return handleAnd($editMode, $states, section, condition);
+        case 'or':
+            return handleOr($editMode, $states, section, condition);
+        case 'state':
+            return handleState($states, condition);
+        case 'numeric_state':
+            return handleNumericState($states, condition);
+        case 'screen':
+            return handleScreen($editMode, section, condition);
+        default:
+            return false;
+    }
+}
+/**
+ * State
+ */
+export function handleState($states, conditions) {
+    if (!conditions?.entity || !$states?.[conditions?.entity])
+        return false;
+    const entityState = $states?.[conditions?.entity]?.state;
+    if (typeof conditions?.state !== 'undefined' && conditions?.state !== '') {
+        return entityState === conditions?.state;
+    }
+    else if (typeof conditions?.state_not !== 'undefined' && conditions?.state_not !== '') {
+        return entityState !== conditions?.state_not;
+    }
+    else {
+        return false;
+    }
+}
+/**
+ * Numeric
+ */
+export function handleNumericState($states, conditions) {
+    if (!conditions?.entity || !$states?.[conditions?.entity])
+        return false;
+    const entityState = parseFloat($states?.[conditions?.entity]?.state);
+    if (isNaN(entityState)) {
+        return false;
+    }
+    else if (typeof conditions?.above === 'number' && typeof conditions?.below === 'number') {
+        return entityState > conditions?.above && entityState < conditions?.below;
+    }
+    else if (typeof conditions?.above === 'number') {
+        return entityState > conditions?.above;
+    }
+    else if (typeof conditions?.below === 'number') {
+        return entityState < conditions?.below;
+    }
+    else {
+        return false;
+    }
+}
+/**
+ * And
+ */
+export function handleAnd($editMode, $states, section, condition) {
+    if (!condition.conditions?.length)
+        return false;
+    return (condition.conditions?.every((subCondition) => validateCondition($editMode, $states, section, subCondition)) ?? false);
+}
+/**
+ * Or
+ */
+export function handleOr($editMode, $states, section, condition) {
+    if (!condition.conditions?.length)
+        return false;
+    return (condition.conditions?.some((subCondition) => validateCondition($editMode, $states, section, subCondition)) ?? false);
+}
+export const mediaQueries = writable({});
+export function handleScreen($editMode, section, conditions) {
+    const id = section?.id;
+    if (!id || !conditions?.media_query)
+        return false;
+    // prevent infinite loop
+    if ($editMode) {
+        return window?.matchMedia(conditions?.media_query)?.matches;
+    }
+    const store = get(mediaQueries);
+    // cleanup
+    const prev = store?.[id];
+    if (prev?.mql && prev?.listener) {
+        prev?.mql?.removeEventListener('change', prev?.listener);
+        delete prev?.listener;
+    }
+    const mql = window?.matchMedia(conditions?.media_query);
+    const listener = () => {
+        mediaQueries?.update((mqs) => ({
+            ...mqs,
+            [id]: { ...mqs?.[id], matches: mql?.matches }
+        }));
+    };
+    mql?.addEventListener('change', listener);
+    mediaQueries?.update((mqs) => {
+        return {
+            ...mqs,
+            [id]: { mql, listener, matches: mql?.matches }
+        };
+    });
+    return mql?.matches;
+}
+
+=== 21000 src/lib/Modal/PictureElements/computeIcon.ts	js
+import { getDomain } from '$lib/Utils';
+/**
+ * New computeIcon.ts for picture elements
+ * This should replace computeIcon.svelte
+ */
+// https://github.com/home-assistant/frontend/blob/dev/src/common/const.ts
+const FIXED_DOMAIN_ICONS = {
+    air_quality: 'air-filter',
+    alert: 'alert',
+    automation: 'robot',
+    calendar: 'calendar',
+    climate: 'thermostat',
+    configurator: 'cog',
+    conversation: 'forum-outline',
+    counter: 'counter',
+    date: 'calendar',
+    datetime: 'calendar-clock',
+    demo: 'home-assistant',
+    device_tracker: 'account',
+    google_assistant: 'google-assistant',
+    group: 'google-circles-communities',
+    homeassistant: 'home-assistant',
+    homekit: 'home-automation',
+    image_processing: 'image-filter-frames',
+    image: 'image',
+    input_boolean: 'toggle-switch',
+    input_button: 'button-pointer',
+    input_datetime: 'calendar-clock',
+    input_number: 'ray-vertex',
+    input_select: 'format-list-bulleted',
+    input_text: 'rorm-textbox',
+    lawn_mower: 'robot-mower',
+    light: 'lightbulb',
+    notify: 'comment-alert',
+    number: 'ray-vertex',
+    persistent_notification: 'bell',
+    person: 'account',
+    plant: 'flower',
+    proximity: 'apple-safari',
+    remote: 'remote',
+    scene: 'palette',
+    schedule: 'calendar-clock',
+    script: 'script-text',
+    select: 'format-list-bulleted',
+    sensor: 'eye',
+    simple_alarm: 'bell',
+    siren: 'bullhorn',
+    stt: 'microphone-message',
+    sun: 'white-balance-sunny',
+    text: 'form-textbox',
+    time: 'clock',
+    timer: 'timer-outline',
+    todo: 'clipboard-list',
+    tts: 'speaker-message',
+    vacuum: 'robot-vacuum',
+    wake_word: 'chat-sleep',
+    weather: 'weather-partly-cloudy',
+    zone: 'map-marker-radius'
+};
+const FIXED_DEVICE_CLASS_ICONS = {
+    apparent_power: 'flash',
+    aqi: 'air-filter',
+    atmospheric_pressure: 'thermometer-lines',
+    carbon_dioxide: 'molecule-co2',
+    carbon_monoxide: 'molecule-co',
+    current: 'current-ac',
+    data_rate: 'transmission-tower',
+    data_size: 'database',
+    date: 'calendar',
+    distance: 'arrow-left-right',
+    duration: 'progress-clock',
+    energy: 'lightning-bolt',
+    frequency: 'sine-wave',
+    gas: 'meter-gas',
+    humidity: 'water-percent',
+    illuminance: 'brightness-5',
+    irradiance: 'sun-wireless',
+    moisture: 'water-percent',
+    monetary: 'cash',
+    nitrogen_dioxide: 'molecule',
+    nitrogen_monoxide: 'molecule',
+    nitrous_oxide: 'molecule',
+    ozone: 'molecule',
+    ph: 'ph',
+    pm1: 'molecule',
+    pm10: 'molecule',
+    pm25: 'molecule',
+    power: 'flash',
+    power_factor: 'angle-acute',
+    precipitation: 'weather-rainy',
+    precipitation_intensity: 'weather-pouring',
+    pressure: 'gauge',
+    reactive_power: 'flash',
+    shopping_List: 'format-list-checkbox',
+    signal_strength: 'wifi',
+    sound_pressure: 'ear-hearing',
+    speed: 'speedometer',
+    sulphur_dioxide: 'molecule',
+    temperature: 'thermometer',
+    timestamp: 'clock',
+    volatile_organic_compounds: 'molecule',
+    volatile_organic_compounds_parts: 'molecule',
+    voltage: 'sine-wave',
+    volume: 'car-coolant-level',
+    volume_flow_rate: 'pipe',
+    water: 'water',
+    weight: 'weight',
+    wind_speed: 'weather-windy'
+};
+const STATE_ICONS = {
+    alarm_control_panel: handleAlarmControlPanel,
+    automation: handleAutomation,
+    binary_sensor: handleBinarySensor,
+    button: handleButton,
+    calendar: handleCalendar,
+    camera: handleCamera,
+    climate: handleClimate,
+    cover: handleCover,
+    device_tracker: handleDeviceTracker,
+    event: handleEvent,
+    fan: handleFan,
+    humidifier: handleHumidifier,
+    input_boolean: handleInputBoolean,
+    input_datetime: handleInputDatetime,
+    lock: handleLock,
+    media_player: handleMediaPlayer,
+    person: handlePerson,
+    script: handleScript,
+    sensor: handleSensor,
+    sun: handleSun,
+    switch: handleSwitch,
+    update: handleUpdate,
+    valve: handleValve,
+    water_heater: handleWaterHeater,
+    weather: handleWeather
+};
+// https://github.com/home-assistant/frontend/blob/dev/src/common/entity/device_tracker_icon.ts
+function handleDeviceTracker(stateObj) {
+    const { state, attributes } = stateObj;
+    if (attributes?.source_type === 'router') {
+        return state === 'home' ? 'lan-connect' : 'lan-disconnect';
+    }
+    if (['bluetooth', 'bluetooth_le'].includes(attributes?.source_type)) {
+        return state === 'home' ? 'bluetooth-connect' : 'bluetooth';
+    }
+    return state === 'not_home' ? 'account-arrow-right' : 'account';
+}
+// https://github.com/home-assistant/frontend/blob/dev/src/common/entity/state_icon.ts
+function handleInputDatetime(stateObj) {
+    const { attributes } = stateObj;
+    if (!attributes?.has_date) {
+        return 'clock';
+    }
+    if (!attributes?.has_time) {
+        return 'calendar';
+    }
+    return FIXED_DOMAIN_ICONS['input_datetime'];
+}
+function handleSun(stateObj) {
+    const { state } = stateObj;
+    return state === 'above_horizon' ? 'white-balance-sunny' : 'weather-night';
+}
+function handleUpdate(stateObj) {
+    const { state, attributes } = stateObj;
+    const updateIsInstalling = ((attributes.supported_features ?? 0) & 4 && typeof attributes.in_progress === 'number') ||
+        !!attributes.in_progress;
+    return state === 'on' ? (updateIsInstalling ? 'package-down' : 'package-up') : 'package';
+}
+// https://github.com/home-assistant/frontend/blob/dev/src/fake_data/entity_component_icons.ts
+function handleAlarmControlPanel(stateObj) {
+    const { state } = stateObj;
+    switch (state) {
+        case 'armed_away':
+            return 'shield-lock';
+        case 'armed_custom_bypass':
+            return 'security';
+        case 'armed_home':
+            return 'shield-home';
+        case 'armed_night':
+            return 'shield-moon';
+        case 'armed_vacation':
+            return 'shield-airplane';
+        case 'disarmed':
+            return 'shield-off';
+        case 'pending':
+            return 'shield-outline';
+        case 'triggered':
+            return 'bell-ring';
+        default:
+            return 'shield';
+    }
+}
+function handleAutomation(stateObj) {
+    const { state } = stateObj;
+    if (state === 'unavailable')
+        return 'robot-confused';
+    return state === 'on' ? FIXED_DOMAIN_ICONS['automation'] : 'robot-off';
+}
+function handleInputBoolean(stateObj) {
+    const { state } = stateObj;
+    return state === 'on' ? 'check-circle-outline' : 'close-circle-outline';
+}
+function handlePerson(stateObj) {
+    const { state } = stateObj;
+    return state === 'not_home' ? 'account-arrow-right' : FIXED_DOMAIN_ICONS['person'];
+}
+function handleCamera(stateObj) {
+    const { state } = stateObj;
+    return state === 'off' ? 'video-off' : 'video';
+}
+function handleFan(stateObj) {
+    const { state } = stateObj;
+    return state === 'off' ? 'fan-off' : 'fan';
+}
+function handleHumidifier(stateObj) {
+    const { state } = stateObj;
+    return state === 'off' ? 'air-humidifier-off' : 'air-humidifier';
+}
+function handleButton(stateObj) {
+    const { attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'restart':
+            return 'restart';
+        case 'update':
+            return 'package-up';
+        case 'identify':
+            return 'crosshairs-question';
+        default:
+            return 'button-pointer';
+    }
+}
+function handleEvent(stateObj) {
+    const { attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'button':
+            return 'gesture-tap-button';
+        case 'doorbell':
+            return 'doorbell';
+        case 'motion':
+            return 'motion-sensor';
+        default:
+            return 'eye-check';
+    }
+}
+function handleLock(stateObj) {
+    const { state } = stateObj;
+    switch (state) {
+        case 'jammed':
+            return 'lock-alert';
+        case 'unlocked':
+            return 'lock-open';
+        case 'locking':
+        case 'unlocking':
+        case 'opening':
+            return 'lock-clock';
+        case 'open':
+            return 'lock-open-variant';
+        default:
+            return 'lock';
+    }
+}
+function handleWaterHeater(stateObj) {
+    const { state } = stateObj;
+    return state === 'off' ? 'water-boiler-off' : 'water-boiler';
+}
+function handleValve(stateObj) {
+    const { attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'gas':
+            return 'meter-gas';
+        case 'water':
+            return 'pipe-valve';
+        default:
+            return 'pipe-valve';
+    }
+}
+function handleSwitch(stateObj) {
+    const { state, attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'switch':
+            return state === 'on' ? 'toggle-switch-variant' : 'toggle-switch-variant-off';
+        case 'outlet':
+            return state === 'on' ? 'power-plug' : 'power-plug-off';
+        default:
+            return 'toggle-switch-variant';
+    }
+}
+function handleMediaPlayer(stateObj) {
+    const { state, attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'receiver':
+            switch (state) {
+                case 'off':
+                    return 'audio-video-off';
+                default:
+                    return 'audio-video';
+            }
+        case 'speaker':
+            switch (state) {
+                case 'off':
+                    return 'speaker-off';
+                case 'paused':
+                    return 'speaker-pause';
+                case 'playing':
+                    return 'speaker-play';
+                default:
+                    return 'speaker';
+            }
+        case 'tv':
+            switch (state) {
+                case 'off':
+                    return 'television-off';
+                case 'paused':
+                    return 'television-pause';
+                case 'playing':
+                    return 'television-play';
+                default:
+                    return 'television';
+            }
+        default:
+            switch (state) {
+                case 'off':
+                    return 'cast-off';
+                case 'playing':
+                case 'paused':
+                    return 'cast-connected';
+                default:
+                    return 'cast';
+            }
+    }
+}
+// https://github.com/home-assistant/frontend/blob/dev/src/common/entity/battery_icon.ts
+function batteryIcon(state, attributes) {
+    const BATTERY_ICONS = {
+        10: 'battery-10',
+        20: 'battery-20',
+        30: 'battery-30',
+        40: 'battery-40',
+        50: 'battery-50',
+        60: 'battery-60',
+        70: 'battery-70',
+        80: 'battery-80',
+        90: 'battery-90',
+        100: 'battery'
+    };
+    const BATTERY_CHARGING_ICONS = {
+        10: 'battery-charging-10',
+        20: 'battery-charging-20',
+        30: 'battery-charging-30',
+        40: 'battery-charging-40',
+        50: 'battery-charging-50',
+        60: 'battery-charging-60',
+        70: 'battery-charging-70',
+        80: 'battery-charging-80',
+        90: 'battery-charging-90',
+        100: 'battery-charging'
+    };
+    const batteryValue = Number(state);
+    if (isNaN(batteryValue)) {
+        if (state === 'off') {
+            return 'battery';
+        }
+        if (state === 'on') {
+            return 'battery-alert';
+        }
+        return 'battery-unknown';
+    }
+    const batteryRound = Math.round(batteryValue / 10) * 10;
+    if (attributes?.is_charging && batteryValue >= 10) {
+        return BATTERY_CHARGING_ICONS[batteryRound];
+    }
+    if (attributes?.is_charging) {
+        return 'battery-charging-outline';
+    }
+    if (batteryValue <= 5) {
+        return 'battery-alert-variant-outline';
+    }
+    return BATTERY_ICONS[batteryRound];
+}
+function handleSensor(stateObj) {
+    const { state, attributes } = stateObj;
+    if (attributes?.device_class === 'battery') {
+        return batteryIcon(state, attributes);
+    }
+    if (attributes?.unit_of_measurement === '°C' || attributes?.unit_of_measurement === '°F') {
+        return 'thermometer';
+    }
+    return FIXED_DOMAIN_ICONS['sensor'];
+}
+function handleWeather(stateObj) {
+    const { state } = stateObj;
+    switch (state) {
+        case 'clear-night':
+            return 'weather-night';
+        case 'cloudy':
+            return 'weather-cloudy';
+        case 'exceptional':
+            return 'alert-circle-outline';
+        case 'fog':
+            return 'weather-fog';
+        case 'hail':
+            return 'weather-hail';
+        case 'lightning':
+            return 'weather-lightning';
+        case 'lightning-rainy':
+            return 'weather-lightning-rainy';
+        case 'pouring':
+            return 'weather-pouring';
+        case 'rainy':
+            return 'weather-rainy';
+        case 'snowy':
+            return 'weather-snowy';
+        case 'snowy-rainy':
+            return 'weather-snowy-rainy';
+        case 'sunny':
+            return 'weather-sunny';
+        case 'windy':
+            return 'weather-windy';
+        case 'windy-variant':
+            return 'weather-windy-variant';
+        default:
+            return 'weather-partly-cloudy';
+    }
+}
+function handleCalendar(stateObj) {
+    const { state } = stateObj;
+    switch (state) {
+        case 'on':
+            return 'calendar-check';
+        case 'off':
+            return 'calendar-blank';
+        default:
+            return 'calendar';
+    }
+}
+function handleScript(stateObj) {
+    const { state } = stateObj;
+    return state === 'on' ? 'script-text-play' : 'script-text';
+}
+function handleClimate(stateObj) {
+    const { attributes } = stateObj;
+    switch (attributes?.hvac_action) {
+        case 'cooling':
+            return 'snowflake';
+        case 'drying':
+            return 'water-percent';
+        case 'fan':
+            return 'fan';
+        case 'heating':
+            return 'fire';
+        case 'idle':
+            return 'clock-outline';
+        case 'off':
+            return 'power';
+        case 'preheating':
+            return 'heat-wave';
+        case 'defrosting':
+            return 'snowflake-melt';
+    }
+    switch (attributes?.preset_mode) {
+        case 'activity':
+            return 'motion-sensor';
+        case 'away':
+            return 'account-arrow-right';
+        case 'boost':
+            return 'rocket-launch';
+        case 'comfort':
+            return 'sofa';
+        case 'eco':
+            return 'leaf';
+        case 'home':
+            return 'home';
+        case 'sleep':
+            return 'bed';
+    }
+    return 'thermostat';
+}
+function handleBinarySensor(stateObj) {
+    const { state, attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'battery':
+            return state === 'on' ? 'battery-outline' : 'battery';
+        case 'battery_charging':
+            return state === 'on' ? 'battery-charging' : 'battery';
+        case 'carbon_monoxide':
+            return state === 'on' ? 'smoke-detector-alert' : 'smoke-detector';
+        case 'cold':
+            return state === 'on' ? 'snowflake' : 'thermometer';
+        case 'connectivity':
+            return state === 'on' ? 'check-network-outline' : 'close-network-outline';
+        case 'door':
+            return state === 'on' ? 'door-open' : 'door-closed';
+        case 'garage_door':
+            return state === 'on' ? 'garage-open' : 'garage';
+        case 'gas':
+        case 'problem':
+        case 'safety':
+        case 'tamper':
+            return state === 'on' ? 'alert-circle' : 'check-circle';
+        case 'power':
+        case 'plug':
+            return state === 'on' ? 'power-plug' : 'power-plug-off';
+        case 'heat':
+            return state === 'on' ? 'fire' : 'thermometer';
+        case 'light':
+            return state === 'on' ? 'brightness-7' : 'brightness-5';
+        case 'lock':
+            return state === 'on' ? 'lock-open' : 'lock';
+        case 'moisture':
+            return state === 'on' ? 'water' : 'water-off';
+        case 'motion':
+            return state === 'on' ? 'motion-sensor' : 'motion-sensor-off';
+        case 'moving':
+            return state === 'on' ? 'octagon' : 'arrow-right';
+        case 'occupancy':
+        case 'presence':
+            return state === 'on' ? 'home' : 'home-outline';
+        case 'opening':
+            return state === 'on' ? 'square-outline' : 'square';
+        case 'running':
+            return state === 'on' ? 'play' : 'stop';
+        case 'smoke':
+            return state === 'on' ? 'smoke-detector-variant-alert' : 'smoke-detector-variant';
+        case 'sound':
+            return state === 'on' ? 'music-note' : 'music-note-off';
+        case 'update':
+            return state === 'on' ? 'package-up' : 'package';
+        case 'vibration':
+            return state === 'on' ? 'vibrate' : 'crop-portrait';
+        case 'window':
+            return state === 'on' ? 'window-open' : 'window-closed';
+        default:
+            return state === 'on' ? 'checkbox-marked-circle' : 'radiobox-blank';
+    }
+}
+function handleCover(stateObj) {
+    const { state, attributes } = stateObj;
+    switch (attributes?.device_class) {
+        case 'blind':
+            switch (state) {
+                case 'closed':
+                    return 'blinds-horizontal-closed';
+                case 'closing':
+                    return 'arrow-down-box';
+                case 'opening':
+                    return 'arrow-up-box';
+                default:
+                    return 'blinds-horizontal';
+            }
+        case 'curtain':
+            switch (state) {
+                case 'closed':
+                    return 'curtains-closed';
+                case 'closing':
+                    return 'arrow-collapse-horizontal';
+                case 'opening':
+                    return 'arrow-split-vertical';
+                default:
+                    return 'curtains';
+            }
+        case 'damper':
+            return state === 'closed' ? 'circle-slice-8' : 'circle';
+        case 'door':
+            return state === 'closed' ? 'door-closed' : 'door-open';
+        case 'garage':
+            switch (state) {
+                case 'closed':
+                    return 'garage';
+                case 'closing':
+                    return 'arrow-down-box';
+                case 'opening':
+                    return 'arrow-up-box';
+                default:
+                    return 'garage-open';
+            }
+        case 'gate':
+            switch (state) {
+                case 'closed':
+                    return 'gate';
+                case 'closing':
+                case 'opening':
+                    return 'arrow-right';
+                default:
+                    return 'gate-open';
+            }
+        case 'shade':
+            switch (state) {
+                case 'closed':
+                    return 'roller-shade-closed';
+                case 'closing':
+                    return 'arrow-down-box';
+                case 'opening':
+                    return 'arrow-up-box';
+                default:
+                    return 'roller-shade';
+            }
+        case 'shutter':
+            switch (state) {
+                case 'closed':
+                    return 'window-shutter';
+                case 'closing':
+                    return 'arrow-down-box';
+                case 'opening':
+                    return 'arrow-up-box';
+                default:
+                    return 'window-shutter-open';
+            }
+        case 'window':
+            switch (state) {
+                case 'closed':
+                    return 'window-closed';
+                case 'closing':
+                    return 'arrow-down-box';
+                case 'opening':
+                    return 'arrow-up-box';
+                default:
+                    return 'window-open';
+            }
+        default:
+            switch (state) {
+                case 'closed':
+                    return 'window-closed';
+                case 'closing':
+                    return 'arrow-down-box';
+                case 'opening':
+                    return 'arrow-up-box';
+                default:
+                    return 'window-open';
+            }
+    }
+}
+export function computeIcon(entity_id, $states) {
+    const stateObj = $states?.[entity_id];
+    const domain = getDomain(entity_id);
+    if (!stateObj || !domain)
+        return 'mdi:help-circle-outline';
+    const { attributes } = stateObj;
+    // icon
+    if (attributes?.icon && attributes?.icon?.startsWith('mdi')) {
+        return attributes.icon;
+    }
+    // device class
+    if (attributes?.device_class && FIXED_DEVICE_CLASS_ICONS[attributes.device_class]) {
+        return `mdi:${FIXED_DEVICE_CLASS_ICONS[attributes.device_class]}`;
+    }
+    // state
+    if (STATE_ICONS[domain] && typeof STATE_ICONS[domain] === 'function') {
+        return `mdi:${STATE_ICONS[domain](stateObj)}`;
+    }
+    // domain
+    if (FIXED_DOMAIN_ICONS[domain]) {
+        return `mdi:${FIXED_DOMAIN_ICONS[domain]}`;
+    }
+    // fallback
+    return 'mdi:help-circle-outline';
+}
+
+=== 2891 src/lib/Modal/PictureElements/fonts.ts	js
+/**
+ * There is no way to know which fonts are installed on the client...
+ * This compares the width of commonly installed fonts against a baseline
+ */
+export async function getFontList() {
+    await document.fonts.ready;
+    const canvas = typeof OffscreenCanvas !== 'undefined'
+        ? new OffscreenCanvas(0, 0)
+        : document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx)
+        return [];
+    const test = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    ctx.font = '12px monospace';
+    const baseline = ctx.measureText(test).width;
+    return fonts.filter((font) => {
+        ctx.font = `12px "${font}", monospace`;
+        return ctx.measureText(test).width !== baseline;
+    });
+}
+/**
+ * Common fonts that might be available
+ */
+const fonts = [
+    'American Typewriter',
+    'Andale Mono',
+    'Arial',
+    'Arial Black',
+    'Arial Narrow',
+    'Arial Rounded MT Bold',
+    'Arial Unicode MS',
+    'Avenir',
+    'Avenir Next',
+    'Avenir Next Condensed',
+    'Bahnschrift',
+    'Baskerville',
+    'Big Caslon',
+    'Bodoni 72',
+    'Bodoni 72 Oldstyle',
+    'Bodoni 72 Smallcaps',
+    'Bradley Hand',
+    'Brush Script MT',
+    'Calibri',
+    'Cambria',
+    'Cambria Math',
+    'Candara',
+    'Chalkboard',
+    'Chalkboard SE',
+    'Chalkduster',
+    'Charter',
+    'Cochin',
+    'Comic Sans MS',
+    'Consolas',
+    'Constantia',
+    'Copperplate',
+    'Corbel',
+    'Courier',
+    'Courier New',
+    'DIN Alternate',
+    'DIN Condensed',
+    'Didot',
+    'Ebrima',
+    'Franklin Gothic Medium',
+    'Futura',
+    'Gabriola',
+    'Gadugi',
+    'Geneva',
+    'Georgia',
+    'Gill Sans',
+    'Helvetica',
+    'Helvetica Neue',
+    'Herculanum',
+    'Hoefler Text',
+    'HoloLens MDL2 Assets',
+    'Impact',
+    'Ink Free',
+    'Inter Variable',
+    'Javanese Text',
+    'Leelawadee UI',
+    'Lucida Console',
+    'Lucida Grande',
+    'Lucida Sans Unicode',
+    'Luminari',
+    'MS Gothic',
+    'MV Boli',
+    'Malgun Gothic',
+    'Marker Felt',
+    'Marlett',
+    'Menlo',
+    'Microsoft Himalaya',
+    'Microsoft JhengHei',
+    'Microsoft New Tai Lue',
+    'Microsoft PhagsPa',
+    'Microsoft Sans Serif',
+    'Microsoft Tai Le',
+    'Microsoft YaHei',
+    'Microsoft Yi Baiti',
+    'MingLiU-ExtB',
+    'Monaco',
+    'Mongolian Baiti',
+    'Myanmar Text',
+    'Nirmala UI',
+    'Noteworthy',
+    'Optima',
+    'Palatino',
+    'Palatino Linotype',
+    'Papyrus',
+    'Phosphate',
+    'Rockwell',
+    'Savoye LET',
+    'Segoe MDL2 Assets',
+    'Segoe Print',
+    'Segoe Script',
+    'Segoe UI',
+    'Segoe UI Emoji',
+    'Segoe UI Historic',
+    'Segoe UI Symbol',
+    'SignPainter',
+    'SimSun',
+    'Sitka',
+    'Skia',
+    'Snell Roundhand',
+    'Symbol',
+    'Sylfaen',
+    'Tahoma',
+    'Times',
+    'Times New Roman',
+    'Trattatello',
+    'Trebuchet MS',
+    'Verdana',
+    'Webdings',
+    'Wingdings',
+    'Yu Gothic',
+    'Zapfino'
+];
+
+=== 1596 src/lib/Modal/PictureElements/icons.ts	js
+export const icons = {
+    // ActionPanel.svelte
+    tapAction: 'game-icons:click',
+    expand: 'octicon:chevron-down-12',
+    collapse: 'octicon:chevron-up-12',
+    test: 'mdi:call-bell',
+    success: 'mdi:success-bold',
+    fail: 'mdi:alert',
+    // ElementsPanel.svelte
+    elements: 'ic:baseline-layers',
+    locked: 'mdi:lock',
+    unlocked: 'mdi:lock-open',
+    delete: 'ic:round-delete',
+    hidden: 'lucide:eye-off',
+    visible: 'lucide:eye',
+    broken: 'mdi:image-broken',
+    group: 'tabler:folder-filled',
+    // SelectedAttributes.svelte
+    tip: 'fxemoji:lightbulb',
+    shapes: 'material-symbols-light:shapes',
+    // TextPanel.svelte
+    text: 'fluent:text-12-filled',
+    textBox: 'solar:text-selection-bold',
+    letterSpacing: 'tabler:letter-spacing',
+    lineHeight: 'tabler:line-height',
+    bold: 'mdi:format-bold',
+    italic: 'mdi:format-italic',
+    alignLeft: 'bi:text-left',
+    alignCenter: 'bi:text-center',
+    alignRight: 'bi:text-right',
+    ellipsis: 'lucide:ellipsis',
+    // Toolbar.svelte
+    default: 'mage:mouse-pointer-fill',
+    pan: 'fa6-solid:hand',
+    zoom: 'streamline:magnifying-glass-solid',
+    'state-label': 'majesticons:comment-text',
+    'state-icon': 'mdi:lightbulb',
+    icon: 'mdi:shape',
+    image: 'mdi:image',
+    rectangle: 'ic:round-rectangle',
+    circle: 'material-symbols:circle',
+    // TransformAttributes.svelte
+    'v-guide': 'vaadin:resize-v',
+    'h-guide': 'vaadin:resize-h',
+    chain: 'akar-icons:link-chain',
+    undo: 'ion:arrow-undo-sharp',
+    redo: 'ion:arrow-redo-sharp',
+    help: 'material-symbols:help-rounded'
+};
+
+=== 15777 src/lib/Modal/PictureElements/konvaBase.ts	js
+import Konva from 'konva';
+import { get } from 'svelte/store';
+import { konvaImageCache, states } from '$lib/Stores';
+import { getIcon, iconExists, loadIcon } from '@iconify/svelte';
+import { icons } from '$lib/Modal/PictureElements/icons';
+import { computeIcon } from './computeIcon';
+/**
+ * Shared methods for `KonvaViewer` and `KonvaEditor`
+ */
+export class KonvaBase {
+    stage;
+    layer;
+    // svg parser
+    parser = new DOMParser();
+    serializer = new XMLSerializer();
+    // states store
+    unsubscribe;
+    defaultIconColor = '#d5d5d5';
+    // instance id
+    selId;
+    // browser zoom pixel ratio
+    devicePixelRatio = window.devicePixelRatio || 1;
+    visualViewportScale = visualViewport?.scale || 1;
+    debounceFunction;
+    constructor(container, data) {
+        const stageData = JSON.stringify(data);
+        this.stage = Konva.Node.create(stageData, container);
+        this.layer = this.stage.findOne('Layer');
+        this.selId = data?.attrs?.id;
+        if (this.devicePixelRatio && this.visualViewportScale) {
+            const canvas = this.layer.getCanvas();
+            canvas.setPixelRatio(this.devicePixelRatio * this.visualViewportScale);
+        }
+        this.debounceFunction = this.debounce(this.handleScaleChange, 50);
+        visualViewport?.addEventListener('resize', this.debounceFunction);
+        window.addEventListener('resize', this.handleZoomChange);
+    }
+    /**
+     * Can be overridden in `KonvaEditor`
+     */
+    updateCallback() {
+        // this.update();
+    }
+    /**
+     * Helper to check for `Konva.Line` guides
+     */
+    isGuide(node) {
+        return node?.attrs?.type?.includes('-guide');
+    }
+    /**
+     * Handles updating `state-icon`
+     * - sets default icon if `entity_id` is missing
+     * - updates `icon` if it doesn't match previous icon
+     * - updates icon `state_color` if icon matches but not color
+     */
+    async updateStateIcon(node, $states) {
+        const entity_id = node.getAttr('entity_id');
+        if (!entity_id) {
+            node.setAttr('icon', icons['state-icon']);
+            node.setAttr('state_color', undefined);
+            this.updateIcon(node);
+            return;
+        }
+        if (!$states)
+            $states = get(states);
+        const nodeIcon = node.getAttr('icon');
+        const nodeColor = node.getAttr('color');
+        const nodeStateColor = node.getAttr('state_color');
+        const computedIcon = computeIcon(entity_id, $states);
+        const entityAttrs = $states?.[entity_id]?.attributes;
+        const computedStateColor = entityAttrs?.hs_color
+            ? `hsl(${entityAttrs?.hs_color}%, 50%)`
+            : undefined;
+        node.setAttrs({
+            icon: computedIcon,
+            color: nodeColor,
+            state_color: computedStateColor
+        });
+        if (computedIcon && computedIcon !== nodeIcon) {
+            node.setAttrs({
+                icon: computedIcon,
+                color: nodeColor,
+                state_color: computedStateColor
+            });
+            await this.updateIcon(node);
+        }
+        else if (computedStateColor && computedStateColor !== nodeStateColor) {
+            node.setAttr('state_color', computedStateColor);
+            this.updateIconColor(node, computedStateColor);
+        }
+        else if (!computedStateColor) {
+            this.updateIconColor(node, nodeColor);
+        }
+    }
+    /**
+     * Handles updating `state-label`
+     * - Updates `text` if it doesn't match previous text
+     * - Sets text to 'unknown' if it can't update
+     */
+    updateStateLabel(node, $states) {
+        const unknownState = 'unknown';
+        const entity_id = node.getAttr('entity_id');
+        if (!entity_id || entity_id?.trim() === '') {
+            if (node.text() !== unknownState) {
+                node.text(unknownState);
+            }
+            return;
+        }
+        if (!$states)
+            $states = get(states);
+        const entity = $states?.[entity_id];
+        const entityState = entity?.state;
+        if (entityState) {
+            if (node.text() !== entityState)
+                node.text(entityState);
+        }
+        else {
+            if (node.text() !== unknownState)
+                node.text(unknownState);
+        }
+    }
+    /**
+     * Update image
+     * - Sets gray placeholder on error
+     */
+    async updateImage(node, src, fitImage) {
+        return new Promise((resolve) => {
+            const image = new Image();
+            image.onload = () => {
+                node.image(image);
+                node.width(image.naturalWidth);
+                node.height(image.naturalHeight);
+                if (fitImage)
+                    this.fitImage(node);
+                this.updateCallback();
+                resolve();
+            };
+            image.onerror = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = node.width() || 100;
+                canvas.height = node.height() || 100;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.fillStyle = 'gray';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                node.image(canvas);
+                resolve();
+            };
+            node.setAttr('src', src);
+            image.src = src;
+        });
+    }
+    /**
+     * Fits image to canvas
+     * - canvas reference is defined in editor
+     */
+    fitImage(node) {
+        const canvasLayer = this.stage.findOne('Layer');
+        const canvas = canvasLayer.findOne('Rect');
+        const padding = 15;
+        const centerX = canvas.x() + canvas.width() / 2;
+        const centerY = canvas.y() + canvas.height() / 2;
+        const maxWidth = canvas.width() - padding * 2;
+        const maxHeight = canvas.height() - padding * 2;
+        const scale = Math.min(1, maxWidth / node.width(), maxHeight / node.height());
+        node.setAttrs({
+            x: centerX - (node.width() * scale) / 2,
+            y: centerY - (node.height() * scale) / 2,
+            scaleX: scale,
+            scaleY: scale
+        });
+        node.move({
+            x: -this.layer.x(),
+            y: -this.layer.y()
+        });
+    }
+    /**
+     * Helper method to load image
+     */
+    async loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+            image.src = src;
+        });
+    }
+    /**
+     * Handles $konvaImageCache store
+     *
+     * Stores images by id so it can be passed
+     * to KonvaEditor without refetching images
+     */
+    updateImageCache(id, image) {
+        konvaImageCache.update((cache) => {
+            if (!cache[this.selId])
+                cache[this.selId] = {};
+            cache[this.selId][id] = image;
+            return cache;
+        });
+    }
+    /**
+     * Updates icon
+     * - Loads new icon from `handleSvg` data
+     * - Adds it to `$konvaImageCache`
+     * - Update callback for `KonvaEditor`
+     */
+    async updateIcon(node) {
+        if (!node.getAttr('icon'))
+            return;
+        const result = await this.handleSvg(node, undefined);
+        if (!result)
+            return;
+        const { width, height, url } = result;
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                node.image(image);
+                node.setAttrs({ width, height });
+                if (node.getAttr('id')) {
+                    this.updateImageCache(node.getAttr('id'), image);
+                }
+                this.updateCallback();
+                resolve();
+            };
+            image.onerror = (err) => reject(err);
+            image.src = url;
+        });
+    }
+    /**
+     * Sets icon color by decoding svg
+     * uri without fetching icon again
+     */
+    updateIconColor(node, color) {
+        const image = node.getAttr('image');
+        if (!image)
+            return;
+        const parts = image.src.split(',');
+        const decoded = decodeURIComponent(parts[1]);
+        const parsed = this.parser.parseFromString(decoded, 'image/svg+xml');
+        const svg = parsed.documentElement;
+        svg.style.color = color;
+        const svgString = this.serializer.serializeToString(svg);
+        image.src = 'data:image/svg+xml,' + encodeURIComponent(svgString);
+        this.updateCallback();
+    }
+    /**
+     * Loads iconify data and returns an svg encoded uri
+     * - handles either a `node` or string like 'mdi:dog'
+     * - fetches new icon using iconify api
+     * - handles aspect ratio for non-uniform icons like 'fa6-solid:arrow-down-long'
+     */
+    async handleSvg(node, icon, color) {
+        icon = icon || node?.getAttr('icon');
+        if (!icon) {
+            console.error('no icon specified');
+            return;
+        }
+        let data;
+        try {
+            if (iconExists(icon)) {
+                const existingIcon = getIcon(icon);
+                if (existingIcon) {
+                    data = existingIcon;
+                }
+                else {
+                    data = await loadIcon(icon);
+                }
+            }
+            else {
+                data = await loadIcon(icon);
+            }
+        }
+        catch {
+            data = await loadIcon('mdi:image-broken');
+        }
+        const defaultSize = 64;
+        const iconWidth = data?.width || defaultSize;
+        const iconHeight = data?.height || defaultSize;
+        const iconColor = color || node?.getAttr('state_color') || node?.getAttr('color');
+        const scalingFactor = defaultSize / Math.max(iconWidth, iconHeight);
+        const maxWidth = Math.round(iconWidth * scalingFactor);
+        const maxHeight = Math.round(iconHeight * scalingFactor);
+        const offsetX = (defaultSize - maxWidth) / 2;
+        const offsetY = (defaultSize - maxHeight) / 2;
+        const scale = `${maxWidth / iconWidth}, ${maxHeight / iconHeight}`;
+        const svg = `
+			<svg xmlns="http://www.w3.org/2000/svg"
+				viewBox="0 0 ${defaultSize} ${defaultSize}"
+				width="${defaultSize}"
+				height="${defaultSize}"
+				preserveAspectRatio="none"
+				style="color: ${iconColor};"
+			>
+				<g transform="translate(${offsetX}, ${offsetY}) scale(${scale})">
+					${data?.body || ''}
+				</g>
+			</svg>
+		`;
+        return {
+            url: `data:image/svg+xml,${encodeURIComponent(svg)}`,
+            width: node?.getAttr('width') || defaultSize,
+            height: node?.getAttr('height') || defaultSize,
+            color: iconColor
+        };
+    }
+    /**
+     * Explicitly get shape attributes, because
+     * Konva doesn't include default values with `toJSON()` ...
+     */
+    getShapeAttrs(node) {
+        const type = node?.attrs?.type;
+        let attrs = {
+            id: node.id(),
+            type: node?.attrs?.type,
+            name: node.name(),
+            x: node.x(),
+            y: node.y(),
+            width: node.width(),
+            height: node.height(),
+            scaleX: node.scaleX(),
+            scaleY: node.scaleY(),
+            rotation: node.rotation(),
+            opacity: node.opacity(),
+            draggable: node.draggable(),
+            listening: node.listening(),
+            visible: node.visible(),
+            prevDraggable: node?.getAttr('prevDraggable')
+        };
+        const onclick = node.getAttr('onclick');
+        if (onclick)
+            attrs.onclick = JSON.parse(JSON.stringify(onclick));
+        if (node instanceof Konva.Image) {
+            if (type === 'image') {
+                attrs = {
+                    ...attrs,
+                    image: node.image(),
+                    src: node.getAttr('src')
+                };
+            }
+            else if (type === 'icon') {
+                attrs = {
+                    ...attrs,
+                    image: node.image(),
+                    icon: node.getAttr('icon'),
+                    color: node.getAttr('color')
+                };
+            }
+            else if (type === 'state-icon') {
+                attrs = {
+                    ...attrs,
+                    entity_id: node.getAttr('entity_id'),
+                    state_color: node.getAttr('state_color'),
+                    color: node.getAttr('color')
+                };
+            }
+        }
+        else if (node instanceof Konva.Text) {
+            attrs = {
+                ...attrs,
+                box: !!node?.getAttr('box'),
+                fill: node.fill(),
+                fontFamily: node.fontFamily(),
+                fontSize: node.fontSize(),
+                letterSpacing: node.letterSpacing(),
+                lineHeight: node.lineHeight(),
+                fontStyle: node.fontStyle(),
+                align: node.align(),
+                ellipsis: node.ellipsis()
+            };
+            if (!node.getAttr('box')) {
+                attrs.width = undefined;
+                attrs.height = undefined;
+            }
+            if (type === 'state-label') {
+                attrs.entity_id = node.getAttr('entity_id');
+            }
+            else if (type !== 'state-label') {
+                attrs.text = node.text();
+            }
+        }
+        else if (node instanceof Konva.Rect) {
+            attrs = {
+                ...attrs,
+                fill: node.fill(),
+                cornerRadius: node.cornerRadius()
+            };
+        }
+        else if (node instanceof Konva.Circle) {
+            attrs = {
+                ...attrs,
+                fill: node.fill(),
+                radius: node.radius()
+            };
+        }
+        else if (node instanceof Konva.Line) {
+            attrs = {
+                ...attrs,
+                points: node.points(),
+                stroke: node.stroke(),
+                strokeWidth: node.strokeWidth(),
+                hitStrokeWidth: node.hitStrokeWidth(),
+                strokeScaleEnabled: node.strokeScaleEnabled()
+            };
+        }
+        return attrs;
+    }
+    /**
+     * Debounce method for `handleScaleChange()`
+     */
+    debounce(func, wait) {
+        let timeout;
+        return (event) => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func(event), wait);
+        };
+    }
+    /**
+     * Handles canvas pixel ratio on viewport scale (smart zoom)
+     * by multiplying devicePixelRatio with visualViewport scale
+     */
+    handleScaleChange = (event) => {
+        const visualViewport = event.target;
+        const current = visualViewport?.scale;
+        if (this.visualViewportScale !== current) {
+            this.stage.getLayers().forEach((layer) => {
+                if (this.devicePixelRatio && current) {
+                    layer.getCanvas().setPixelRatio(this.devicePixelRatio * current);
+                }
+            });
+            this.stage.batchDraw();
+            this.visualViewportScale = current;
+        }
+    };
+    /**
+     * Handles canvas pixel ratio on browser zoom (cmd +/-)
+     * by directly applying devicePixelRatio to layers
+     */
+    handleZoomChange = () => {
+        const current = window.devicePixelRatio;
+        if (current && this.devicePixelRatio !== current) {
+            this.stage.getLayers().forEach((layer) => {
+                layer.getCanvas().setPixelRatio(current);
+            });
+            this.stage.batchDraw();
+            this.devicePixelRatio = current;
+        }
+    };
+    /**
+     * Destroy konva
+     */
+    destroyBase() {
+        if (visualViewport) {
+            visualViewport.removeEventListener('resize', this.debounceFunction);
+        }
+        window.removeEventListener('resize', this.handleZoomChange);
+        this.stage.destroy();
+    }
+}
+
+=== 61453 src/lib/Modal/PictureElements/konvaEditor.ts	js
+import Konva from 'konva';
+import { KonvaBase } from '$lib/Modal/PictureElements/konvaBase';
+import { get } from 'svelte/store';
+import { states, konvaStore, konvaImageCache } from '$lib/Stores';
+import { tick } from 'svelte';
+import { icons } from './icons';
+/**
+ * Picture elements config
+ */
+export class KonvaEditor extends KonvaBase {
+    // canvas
+    canvasLayer = new Konva.Layer();
+    canvas = new Konva.Rect();
+    canvasWidth = 470;
+    canvasHeight = 265;
+    dragDirection;
+    // mode
+    mode = 'default';
+    // select
+    selectionLayer = new Konva.Layer();
+    transformer = new Konva.Transformer();
+    selectionRect = new Konva.Rect();
+    x1 = 0;
+    y1 = 0;
+    x2 = 0;
+    y2 = 0;
+    selectionThreshold = 5;
+    selectionStartX = 0;
+    selectionStartY = 0;
+    selecting = false;
+    shiftPressed = false;
+    dragSelecting = false;
+    selectedShapes = [];
+    // pan
+    panning = false;
+    spaceKey = false;
+    // zoom
+    zoomFactor = 1;
+    minZoom = 0.4;
+    maxZoom = 40;
+    currentTween;
+    altKey = false;
+    // history
+    undoStack = [];
+    redoStack = [];
+    maxHistory = 50;
+    applyingState = false;
+    // guides
+    snapOffset = 5;
+    guides = [];
+    constructor(container, data) {
+        super(container, data);
+        this.handleMount();
+        this.setupCanvas();
+        this.setupTransformer();
+        this.setupEvents();
+        this.subscribeStates();
+        // reset zoom on mount to fix grapical issue with zoomToArea
+        const point = { x: this.stage.width() / 2, y: this.stage.height() / 2 };
+        this.setZoom('reset', point);
+        this.update();
+    }
+    /**
+     * Update $konvaStore to render ui updates
+     */
+    update() {
+        konvaStore.set({
+            children: this.layer.toObject()?.children || [],
+            selectedShapes: this.selectedShapes.map((shape) => this.getNodeData(shape)),
+            mode: this.mode,
+            undoStack: this.undoStack,
+            redoStack: this.redoStack
+        });
+    }
+    /**
+     * Runs update if called from `KonvaBase`
+     */
+    updateCallback() {
+        this.update();
+    }
+    /**
+     * Handles mount
+     * - handles state-label with no entity_id
+     * - loads images from $konvaImageCache
+     */
+    async handleMount() {
+        this.layer.find('Text').forEach((node) => {
+            if (node?.attrs?.type === 'state-label' && node instanceof Konva.Text) {
+                this.updateStateLabel(node, undefined);
+            }
+        });
+        const images = this.layer.find('Image');
+        const imageCache = get(konvaImageCache)?.[this.selId] || {};
+        await Promise.all(images.map(async (node) => {
+            if (node instanceof Konva.Image) {
+                const cachedImage = imageCache[node.id()];
+                const src = node.getAttr('src');
+                if (cachedImage instanceof HTMLImageElement) {
+                    node.image(cachedImage);
+                }
+                else {
+                    await this.updateImage(node, src, false);
+                    const image = node.image();
+                    if (image instanceof HTMLImageElement && node.id()) {
+                        this.updateImageCache(node.id(), image);
+                    }
+                }
+            }
+        }));
+        this.record();
+        this.update();
+    }
+    /**
+     * Setup canvas layer
+     */
+    setupCanvas() {
+        this.stage.add(this.canvasLayer);
+        this.canvasLayer.moveToBottom();
+        this.canvasLayer.listening(false);
+        this.canvas.setAttrs({
+            x: (this.stage.width() - this.canvasWidth) / 2,
+            y: (this.stage.height() - this.canvasHeight) / 2,
+            width: this.canvasWidth,
+            height: this.canvasHeight,
+            fill: 'rgba(0, 0, 0, 0.2)',
+            stroke: 'rgba(255, 255, 255, 0.25)',
+            strokeWidth: 1,
+            strokeScaleEnabled: false,
+            cornerRadius: 9.6
+        });
+        this.canvasLayer.add(this.canvas);
+        this.layer.position({
+            x: this.canvas.x(),
+            y: this.canvas.y()
+        });
+    }
+    /**
+     * Setup selection layer
+     * - `rotationSnapTolerance` is half of a `rotationSnap`
+     * - handle dragging corner anchors when shift is pressed
+     * - limit `boundBox` if text node has custom `box` attribute
+     * - add any text `box` event listeners
+     * - add selection rectangle (mouse drag)
+     */
+    setupTransformer() {
+        this.stage.add(this.selectionLayer);
+        this.selectionLayer.add(this.transformer);
+        this.transformer.setAttrs({
+            keepRatio: true,
+            rotationSnapTolerance: 15 / 2
+        });
+        this.transformer.on('transformstart transform transformend', (event) => {
+            const activeAnchor = this.transformer.getActiveAnchor();
+            const cornerHandles = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+            if (activeAnchor && cornerHandles.includes(activeAnchor)) {
+                this.transformer.shiftBehavior(this.transformer.keepRatio() ? 'inverted' : 'default');
+            }
+            this.transformer.setAttr('boundBoxFunc', (oldBox, newBox) => {
+                const shapes = this.transformer.nodes();
+                const textBox = shapes.some((shape) => shape instanceof Konva.Text && shape.getAttr('box'));
+                return textBox && (newBox.width < 0 || newBox.height < 0) ? oldBox : newBox;
+            });
+            if (event.type === 'transformend')
+                this.record();
+            this.update();
+        });
+        const nodes = this.layer.find('Text');
+        nodes.forEach((node) => {
+            if (node.getAttr('box')) {
+                this.addTextBoxEventListener(node);
+            }
+        });
+        this.selectionLayer.add(this.selectionRect);
+        this.selectionRect.setAttrs({
+            stroke: 'rgba(255, 255, 255, 0.75)',
+            strokeWidth: 1,
+            fill: 'rgba(255, 255, 255, 0.025)',
+            visible: false,
+            listening: false,
+            strokeScaleEnabled: false
+        });
+    }
+    /**
+     * Adds event listeners
+     * - handle click event
+     * - record history and update on drag event
+     * - handle mousedown/mouseup event
+     * - handle mousemove event
+     * - adds events guides
+     * - add events for alt-duplicate
+     * - adds guide snapping events
+     */
+    setupEvents() {
+        this.stage.on('click tap dragstart', (event) => this.handleClick(event));
+        this.stage.on('add remove dragmove dragend', (event) => {
+            const { type, target } = event;
+            if (type === 'dragmove' && this.panning) {
+                this.updateGuidePos();
+            }
+            // prevent `record` when panning with guides drawn
+            if (type === 'dragend' && target?.className !== undefined) {
+                this.record();
+            }
+            this.update();
+        });
+        this.stage.on('mousedown', (event) => this.handleMousedown(event));
+        window.addEventListener('mouseup', this.handleMouseup.bind(this));
+        window.addEventListener('mousemove', this.handleMouseMove.bind(this));
+        this.layer
+            .find('Line')
+            .filter((node) => this.isGuide(node))
+            .forEach((node) => this.setupGuideEvents(node));
+        this.layer.on('dragmove', this.handleShiftDragMove);
+        this.setupAltDuplicateEvents();
+        this.setupGuideSnap();
+    }
+    /**
+     * Updates `v-guide | h-guide` position
+     *
+     * Guides are drawn to fit stage dimensions, so
+     * by zooming or panning they need to be updated
+     */
+    updateGuidePos = () => {
+        const nodes = this.layer.find('Line').filter((node) => this.isGuide(node));
+        if (!nodes?.length) {
+            this.guides = [];
+            return;
+        }
+        const stagePos = this.stage.position();
+        const scaleX = this.stage.scaleX();
+        const scaleY = this.stage.scaleY();
+        this.guides = nodes.map((node) => {
+            if (node?.attrs?.type === 'v-guide') {
+                const lineX = node.points()[0];
+                node.points([
+                    lineX,
+                    -stagePos.y / scaleY - this.canvas.y(),
+                    lineX,
+                    (this.stage.height() - stagePos.y) / scaleY - this.canvas.y()
+                ]);
+            }
+            else if (node?.attrs?.type === 'h-guide') {
+                const lineY = node.points()[1];
+                node.points([
+                    -stagePos.x / scaleX - this.canvas.x(),
+                    lineY,
+                    (this.stage.width() - stagePos.x) / scaleX - this.canvas.x(),
+                    lineY
+                ]);
+            }
+            return node;
+        });
+    };
+    /**
+     * Handle click event
+     * - blurs any active input field so data can be saved
+     * - handle pan and zoom clicks
+     * - handle stage click (no nodes)
+     * - get node parent if group
+     * - handle mutiselect cmd click
+     */
+    async handleClick(event) {
+        const activeElement = document?.activeElement;
+        if (activeElement instanceof HTMLInputElement || activeElement instanceof HTMLTextAreaElement) {
+            activeElement.blur();
+            await tick();
+        }
+        if (this.mode === 'pan' || this.spaceKey)
+            return;
+        if (this.mode === 'zoom') {
+            const pointerPos = this.stage.getPointerPosition();
+            if (pointerPos) {
+                if (!this.altKey) {
+                    this.setZoom('in', pointerPos);
+                }
+                else if (this.altKey) {
+                    this.setZoom('out', pointerPos);
+                }
+            }
+            return;
+        }
+        const target = event.target;
+        if (target === this.stage) {
+            this.deselectAll();
+            this.update();
+            return;
+        }
+        const getParentNode = (node) => {
+            const parent = node.getParent();
+            if (parent !== this.layer && parent instanceof Konva.Group) {
+                return getParentNode(parent);
+            }
+            return node;
+        };
+        const node = getParentNode(target);
+        if (!node)
+            return;
+        if (node.visible() && node.draggable() && !this.isGuide(node)) {
+            const { ctrlKey, metaKey } = event.evt;
+            const cmd = ctrlKey || metaKey;
+            const selected = this.transformer.nodes().indexOf(node) >= 0;
+            if (event.type === 'dragstart') {
+                if (!selected) {
+                    if (!cmd) {
+                        this.transformer.nodes([node]);
+                        this.selectedShapes = [node];
+                    }
+                    else {
+                        const nodes = this.transformer.nodes().concat([node]);
+                        this.transformer.nodes(nodes);
+                        this.selectedShapes = nodes;
+                    }
+                }
+            }
+            else {
+                if (!cmd && !selected) {
+                    this.transformer.nodes([node]);
+                    this.selectedShapes = [node];
+                }
+                else if (cmd && selected) {
+                    const nodes = this.transformer.nodes().slice();
+                    nodes.splice(nodes.indexOf(node), 1);
+                    this.transformer.nodes(nodes);
+                    this.selectedShapes = nodes;
+                }
+                else if (cmd && !selected) {
+                    const nodes = this.transformer.nodes().concat([node]);
+                    this.transformer.nodes(nodes);
+                    this.selectedShapes = nodes;
+                }
+            }
+        }
+        this.update();
+    }
+    /**
+     * Handle mousedown event
+     * - handles panning
+     * - checks if target is `stage` or non-draggable node
+     * - starts selection rectangle
+     */
+    handleMousedown(event) {
+        if (this.mode === 'pan' || this.panning)
+            return;
+        const draggableNode = (node) => {
+            if (node.draggable())
+                return true;
+            const parent = node.getParent();
+            return parent && parent !== this.stage ? draggableNode(parent) : false;
+        };
+        const target = event.target;
+        const startSelection = target === this.stage || !draggableNode(target);
+        if (startSelection) {
+            event.evt.preventDefault();
+            const pos = this.stage.getPointerPosition();
+            if (pos) {
+                const x = (pos.x - this.stage.x()) / this.zoomFactor;
+                const y = (pos.y - this.stage.y()) / this.zoomFactor;
+                this.x1 = this.x2 = x;
+                this.y1 = this.y2 = y;
+                this.selectionStartX = x;
+                this.selectionStartY = y;
+            }
+            this.selectionRect.setAttrs({
+                width: 0,
+                height: 0,
+                visible: false
+            });
+            this.selecting = true;
+            this.dragSelecting = false;
+        }
+        else {
+            this.selecting = false;
+            if (target instanceof Konva.Shape || target instanceof Konva.Group) {
+                target.setAttr('startPos', { x: target.x(), y: target.y() });
+            }
+        }
+    }
+    /**
+     * Handle mouseup event
+     * - handle `zoomToArea`
+     * - select nodes that intersects with selection rectangle
+     */
+    handleMouseup = (event) => {
+        this.selecting = false;
+        if (!this.selectionRect.visible())
+            return;
+        event.preventDefault();
+        if (this.mode === 'zoom') {
+            if (this.dragSelecting) {
+                const box = this.selectionRect.getClientRect();
+                const minSize = 15;
+                if (box.width > minSize && box.height > minSize) {
+                    this.zoomToArea(box);
+                }
+            }
+            this.selectionRect.visible(false);
+            this.dragSelecting = false;
+            return;
+        }
+        const stageRect = this.stage.container().getBoundingClientRect();
+        const scaleX = this.stage.width() / stageRect.width;
+        const scaleY = this.stage.height() / stageRect.height;
+        const pos = {
+            x: (event.clientX - stageRect.left) * scaleX,
+            y: (event.clientY - stageRect.top) * scaleY
+        };
+        this.x2 = (pos.x - this.stage.x()) / this.zoomFactor;
+        this.y2 = (pos.y - this.stage.y()) / this.zoomFactor;
+        this.selectionRect.setAttrs({
+            x: Math.min(this.x1, this.x2),
+            y: Math.min(this.y1, this.y2),
+            width: Math.abs(this.x2 - this.x1),
+            height: Math.abs(this.y2 - this.y1)
+        });
+        if (this.mode === 'default') {
+            this.currentTween = new Konva.Tween({
+                node: this.selectionRect,
+                duration: 0.1,
+                opacity: 0,
+                onFinish: () => {
+                    this.selectionRect.setAttrs({
+                        visible: false,
+                        opacity: 1
+                    });
+                }
+            }).play();
+        }
+        const box = this.selectionRect.getClientRect();
+        const selected = this.layer
+            .getChildren()
+            .filter((node) => Konva.Util.haveIntersection(box, node.getClientRect()) &&
+            node.visible() &&
+            node.draggable() &&
+            !this.isGuide(node));
+        this.transformer.nodes(selected);
+        this.selectedShapes = selected;
+        this.update();
+    };
+    /**
+     * Handle mousemove event
+     * - handles pan
+     * - draws selection rectangle
+     */
+    handleMouseMove = (event) => {
+        if (this.mode === 'pan' || this.panning)
+            return;
+        if (!this.selecting)
+            return;
+        event.preventDefault();
+        const stageRect = this.stage.container().getBoundingClientRect();
+        const scaleX = this.stage.width() / stageRect.width;
+        const scaleY = this.stage.height() / stageRect.height;
+        const pos = {
+            x: (event.clientX - stageRect.left) * scaleX,
+            y: (event.clientY - stageRect.top) * scaleY
+        };
+        const currentX = (pos.x - this.stage.x()) / this.zoomFactor;
+        const currentY = (pos.y - this.stage.y()) / this.zoomFactor;
+        const dx = currentX - this.selectionStartX;
+        const dy = currentY - this.selectionStartY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance > this.selectionThreshold / this.zoomFactor) {
+            if (!this.dragSelecting) {
+                this.x1 = currentX;
+                this.y1 = currentY;
+                this.dragSelecting = true;
+            }
+            this.x2 = currentX;
+            this.y2 = currentY;
+            this.selectionRect.setAttrs({
+                x: Math.min(this.x1, this.x2),
+                y: Math.min(this.y1, this.y2),
+                width: Math.abs(this.x2 - this.x1),
+                height: Math.abs(this.y2 - this.y1),
+                visible: true
+            });
+        }
+    };
+    /**
+     * Handles shift drag axis lock
+     */
+    handleShiftDragMove = (event) => {
+        const target = event.target;
+        if (!(target instanceof Konva.Shape) && !(target instanceof Konva.Group))
+            return;
+        if (this.shiftPressed) {
+            const startPos = target.getAttr('startPos') || { x: target.x(), y: target.y() };
+            if (!this.dragDirection) {
+                const dx = Math.abs(target.x() - startPos.x);
+                const dy = Math.abs(target.y() - startPos.y);
+                this.dragDirection = dx > dy ? 'x' : 'y';
+            }
+            if (this.dragDirection === 'x') {
+                target.y(startPos.y);
+            }
+            else {
+                target.x(startPos.x);
+            }
+        }
+        else {
+            this.dragDirection = undefined;
+        }
+    };
+    /**
+     * Handles alt-duplicate
+     * - original nodes are already being dragged, so move them to top
+     * - keep clones in place, so it looks like the original node is the clone
+     * - keeps the original layer children node order when cloning
+     */
+    setupAltDuplicateEvents() {
+        let nodes = [];
+        let clones = [];
+        let duplicating = false;
+        this.stage.on('dragstart', (event) => {
+            if (!this.altKey || duplicating || event?.target instanceof Konva.Line)
+                return;
+            duplicating = true;
+            const children = this.layer.getChildren();
+            nodes = this.selectedShapes
+                .filter((node) => !this.isGuide(node))
+                .sort((a, b) => children.indexOf(a) - children.indexOf(b));
+            const nodeOrder = nodes.map((shape) => shape.zIndex());
+            clones = nodes
+                .map((node) => {
+                const clone = node.clone({
+                    id: this.generateUniqueId(node?.attrs?.type)
+                });
+                if (clone) {
+                    this.layer.add(clone);
+                    if (node instanceof Konva.Image) {
+                        const image = node.image();
+                        if (image instanceof HTMLImageElement) {
+                            clone.image(image);
+                            if (image instanceof HTMLImageElement && clone.id()) {
+                                this.updateImageCache(clone.id(), image);
+                            }
+                        }
+                    }
+                }
+                return clone;
+            })
+                .filter((clone) => clone !== null);
+            clones.forEach((clone, index) => {
+                clone.zIndex(nodeOrder[index]);
+            });
+            nodes.forEach((node) => node.moveToTop());
+        });
+        this.stage.on('dragend', () => {
+            if (!duplicating)
+                return;
+            duplicating = false;
+            nodes = [];
+            clones = [];
+            this.record();
+            this.update();
+        });
+    }
+    /**
+     * Sets up event listener for snap functionality
+     * for when dragging shapes in close proximity to guides
+     */
+    setupGuideSnap() {
+        this.layer.on('dragmove', (event) => {
+            if (this.isGuide(event.target))
+                return;
+            const nodes = this.selectedShapes.filter((node) => !this.isGuide(node));
+            const box = this.getSnapBoundingBox(nodes);
+            const points = this.getSnapPoints(box);
+            if (points.length) {
+                let offsetX = 0;
+                let offsetY = 0;
+                points.forEach((point) => {
+                    if (point.orientation === 'v-guide') {
+                        switch (point.snap) {
+                            case 'start':
+                                offsetX = point.pos - box.x;
+                                break;
+                            case 'center':
+                                offsetX = point.pos - (box.x + box.width / 2);
+                                break;
+                            case 'end':
+                                offsetX = point.pos - (box.x + box.width);
+                                break;
+                        }
+                    }
+                    else if (point.orientation === 'h-guide') {
+                        switch (point.snap) {
+                            case 'start':
+                                offsetY = point.pos - box.y;
+                                break;
+                            case 'center':
+                                offsetY = point.pos - (box.y + box.height / 2);
+                                break;
+                            case 'end':
+                                offsetY = point.pos - (box.y + box.height);
+                                break;
+                        }
+                    }
+                });
+                nodes.forEach((node) => {
+                    const pos = node.position();
+                    node.position({
+                        x: pos.x + offsetX,
+                        y: pos.y + offsetY
+                    });
+                });
+            }
+        });
+    }
+    /**
+     * Calculates bounding box that encloses selected nodes
+     */
+    getSnapBoundingBox(nodes) {
+        const boxes = nodes.map((node) => node.getClientRect({ relativeTo: this.layer }));
+        const x = Math.min(...boxes.map((box) => box.x));
+        const y = Math.min(...boxes.map((box) => box.y));
+        const width = Math.max(...boxes.map((box) => box.x + box.width)) - x;
+        const height = Math.max(...boxes.map((box) => box.y + box.height)) - y;
+        return {
+            x,
+            y,
+            width,
+            height
+        };
+    }
+    /**
+     * Subscribes to $states store
+     * and updates 'state-' nodes
+     */
+    subscribeStates() {
+        this.unsubscribe = states.subscribe(($states) => {
+            if (this.layer && $states) {
+                const shapes = this.layer.getChildren((node) => node.getAttr('entity_id') && node?.attrs?.type?.startsWith('state-'));
+                shapes.forEach((node) => {
+                    if (!this.transformer.nodes().includes(node)) {
+                        if (node instanceof Konva.Image) {
+                            this.updateStateIcon(node, $states);
+                        }
+                        else if (node instanceof Konva.Text) {
+                            this.updateStateLabel(node, $states);
+                        }
+                    }
+                });
+            }
+        });
+    }
+    /**
+     * Saves history state
+     */
+    record() {
+        if (this.applyingState)
+            return;
+        const currentState = {
+            elements: this.layer.children.map((shape) => this.getNodeData(shape)),
+            selectedShapes: this.selectedShapes.map((shape) => shape.id())
+        };
+        const previousState = this.undoStack[this.undoStack.length - 1];
+        if (!this.stateEqual(previousState, currentState)) {
+            this.undoStack.push(currentState);
+            if (this.undoStack.length > this.maxHistory) {
+                this.undoStack.shift();
+            }
+            this.redoStack = [];
+        }
+        this.update();
+    }
+    /**
+     * Handle undo
+     */
+    undo() {
+        if (this.undoStack.length > 1) {
+            const currentState = this.undoStack.pop();
+            if (currentState)
+                this.redoStack.push(currentState);
+            const previousState = this.undoStack[this.undoStack.length - 1];
+            this.applyState(previousState);
+            if (previousState.selectedShapes.length === 0) {
+                this.restoreSelection(this.selectedShapes.map((shape) => shape.id()));
+            }
+            this.update();
+        }
+    }
+    /**
+     * Handle redo
+     */
+    redo() {
+        if (this.redoStack.length > 0) {
+            const previousState = this.redoStack.pop();
+            if (previousState) {
+                this.undoStack.push(previousState);
+                this.applyState(previousState);
+                if (previousState.selectedShapes.length === 0) {
+                    this.restoreSelection(this.selectedShapes.map((shape) => shape.id()));
+                }
+                this.update();
+            }
+        }
+    }
+    /**
+     * Sets state from that point in history
+     */
+    applyState(state) {
+        this.applyingState = true;
+        /**
+         * Handles history state
+         * - remove, updates or add nodes
+         */
+        const localHandleState = (layer, nodes) => {
+            layer.children.slice().forEach((node) => {
+                const exists = nodes.some((item) => item?.attrs?.id === node.id());
+                if (!exists)
+                    node.destroy();
+            });
+            nodes.forEach(async (item, index) => {
+                if (!item.attrs?.id)
+                    return;
+                let node = layer.findOne(`#${item?.attrs?.id}`);
+                if (node) {
+                    localUpdateNode(node, item?.attrs);
+                }
+                else {
+                    const newNode = await localAddNode(item);
+                    if (newNode) {
+                        node = newNode;
+                        layer.add(node);
+                    }
+                    else {
+                        console.error(`failed to create node with id ${item?.attrs?.id}`);
+                        return;
+                    }
+                }
+                if (node instanceof Konva.Group && 'children' in item) {
+                    localHandleState(node, item?.children);
+                }
+                node.zIndex(index);
+            });
+        };
+        /**
+         * Update node
+         */
+        const localUpdateNode = async (node, attrs) => {
+            const onclick = attrs?.onclick;
+            node.setAttr('onclick', onclick ? JSON.parse(JSON.stringify(onclick)) : undefined);
+            const type = node?.attrs?.type;
+            if (type === 'state-label') {
+                node.setAttrs({ ...attrs, text: node.getAttr('text') });
+            }
+            else if (type === 'state-icon') {
+                node.setAttrs({
+                    ...attrs,
+                    ...{
+                        image: node.getAttr('image'),
+                        color: node.getAttr('color'),
+                        icon: node.getAttr('icon')
+                    }
+                });
+            }
+            else if (node instanceof Konva.Image && ['image', 'icon'].includes(type)) {
+                const src = node.getAttr('src');
+                node.setAttrs(attrs);
+                if (attrs?.src !== src) {
+                    await this.updateImage(node, attrs?.src, false);
+                    const image = node.image();
+                    if (image instanceof HTMLImageElement && attrs?.id) {
+                        this.updateImageCache(attrs?.id, image);
+                    }
+                }
+            }
+            else {
+                node.setAttrs(attrs);
+            }
+        };
+        /**
+         * Add node
+         */
+        const localAddNode = async (nodeData) => {
+            let node;
+            const attrs = nodeData?.attrs;
+            const type = attrs?.type;
+            switch (type) {
+                case 'state-label':
+                    node = new Konva.Text(attrs);
+                    this.updateStateLabel(node, undefined);
+                    break;
+                case 'text':
+                    node = new Konva.Text(attrs);
+                    break;
+                case 'rectangle':
+                    node = new Konva.Rect(attrs);
+                    break;
+                case 'circle':
+                    node = new Konva.Circle(attrs);
+                    break;
+                case 'v-guide':
+                case 'h-guide':
+                    node = new Konva.Line(attrs);
+                    this.setupGuideEvents(node);
+                    break;
+                case 'group':
+                    node = new Konva.Group(attrs);
+                    if (nodeData instanceof Konva.Group &&
+                        nodeData.children &&
+                        Array.isArray(nodeData.children)) {
+                        nodeData.children.forEach((child) => {
+                            const childNode = localAddNode(child);
+                            if (childNode)
+                                node.add(childNode);
+                        });
+                    }
+                    break;
+                case 'image':
+                case 'icon':
+                case 'state-icon': {
+                    node = new Konva.Image(attrs);
+                    const imageCache = get(konvaImageCache)?.[this?.selId]?.[attrs?.id];
+                    if (imageCache instanceof HTMLImageElement) {
+                        node.image(imageCache);
+                    }
+                    else {
+                        await this.updateImage(node, attrs?.src, false);
+                        const image = node.image();
+                        if (image instanceof HTMLImageElement && attrs?.id) {
+                            this.updateImageCache(attrs?.id, image);
+                        }
+                    }
+                    if (type === 'state-icon') {
+                        this.updateStateIcon(node, undefined);
+                    }
+                    else if (type === 'icon') {
+                        this.updateIcon(node);
+                    }
+                    break;
+                }
+                default:
+                    console.error(type, 'type not found');
+                    node = new Konva.Shape(attrs);
+            }
+            return node;
+        };
+        localHandleState(this.layer, state.elements);
+        if (state.selectedShapes.length > 0) {
+            this.restoreSelection(state.selectedShapes);
+        }
+        this.updateGuidePos();
+        this.applyingState = false;
+        this.update();
+    }
+    /**
+     * Restores transformer nodes on redo/undo
+     */
+    restoreSelection(selectedShapes) {
+        this.selectedShapes = selectedShapes
+            .map((id) => this.layer.findOne(`#${id}`))
+            .filter((shape) => shape instanceof Konva.Shape || shape instanceof Konva.Group);
+        this.transformer.nodes(this.selectedShapes);
+    }
+    /**
+     * Helper method to check history state equality
+     * Prevents duplicate entries if mutiple events are fired
+     */
+    stateEqual(state1, state2) {
+        if (!state1)
+            return false;
+        if (!this.arraysEqual(state1.selectedShapes, state2.selectedShapes))
+            return false;
+        if (state1.elements.length !== state2.elements.length)
+            return false;
+        return state1.elements.every((node1, index) => {
+            const node2 = state2.elements[index];
+            return this.nodeEqual(node1, node2);
+        });
+    }
+    arraysEqual(arr1, arr2) {
+        if (arr1.length !== arr2.length)
+            return false;
+        return arr1.every((item, index) => item === arr2[index]);
+    }
+    nodeEqual(node1, node2) {
+        if (Object.keys(node1).length !== Object.keys(node2).length)
+            return false;
+        for (const key in node1) {
+            if (key === 'children') {
+                if (!Array.isArray(node1[key]) || !Array.isArray(node2[key]))
+                    return false;
+                if (node1[key].length !== node2[key].length)
+                    return false;
+                if (!node1[key].every((child, index) => this.nodeEqual(child, node2[key][index]))) {
+                    return false;
+                }
+            }
+            else if (key === 'attrs') {
+                if (!this.attrsEqual(node1[key], node2[key]))
+                    return false;
+            }
+            else if (node1[key] !== node2[key]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    attrsEqual(attrs1, attrs2) {
+        const keys1 = Object.keys(attrs1);
+        const keys2 = Object.keys(attrs2);
+        if (keys1.length !== keys2.length)
+            return false;
+        for (const key of keys1) {
+            if (key === 'onclick') {
+                if (JSON.stringify(attrs1[key]) !== JSON.stringify(attrs2[key]))
+                    return false;
+            }
+            else if (attrs1[key] !== attrs2[key]) {
+                return false;
+            }
+        }
+        return true;
+    }
+    /**
+     * Duplicate selected shape (with Ctrl+J)
+     */
+    duplicateSelected() {
+        if (this.selectedShapes.length === 0)
+            return;
+        const clones = [];
+        const layerChildren = this.layer.getChildren();
+        const layerOrder = this.selectedShapes.sort((a, b) => layerChildren.indexOf(a) - layerChildren.indexOf(b));
+        layerOrder.forEach((node) => {
+            const clone = node.clone({
+                id: this.generateUniqueId(node?.attrs?.type)
+            });
+            if (clone instanceof Konva.Image && node instanceof Konva.Image) {
+                const image = node.image();
+                if (image instanceof HTMLImageElement && clone.id()) {
+                    clone.image(image);
+                    this.updateImageCache(clone.id(), image);
+                }
+            }
+            this.layer.add(clone);
+            clones.push(clone);
+        });
+        if (this.selectedShapes.length === 1) {
+            clones[0].zIndex(this.selectedShapes[0].zIndex() + 1);
+        }
+        else {
+            clones.forEach((clone) => clone.moveToTop());
+        }
+        this.selectedShapes = clones;
+        this.transformer.nodes(clones);
+        this.record();
+        this.update();
+    }
+    /**
+     * Determines snapping points for the bounding box relative to guide lines
+     */
+    getSnapPoints(box) {
+        const points = [];
+        const pos = (start, size) => [
+            { guide: Math.round(start), snap: 'start' },
+            { guide: Math.round(start + size / 2), snap: 'center' },
+            { guide: Math.round(start + size), snap: 'end' }
+        ];
+        const nodeEdges = {
+            vertical: pos(box.x, box.width),
+            horizontal: pos(box.y, box.height)
+        };
+        const offsetX = this.canvas.width() / 2;
+        const offsetY = this.canvas.height() / 2;
+        this.guides.forEach((node) => {
+            if (!node.visible())
+                return;
+            const type = node?.attrs?.type;
+            const vertical = type === 'v-guide';
+            const edges = vertical ? nodeEdges.vertical : nodeEdges.horizontal;
+            const position = vertical ? node.x() + offsetX : node.y() + offsetY;
+            edges.forEach((edge) => {
+                const diff = Math.abs(position - edge.guide);
+                if (diff < this.snapOffset / this.stage.scaleX()) {
+                    points.push({
+                        pos: position,
+                        diff: diff,
+                        snap: edge.snap,
+                        orientation: type
+                    });
+                }
+            });
+        });
+        return points;
+    }
+    /**
+     * Setup special guide events for `v-guide | h-guide`
+     * - handle cursor update
+     * - limit guide x/y position
+     */
+    setupGuideEvents(node) {
+        if (!this.isGuide(node))
+            return;
+        node.on('mouseover dragstart', (event) => {
+            if (node.visible() && node.draggable() && !this.selectionRect.isVisible()) {
+                this.updateCursor(event);
+            }
+        });
+        node.on('dragmove', () => {
+            if (node.attrs.type === 'v-guide') {
+                node.y(0);
+            }
+            else if (node.attrs.type === 'h-guide') {
+                node.x(0);
+            }
+        });
+        node.on('mouseout dragend', (event) => {
+            this.updateCursor();
+            if (event.type === 'dragend') {
+                this.record();
+            }
+        });
+    }
+    /**
+     * Updates mouse cursor
+     * - guide
+     * - pan
+     * - zoom
+     * - default
+     */
+    updateCursor(event) {
+        const container = this.stage.container();
+        if (event && this.isGuide(event.target)) {
+            const type = event.target?.attrs?.type;
+            container.style.cursor = type === 'v-guide' ? 'col-resize' : 'row-resize';
+            return;
+        }
+        if (this.mode === 'pan' || this.panning) {
+            container.style.cursor = 'grab';
+        }
+        else if (this.mode === 'zoom') {
+            container.style.cursor = this.altKey ? 'zoom-out' : 'zoom-in';
+        }
+        else {
+            container.style.cursor = 'default';
+        }
+    }
+    /**
+     * Toggles text box attribute
+     * - adds/removes event listener
+     */
+    toggleTextBox(id) {
+        const node = this.layer.findOne(`#${id}`);
+        if (node instanceof Konva.Text) {
+            if (node.getAttr('box')) {
+                node.setAttrs({
+                    box: false,
+                    width: undefined,
+                    height: undefined,
+                    scaleX: 1,
+                    scaleY: 1
+                });
+                node.off('transform');
+                this.transformer.setAttr('boundBoxFunc', undefined);
+            }
+            else if (!node.getAttr('box')) {
+                node.setAttrs({
+                    box: true,
+                    width: node.width() * node.scaleX(),
+                    height: node.height() * node.scaleY(),
+                    scaleX: 1,
+                    scaleY: 1
+                });
+                this.addTextBoxEventListener(node);
+            }
+            this.record();
+            this.update();
+        }
+    }
+    /**
+     * Adds shape event listener to set fixed scale on text
+     */
+    addTextBoxEventListener(node) {
+        node.off('transform');
+        node.on('transform', () => {
+            node.setAttrs({
+                width: node.width() * node.scaleX(),
+                height: node.height() * node.scaleY(),
+                scaleX: 1,
+                scaleY: 1
+            });
+        });
+    }
+    /**
+     * Fits canvas to stage (double-clicking pan tool)
+     */
+    fitCanvas() {
+        const padding = 15;
+        const stageWidth = this.stage.width() - padding * 2;
+        const stageHeight = this.stage.height() - padding * 2;
+        const scale = Math.min(stageWidth / this.canvasWidth, stageHeight / this.canvasHeight);
+        const x = (this.stage.width() - this.canvasWidth * scale) / 2 - this.canvas.x() * scale;
+        const y = (this.stage.height() - this.canvasHeight * scale) / 2 - this.canvas.y() * scale;
+        this.currentTween = new Konva.Tween({
+            node: this.stage,
+            duration: 0.15,
+            easing: Konva.Easings.EaseInOut,
+            scaleX: scale,
+            scaleY: scale,
+            x: x,
+            y: y,
+            onUpdate: () => {
+                this.zoomFactor = this.stage.scaleX();
+                this.updateGuidePos();
+            },
+            onFinish: () => {
+                this.currentTween = undefined;
+            }
+        }).play();
+    }
+    /**
+     * Move nodes (arrow keys)
+     * - don't record
+     */
+    moveSelectedShapes(x, y) {
+        if (this.mode !== 'default' || this.selectedShapes.length === 0)
+            return;
+        this.selectedShapes.forEach((node) => {
+            if (node.draggable()) {
+                node.position({
+                    x: node.x() + x,
+                    y: node.y() + y
+                });
+            }
+        });
+        this.update();
+    }
+    /**
+     * Helper method for `setAttr`
+     */
+    async updateAttr(id, key, value, oninput = false) {
+        const node = this.layer.findOne(`#${id}`);
+        if (!node)
+            return;
+        const attrs = node.attrs;
+        const type = attrs?.type;
+        switch (true) {
+            case key === 'src' && node instanceof Konva.Image:
+                await this.updateImage(node, value, true);
+                break;
+            case key === 'icon' && node instanceof Konva.Image:
+                node.setAttr('icon', value);
+                await this.updateIcon(node);
+                break;
+            case type === 'state-icon' && key === 'entity_id' && node instanceof Konva.Image:
+                if (value.trim() !== '') {
+                    node.setAttr('entity_id', value);
+                    this.updateStateIcon(node, undefined);
+                }
+                else {
+                    node.setAttrs({
+                        entity_id: '',
+                        icon: icons['state-icon']
+                    });
+                    await this.updateIcon(node);
+                }
+                break;
+            case type === 'state-icon' && key === 'color' && node instanceof Konva.Image:
+                node.setAttr('color', value);
+                this.updateStateIcon(node, undefined);
+                break;
+            case type === 'state-label' && key === 'entity_id' && node instanceof Konva.Text:
+                node.setAttr('entity_id', value);
+                this.updateStateLabel(node, undefined);
+                break;
+            case type === 'icon' && key === 'color' && node instanceof Konva.Image:
+                node.setAttr('color', value);
+                this.updateIconColor(node, value);
+                break;
+            case typeof node.getAttr(key) === 'number': {
+                const parsedValue = parseFloat(value);
+                if (!isNaN(parsedValue)) {
+                    if ((key === 'scaleX' || key === 'scaleY') && this.transformer.keepRatio()) {
+                        node.setAttrs({
+                            scaleX: parsedValue,
+                            scaleY: parsedValue
+                        });
+                    }
+                    else if (key === 'opacity') {
+                        const opacityRange = Math.max(0, Math.min(100, parsedValue));
+                        node.setAttr(key, opacityRange / 100);
+                    }
+                    else {
+                        node.setAttr(key, parsedValue);
+                    }
+                }
+                break;
+            }
+            default:
+                node.setAttr(key, value);
+                break;
+        }
+        if (this.transformer && node instanceof Konva.Text) {
+            this.transformer.forceUpdate();
+        }
+        if (!oninput)
+            this.record();
+        this.update();
+    }
+    /**
+     * Handles node visibility
+     */
+    toggleVisibility(id) {
+        const nodes = id ? [this.layer.findOne(`#${id}`)] : this.selectedShapes;
+        nodes.forEach((node) => {
+            if (node)
+                node.visible(!node.visible());
+        });
+        this.transformer.nodes(this.selectedShapes.filter((node) => node.visible() && node.draggable() && !this.isGuide(node)));
+        this.record();
+        this.update();
+    }
+    /**
+     * Toggles node lock
+     */
+    toggleDraggable(id) {
+        const nodes = id ? [this.layer.findOne(`#${id}`)] : this.selectedShapes;
+        const validNodes = nodes.filter((shape) => shape instanceof Konva.Shape || shape instanceof Konva.Group);
+        if (validNodes.length) {
+            const state = !validNodes[0].draggable();
+            validNodes.forEach((node) => {
+                node.draggable(state);
+                node.listening(state);
+            });
+            this.transformer.nodes(state ? validNodes.filter((shape) => shape.visible()) : []);
+            this.record();
+            this.update();
+        }
+    }
+    /**
+     * Toggles shape scale ratio lock
+     */
+    toggleKeepRatio() {
+        if (this.transformer) {
+            this.transformer.keepRatio(!this.transformer.keepRatio());
+            this.update();
+        }
+    }
+    /**
+     * Handle node select in elements panel (outside of canvas)
+     * - handles range select (shift)
+     * - handles multi select (cmd)
+     * - handles default click
+     */
+    handleElementClick(event, id) {
+        const { shiftKey, ctrlKey, metaKey } = event;
+        if (shiftKey && this.selectedShapes.length > 0) {
+            const start = this.layer.findOne(`#${this.selectedShapes[0].id()}`);
+            const end = this.layer.findOne(`#${id}`);
+            if (!start && !end)
+                return;
+            const nodes = this.layer.getChildren().map((node) => node);
+            const startIndex = nodes.indexOf(start);
+            const endIndex = nodes.indexOf(end);
+            this.selectedShapes = nodes.slice(Math.min(startIndex, endIndex), Math.max(startIndex, endIndex) + 1);
+        }
+        else if (ctrlKey || metaKey) {
+            const node = this.layer.findOne(`#${id}`);
+            if (!node)
+                return;
+            const index = this.selectedShapes.indexOf(node);
+            if (index > -1) {
+                this.selectedShapes.splice(index, 1);
+            }
+            else {
+                this.selectedShapes.push(node);
+            }
+        }
+        else {
+            this.selectShapesById([id]);
+        }
+        this.transformer.nodes(this.selectedShapes.filter((node) => node.visible() && node.draggable() && !this.isGuide(node)));
+        this.update();
+    }
+    /**
+     * Selects nodes by ids
+     */
+    selectShapesById(ids) {
+        this.selectedShapes = ids
+            .map((id) => this.layer.findOne(`#${id}`))
+            .filter((node) => node instanceof Konva.Shape || node instanceof Konva.Group);
+        this.transformer.nodes(this.selectedShapes.filter((node) => node.visible() && node.draggable() && !this.isGuide(node)));
+        this.update();
+    }
+    /**
+     * Selects all nodes (Ctrl+A)
+     */
+    selectAll() {
+        this.selectedShapes = this.layer.getChildren((node) => node instanceof Konva.Shape || node instanceof Konva.Group);
+        this.transformer.nodes(this.selectedShapes.filter((node) => node.visible() && node.draggable() && !this.isGuide(node)));
+        this.update();
+    }
+    /**
+     * Deselects all nodes
+     */
+    deselectAll() {
+        this.selectedShapes = [];
+        this.transformer.nodes([]);
+    }
+    /**
+     * Delete selected nodes
+     */
+    deleteSelected() {
+        this.selectedShapes.forEach((node) => {
+            node.destroy();
+        });
+        this.deselectAll();
+        this.record();
+        this.update();
+    }
+    /**
+     * Reorders nodes with drag and drop
+     */
+    async reorderElements(shapes) {
+        shapes.forEach((id, index) => {
+            const node = this.layer.findOne(`#${id}`);
+            if (node)
+                node.zIndex(this.layer.children.length - 1 - index);
+        });
+        await tick();
+        this.record();
+        this.update();
+    }
+    /**
+     * Handles rotation snapping
+     */
+    updateRotationSnaps() {
+        const snapPoints = [
+            0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285,
+            300, 315, 330, 345
+        ];
+        this.transformer.rotationSnaps(this.shiftPressed ? snapPoints : []);
+    }
+    /**
+     * Handles group and ungrouping
+     */
+    handleGroup() {
+        if (this.selectedShapes.length > 1) {
+            this.group();
+        }
+        else if (this.selectedShapes.length === 1 && this.selectedShapes[0] instanceof Konva.Group) {
+            this.ungroup();
+        }
+    }
+    /**
+     * Groups nodes
+     */
+    group() {
+        const nodes = this.selectedShapes
+            .filter((node) => !this.isGuide(node))
+            .sort((a, b) => {
+            return this.layer.children.indexOf(a) - this.layer.children.indexOf(b);
+        });
+        if (nodes.length < 2)
+            return;
+        const group = new Konva.Group({
+            id: this.generateUniqueId('group'),
+            type: 'group',
+            name: 'Group',
+            draggable: true
+        });
+        let index = Infinity;
+        nodes.forEach((node) => {
+            index = Math.min(index, this.layer.children.indexOf(node));
+            node.setAttr('prevDraggable', node.draggable());
+            node.draggable(false);
+            node.remove();
+            group.add(node);
+        });
+        this.layer.add(group);
+        group.zIndex(index);
+        this.selectedShapes = [group];
+        this.transformer.nodes([group]);
+        this.record();
+        this.update();
+    }
+    /**
+     * Ungroups nodes
+     */
+    ungroup() {
+        if (this.selectedShapes.length !== 1 && !(this.selectedShapes[0] instanceof Konva.Group))
+            return;
+        const selectedShapes = [];
+        const group = this.selectedShapes[0];
+        const groupIndex = this.layer.children.indexOf(group);
+        group
+            .getChildren()
+            .map((node) => node)
+            .forEach((node, index) => {
+            node.setAttrs({
+                id: this.generateUniqueId(node?.attrs?.type),
+                draggable: !!node.getAttr('prevDraggable'),
+                prevDraggable: undefined
+            });
+            this.layer.add(node);
+            node.zIndex(groupIndex + index);
+            selectedShapes.push(node);
+        });
+        group.destroy();
+        this.selectedShapes = selectedShapes;
+        this.transformer.nodes(selectedShapes);
+        this.record();
+        this.update();
+    }
+    /**
+     * Set tool mode
+     */
+    setMode(mode) {
+        this.mode = mode;
+        if (mode === 'pan') {
+            this.startPan();
+        }
+        else {
+            this.stopPan();
+        }
+        this.update();
+    }
+    /**
+     * Starts pan mode (space)
+     */
+    startPan() {
+        this.panning = true;
+        this.stage.draggable(true);
+        this.layer.setAttr('listening', false);
+        this.selectionLayer.setAttr('listening', false);
+        this.updateCursor();
+    }
+    /**
+     * Stops pan mode (space release)
+     */
+    stopPan() {
+        this.panning = false;
+        this.stage.draggable(false);
+        this.layer.setAttr('listening', this.mode === 'default');
+        this.selectionLayer.setAttr('listening', this.mode === 'default');
+        this.updateCursor();
+    }
+    /**
+     * Handle zoom
+     * - logarithmic scale otherwise it takes forever to zoom with extreme values
+     */
+    setZoom(type, point) {
+        if (this.currentTween) {
+            this.currentTween.finish();
+            this.currentTween = undefined;
+        }
+        let scale;
+        if (type === 'reset') {
+            scale = 1;
+        }
+        else {
+            const duration = 0.4;
+            const zoomFactor = this.zoomFactor * Math.exp(duration * (type === 'in' ? 1 : -1));
+            scale = Math.exp(Math.min(Math.max(Math.log(zoomFactor), Math.log(this.minZoom)), Math.log(this.maxZoom)));
+        }
+        this.currentTween = new Konva.Tween({
+            node: this.stage,
+            duration: 0.15,
+            easing: Konva.Easings.StrongEaseOut,
+            x: point.x - (point.x - this.stage.x()) * (scale / this.zoomFactor),
+            y: point.y - (point.y - this.stage.y()) * (scale / this.zoomFactor),
+            scaleX: scale,
+            scaleY: scale,
+            onUpdate: () => {
+                this.zoomFactor = this.stage.scaleX();
+                this.updateGuidePos();
+            },
+            onFinish: () => {
+                this.currentTween = undefined;
+            }
+        }).play();
+    }
+    /**
+     * Zooms to area within selection rectangle
+     */
+    zoomToArea(box) {
+        if (this.altKey)
+            return;
+        box = {
+            x: (box.x - this.stage.x()) / this.zoomFactor,
+            y: (box.y - this.stage.y()) / this.zoomFactor,
+            width: box.width / this.zoomFactor,
+            height: box.height / this.zoomFactor
+        };
+        const centerX = box.x + box.width / 2;
+        const centerY = box.y + box.height / 2;
+        const scaleX = this.stage.width() / box.width;
+        const scaleY = this.stage.height() / box.height;
+        const scale = Math.min(Math.max(Math.min(scaleX, scaleY), this.minZoom), this.maxZoom);
+        this.currentTween = new Konva.Tween({
+            node: this.stage,
+            duration: 0.25,
+            easing: Konva.Easings.StrongEaseOut,
+            x: this.stage.width() / 2 - centerX * scale,
+            y: this.stage.height() / 2 - centerY * scale,
+            scaleX: scale,
+            scaleY: scale,
+            onUpdate: () => {
+                this.zoomFactor = this.stage.scaleX();
+                this.updateGuidePos();
+            },
+            onFinish: () => {
+                this.currentTween = undefined;
+            }
+        }).play();
+    }
+    /**
+     * Add state-label
+     */
+    addStateLabel() {
+        const node = new Konva.Text({
+            type: 'state-label',
+            name: 'State Label',
+            entity_id: '',
+            fontSize: 60,
+            fill: '#ffffff',
+            fontStyle: 'normal',
+            fontFamily: 'Inter Variable',
+            draggable: true
+        });
+        this.updateStateLabel(node, undefined);
+        this.handleAddNode(node);
+    }
+    /**
+     * Adds state-icon
+     */
+    async addStateIcon() {
+        try {
+            const icon = icons['state-icon'];
+            const color = '#d5d5d5';
+            const result = await this.handleSvg(undefined, icon, color);
+            if (!result)
+                return;
+            const { width, height, url } = result;
+            const image = await this.loadImage(url);
+            const node = new Konva.Image({
+                type: 'state-icon',
+                name: 'State Icon',
+                entity_id: '',
+                icon,
+                color,
+                image,
+                width,
+                height,
+                draggable: true
+            });
+            this.handleAddNode(node);
+        }
+        catch (err) {
+            console.error('error adding state-icon:', err);
+        }
+    }
+    /**
+     * Add text
+     */
+    addText() {
+        const node = new Konva.Text({
+            type: 'text',
+            name: 'Text',
+            text: 'Text',
+            fontSize: 60,
+            fill: '#ffffff',
+            fontFamily: 'Inter Variable',
+            draggable: true,
+            align: 'left'
+        });
+        this.handleAddNode(node);
+    }
+    /**
+     * Add icon
+     */
+    async addIcon() {
+        try {
+            const icon = icons['icon'];
+            const color = '#d5d5d5';
+            const result = await this.handleSvg(undefined, icon, color);
+            if (!result)
+                return;
+            const { width, height, url } = result;
+            const image = await this.loadImage(url);
+            const node = new Konva.Image({
+                type: 'icon',
+                name: 'Icon',
+                icon: icon,
+                color: color,
+                image: image,
+                width: width,
+                height: height,
+                draggable: true
+            });
+            this.handleAddNode(node);
+        }
+        catch (err) {
+            console.error('error adding icon:', err);
+        }
+    }
+    /**
+     * Add image
+     */
+    async addImage() {
+        const src = 'https://demo.home-assistant.io/stub_config/t-shirt-promo.png';
+        try {
+            const image = await this.loadImage(src);
+            const node = new Konva.Image({
+                type: 'image',
+                name: 'Image',
+                image: image,
+                src: src,
+                width: image.naturalWidth || 64,
+                height: image.naturalHeight || 64,
+                draggable: true
+            });
+            this.handleAddNode(node);
+        }
+        catch (err) {
+            console.error('error adding image:', err);
+            // add empty fallback
+            const node = new Konva.Image({
+                type: 'image',
+                name: 'Image',
+                image: undefined,
+                src: src,
+                width: 100,
+                height: 100,
+                draggable: true
+            });
+            this.handleAddNode(node);
+            // gray box onerror
+            await this.updateImage(node, src, false);
+        }
+    }
+    /**
+     * Add rectangle
+     */
+    addRectangle() {
+        const node = new Konva.Rect({
+            type: 'rectangle',
+            name: 'Rectangle',
+            width: 150,
+            height: 80,
+            fill: '#ffffff',
+            draggable: true
+        });
+        this.handleAddNode(node);
+    }
+    /**
+     * Add circle
+     */
+    addCircle() {
+        const node = new Konva.Circle({
+            type: 'circle',
+            name: 'Circle',
+            radius: 50,
+            fill: '#ffffff',
+            draggable: true
+        });
+        this.handleAddNode(node);
+    }
+    /**
+     * Add v-guide
+     */
+    addVerticalGuide() {
+        const stageHeight = this.stage.height();
+        const centerX = this.canvasWidth / 2;
+        const topY = -(stageHeight - this.canvasHeight) / 2;
+        const bottomY = stageHeight / 2 + this.canvasHeight / 2;
+        const node = new Konva.Line({
+            type: 'v-guide',
+            points: [centerX, topY, centerX, bottomY],
+            stroke: '#75fcfd',
+            name: 'Vertical Guide',
+            strokeWidth: 1,
+            hitStrokeWidth: 8,
+            draggable: true,
+            strokeScaleEnabled: false
+        });
+        this.handleAddNode(node);
+    }
+    /**
+     * Add h-guide
+     */
+    addHorizontalGuide() {
+        const stageWidth = this.stage.width();
+        const centerY = this.canvasHeight / 2;
+        const leftX = -(stageWidth - this.canvasWidth) / 2;
+        const rightX = stageWidth / 2 + this.canvasWidth / 2;
+        const node = new Konva.Line({
+            type: 'h-guide',
+            points: [leftX, centerY, rightX, centerY],
+            stroke: '#75fcfd',
+            name: 'Horizontal Guide',
+            strokeWidth: 1,
+            hitStrokeWidth: 8,
+            draggable: true,
+            strokeScaleEnabled: false
+        });
+        this.handleAddNode(node);
+    }
+    /**
+     * Handle add node
+     */
+    handleAddNode(node) {
+        const type = node?.attrs?.type;
+        node.setAttrs({
+            id: this.generateUniqueId(type)
+        });
+        if (node instanceof Konva.Circle)
+            node.position({
+                x: this.canvasWidth / 2,
+                y: this.canvasHeight / 2
+            });
+        else if (!this.isGuide(node)) {
+            node.position({
+                x: (this.canvasWidth - node.width()) / 2,
+                y: (this.canvasHeight - node.height()) / 2
+            });
+        }
+        if (type === 'image' && node instanceof Konva.Image) {
+            this.fitImage(node);
+        }
+        this.layer.add(node);
+        if (this.isGuide(node) && node instanceof Konva.Line) {
+            this.setupGuideEvents(node);
+            this.updateGuidePos();
+        }
+        else {
+            this.selectedShapes = [node];
+            this.transformer.nodes([node]);
+        }
+        this.record();
+        this.update();
+    }
+    /**
+     * onDestroy helper to record data
+     */
+    getElementsData() {
+        return this.layer.getChildren().map((node) => this.getNodeData(node));
+    }
+    /**
+     * Get node
+     * - removes image attribute because it can't be serialized
+     * - removes state-icon color
+     * - handles nested group nodes
+     */
+    getNodeData(node) {
+        const attrs = this.getShapeAttrs(node);
+        delete attrs.image;
+        if (attrs.type === 'state-icon')
+            delete attrs.state_color;
+        const data = {
+            attrs,
+            className: node.getClassName()
+        };
+        if (node instanceof Konva.Group) {
+            data.children = node.getChildren().map((child) => this.getNodeData(child));
+        }
+        return data;
+    }
+    generateUniqueId(type) {
+        const timestamp = Date.now();
+        const randomPart = Math.random().toString(36).slice(2, 11);
+        return `${type}-${timestamp}-${randomPart}`;
+    }
+    /**
+     * Destroy editor
+     */
+    destroyEditor() {
+        window.removeEventListener('mousemove', this.handleMouseMove);
+        window.removeEventListener('mouseup', this.handleMouseup);
+        this.unsubscribe?.();
+        super.destroyBase();
+    }
+}
+
+=== 9936 src/lib/Modal/PictureElements/konvaViewer.ts	js
+import Konva from 'konva';
+import { KonvaBase } from '$lib/Modal/PictureElements/konvaBase';
+import { get } from 'svelte/store';
+import { editMode, states, connection } from '$lib/Stores';
+import { callService } from 'home-assistant-js-websocket';
+/**
+ * Picture elements
+ */
+export class KonvaViewer extends KonvaBase {
+    constructor(container, data) {
+        super(container, data);
+        this.handleMount();
+        this.subscribeStates();
+    }
+    /**
+     * Handles mount
+     * - removes guides and hidden shapes
+     * - disables `draggable` attribute
+     * - handles state-label with no entity_id
+     * - loads images and icons
+     * - updates $konvaImageCache
+     */
+    async handleMount() {
+        this.layer
+            .getChildren((node) => node instanceof Konva.Shape || node instanceof Konva.Group)
+            .forEach((node) => {
+            if (!node.isVisible() || this.isGuide(node)) {
+                node.remove();
+            }
+            else {
+                this.handleNodeClick(node);
+                if (node?.attrs?.type === 'state-label' && node instanceof Konva.Text) {
+                    this.updateStateLabel(node, undefined);
+                }
+            }
+        });
+        await Promise.all(this.layer.find('Image').map(async (node) => {
+            if (node instanceof Konva.Image) {
+                const type = node.attrs.type;
+                switch (type) {
+                    case 'icon':
+                    case 'state-icon':
+                        await this.updateIcon(node);
+                        break;
+                    case 'image':
+                        await this.updateImage(node, node.getAttr('src'), false);
+                        if (node.getAttr('id')) {
+                            const image = node.image();
+                            if (image instanceof HTMLImageElement) {
+                                this.updateImageCache(node.getAttr('id'), image);
+                            }
+                        }
+                        break;
+                }
+            }
+        }));
+        // update state-icon again when everything's loaded
+        await Promise.all(this.layer.find('Image').map(async (node) => {
+            if (node instanceof Konva.Image && node.attrs.type === 'state-icon') {
+                await this.updateStateIcon(node, undefined);
+            }
+        }));
+    }
+    /**
+     * Subscribes to $states store
+     * and updates 'state-' shapes
+     */
+    subscribeStates() {
+        this.unsubscribe = states.subscribe(($states) => {
+            if (this.layer && $states) {
+                const nodes = this.layer.getChildren((node) => node.getAttr('entity_id') && node?.attrs?.type?.startsWith('state-'));
+                nodes.forEach((node) => {
+                    if (node instanceof Konva.Image) {
+                        this.updateStateIcon(node, $states);
+                    }
+                    else if (node instanceof Konva.Text) {
+                        this.updateStateLabel(node, $states);
+                    }
+                });
+            }
+        });
+    }
+    /**
+     * Handle click events
+     */
+    handleNodeClick(node) {
+        const onclick = node.getAttr('onclick');
+        node.listening(!!onclick);
+        node.draggable(false);
+        node.off('mouseenter mouseleave click tap');
+        if (onclick && typeof onclick === 'object') {
+            const setCursor = (cursor) => {
+                this.stage.container().style.cursor = get(editMode) ? 'unset' : cursor;
+            };
+            node.on('mouseenter', () => setCursor('pointer'));
+            node.on('mouseleave', () => setCursor('default'));
+            node.on('click tap', async () => {
+                if (get(editMode))
+                    return;
+                const conn = get(connection);
+                if (!conn) {
+                    console.error('No connection', conn);
+                    return;
+                }
+                const { domain, service, data, target } = onclick;
+                if (!domain || !service) {
+                    console.error('Invalid service call', onclick);
+                    return;
+                }
+                const pos = this.stage.getPointerPosition();
+                if (pos)
+                    this.ripple(pos.x, pos.y);
+                try {
+                    await callService(conn, domain, service, data, target);
+                }
+                catch (err) {
+                    console.error('Error calling service:', err);
+                }
+            });
+        }
+    }
+    /**
+     * Updates layer children
+     * - removes nonexistent nodes
+     * - updates or creates nodes
+     * - updates $konvaImageCache
+     */
+    async updateLayerChildren(data) {
+        this.layer
+            .getChildren((node) => !data.some((nodeData) => nodeData?.attrs?.id === node.getAttr('id')))
+            .forEach((node) => node.destroy());
+        await Promise.all(data
+            .filter((nodeData) => !this.isGuide(nodeData))
+            .map(async (nodeData, index) => {
+            let node = this.layer.findOne(`#${nodeData?.attrs?.id}`);
+            if (node) {
+                await this.updateNode(node, nodeData);
+            }
+            else {
+                node = await this.createNode(nodeData);
+                this.layer.add(node);
+            }
+            if (node) {
+                node.zIndex(index);
+                if (node instanceof Konva.Image && node.getAttr('id')) {
+                    const image = node.image();
+                    if (image instanceof HTMLImageElement) {
+                        this.updateImageCache(node.getAttr('id'), image);
+                    }
+                }
+            }
+        }));
+    }
+    /**
+     * Handle node updates
+     * - updates `onclick` attribute
+     * - updates node attributes
+     * - loads any icons/images
+     *
+     * does not update reactive attributes:
+     * - state-label `text`
+     * - state-icon `image`, `icon` and `state_color`
+     */
+    async updateNode(node, nodeData) {
+        const onclick = nodeData?.attrs?.onclick;
+        node.setAttr('onclick', onclick ? JSON.parse(JSON.stringify(onclick)) : undefined);
+        const type = node?.attrs?.type;
+        if (type === 'state-label' && node instanceof Konva.Text) {
+            node.setAttrs({
+                ...nodeData?.attrs,
+                text: node.getAttr('text')
+            });
+        }
+        else if (type === 'state-icon' && node instanceof Konva.Image) {
+            node.setAttrs({
+                ...nodeData?.attrs,
+                ...{
+                    image: node.getAttr('image'),
+                    icon: node.getAttr('icon'),
+                    state_color: node.getAttr('state_color')
+                }
+            });
+        }
+        else {
+            node.setAttrs(nodeData?.attrs);
+        }
+        if (node instanceof Konva.Image) {
+            if (type === 'state-icon') {
+                await this.updateStateIcon(node, undefined);
+            }
+            else if (type === 'icon') {
+                await this.updateIcon(node);
+            }
+            else if (type === 'image') {
+                await this.updateImage(node, node.getAttr('src'), false);
+            }
+        }
+        this.handleNodeClick(node);
+    }
+    /**
+     * Handle node creation
+     */
+    async createNode(nodeData) {
+        let node;
+        const attrs = nodeData?.attrs;
+        const type = attrs?.type;
+        switch (type) {
+            case 'state-label':
+                node = new Konva.Text(attrs);
+                this.updateStateLabel(node, undefined);
+                break;
+            case 'state-icon':
+                node = new Konva.Image(attrs);
+                this.updateStateIcon(node, undefined);
+                break;
+            case 'text':
+                node = new Konva.Text(attrs);
+                break;
+            case 'icon':
+                node = new Konva.Image(attrs);
+                await this.updateIcon(node);
+                break;
+            case 'image':
+                node = new Konva.Image(attrs);
+                await this.updateImage(node, attrs?.src, false);
+                break;
+            case 'rectangle':
+                node = new Konva.Rect(attrs);
+                break;
+            case 'circle':
+                node = new Konva.Circle(attrs);
+                break;
+            case 'group':
+                node = new Konva.Group(attrs);
+                if ('children' in nodeData && Array.isArray(nodeData?.children)) {
+                    for (const child of nodeData.children) {
+                        // recursive
+                        const childNode = await this.createNode(child);
+                        node.add(childNode);
+                    }
+                }
+                break;
+            default:
+                console.error(type, 'type not found');
+                node = new Konva.Shape(attrs);
+        }
+        this.handleNodeClick(node);
+        return node;
+    }
+    /**
+     * Handle ripple effect
+     */
+    ripple(x, y) {
+        const shape = new Konva.Circle({
+            x,
+            y,
+            fill: 'rgba(255, 255, 255, 0.75)'
+        });
+        this.layer.add(shape);
+        const duration = 380;
+        const radius = 35;
+        const animation = new Konva.Animation((frame) => {
+            if (!frame)
+                return;
+            const progress = Math.min(frame.time / duration, 1);
+            shape.radius(Konva.Easings.StrongEaseOut(progress, 0, radius, 1));
+            shape.opacity(Konva.Easings.StrongEaseOut(progress, 1, -1, 1));
+            if (progress >= 1) {
+                animation.stop();
+                shape.destroy();
+            }
+        }, this.layer).start();
+    }
+    /**
+     * Destroy konva
+     */
+    destroyViewer() {
+        this.unsubscribe?.();
+        super.destroyBase();
+    }
+}
+
+=== 4661 src/lib/Modal/getRandomEntity.ts	js
+/**
+ * Returns a random entity_id from provided array
+ */
+function random(list) {
+    if (!list || list.length === 0)
+        return undefined;
+    return list[Math.floor(Math.random() * list.length)];
+}
+/**
+ * Get random entity with following requirements:
+ * number | %
+ */
+export function getPercentageEntity(states) {
+    if (states === undefined)
+        return;
+    const filtered = Object.values(states).filter((entity) => entity.attributes &&
+        'unit_of_measurement' in entity.attributes &&
+        entity.attributes.unit_of_measurement === '%' &&
+        !isNaN(parseFloat(entity.state)));
+    const entity = random(filtered);
+    return entity?.entity_id;
+}
+/**
+ * Get random entity with following requirements:
+ * binary_sensor | sensor | state.length > 5 | !unavailable | !unknown
+ */
+export function getSensorEntity(states) {
+    if (states === undefined)
+        return;
+    const sensors = Object.values(states).filter((entity) => entity.entity_id.startsWith('binary_sensor.') || entity.entity_id.startsWith('sensor.'));
+    const filtered = sensors.filter((entity) => entity.state && entity.state.length > 5 && !['unavailable', 'unknown'].includes(entity.state));
+    const entity = random(filtered);
+    if (entity) {
+        return entity.entity_id;
+    }
+    else {
+        const fallback = random(sensors);
+        return fallback?.entity_id;
+    }
+}
+/**
+ * Get random timer entity
+ */
+export function getTimerEntity(states) {
+    if (states === undefined)
+        return;
+    const timers = Object.values(states).filter((e) => e.entity_id.startsWith('timer.'));
+    return timers.length ? random(timers).entity_id : undefined;
+}
+/**
+ * Get random media_player entity
+ */
+export function getMediaPlayerEntity(states) {
+    if (states === undefined)
+        return;
+    const mediaPlayers = Object.values(states).filter((e) => e.entity_id.startsWith('media_player.'));
+    return mediaPlayers.length ? random(mediaPlayers).entity_id : undefined;
+}
+/**
+ * Get random history entity
+ */
+export function getHistoryEntity(states) {
+    if (states === undefined)
+        return;
+    const list = Object.values(states).filter((entity) => entity.state === 'on' || entity.state === 'off');
+    return list.length ? random(list).entity_id : undefined;
+}
+/**
+ * Get random weather entity
+ */
+export function getWeatherEntity(states) {
+    if (states === undefined)
+        return;
+    const list = Object.values(states).filter((e) => e.entity_id.startsWith('weather.'));
+    return list.length ? random(list).entity_id : undefined;
+}
+/**
+ * Get random weather entity with forecast attribute
+ */
+export function getWeatherForecastEntity(states) {
+    if (states === undefined)
+        return;
+    const list = Object.values(states).filter((entity) => entity.entity_id.startsWith('weather.') &&
+        entity?.attributes?.supported_features &&
+        entity?.attributes?.supported_features > 0);
+    return list.length ? random(list).entity_id : undefined;
+}
+/**
+ * Graph sensor entity
+ * list_statistic_ids and validate_statistics
+ */
+export function getGraphEntity(states, connection, callback) {
+    if (states === undefined)
+        return;
+    connection.subscribe(async (conn) => {
+        if (!conn) {
+            callback(undefined);
+            return;
+        }
+        try {
+            const [listStatistics, validateStatistics] = await Promise.all([
+                conn.sendMessagePromise({ type: 'recorder/list_statistic_ids' }),
+                conn.sendMessagePromise({ type: 'recorder/validate_statistics' })
+            ]);
+            const list_statistic_ids = Object.values(listStatistics)
+                .map((entry) => entry?.statistic_id?.startsWith('sensor.') ? entry.statistic_id : null)
+                .filter(Boolean);
+            const validate_statistics_set = new Set(Object.values(validateStatistics)
+                .map((entry) => entry[0]?.data?.statistic_id)
+                .filter(Boolean));
+            const valid = list_statistic_ids.filter((id) => !validate_statistics_set.has(id));
+            const filtered = Object.keys(states).filter((key) => valid.includes(key) && !['unavailable', 'unknown'].includes(states[key].state));
+            callback(random(filtered));
+        }
+        catch (err) {
+            console.error(err);
+            callback(undefined);
+        }
+    });
+}
+/**
+ * Get random camera entity
+ */
+export function getCameraEntity(states) {
+    if (states === undefined)
+        return;
+    const filtered = Object.values(states).filter((entity) => entity.entity_id.startsWith('camera.'));
+    const entity = random(filtered);
+    if (entity)
+        return entity.entity_id;
+}
+
+=== 995 src/lib/Modal/trapFocus.ts	js
+/**
+ * Trap tab selection to elements inside modal
+ * doesn't work in Safari...
+ */
+export function trapFocus(node) {
+    function focusable() {
+        return Array.from(node.querySelectorAll('button:not([tabindex="-1"]), [href], input, select, textarea')).map((element) => element);
+    }
+    function handleKeydown(event) {
+        if (event.key !== 'Tab')
+            return;
+        const current = document.activeElement;
+        const elements = focusable();
+        const first = elements.at(0);
+        const last = elements.at(-1);
+        if (event.shiftKey && current === first) {
+            last?.focus();
+            event.preventDefault();
+        }
+        if (!event.shiftKey && current === last) {
+            first?.focus();
+            event.preventDefault();
+        }
+    }
+    focusable()[0]?.focus();
+    node.addEventListener('keydown', handleKeydown);
+    return {
+        destroy() {
+            node.removeEventListener('keydown', handleKeydown);
+        }
+    };
+}
+
+=== 5029 src/lib/Socket.ts	js
+import { getAuth, createLongLivedTokenAuth, createConnection, subscribeConfig, subscribeEntities, ERR_CANNOT_CONNECT, ERR_INVALID_AUTH, ERR_CONNECTION_LOST, ERR_HASS_HOST_REQUIRED, ERR_INVALID_HTTPS_TO_HTTP } from 'home-assistant-js-websocket';
+import { states, connection, config, connected, event, persistentNotifications } from '$lib/Stores';
+import { openModal, closeModal } from 'svelte-modals';
+const options = {
+    hassUrl: undefined,
+    async loadTokens() {
+        try {
+            return JSON.parse(localStorage.hassTokens);
+        }
+        catch {
+            return undefined;
+        }
+    },
+    saveTokens(tokens) {
+        localStorage.hassTokens = JSON.stringify(tokens);
+    },
+    clearTokens() {
+        localStorage.hassTokens = null;
+    }
+};
+export async function authentication(configuration) {
+    if (!configuration?.hassUrl) {
+        console.error('hassUrl is undefined...');
+        return;
+    }
+    let auth;
+    try {
+        // long lived access token
+        if (configuration?.token) {
+            auth = createLongLivedTokenAuth(configuration?.hassUrl, configuration?.token);
+            // companion app and ingress causes issues with auth redirect
+            // open special modal to enter long lived access token
+        }
+        else if (navigator.userAgent.includes('Home Assistant')) {
+            openModal(() => import('$lib/Components/TokenModal.svelte'));
+            return;
+            // default auth flow
+        }
+        else {
+            auth = await getAuth({ ...options, hassUrl: configuration?.hassUrl });
+            if (auth.expired)
+                auth.refreshAccessToken();
+        }
+        // connection
+        const conn = await createConnection({ auth });
+        connection.set(conn);
+        // states
+        subscribeEntities(conn, (hassEntities) => {
+            states.set(hassEntities);
+        });
+        // config
+        subscribeConfig(conn, (hassConfig) => {
+            config.set(hassConfig);
+        });
+        // events
+        conn.addEventListener('ready', () => {
+            console.debug('connected.');
+            connected.set(true);
+        });
+        conn.addEventListener('disconnected', () => {
+            console.debug('connecting...');
+            connected.set(false);
+        });
+        conn.addEventListener('reconnect-error', () => {
+            console.error('ERR_INVALID_AUTH.');
+            connected.set(false);
+        });
+        // clear auth query string
+        if (location.search.includes('auth_callback=1')) {
+            history.replaceState(null, '', location.pathname);
+        }
+        // custom events
+        conn?.subscribeMessage((message) => {
+            const trigger = message?.variables?.trigger?.event?.data?.event;
+            // close_popup
+            if (trigger === 'close_popup') {
+                event.set('close_popup');
+                closeModal();
+            }
+            // refresh
+            else if (trigger === 'refresh') {
+                sessionStorage.setItem('event', 'refresh');
+                location.reload();
+            }
+        }, {
+            type: 'subscribe_trigger',
+            trigger: {
+                platform: 'event',
+                event_type: 'HA_FUSION'
+            }
+        });
+        // notifications
+        conn?.subscribeMessage((data) => {
+            // initial
+            if (data?.type === 'current') {
+                persistentNotifications.set(data?.notifications);
+                // update
+            }
+            else if (data?.type === 'added' || data?.type === 'updated') {
+                persistentNotifications.update((notifications) => ({
+                    ...notifications,
+                    ...data?.notifications
+                }));
+                // remove
+            }
+            else if (data?.type === 'removed') {
+                persistentNotifications.update((notifications) => {
+                    Object.keys(data?.notifications).forEach((notificationId) => {
+                        delete notifications[notificationId];
+                    });
+                    return { ...notifications };
+                });
+            }
+        }, {
+            type: 'persistent_notification/subscribe'
+        });
+    }
+    catch (_error) {
+        handleError(_error);
+    }
+}
+// error string instead of code
+function handleError(_error) {
+    switch (_error) {
+        case ERR_INVALID_AUTH:
+            console.error('ERR_INVALID_AUTH');
+            options.clearTokens();
+            break;
+        case ERR_CANNOT_CONNECT:
+            console.error('ERR_CANNOT_CONNECT');
+            break;
+        case ERR_CONNECTION_LOST:
+            console.error('ERR_CONNECTION_LOST');
+            break;
+        case ERR_HASS_HOST_REQUIRED:
+            console.error('ERR_HASS_HOST_REQUIRED');
+            break;
+        case ERR_INVALID_HTTPS_TO_HTTP:
+            console.error('ERR_INVALID_HTTPS_TO_HTTP');
+            break;
+        default:
+            console.error(_error);
+    }
+    throw _error;
+}
+
+=== 3975 src/lib/Stores.ts	js
+import { writable, readable, derived } from 'svelte/store';
+import { getName } from './Utils';
+// hass
+export const connection = writable();
+export const config = writable();
+export const states = writable();
+export const services = writable();
+export const connected = writable();
+// user
+export const configuration = writable();
+export const dashboard = writable();
+export const customJs = writable();
+// states
+export const onStates = readable([
+    'active',
+    'auto',
+    'cool',
+    'dry',
+    'fan_only',
+    'heat',
+    'heat_cool',
+    'heating',
+    'home',
+    'on',
+    'open',
+    'playing',
+    'unlocking',
+    'unlocked',
+    // vacuum
+    'cleaning',
+    'returning',
+    // water_heater
+    'eco',
+    'electric',
+    'performance',
+    'high_demand',
+    'heat_pump',
+    'gas'
+]);
+// climate states
+export const climateHvacActionToMode = readable({
+    cooling: 'cool',
+    drying: 'dry',
+    fan: 'fan_only',
+    preheating: 'heat',
+    heating: 'heat',
+    idle: 'off',
+    off: 'off'
+});
+// drawer
+export const drawerSearch = writable();
+export const focusSearch = writable(false);
+export const filterDashboard = writable({});
+export const disableMenuButton = writable(false);
+export const clickOriginatedFromMenu = writable(false);
+// global
+export const editMode = writable(false);
+export const showDrawer = writable(false);
+export const motion = writable(190);
+export const itemHeight = readable(61.35);
+// language
+export const translation = writable({});
+export const selectedLanguage = writable();
+export const lang = derived(translation, (obj) => (key) => obj[key] || obj._default?.[key] || key);
+// views
+export const currentViewId = writable();
+export const draggingView = writable(false);
+export const viewUnderline = writable(true);
+export const highlightView = writable(false);
+// sidebar
+export const timers = writable({});
+export const barErrors = writable({});
+export const forecasts = writable({});
+export const templates = writable({});
+export const demo = writable({
+    graph: undefined,
+    sensor: undefined,
+    timer: undefined,
+    bar: undefined,
+    radial: undefined,
+    camera: undefined,
+    history: undefined
+});
+// youtube_addon
+export const youtubeAddon = writable();
+export const youtubeData = writable();
+// history
+export const history = writable([]);
+export const historyIndex = writable(0);
+export const record = writable(() => { });
+export function historyUpdater(func) {
+    record.set(func);
+}
+// time/date
+export const timer = readable(new Date(), function start(set) {
+    const interval = setInterval(() => {
+        set(new Date());
+    }, 1000);
+    set(new Date());
+    return function stop() {
+        clearInterval(interval);
+    };
+});
+// ripple
+export const ripple = readable({
+    color: 'rgba(255, 255, 255, 0.15)',
+    opacity: 0.5,
+    spreadingDuration: '300ms',
+    spreadingTimingFunction: 'ease-in-out',
+    clearingDuration: '350ms',
+    clearingTimingFunction: 'ease-in-out'
+});
+// calendar
+export const calendarView = writable();
+export const calendarFirstDay = writable();
+// dnd
+export const dragging = writable(false);
+// codemirror
+export const autocompleteOpen = writable(false);
+export const autocompleteList = derived(states, ($states) => Object.keys($states));
+export const pasteContent = writable();
+// entity select
+export const entityList = derived(states, ($states) => (filter) => Object.keys($states)
+    ?.filter((key) => (filter.length > 0 ? key.startsWith(`${filter}.`) : true))
+    ?.sort()
+    ?.map((key) => {
+    const name = getName(undefined, $states?.[key]);
+    return {
+        id: key,
+        label: name ?? key,
+        hint: name === key ? undefined : key
+    };
+}));
+// event
+export const event = writable();
+export const persistentNotifications = writable({});
+// konva
+export const konvaImageCache = writable({});
+export const konvaStore = writable({
+    children: [],
+    selectedShapes: [],
+    mode: 'default',
+    undoStack: [],
+    redoStack: []
+});
+
+=== 11 src/lib/Types.ts	js
+export {};
+
+=== 5533 src/lib/Utils.ts	js
+/**
+ * Updates a selected object's property based on the event or direct value.
+ * If no value is provided, the specified property is deleted from the object.
+ */
+export function updateObj(sel, key, event) {
+    if (event?.type) {
+        // select or input
+        sel[key] = event.detail || event.target?.value;
+    }
+    else if (event !== undefined) {
+        // direct value
+        sel[key] = event;
+    }
+    else {
+        delete sel[key];
+    }
+    return sel;
+}
+/**
+ * Retrieves a selected item by its ID from the given dashboard data.
+ * It first searches within the sidebar, then the views sections
+ */
+export function getSelected(id, data) {
+    if (data.sidebar) {
+        const sidebarItem = data.sidebar.find((item) => item.id === id);
+        if (sidebarItem)
+            return sidebarItem;
+    }
+    if (data.views) {
+        for (const view of data.views) {
+            if (view.sections) {
+                const result = findInSections(view.sections, id);
+                if (result)
+                    return result;
+            }
+        }
+    }
+    return undefined;
+}
+function findInSections(sections, id) {
+    for (const section of sections) {
+        if (section.items) {
+            for (const item of section.items) {
+                if (item.id === id)
+                    return item;
+            }
+        }
+        if (section.type === 'horizontal-stack' && section.sections) {
+            const result = findInSections(section.sections, id);
+            if (result)
+                return result;
+        }
+    }
+    return undefined;
+}
+/**
+ * Returns the domain from a given entity_id
+ * @example domain("light.bedroom") // "light"
+ */
+export function getDomain(entity_id) {
+    return entity_id?.split('.')?.[0];
+}
+/**
+ * Returns the name of a given entity
+ * name | friendly_name | entity_id
+ */
+export function getName(sel, entity, sectionName = undefined) {
+    const name = sel?.name || entity?.attributes?.friendly_name || entity?.entity_id?.split('.')?.[1];
+    return !sel?.name && sectionName && name?.startsWith(sectionName + ' ')
+        ? name?.substring(sectionName?.length + 1)
+        : name;
+}
+/**
+ * Returns togglable service
+ */
+export function getTogglableService(entity) {
+    const domain = getDomain(entity?.entity_id);
+    const state = entity?.state;
+    if (!domain || !state)
+        return;
+    let service;
+    switch (domain) {
+        case 'automation':
+        case 'button':
+        case 'cover':
+        case 'fan':
+        case 'humidifier':
+        case 'input_boolean':
+        case 'light':
+        case 'media_player':
+        case 'script':
+        case 'siren':
+        case 'switch':
+            service = 'toggle';
+            break;
+        case 'input_button':
+            service = 'press';
+            break;
+        case 'lock':
+            service = state === 'locked' ? 'unlock' : 'lock';
+            break;
+        case 'remote':
+            return 'homeassistant.toggle';
+        case 'scene':
+            service = 'turn_on';
+            break;
+        case 'timer':
+            service = state === 'active' ? 'cancel' : 'start';
+            break;
+        case 'vacuum':
+            service = state === 'cleaning' ? 'pause' : 'start';
+            break;
+    }
+    if (service) {
+        return `${domain}.${service}`;
+    }
+}
+/**
+ * Generates a unique 13-digit random ID
+ * that doesn't collide with existing IDs
+ */
+export function generateId(data) {
+    const ids = new Set();
+    // add ids
+    for (const item of data.sidebar) {
+        ids.add(item.id);
+    }
+    for (const view of data.views) {
+        ids.add(view.id);
+        if (view.sections) {
+            for (const section of view.sections) {
+                ids.add(section.id);
+                if (section.items) {
+                    for (const item of section.items) {
+                        ids.add(item.id);
+                    }
+                }
+            }
+        }
+    }
+    let id;
+    while (!id || ids.has(id)) {
+        id = Math.floor(Math.random() * 1e13 - 1e12) + 1e12;
+    }
+    return id;
+}
+/**
+ * Check if given string is a timestamp
+ * YYYY-MM-DDTHH:MM:SS
+ */
+export function isTimestamp(state) {
+    const format = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+    return format.test(state);
+}
+/**
+ * Converts an ISO formatted timestamp
+ * into a relative time string
+ */
+export function relativeTime(timestamp, languageCode) {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+        console.error('Invalid timestamp');
+    }
+    const formatter = new Intl.RelativeTimeFormat(languageCode, { numeric: 'auto' });
+    let index;
+    const units = [
+        ['second', 60],
+        ['minute', 60],
+        ['hour', 24],
+        ['day', 30],
+        ['month', 12],
+        ['year', Infinity]
+    ];
+    const now = new Date();
+    const diff = (date.getTime() - now.getTime()) / 1000;
+    let diffUnit = Math.abs(diff);
+    for (index = 0; index < units.length; index++) {
+        if (diffUnit < units[index][1])
+            break;
+        diffUnit /= units[index][1];
+    }
+    return formatter.format(Math.round(diffUnit) * (diff < 0 ? -1 : 1), units[index][0]);
+}
+/**
+ * Returns an object of supported features
+ */
+export function getSupport(supported_features, features) {
+    if (!supported_features)
+        return {};
+    return Object.entries(features).reduce((supports, [key, value]) => {
+        if (typeof value === 'number')
+            supports[key] = (supported_features & value) !== 0;
+        return supports;
+    }, {});
+}
+
+=== 8036 src/lib/Weather.ts	js
+import { readable } from 'svelte/store';
+export const iconMapMaterialSymbolsLight = {
+    type: 'materialsymbolslight',
+    conditions: {
+        'clear-night': {
+            icon_variant_day: 'material-symbols-light:bedtime-outline-rounded',
+            icon_variant_night: 'material-symbols-light:bedtime-outline-rounded'
+        },
+        cloudy: {
+            icon_variant_day: 'material-symbols-light:cloud-outline',
+            icon_variant_night: 'material-symbols-light:cloud-outline'
+        },
+        exceptional: {
+            icon_variant_day: 'material-symbols-light:warning-outline-rounded',
+            icon_variant_night: 'material-symbols-light:warning-outline-rounded'
+        },
+        fog: {
+            icon_variant_day: 'material-symbols-light:foggy-outline',
+            icon_variant_night: 'material-symbols-light:foggy-outline'
+        },
+        hail: {
+            icon_variant_day: 'material-symbols-light:weather-hail-outline-rounded',
+            icon_variant_night: 'material-symbols-light:weather-hail-outline-rounded'
+        },
+        lightning: {
+            icon_variant_day: 'material-symbols-light:thunderstorm-outline-rounded',
+            icon_variant_night: 'material-symbols-light:thunderstorm-outline-rounded'
+        },
+        'lightning-rainy': {
+            icon_variant_day: 'material-symbols-light:thunderstorm-outline-rounded',
+            icon_variant_night: 'material-symbols-light:thunderstorm-outline-rounded'
+        },
+        partlycloudy: {
+            icon_variant_day: 'material-symbols-light:partly-cloudy-day-outline',
+            icon_variant_night: 'material-symbols-light:nights-stay-outline-rounded'
+        },
+        pouring: {
+            icon_variant_day: 'material-symbols-light:rainy-outline',
+            icon_variant_night: 'material-symbols-light:rainy-outline'
+        },
+        rainy: {
+            icon_variant_day: 'material-symbols-light:rainy-outline',
+            icon_variant_night: 'material-symbols-light:rainy-outline'
+        },
+        snowy: {
+            icon_variant_day: 'material-symbols-light:cloudy-snowing-outline',
+            icon_variant_night: 'material-symbols-light:cloudy-snowing-outline'
+        },
+        'snowy-rainy': {
+            icon_variant_day: 'material-symbols-light:weather-mix-outline-rounded',
+            icon_variant_night: 'material-symbols-light:weather-mix-outline-rounded'
+        },
+        sunny: {
+            icon_variant_day: 'material-symbols-light:sunny-outline-rounded',
+            icon_variant_night: 'material-symbols-light:sunny-outline-rounded'
+        },
+        windy: {
+            icon_variant_day: 'material-symbols-light:mist',
+            icon_variant_night: 'material-symbols-light:mist'
+        },
+        'windy-variant': {
+            icon_variant_day: 'material-symbols-light:mistd',
+            icon_variant_night: 'material-symbols-light:mist'
+        }
+    }
+};
+export const iconMapMeteocons = {
+    type: 'meteocons',
+    conditions: {
+        'clear-night': {
+            local: true,
+            icon_variant_day: 'weather/meteocons/clear-night-day',
+            icon_variant_night: 'weather/meteocons/clear-night-night'
+        },
+        cloudy: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/cloudy-day',
+            icon_variant_night: 'weather/meteocons/cloudy-night'
+        },
+        exceptional: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/exceptional-day',
+            icon_variant_night: 'weather/meteocons/exceptional-night'
+        },
+        fog: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/fog-day',
+            icon_variant_night: 'weather/meteocons/fog-night'
+        },
+        hail: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/hail-day',
+            icon_variant_night: 'weather/meteocons/hail-night'
+        },
+        lightning: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/lightning-day',
+            icon_variant_night: 'weather/meteocons/lightning-night'
+        },
+        'lightning-rainy': {
+            local: true,
+            icon_variant_day: 'weather/meteocons/lightning-rainy-day',
+            icon_variant_night: 'weather/meteocons/lightning-rainy-night'
+        },
+        partlycloudy: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/partlycloudy-day',
+            icon_variant_night: 'weather/meteocons/partlycloudy-night'
+        },
+        pouring: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/pouring-day',
+            icon_variant_night: 'weather/meteocons/pouring-night'
+        },
+        rainy: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/rainy-day',
+            icon_variant_night: 'weather/meteocons/rainy-night'
+        },
+        snowy: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/snowy-day',
+            icon_variant_night: 'weather/meteocons/snowy-night'
+        },
+        'snowy-rainy': {
+            local: true,
+            icon_variant_day: 'weather/meteocons/snowy-rainy-day',
+            icon_variant_night: 'weather/meteocons/snowy-rainy-night'
+        },
+        sunny: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/sunny-day',
+            icon_variant_night: 'weather/meteocons/sunny-night'
+        },
+        windy: {
+            local: true,
+            icon_variant_day: 'weather/meteocons/windy-day',
+            icon_variant_night: 'weather/meteocons/windy-night'
+        },
+        'windy-variant': {
+            local: true,
+            icon_variant_day: 'weather/meteocons/windy-variant-day',
+            icon_variant_night: 'weather/meteocons/windy-variant-night'
+        }
+    }
+};
+export const iconMapWeatherIcons = {
+    type: 'weathericons',
+    conditions: {
+        'clear-night': {
+            icon_variant_day: 'wi:night-clear',
+            icon_variant_night: 'wi:night-clear'
+        },
+        cloudy: {
+            icon_variant_day: 'wi:day-cloudy',
+            icon_variant_night: 'wi:night-alt-cloudy'
+        },
+        exceptional: {
+            icon_variant_day: 'wi:na',
+            icon_variant_night: 'wi:na'
+        },
+        fog: {
+            icon_variant_day: 'wi:day-fog',
+            icon_variant_night: 'wi:night-fog'
+        },
+        hail: {
+            icon_variant_day: 'wi:day-hail',
+            icon_variant_night: 'wi:night-alt-hail'
+        },
+        lightning: {
+            icon_variant_day: 'wi:day-lightning',
+            icon_variant_night: 'wi:night-alt-lightning'
+        },
+        'lightning-rainy': {
+            icon_variant_day: 'wi:day-thunderstorm',
+            icon_variant_night: 'wi:night-alt-thunderstorm'
+        },
+        partlycloudy: {
+            icon_variant_day: 'wi:day-cloudy',
+            icon_variant_night: 'wi:night-alt-cloudy'
+        },
+        pouring: {
+            icon_variant_day: 'wi:day-rain',
+            icon_variant_night: 'wi:night-alt-rain'
+        },
+        rainy: {
+            icon_variant_day: 'wi:day-rain',
+            icon_variant_night: 'wi:night-alt-rain'
+        },
+        snowy: {
+            icon_variant_day: 'wi:day-snow',
+            icon_variant_night: 'wi:night-alt-snow'
+        },
+        'snowy-rainy': {
+            icon_variant_day: 'wi:day-sleet',
+            icon_variant_night: 'wi:night-alt-sleet'
+        },
+        sunny: {
+            icon_variant_day: 'wi:day-sunny',
+            icon_variant_night: 'wi:day-sunny'
+        },
+        windy: {
+            icon_variant_day: 'wi:strong-wind',
+            icon_variant_night: 'wi:strong-wind'
+        },
+        'windy-variant': {
+            icon_variant_day: 'wi:strong-wind',
+            icon_variant_night: 'wi:strong-wind'
+        }
+    }
+};
+// Weather icon mapping
+export const iconMap = readable({
+    materialsymbolslight: iconMapMaterialSymbolsLight,
+    meteocons: iconMapMeteocons,
+    weathericons: iconMapWeatherIcons
+});
+
+=== 1856 src/routes/+page.server.ts	js
+import { readFile } from 'fs/promises';
+import { dev } from '$app/environment';
+import yaml from 'js-yaml';
+import dotenv from 'dotenv';
+dotenv.config();
+/**
+ * Loads a yaml/json file and returns parsed data
+ */
+async function loadFile(file) {
+    try {
+        const data = await readFile(file, 'utf8');
+        if (!data.trim()) {
+            return {}; // file is empty, early return object
+        }
+        else {
+            return file.endsWith('.yaml') ? yaml.load(data) : JSON.parse(data);
+        }
+    }
+    catch (error) {
+        if (error?.code === 'ENOENT') {
+            // console.error(`No existing file found for ${file}`);
+        }
+        else {
+            console.error(`Error reading or parsing ${file}:`, error);
+        }
+        return {};
+    }
+}
+/**
+ * Server load function
+ */
+export async function load({ request }) {
+    // must be loaded first
+    const [configuration, dashboard] = await Promise.all([
+        loadFile('./data/configuration.yaml'),
+        loadFile('./data/dashboard.yaml')
+    ]);
+    // hassUrl from env or server.js
+    configuration.hassUrl = process.env.HASS_URL || request.headers.get('X-Proxy-Target');
+    // initialize keys if missing
+    dashboard.views = dashboard.views || [];
+    dashboard.sidebar = dashboard.sidebar || [];
+    const dir = dev ? './static' : './build/client';
+    // load theme and locale
+    const [theme, en, locale] = await Promise.all([
+        loadFile(`${dir}/themes/${dashboard.theme || 'godis'}.yaml`),
+        loadFile(`${dir}/translations/en.json`),
+        configuration?.locale && configuration.locale !== 'en'
+            ? loadFile(`${dir}/translations/${configuration.locale}.json`)
+            : undefined
+    ]);
+    return {
+        configuration,
+        dashboard,
+        theme,
+        translations: locale ? { ...locale, _default: en } : en
+    };
+}
+
+=== 884 src/routes/_api/custom_js/+server.ts	js
+import { readFile, writeFile } from 'fs/promises';
+import { json, error } from '@sveltejs/kit';
+/**
+ * Reads the contents of '/data/custom_javascript.js'.
+ * If the file doesn't exist, creates it with default content.
+ */
+export const GET = async ({ setHeaders }) => {
+    let file;
+    const path = './data/custom_javascript.js';
+    try {
+        file = await readFile(path, 'utf-8');
+    }
+    catch (err) {
+        if (err.code === 'ENOENT') {
+            console.warn(`File not found... creating ${path}`);
+            const content = `console.debug('🎉 Custom JavaScript file loaded!');\n`;
+            await writeFile(path, `console.debug('🎉 Custom JavaScript file loaded!');\n`, 'utf-8');
+            file = content;
+        }
+        else {
+            error(500, err.message);
+        }
+    }
+    setHeaders({ 'Cache-Control': 'max-age=0' });
+    return json(file);
+};
+
+=== 1217 src/routes/_api/get_all_themes/+server.ts	js
+import { readdir, readFile } from 'fs/promises';
+import { dev } from '$app/environment';
+import { json, error } from '@sveltejs/kit';
+import yaml from 'js-yaml';
+import path from 'path';
+export const GET = async ({ setHeaders }) => {
+    try {
+        const dir = dev ? './static/themes' : './build/client/themes';
+        const files = await readdir(dir);
+        const yamlFiles = files.filter((file) => file.endsWith('.yaml'));
+        const themes = await Promise.all(yamlFiles.map(async (file) => {
+            const filePath = `${dir}/${file}`;
+            const data = await readFile(filePath, 'utf-8');
+            const themeData = yaml.load(data);
+            if (path.parse(file).name !== themeData?.title) {
+                return null;
+            }
+            return {
+                file: file,
+                title: themeData?.title,
+                author: themeData?.author,
+                attribution: themeData?.attribution,
+                theme: themeData?.theme
+            };
+        }));
+        const validate = themes.filter(Boolean);
+        setHeaders({ 'Cache-Control': 'max-age=0' });
+        return json(validate);
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 579 src/routes/_api/get_calendar/+server.ts	js
+import { json, error } from '@sveltejs/kit';
+export const POST = async ({ request }) => {
+    try {
+        const body = await request.json();
+        const { url, token } = body;
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        const data = await response.json();
+        if (response.ok) {
+            return json(data);
+        }
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 876 src/routes/_api/get_docs/+server.ts	js
+import { readdir, readFile } from 'fs/promises';
+import { dev } from '$app/environment';
+import { json, error } from '@sveltejs/kit';
+import { marked } from 'marked';
+export const GET = async ({ setHeaders }) => {
+    try {
+        const dir = dev ? './static/documentation' : './build/client/documentation';
+        const files = await readdir(dir);
+        const mdFiles = files.filter((file) => file.endsWith('.md'));
+        const results = await Promise.all(mdFiles.map(async (file) => {
+            const path = `${dir}/${file}`;
+            const data = await readFile(path, 'utf-8');
+            const parsed = marked.parse(data);
+            return [file.replace('.md', ''), parsed];
+        }));
+        setHeaders({ 'Cache-Control': 'max-age=0' });
+        return json(Object.fromEntries(results));
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 975 src/routes/_api/get_translation/+server.ts	js
+import { readFile } from 'fs/promises';
+import { json, error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+export const POST = async ({ request, setHeaders }) => {
+    try {
+        const body = await request.json();
+        if (!body.locale || typeof body.locale !== 'string') {
+            throw new Error('Invalid locale');
+        }
+        const dir = dev ? './static/translations' : './build/client/translations';
+        const [en, locale] = await Promise.all([
+            readFile(`${dir}/en.json`, 'utf8'),
+            body.locale && body.locale !== 'en'
+                ? readFile(`${dir}/${body.locale}.json`, 'utf8')
+                : undefined
+        ]);
+        const translations = locale
+            ? { ...JSON.parse(locale), _default: JSON.parse(en) }
+            : JSON.parse(en);
+        setHeaders({ 'Cache-Control': 'max-age=0' });
+        return json(translations);
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 625 src/routes/_api/list_languages/+server.ts	js
+import { readdir } from 'fs/promises';
+import { json, error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import path from 'path';
+export const GET = async ({ setHeaders }) => {
+    try {
+        const dir = dev ? './static/translations' : './build/client/translations';
+        const files = await readdir(dir);
+        const languages = files
+            .filter((file) => path.extname(file) === '.json')
+            .map((file) => file.split('.')[0]);
+        setHeaders({ 'Cache-Control': 'max-age=0' });
+        return json(languages);
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 498 src/routes/_api/load_theme/+server.ts	js
+import { readFile } from 'fs/promises';
+import { json, error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import yaml from 'js-yaml';
+export const POST = async ({ request }) => {
+    try {
+        const body = await request.json();
+        const file = await readFile(`${dev ? 'static' : 'build/client'}/themes/${body?.theme}.yaml`, 'utf8');
+        const content = yaml.load(file);
+        return json(content);
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 761 src/routes/_api/log_backend/+server.ts	js
+// // Example
+// async function logBackend(message: string, data: any) {
+// 	try {
+// 		const response = await fetch(`${base}/_api/server_log`, {
+// 			method: 'POST',
+// 			headers: {
+// 				'Content-Type': 'application/json'
+// 			},
+// 			body: JSON.stringify({ message, data })
+// 		});
+// 		const result = await response.json();
+// 		console.log(result.status);
+// 	} catch (err) {
+// 		console.error('Failed to log message to backend:', err);
+// 	}
+// }
+export const POST = async ({ request }) => {
+    const { message, data } = await request.json();
+    console.log(message, data);
+    return new Response(JSON.stringify({ status: 'Logged' }), {
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        status: 200
+    });
+};
+
+=== 650 src/routes/_api/save_config/+server.ts	js
+import { writeFile } from 'fs/promises';
+import { json } from '@sveltejs/kit';
+import yaml from 'js-yaml';
+export const POST = async ({ request }) => {
+    const body = await request.json();
+    let data;
+    try {
+        data = yaml.dump(body);
+    }
+    catch {
+        return new Response(JSON.stringify({ error: 'Invalid JSON - cannot convert to YAML' }), {
+            status: 400
+        });
+    }
+    try {
+        await writeFile('data/configuration.yaml', data);
+        return json({ action: 'saved' });
+    }
+    catch (error) {
+        return new Response(JSON.stringify({ error: error }), {
+            status: 400
+        });
+    }
+};
+
+=== 492 src/routes/_api/save_dashboard/+server.ts	js
+import { writeFile } from 'fs/promises';
+import { json, error } from '@sveltejs/kit';
+import yaml from 'js-yaml';
+export const POST = async ({ request }) => {
+    const body = await request.json();
+    let data;
+    try {
+        data = yaml.dump(body);
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+    try {
+        await writeFile('./data/dashboard.yaml', data);
+        return json({ message: 'saved' });
+    }
+    catch (err) {
+        error(500, err.message);
+    }
+};
+
+=== 1026 src/routes/_api/version/+server.ts	js
+import { readFile, writeFile } from 'fs/promises';
+import { json, error } from '@sveltejs/kit';
+// load
+export const GET = async () => {
+    try {
+        const [packageFile, versionFile] = await Promise.all([
+            readFile('./package.json', 'utf8').catch(() => '{}'),
+            readFile('./data/version.json', 'utf8').catch(() => '{}')
+        ]);
+        const packageData = JSON.parse(packageFile);
+        const versionData = JSON.parse(versionFile);
+        return json({
+            installed: packageData?.version,
+            latest: versionData?.latest,
+            last_updated: versionData?.last_updated
+        });
+    }
+    catch (err) {
+        error(500, err);
+    }
+};
+// save
+export const POST = async ({ request }) => {
+    try {
+        const body = await request.json();
+        const data = JSON.stringify(body, null, '\t') + '\n';
+        await writeFile('./data/version.json', data);
+        return json({ message: 'success' });
+    }
+    catch (err) {
+        return error(500, err);
+    }
+};
+
+=== 6128 src/routes/_api/youtube/+server.ts	js
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { Innertube, UniversalCache } from 'youtubei.js';
+import { error, json } from '@sveltejs/kit';
+import yaml from 'js-yaml';
+let youtube;
+let event;
+const credentialsFilePath = './data/youtube_credentials.json';
+/**
+ * Handle post requests
+ * poll, logout, history
+ */
+export const POST = async ({ request }) => {
+    const response = await request.json();
+    const message = response?.message;
+    if (message === 'poll') {
+        // poll
+        return json(event || {});
+        // logout
+    }
+    else if (message === 'logout') {
+        try {
+            // catch error if not signed in
+            // so credentials can be removed anyway
+            try {
+                await youtube?.session.signOut();
+            }
+            catch (err) {
+                console.error(err);
+            }
+            unlinkSync(credentialsFilePath);
+            const configFilePath = './data/configuration.yaml';
+            let config = await loadFile(configFilePath);
+            if (config?.addons?.youtube) {
+                delete config.addons.youtube;
+                config = yaml.dump(config);
+                writeFileSync(configFilePath, config);
+            }
+            return json({
+                message: 'success'
+            });
+        }
+        catch (err) {
+            return error(500, err?.message);
+        }
+        // history
+    }
+    else if (message === 'history') {
+        try {
+            youtube = await Innertube.create({
+                cache: new UniversalCache(false)
+            });
+            const events = new Promise((resolve) => {
+                if (!youtube)
+                    return;
+                youtube.session.on('auth-pending', () => {
+                    console.error('YouTube credentials have expired, please sign in again or turn off add-on.');
+                    resolve();
+                });
+                youtube.session.on('auth', async ({ credentials }) => {
+                    await saveFile(credentials);
+                    resolve();
+                });
+                youtube.session.on('update-credentials', async ({ credentials }) => {
+                    await saveFile(credentials);
+                    resolve();
+                });
+                youtube.session.on('auth-error', (error) => {
+                    console.error('YouTube add-on:', error);
+                    resolve();
+                });
+            });
+            const auth = await loadFile(credentialsFilePath);
+            await youtube.session.signIn(auth);
+            await events;
+            const library = await youtube.getLibrary();
+            const history = library?.sections?.find((section) => section?.title?.text === 'History');
+            const video = history?.contents.find((video) => {
+                return (video.author?.name === response?.media_artist &&
+                    video.title?.text === response?.media_title);
+            });
+            const { author, title, id, thumbnails } = video;
+            const getThumbnail = async (id) => {
+                const url = `https://img.youtube.com/vi/${id}/maxresdefault.jpg`;
+                const response = await fetch(url, { method: 'HEAD' });
+                if (response.ok)
+                    return url;
+            };
+            const maxres = await getThumbnail(id);
+            return json({
+                media_artist: author?.name,
+                media_title: title?.text,
+                entity_picture: maxres || thumbnails?.[0]?.url
+            });
+        }
+        catch (err) {
+            error(500, err?.message);
+        }
+    }
+    return json({
+        message: 'error',
+        error: 'Unhandled post request'
+    });
+};
+/**
+ * Init auth and return `AccountInfo`.
+ */
+export const GET = async () => {
+    try {
+        youtube = await Innertube.create({
+            cache: new UniversalCache(false)
+        });
+        youtube.session.on('auth-pending', (data) => {
+            event = {
+                message: 'auth-pending',
+                verification_url: data?.verification_url,
+                user_code: data?.user_code,
+                timestamp: new Date().getTime()
+            };
+        });
+        youtube.session.on('auth', async ({ credentials }) => {
+            event = { message: 'auth' };
+            await saveFile(credentials);
+        });
+        youtube.session.on('update-credentials', async ({ credentials }) => {
+            event = { message: 'update-credentials' };
+            await saveFile(credentials);
+        });
+        youtube.session.on('auth-error', (error) => {
+            event = {
+                message: 'auth-error',
+                error: error
+            };
+        });
+        let auth = await loadFile(credentialsFilePath);
+        // load function returned empty object
+        // signIn expects undefined if empty
+        if (!Object.keys(auth)?.length)
+            auth = undefined;
+        await youtube.session.signIn(auth);
+        const data = await youtube.account.getInfo();
+        event = undefined;
+        return json(data);
+        // error
+    }
+    catch (err) {
+        console.error(err);
+        return error(500, err.message);
+    }
+};
+/**
+ * Load file.
+ */
+async function loadFile(filePath) {
+    try {
+        const data = readFileSync(filePath, 'utf8');
+        if (!data.trim()) {
+            // file is empty, early return object
+            return {};
+        }
+        else {
+            return filePath.endsWith('.yaml') ? yaml.load(data) : JSON.parse(data);
+        }
+    }
+    catch (err) {
+        if (err?.code === 'ENOENT') {
+            // console.error(`No existing file found for ${file}`);
+        }
+        else {
+            console.error(`Error reading or parsing ${filePath}:`, err);
+        }
+        return {};
+    }
+}
+/**
+ * Save file.
+ */
+async function saveFile(credentials) {
+    try {
+        const data = JSON.stringify(credentials, null, '\t') + '\n';
+        writeFileSync(credentialsFilePath, data);
+    }
+    catch (err) {
+        console.error('Failed to save credentials:', err);
+    }
+}
+
+=== 2367 vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import dotenv from 'dotenv';
+dotenv.config();
+export default defineConfig({
+    plugins: [sveltekit()],
+    build: {
+        // increase chunk size because of maplibre-gl
+        chunkSizeWarningLimit: 1000
+    },
+    ssr: {
+        // "cannot use import statement outside a module" because of svelte-ripple
+        noExternal: ['svelte-ripple']
+    },
+    optimizeDeps: {
+        include: [
+            // include all because of dynamic imports, prevents: ✨ optimized dependencies changed. reloading
+            // pnpm ls -P | grep -Ev 'codemirror|@fontsource' | awk '/dependencies:/{flag=1; next} flag{print "\047" $1 "\047,"}'
+            '@jaames/iro',
+            'd3-array',
+            'd3-scale',
+            'd3-shape',
+            'dotenv',
+            'express',
+            'hls.js',
+            'home-assistant-js-websocket',
+            'http-proxy-middleware',
+            'js-yaml',
+            'konva',
+            'maplibre-gl',
+            'marked',
+            'svelte-confetti',
+            'svelte-dnd-action',
+            'svelte-modals',
+            'svelte-ripple',
+            'svelte-tiny-virtual-list',
+            'weekstart',
+            // dev deps
+            '@iconify/svelte',
+            'svelte-fast-dimension/action',
+            '@event-calendar/core',
+            '@event-calendar/day-grid',
+            '@event-calendar/list',
+            'konva/lib/Shape'
+        ],
+        exclude: [
+            // exclude codemirror to avoid state duplication
+            // pnpm ls -P | grep codemirror | awk '{print "\047" $1 "\047,"}'
+            '@codemirror/autocomplete',
+            '@codemirror/commands',
+            '@codemirror/language',
+            '@codemirror/legacy-modes',
+            '@codemirror/lint',
+            '@codemirror/state',
+            '@codemirror/theme-one-dark',
+            '@codemirror/view',
+            'codemirror'
+        ]
+    },
+    server: {
+        // required for webrtc
+        host: true,
+        // development proxy endpoints
+        proxy: {
+            '/local/': {
+                target: process.env.HASS_URL,
+                changeOrigin: true
+            },
+            '/api/': {
+                target: process.env.HASS_URL,
+                changeOrigin: true
+            }
+        }
+    }
+});
+

@@ -1,5 +1,18 @@
 # @rsvelte/cli
 
+## 0.7.6
+
+### Patch Changes
+
+- 286660a: Under `declaration` or `composite`, `typecheck` now reports the errors TypeScript finds while it builds the declarations, such as TS4094. It reports them in modules and in components, as `tsc` and svelte-check do.
+- fb93e4a: `compile`, `check` and `lint` now report a JavaScript syntax error (`js_parse_error`) with oxc's message and position. They no longer try to copy acorn's, which Svelte uses. rsvelte still rejects the same sources as Svelte does and still raises the same Svelte errors around them.
+- 1c3b310: Fold a string with a lone surrogate, such as `{'\uD800'}`, as svelte does, instead of crashing on the client and writing `\\ud800` into a server attribute.
+- 87e988b: `rsvelte lint` reports what typescript-eslint throws for an optional rest element in an arrow function's parameters, such as `([...a?]) => {}`: "Expression expected." at the token after the `?`. Before, it ran the rules on the script as if it parsed.
+- 385bcbe: Writing a source map reserves its text once instead of growing it.
+- 4b9fb64: `ts.compile` erases a `declare enum` as TypeScript's emit does, instead of refusing it, and a `.svelte.ts` module keeps a namespace that holds one.
+- cc52ea4: `typecheck` starts fewer type checker processes and opens the project fewer times. It no longer runs `--version` first, and the process that lists the files goes on to check them. It adds a process only where that process would check for as long as it takes to open the project. In a project with no component, it checks in the same snapshot that listed the files, so it builds the program once.
+- a4be90a: `typecheck` reads fewer paths and files from the disk. It takes a file's real path only where a replaced file may be behind it. It no longer reads every file twice to check a project with no component.
+
 ## 0.7.5
 
 ### Patch Changes

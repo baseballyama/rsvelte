@@ -57,7 +57,7 @@ pub(crate) fn check(
         sharing: Sharing::Shared,
         threads: None,
     };
-    let results = pipeline::run_per_document(reg, &documents, &options, &|_| tasks)
+    let results = pipeline::run_per_document(reg, &documents, &options, &|_| None)
         .map_err(|e| e.to_string())?;
     Ok(Checked::Files(documents.into_iter().zip(results).collect()))
 }

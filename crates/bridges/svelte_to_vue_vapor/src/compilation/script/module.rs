@@ -13,7 +13,7 @@ pub(super) fn check(
     res: &Resolution,
     exports: &mut FxHashMap<SymbolId, String>,
 ) -> R<()> {
-    for statement in &program.body {
+    for statement in super::statements(program) {
         match statement {
             Statement::ImportDeclaration(i)
                 if matches!(

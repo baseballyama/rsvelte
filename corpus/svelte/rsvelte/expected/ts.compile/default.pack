@@ -1,0 +1,357 @@
+# rsvelte pack 1
+=== 24 check/array-extends/project/src/lib/thing.ts	js
+export const thing = 1;
+
+=== 80 check/js-rune-module-without-allow-js-loose/project/src/plain.ts	js
+import { counter } from './lib/counter.svelte';
+export const n = counter.count;
+
+=== 123 check/js-rune-module-without-allow-js/project/src/missing.ts	js
+import Gone from './lib/gone.svelte';
+import { alsoGone } from './lib/gone.svelte';
+export const parts = [Gone, alsoGone];
+
+=== 100 check/kit-hooks-arrow-ts/project/src/hooks.client.ts	js
+export const handleError = ({ error, event }) => {
+    console.error(error, event.url.pathname);
+};
+
+=== 273 check/kit-hooks-arrow-ts/project/src/hooks.server.ts	js
+export const handle = async ({ event, resolve }) => {
+    return resolve(event);
+};
+export const handleError = ({ error, event }) => {
+    console.error(error, event.url.pathname);
+};
+export const handleFetch = async ({ request, fetch }) => {
+    return fetch(request);
+};
+
+=== 66 check/kit-hooks-arrow-ts/project/src/hooks.ts	js
+export const reroute = ({ url }) => {
+    return url.pathname;
+};
+
+=== 96 check/kit-hooks-fn-ts/project/src/hooks.client.ts	js
+export function handleError({ error, event }) {
+    console.error(error, event.url.pathname);
+}
+
+=== 249 check/kit-hooks-fn-ts/project/src/hooks.server.ts	js
+export function handle({ event, resolve }) {
+    return resolve(event);
+}
+export function handleError({ error, event }) {
+    console.error(error, event.url.pathname);
+}
+export function handleFetch({ request, fetch }) {
+    return fetch(request);
+}
+
+=== 62 check/kit-hooks-fn-ts/project/src/hooks.ts	js
+export function reroute({ url }) {
+    return url.pathname;
+}
+
+=== 100 check/kit-hooks-satisfies-ts/project/src/hooks.client.ts	js
+export const handleError = ({ error, event }) => {
+    console.error(error, event.url.pathname);
+};
+
+=== 391 check/kit-hooks-satisfies-ts/project/src/hooks.server.ts	js
+import { sequence } from '@sveltejs/kit/hooks';
+const logger = async ({ event, resolve }) => resolve(event);
+const auth = (async ({ event, resolve }) => resolve(event));
+export const handle = sequence(logger, auth);
+export const handleError = (({ error, event }) => {
+    console.error(error, event.url.pathname);
+});
+export const handleFetch = async ({ request, fetch }) => fetch(request);
+
+=== 52 check/kit-hooks-satisfies-ts/project/src/hooks.ts	js
+export const reroute = (({ url }) => url.pathname);
+
+=== 309 check/kit-load-augmentation-ts/project/src/routes/+page.server.ts	js
+// #2055 (2): a `const load = (...) => ...` whose initializer is itself a
+// function must get its parameter typed directly — not wrapped in
+// `satisfies`, which `findExports` reserves for a non-function-like
+// initializer.
+export const load = async ({ params }) => {
+    return { slug: params.slug };
+};
+
+=== 362 check/kit-load-augmentation-ts/project/src/routes/+page.ts	js
+// #2055 (1): official's `load` gate only checks the parameter's type
+// (`hasTypedParameter`), not any pre-existing return-type annotation — this
+// must still get `event` typed even though the return type is already
+// spelled out, or `event` stays implicit `any` under `strict`.
+export async function load(event) {
+    return { slug: event.params.slug };
+}
+
+=== 427 check/kit-load-augmentation-ts/project/src/routes/multi/+page.ts	js
+// #2055 (4): `findExports` only recognises a single-declarator
+// `export const x = ...` — `export const a = ..., b = ...;` isn't looked up
+// under either name, so neither export gets augmented. `load`'s `event` must
+// stay implicit `any` here (and raise TS7006 under `strict`) on both the
+// official checker and rsvelte-check.
+export const prerender = true, load = async (event) => ({ ok: true, params: event.params });
+
+=== 378 check/kit-load-augmentation-ts/project/src/routes/typed/+layout.ts	js
+// The #1944 shape recurring for `load` specifically (#2055): a parenthesized,
+// already-typed arrow-const initializer must be left untouched entirely —
+// augmenting it again would either double-annotate the parameter or (before
+// this fix) wrap the whole thing in a spurious `satisfies`.
+export const load = (async (event) => {
+    return { slug: event.params.slug };
+});
+
+=== 89 check/sibling-symlink/project/pkg-libs/src/components/index.ts	js
+export { default as SurveyOptions, SURVEY_OTHER_PREFIX } from './survey-options.svelte';
+
+=== 56 check/svelte-import-diagnostic-line/project/src/lib/exports.ts	js
+export const present = 1;
+export const alsoPresent = 2;
+
+=== 36 check/ts-aliased-import/project/pkg-a/src/named.ts	js
+export const emptyRow = { id: '' };
+
+=== 41 check/ts-aliased-import/project/pkg-a/src/store.ts	js
+export class Store {
+    table = null;
+}
+
+=== 51 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/lib/anatomy/widget.svelte.ts	js
+export const widgetDefaults = { label: 'widget' };
+
+=== 58 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/lib/modules/provider.svelte.ts	js
+export function useProvider() {
+    return { size: 1 };
+}
+
+=== 76 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/lib/modules/theme.svelte.ts	js
+export const tokens = ['a', 'b'];
+export default { name: 'default-theme' };
+
+=== 393 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/plain.ts	js
+import { useProvider } from '$lib/modules/provider.svelte';
+import theme, { tokens } from '$lib/modules/theme.svelte';
+import makeState, { shared } from '$libs/modules/state.svelte';
+export const size = useProvider().size + tokens.length;
+export const themeName = theme.name;
+export const count = shared.count + makeState().count;
+export const emptyRow = { id: '' };
+export let widget = null;
+
+=== 101 check/ts-aliased-rune-module-nodenext/project/pkg-libs/modules/state.svelte.ts	js
+export const shared = { count: 0 };
+export default function makeState() {
+    return { count: 0 };
+}
+
+=== 43 check/ts-companion-named-import-bundler/project/src/lib/widget.svelte.ts	js
+export function helper() {
+    return 1;
+}
+
+=== 73 check/ts-companion-named-import-bundler/project/src/relative.ts	js
+import { helper } from './lib/widget.svelte';
+export const m = helper();
+
+=== 111 check/ts-companion-named-import-probe-scope/project/src/relative.ts	js
+import { helper } from './lib/widget.svelte';
+export const used = helper();
+export const bad = 'not a number';
+
+=== 72 check/ts-companion-named-import/project/src/aliased.ts	js
+import { helper } from '$lib/widget.svelte';
+export const n = helper();
+
+=== 43 check/ts-instance-reexport/project/src/lib/helper.ts	js
+export function helper() {
+    return 1;
+}
+
+=== 24 check/ts-paths-non-relative/project/src/lib/util.ts	js
+export const value = 1;
+
+=== 38 check/ts-paths-non-relative/project/src/orphan.ts	js
+export const orphan = "not a number";
+
+=== 27 check/ts-paths-non-relative/project/src/shared/box.ts	js
+export const shared = "s";
+
+=== 106 check/ts-relative-import-bundler/project/src/lib/index.ts	js
+export { useProvider } from './modules/provider.svelte';
+export { tokens } from './modules/theme.svelte';
+
+=== 48 lint/experimental-require-slot-types/12-module-slot-decoy.svelte.ts	js
+export const markup = '<slot name="header" />';
+
+=== 167 lint/no-add-event-listener/09-module-surface.svelte.ts	js
+export function listen(target) {
+    target.addEventListener('change', () => { });
+}
+export function subscribeGlobal() {
+    addEventListener('offline', () => { });
+}
+
+=== 169 lint/no-ignored-unsubscribe/09-module-surface.svelte.ts	js
+import { writable } from 'svelte/store';
+export const store = writable(0);
+store.subscribe(() => { });
+export function attach(other) {
+    other.subscribe(() => { });
+}
+
+=== 141 lint/no-inspect/20-module-ts.svelte.ts	js
+export function probe(value) {
+    $inspect(value);
+    return value;
+}
+const decoy = 'the identifier $inspect inside a string';
+void decoy;
+
+=== 531 lint/no-navigation-without-base/12-module-file.svelte.ts	js
+import { goto, pushState, replaceState } from '$app/navigation';
+import { base } from '$app/paths';
+const state = {};
+export function bad() {
+    goto('/plain');
+}
+export function good() {
+    goto(base + '/ok');
+}
+export function templated(pathname) {
+    goto(`${pathname}?x=1`);
+}
+export function shallow() {
+    pushState('', state);
+    replaceState('/bad-replace', state);
+}
+export class Holder {
+    set target(value) {
+        goto(`${base}/${value}`);
+    }
+    set broken(value) {
+        goto(`/nope/${value}`);
+    }
+}
+
+=== 170 lint/no-svelte-internal/19-module-ts.svelte.ts	js
+import { mount } from 'svelte';
+export * from 'svelte/internal/server';
+export async function lazy() {
+    return import('svelte/internal/flags/legacy');
+}
+void [mount];
+
+=== 181 lint/prefer-const/19-export-specifier-module-file.svelte.ts	js
+let exported = 1;
+export { exported };
+export let named = 2;
+let internal = 3;
+void internal;
+export function each(items) {
+    for (let item of items) {
+        void item;
+    }
+}
+
+=== 120 lint/prefer-derived-over-derived-by/11-module-ts.svelte.ts	js
+let count = $state(0);
+const double = $derived.by(() => count * 2);
+export function readDouble() {
+    return double;
+}
+
+=== 118 lint/prefer-svelte-reactivity/08-export-specifier.svelte.ts	js
+const sessions = new Set();
+let lastSeen = new Date();
+export { sessions, lastSeen as seen };
+export const urls = [];
+
+=== 385 lint/prefer-svelte-reactivity/20-cross-module-surface.svelte.ts	js
+/* eslint svelte/derived-has-same-inputs-outputs: "warn" */
+import * as ns from 'svelte/store';
+export const cache = new Map();
+export const stamps = new Set();
+const alias = ns['writ' + 'able'];
+export const count = alias();
+export const doubled = ns['derived'](count, (c) => c);
+export function touch(key) {
+    cache['s' + 'et'](key, 1);
+    stamps.add(1);
+    count.subscribe();
+}
+
+=== 124 lint/require-stores-init/05-module-ts.svelte.ts	js
+import { writable, derived } from 'svelte/store';
+export const s = writable();
+export const t = derived(s, ($s) => $s + 1);
+
+=== 418 pattern/adversarial/modules/module-ts-runes.svelte.ts	js
+let items = $state([]);
+let total = $derived(items.length);
+export function add(item) {
+    items = [...items, item];
+}
+export class Store {
+    cache = $state(new Map());
+    created = Date.now();
+    get size() {
+        return this.cache.size;
+    }
+    put(item) {
+        const prev = this.cache.get(item.id);
+        this.cache.set(item.id, item);
+        return prev;
+    }
+}
+export const totals = () => total;
+
+=== 250 pattern/adversarial/typescript/ts-enum-namespace-module.svelte.ts	js
+export var Level;
+(function (Level) {
+    Level[Level["Low"] = 1] = "Low";
+    Level[Level["High"] = 2] = "High";
+})(Level || (Level = {}));
+export const state = $state({ level: Level.Low });
+export function raise() {
+    state.level = Level.High;
+}
+
+=== 281 pattern/adversarial/typescript/ts-module-runes.svelte.ts	js
+let count = $state(0);
+const doubled = $derived(count * 2);
+export function bump(step) {
+    count += step;
+}
+export const view = {
+    get count() {
+        return count;
+    },
+    get doubled() {
+        return doubled;
+    },
+};
+export const pair = $state({ a: 1, b: "two" });
+
+=== 14 pattern/module-declare-module.svelte.ts	js
+"use strict";
+
+=== 14 pattern/module-declare-namespace.svelte.ts	js
+"use strict";
+
+=== 61 pattern/module-directive-escapes.svelte.ts	js
+"use\x20strict";
+"it\'s";
+let a = $state(1);
+console.log(a);
+
+=== 63 pattern/module-prologue-script.svelte.ts	js
+"use strict";
+"use client";
+let a = $state(1);
+console.log(a);
+

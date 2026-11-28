@@ -1,0 +1,430 @@
+# rsvelte pack 1
+=== 2737 src/lib/core/store.ts	js
+import { get, writable } from 'svelte/store';
+import writableDerived from 'svelte-writable-derived';
+const TOAST_LIMIT = 20;
+export const toasts = writable([]);
+export const pausedAt = writable(null);
+const toastTimeouts = new Map();
+const addToRemoveQueue = (toastId) => {
+    if (toastTimeouts.has(toastId)) {
+        return;
+    }
+    const timeout = setTimeout(() => {
+        toastTimeouts.delete(toastId);
+        remove(toastId);
+    }, 1000);
+    toastTimeouts.set(toastId, timeout);
+};
+const clearFromRemoveQueue = (toastId) => {
+    const timeout = toastTimeouts.get(toastId);
+    if (timeout) {
+        clearTimeout(timeout);
+    }
+};
+export function update(toast, clearTimeout = true) {
+    if (clearTimeout && toast.id) {
+        clearFromRemoveQueue(toast.id);
+    }
+    toasts.update(($toasts) => $toasts.map((t) => (t.id === toast.id ? { ...t, ...toast } : t)));
+}
+export function add(toast) {
+    toasts.update(($toasts) => [toast, ...$toasts].slice(0, TOAST_LIMIT));
+}
+export function upsert(toast) {
+    if (get(toasts).find((t) => t.id === toast.id)) {
+        update(toast);
+    }
+    else {
+        add(toast);
+    }
+}
+export function dismiss(toastId) {
+    toasts.update(($toasts) => {
+        if (toastId) {
+            addToRemoveQueue(toastId);
+        }
+        else {
+            $toasts.forEach((toast) => {
+                addToRemoveQueue(toast.id);
+            });
+        }
+        return $toasts.map((t) => t.id === toastId || toastId === undefined ? { ...t, visible: false } : t);
+    });
+}
+export function remove(toastId) {
+    toasts.update(($toasts) => {
+        if (toastId === undefined) {
+            return [];
+        }
+        return $toasts.filter((t) => t.id !== toastId);
+    });
+}
+export function startPause(time) {
+    pausedAt.set(time);
+}
+export function endPause(time) {
+    let diff;
+    pausedAt.update(($pausedAt) => {
+        diff = time - ($pausedAt || 0);
+        return null;
+    });
+    toasts.update(($toasts) => $toasts.map((t) => ({
+        ...t,
+        pauseDuration: t.pauseDuration + diff
+    })));
+}
+const defaultTimeouts = {
+    blank: 4000,
+    error: 4000,
+    success: 2000,
+    loading: Infinity,
+    custom: 4000
+};
+export function useToasterStore(toastOptions = {}) {
+    const mergedToasts = writableDerived(toasts, ($toasts) => $toasts.map((t) => ({
+        ...toastOptions,
+        ...toastOptions[t.type],
+        ...t,
+        duration: t.duration ||
+            toastOptions[t.type]?.duration ||
+            toastOptions?.duration ||
+            defaultTimeouts[t.type],
+        style: [toastOptions.style, toastOptions[t.type]?.style, t.style].join(';')
+    })), ($toasts) => $toasts);
+    return {
+        toasts: mergedToasts,
+        pausedAt
+    };
+}
+
+=== 1525 src/lib/core/toast.ts	js
+import { dismiss, remove, upsert } from './store';
+import { resolveValue } from './types';
+import { genId } from './utils';
+const createToast = (message, type = 'blank', opts) => ({
+    createdAt: Date.now(),
+    visible: true,
+    type,
+    ariaProps: {
+        role: 'status',
+        'aria-live': 'polite'
+    },
+    message,
+    pauseDuration: 0,
+    icon: opts?.icon,
+    duration: opts?.duration,
+    iconTheme: opts?.iconTheme,
+    position: opts?.position,
+    props: opts?.props,
+    id: opts?.id || genId()
+});
+const createHandler = (type) => (message, options) => {
+    const toast = createToast(message, type, options);
+    upsert(toast);
+    return toast.id;
+};
+const toast = (message, opts) => createHandler('blank')(message, opts);
+toast.error = createHandler('error');
+toast.success = createHandler('success');
+toast.loading = createHandler('loading');
+toast.custom = createHandler('custom');
+toast.dismiss = (toastId) => {
+    dismiss(toastId);
+};
+toast.remove = (toastId) => remove(toastId);
+toast.promise = (promise, msgs, opts) => {
+    const id = toast.loading(msgs.loading, { ...opts, ...opts?.loading });
+    promise
+        .then((p) => {
+        toast.success(resolveValue(msgs.success, p), {
+            id,
+            ...opts,
+            ...opts?.success
+        });
+        return p;
+    })
+        .catch((e) => {
+        toast.error(resolveValue(msgs.error, e), {
+            id,
+            ...opts,
+            ...opts?.error
+        });
+    });
+    return promise;
+};
+export default toast;
+
+=== 193 src/lib/core/types.ts	js
+const isFunction = (valOrFunction) => typeof valOrFunction === 'function';
+export const resolveValue = (valOrFunction, arg) => (isFunction(valOrFunction) ? valOrFunction(arg) : valOrFunction);
+
+=== 2564 src/lib/core/use-toaster.ts	js
+import toast from './toast';
+import { endPause as _endPause, startPause as _startPause, update, useToasterStore } from './store';
+import { onDestroy } from 'svelte';
+function calculateOffset(toast, $toasts, opts) {
+    const { reverseOrder, gutter = 8, defaultPosition } = opts || {};
+    const relevantToasts = $toasts.filter((t) => (t.position || defaultPosition) === (toast.position || defaultPosition) && t.height);
+    const toastIndex = relevantToasts.findIndex((t) => t.id === toast.id);
+    const toastsBefore = relevantToasts.filter((toast, i) => i < toastIndex && toast.visible).length;
+    const offset = relevantToasts
+        .filter((t) => t.visible)
+        .slice(...(reverseOrder ? [toastsBefore + 1] : [0, toastsBefore]))
+        .reduce((acc, t) => acc + (t.height || 0) + gutter, 0);
+    return offset;
+}
+const handlers = {
+    startPause() {
+        _startPause(Date.now());
+    },
+    endPause() {
+        _endPause(Date.now());
+    },
+    updateHeight: (toastId, height) => {
+        update({ id: toastId, height }, false);
+    },
+    calculateOffset
+};
+export default function useToaster(toastOptions) {
+    const { toasts, pausedAt } = useToasterStore(toastOptions);
+    const timeouts = new Map();
+    let _pausedAt;
+    const unsubscribes = [
+        pausedAt.subscribe(($pausedAt) => {
+            if ($pausedAt) {
+                for (const [, timeoutId] of timeouts) {
+                    clearTimeout(timeoutId);
+                }
+                timeouts.clear();
+            }
+            _pausedAt = $pausedAt;
+        }),
+        toasts.subscribe(($toasts) => {
+            if (_pausedAt) {
+                return;
+            }
+            const now = Date.now();
+            for (const t of $toasts) {
+                if (timeouts.has(t.id)) {
+                    continue;
+                }
+                if (t.duration === Infinity) {
+                    continue;
+                }
+                const durationLeft = (t.duration || 0) + t.pauseDuration - (now - t.createdAt);
+                if (durationLeft < 0) {
+                    if (t.visible) {
+                        // FIXME: This causes a recursive cycle of updates.
+                        toast.dismiss(t.id);
+                    }
+                    return null;
+                }
+                timeouts.set(t.id, setTimeout(() => toast.dismiss(t.id), durationLeft));
+            }
+        })
+    ];
+    onDestroy(() => {
+        for (const unsubscribe of unsubscribes) {
+            unsubscribe();
+        }
+    });
+    return { toasts, handlers };
+}
+
+=== 532 src/lib/core/utils.ts	js
+export const genId = (() => {
+    let count = 0;
+    return () => {
+        count += 1;
+        return count.toString();
+    };
+})();
+export const prefersReducedMotion = (() => {
+    // Cache result
+    let shouldReduceMotion;
+    return () => {
+        if (shouldReduceMotion === undefined && typeof window !== 'undefined') {
+            const mediaQuery = matchMedia('(prefers-reduced-motion: reduce)');
+            shouldReduceMotion = !mediaQuery || mediaQuery.matches;
+        }
+        return shouldReduceMotion;
+    };
+})();
+
+=== 651 src/lib/index.ts	js
+import toast from './core/toast';
+export { default as useToaster } from './core/use-toaster';
+export { useToasterStore } from './core/store';
+export { default as ToastBar } from './components/ToastBar.svelte';
+export { default as ToastIcon } from './components/ToastIcon.svelte';
+export { default as Toaster } from './components/Toaster.svelte';
+export { default as CheckmarkIcon } from './components/CheckmarkIcon.svelte';
+export { default as ErrorIcon } from './components/ErrorIcon.svelte';
+export { default as LoaderIcon } from './components/LoaderIcon.svelte';
+export { resolveValue } from './core/types';
+export { toast };
+export default toast;
+
+=== 192 src/www/demo-code.ts	js
+export default `<script>
+	import { onMount } from 'svelte';
+	import toast, { Toaster } from 'svelte-french-toast';
+
+	onMount(() => {
+		toast.success("It works!");
+	})
+</script>
+
+<Toaster />`;
+
+=== 3700 src/www/examples.ts	js
+import toast from '../lib';
+import RichContent from './RichContent.svelte';
+const examples = [
+    {
+        title: 'Success',
+        emoji: '✅',
+        snippet: "toast.success('Successfully toasted!')",
+        action: () => {
+            toast.success('Successfully toasted!');
+        }
+    },
+    {
+        title: 'Error',
+        emoji: '❌',
+        snippet: `toast.error("This didn't work.")`,
+        action: () => {
+            toast.error("This didn't work.");
+        }
+    },
+    {
+        title: 'Promise',
+        emoji: '⏳',
+        snippet: `toast.promise(
+	saveSettings(settings),
+	{
+		loading: 'Saving...',
+		success: 'Settings saved!',
+		error: 'Could not save.',
+	}
+);`,
+        action: () => {
+            const promise = new Promise((resolve, reject) => {
+                setTimeout(Math.random() < 0.8 ? resolve : reject, 1000);
+            });
+            toast.promise(promise, {
+                loading: 'Saving...',
+                success: `Settings saved!`,
+                error: `Could not save.`
+            });
+        }
+    },
+    {
+        title: 'Multiline',
+        emoji: '↩️',
+        snippet: `toast(
+	"This toast is super big. I don't think anyone could eat it in one bite.\\n\\nIt's larger than you expected. You eat it but it does not seem to get smaller.",
+	{
+		duration: 6000,
+	}
+);`,
+        action: () => {
+            toast("This toast is super big. I don't think anyone could eat it in one bite.\n\n It's larger than you expected. You eat it but it does not seem to get smaller.", {
+                duration: 6000
+            });
+        }
+    },
+    {
+        title: 'Emoji',
+        emoji: '👏',
+        snippet: `toast('Good Job!', {
+	icon: '👏',
+});`,
+        action: () => {
+            toast('Good Job!', {
+                icon: '👏'
+            });
+        }
+    },
+    {
+        title: 'Dark mode',
+        emoji: '🌚',
+        snippet: `toast('Hello Darkness!', {
+	icon: '👏',
+	style: 'border-radius: 200px; background: #333; color: #fff;'
+});`,
+        action: () => {
+            toast('Hello Darkness!', {
+                icon: '👏',
+                style: 'border-radius: 200px; background: #333; color: #fff;'
+            });
+        }
+    },
+    {
+        title: 'Rich content',
+        emoji: '🔩',
+        snippet: `<script>
+	import toast_ from 'svelte-french-toast';
+
+	export let toast;
+
+	// Use this component in your app:
+	// toast(RichContent, { props: { someProp: '⭐' }})
+</script>
+
+<script>
+	export let someProp;
+</script>
+<span>
+	Custom and <b>bold</b> with props like {someProp}!
+	<button on:click={() => toast_.dismiss(toast.id)}>Dismiss</button>
+</span>`,
+        html: true,
+        action: () => {
+            toast(RichContent, { props: { someProp: '⭐' } });
+        }
+    },
+    {
+        title: 'Themed',
+        emoji: '🎨',
+        snippet: `toast.success('Look at me!', {
+	style: 'border: 1px solid #713200; padding: 16px; color: #713200;',
+	iconTheme: {
+		primary: '#713200',
+		secondary: '#FFFAEE'
+	}
+});`,
+        action: () => {
+            toast.success('Look at me!', {
+                style: 'border: 1px solid #713200; padding: 16px; color: #713200;',
+                iconTheme: {
+                    primary: '#713200',
+                    secondary: '#FFFAEE'
+                }
+            });
+        }
+    },
+    {
+        title: 'Positioning',
+        emoji: '⬆️',
+        snippet: `toast.success('Always at the bottom.', {
+	position: "bottom-center"
+})`,
+        action: () => {
+            toast.success('Always at the bottom.', {
+                position: 'bottom-center',
+                duration: 10000
+            });
+        }
+    }
+];
+export default examples;
+
+=== 229 tests/test.ts	js
+import { expect, test } from '@playwright/test';
+test('index page has expected h1', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Welcome to SvelteKit' })).toBeVisible();
+});
+

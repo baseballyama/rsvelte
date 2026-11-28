@@ -6,7 +6,7 @@ import Imp from './Imp.svelte';;
 function $$render() {
   
 	
-	let { p = 1, q }: typeof __rsvelte_public_props0 = $props();
+	type $$ComponentProps = { p?: number, q: any }; let { p = 1, q }: $$ComponentProps = $props();
 	let a = 1;
 	let s = $state(0);
 	let r = $state.raw(0);
@@ -22,11 +22,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    q: __rsvelte_untyped_prop(),
-  }, {
-    p: 1,
-  }, false);
   async () => {
     {
       svelteHTML.createElement("p", {});
@@ -35,7 +30,7 @@ function $$render() {
       a;
     }
   };
-  return __rsvelte_export_component<typeof __rsvelte_public_props0, {
+  return __rsvelte_export_component<$$ComponentProps, {
     a: typeof a;
     b: typeof a;
     s: typeof s;

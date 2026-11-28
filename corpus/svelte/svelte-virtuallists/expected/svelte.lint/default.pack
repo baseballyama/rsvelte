@@ -113,6 +113,11 @@
 19:9 19:31 svelte/no-inline-styles "Found disallowed style attribute."
 19:16 19:30 svelte/prefer-style-directive "Can use style directives instead."
 
+=== 127 src/lib/VirtualListNew.svelte	error.txt
+Cannot read properties of null (reading 'range')
+Occurred while linting src/lib/VirtualListNew.svelte:53
+Rule: "svelte/indent"
+
 === 2361 src/routes/+layout.svelte	lint.txt
 1:1 44:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 48:28 48:85 svelte/max-attributes-per-line "'content' should be on a new line."

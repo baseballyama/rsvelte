@@ -1050,6 +1050,42 @@ import { A11yVariant } from 'svelte-awesome-color-picker';
 	}
 </style>
 
+=== 694 src/lib/components/variant/accessibility/grades.ts	ts	module	-
+import type { A11yColorContract } from '$lib/type/types.js';
+
+export const grades = {
+	normal: {
+		AA: 4.5,
+		AAA: 7
+	},
+	large: {
+		AA: 3,
+		AAA: 4.5
+	}
+};
+
+export function isGradeAchieved(
+	contrast: number,
+	size: 'normal' | 'large' | undefined = 'normal',
+	grade: 'AA' | 'AAA'
+) {
+	return contrast >= grades[size][grade];
+}
+
+export function getNumberOfGradeFailed({ contrast, size }: A11yColorContract, a11yLevel: 'AA' | 'AAA'): number {
+	if (!contrast) {
+		return 1;
+	}
+	const isAA = isGradeAchieved(contrast, size, 'AA');
+	if (a11yLevel === 'AA') {
+		return isAA ? 0 : 1;
+	} else if (!isAA) {
+		return 2;
+	}
+	const isAAA = isGradeAchieved(contrast, size, 'AAA');
+	return isAAA ? 0 : 1;
+}
+
 === 1821 src/lib/components/variant/chrome-picker/Wrapper.svelte	svelte	runes	runes
 <script lang="ts">
 	export interface Props {
@@ -1645,6 +1681,226 @@ N.A.
 	}
 </style>
 
+=== 794 src/lib/index.ts	ts	module	-
+import { default as ColorPicker } from './components/ColorPicker.svelte';
+import { default as ChromeWrapper } from './components/variant/chrome-picker/Wrapper.svelte';
+import { default as A11yHorizontalWrapper } from './components/variant/accessibility/A11yHorizontalWrapper.svelte';
+import { default as A11yNotice } from './components/variant/accessibility/A11yNotice.svelte';
+import { default as A11ySingleNotice } from './components/variant/accessibility/A11ySingleNotice.svelte';
+
+export default ColorPicker;
+
+export type { HsvaColor, RgbaColor } from 'colord';
+
+export const ChromeVariant = {
+	wrapper: ChromeWrapper
+};
+
+export const A11yVariant = {
+	wrapper: A11yHorizontalWrapper,
+	a11yNotice: A11yNotice,
+	a11ySingleNotice: A11ySingleNotice
+};
+
+export { mix } from './utils/colors.js';
+
+=== 1144 src/lib/type/types.ts	ts	module	-
+import type TextInput from '../components/variant/default/TextInput.svelte';
+import type A11yNotice from '../components/variant/accessibility/A11yNotice.svelte';
+import type A11ySingleNotice from '../components/variant/accessibility/A11ySingleNotice.svelte';
+import type Input from '../components/variant/default/Input.svelte';
+import type Wrapper from '../components/variant/default/Wrapper.svelte';
+import type PickerIndicator from '$lib/components/variant/default/PickerIndicator.svelte';
+import type NullabilityCheckbox from '$lib/components/variant/default/NullabilityCheckbox.svelte';
+
+export type Components = {
+	pickerIndicator: typeof PickerIndicator;
+	textInput: typeof TextInput;
+	input: typeof Input;
+	nullabilityCheckbox: typeof NullabilityCheckbox;
+	wrapper: typeof Wrapper;
+
+	a11yNotice?: typeof A11yNotice;
+	a11ySingleNotice?: typeof A11ySingleNotice;
+};
+
+export type A11yColor = {
+	placeholder?: string;
+	size?: 'normal' | 'large';
+} & (
+	| {
+			textHex: string;
+			bgHex?: string;
+			reverse: true;
+	  }
+	| {
+			bgHex?: string;
+			reverse?: false;
+	  }
+);
+
+export type A11yColorContract = A11yColor & {
+	contrast?: number;
+};
+
+=== 1477 src/lib/utils/colors.ts	ts	module	-
+import { colord } from 'colord';
+import type { A11yColor } from '../type/types.js';
+
+/**
+ * compute the resulting color of hexA over hexB. If hexB has transparency, computes it over a white background
+ * @param hexA
+ * @param hexB
+ * @returns
+ */
+export function mix(hexA: string, hexB: string = '#FFFFFF') {
+	const rgbA = colord(hexA).toRgb();
+	const rgbB = colord(hexB).toRgb();
+
+	const { r: rA, g: gA, b: bA, a: alpha = 255 } = rgbA;
+	const { r: rB, g: gB, b: bB } = rgbB;
+
+	const r = average(rA, rB, alpha);
+	const g = average(gA, gB, alpha);
+	const b = average(bA, bB, alpha);
+
+	return '#' + r + g + b;
+}
+
+function average(a: number, b: number, alpha: number) {
+	return Math.round(b + (a - b) * alpha)
+		.toString(16)
+		.padStart(2, '0');
+}
+
+export function getContrast(a11yColor: A11yColor, hex: string | undefined) {
+	if (!hex) return;
+	if (a11yColor.reverse) {
+		const bgOverWhiteBg = mix(a11yColor.bgHex ?? '#FFFFFF');
+		const bg = mix(hex, bgOverWhiteBg);
+		const ft = mix(a11yColor.textHex, bg);
+		if (!ft) return;
+		const cft = colord(ft);
+		return {
+			...a11yColor,
+			trueColors: {
+				textColor: a11yColor.textHex,
+				bgColor: bg
+			},
+			contrast: cft.contrast(bg)
+		};
+	} else {
+		if (!a11yColor.bgHex) return;
+		const bg = mix(a11yColor.bgHex);
+		const ft = mix(hex, bg);
+		if (!ft) return;
+		const cft = colord(ft);
+		return {
+			...a11yColor,
+			trueColors: {
+				textColor: hex,
+				bgColor: a11yColor.bgHex
+			},
+			contrast: cft.contrast(bg)
+		};
+	}
+}
+
+=== 1063 src/lib/utils/texts.ts	ts	module	-
+export const defaultTexts = {
+	label: {
+		h: 'hue channel',
+		s: 'saturation channel',
+		v: 'brightness channel',
+		r: 'red channel',
+		g: 'green channel',
+		b: 'blue channel',
+		a: 'alpha channel',
+		hex: 'hex color',
+		withoutColor: 'without color'
+	},
+	color: {
+		rgb: 'rgb',
+		hsv: 'hsv',
+		hex: 'hex'
+	},
+	changeTo: 'change to ',
+	swatch: {
+		ariaTitle: 'saved colors',
+		ariaLabel: (color: string) => `select color: ${color}`
+	}
+};
+
+export const defaultA11yTexts = {
+	contrast: 'contrast :',
+	nbGradeSummary: (count: number) =>
+		count ? `⚠️ ${count} contrast grade${count && 's'} fail` : 'Contrast grade information',
+	guidelines: `Learn more at <a href="https://webaim.org/articles/contrast/" target="_blank">WebAIM contrast guide</a>`
+};
+
+export type Texts = typeof defaultTexts;
+export type A11yTexts = typeof defaultA11yTexts;
+
+export type DeepPartial<T> = T extends Function ? T : T extends object ? { [P in keyof T]?: DeepPartial<T[P]> } : T;
+
+export type TextsPartial = DeepPartial<Texts>;
+export type A11yTextsPartial = DeepPartial<A11yTexts>;
+
+=== 1778 src/lib/utils/trapFocus.ts	ts	module	-
+// list taken from https://github.com/nico3333fr/van11y-accessible-modal-tooltip-aria/blob/1a83366c65358222483be849fbb768c31cefaf4d/src/van11y-accessible-modal-tooltip-aria.es6.js#L47
+export const FOCUSABLE_ELEMENTS =
+	"a[href], area[href], input:not([type='hidden']):not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), iframe, object, embed, *[tabindex], *[contenteditable]";
+
+// code adapted from https://gist.github.com/JulienPradet/20dbb7ca06cbd9e2ec499bb2206aab55#file-trapfocus-ts-L1-L44
+function trapFocusListener(trapFocusElement: HTMLElement) {
+	return function (event: KeyboardEvent) {
+		if (event.target === window) {
+			return;
+		}
+
+		const eventTarget = event.target as unknown as Element;
+
+		if (!trapFocusElement.contains(eventTarget)) {
+			return;
+		}
+
+		const focusable: NodeListOf<HTMLElement> = trapFocusElement.querySelectorAll(FOCUSABLE_ELEMENTS);
+		const first = focusable[0];
+		const last = focusable[focusable.length - 1];
+
+		function isNext(event: KeyboardEvent) {
+			return event.code === 'Tab' && !event.shiftKey;
+		}
+
+		function isPrevious(event: KeyboardEvent) {
+			return event.code === 'Tab' && event.shiftKey;
+		}
+
+		if (isNext(event) && event.target === last) {
+			event.preventDefault();
+			first.focus();
+		} else if (isPrevious(event) && event.target === first) {
+			event.preventDefault();
+			last.focus();
+		}
+	};
+}
+
+export const trapFocus = (node: HTMLElement) => {
+	const first: HTMLElement | null = node.querySelector(FOCUSABLE_ELEMENTS);
+	if (first) first.focus();
+
+	const listener = trapFocusListener(node);
+	document.addEventListener('keydown', listener);
+	return {
+		destroy() {
+			document.removeEventListener('keydown', listener);
+		}
+	};
+};
+
+export type Trap = ReturnType<typeof trapFocus>;
+
 === 333 src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
 	import { bgColor } from './store.js';
@@ -1693,4 +1949,21 @@ N.A.
 		]}
 	/>
 </div>
+
+=== 86 src/routes/store.ts	ts	module	-
+import { writable } from 'svelte/store';
+
+export const bgColor = writable('#f6f0dc');
+
+=== 221 vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+	plugins: [sveltekit()],
+
+	test: {
+		include: ['{src,scripts}/**/*.{test,spec}.{js,ts}']
+	}
+});
 

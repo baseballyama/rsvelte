@@ -32,7 +32,8 @@ function check(units: Unit[]): Map<string, Record<string, Artifact>> {
 		// Only `svelte` resolves, as for rsvelte, which is given the same package.
 		fs.mkdirSync(path.join(ws, 'node_modules'));
 		fs.symlinkSync(path.join(NODE_MODULES, 'svelte'), path.join(ws, 'node_modules/svelte'));
-		for (const unit of units) {
+		// A plain `.ts` unit stays out, as it does from rsvelte's corpus project.
+		for (const unit of units.filter((u) => u.lang !== 'ts')) {
 			const file = path.join(ws, unit.path);
 			fs.mkdirSync(path.dirname(file), { recursive: true });
 			fs.writeFileSync(file, unit.src);
