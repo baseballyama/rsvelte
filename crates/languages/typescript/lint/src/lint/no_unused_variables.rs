@@ -1,10 +1,11 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    AssignmentOperator, BindingIdentifier, BindingPattern, Expression, FormalParameters,
-    PropertyKind, Statement, TSNamespaceDeclarationBody,
+    AssignmentOperator, BindingIdentifier, Expression, FormalParameters, PropertyKind, Statement,
+    TSNamespaceDeclarationBody,
 };
 use oxc_semantic::{NodeId, ReferenceId, ScopeId, SymbolId};
 use oxc_span::GetSpan;
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::document_span;
@@ -12,7 +13,12 @@ use rustc_hash::FxHashSet;
 
 use super::{Facts, Use, identifier_range};
 
+mod ignored;
+mod options;
 mod typescript_eslint;
+use ignored::{Filtered, described_by_declaration, filter};
+use options::IgnorePattern;
+pub use options::NoUnusedVariablesOptions;
 use typescript_eslint::{
     declarations, is_import, is_type_query_or_predicate, is_used_as_typescript_eslint, marked_used,
 };
@@ -28,16 +34,20 @@ pub enum Dialect {
     TypeScriptEslint,
 }
 
-/// `no-unused-vars` with its default options (`vars: all`, `args: after-used`,
-/// `caughtErrors: all`, no ignore patterns, `ignoreRestSiblings: false`).
+/// `no-unused-vars` with `options`.
 ///
 /// `reads` are references a host resolves to a symbol as plain reads, such as Svelte's `$store`.
 /// `body` is the scope of a function a host declares outside JavaScript, such as a Svelte
 /// snippet, inside which a reference to it is a self-reference. `assigned` names the symbols a
 /// host assigns where it declares them, such as a Svelte `let:` name under a default value.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the rule's dialect and options, and the host's facts"
+)]
 pub fn no_unused_variables<'r>(
     semantic: &Semantic,
     dialect: Dialect,
+    options: &NoUnusedVariablesOptions,
     considered: impl Fn(SymbolId) -> bool,
     reads: impl Fn(SymbolId) -> &'r [ReferenceId],
     body: impl Fn(SymbolId) -> Option<ScopeId>,
@@ -74,15 +84,18 @@ pub fn no_unused_variables<'r>(
                 continue;
             }
             AstKind::FormalParameter(_) | AstKind::FormalParameterRest(_)
-                if is_setter_parameter(&f, declaration)
-                    || (is_plain_parameter(&f, symbol, declaration)
-                        && !is_after_last_used_parameter(&f, declaration, &marked)) =>
+                if is_setter_parameter(&f, declaration) =>
             {
                 continue;
             }
             _ => {}
         }
-        if marked.contains(&symbol) {
+        let described = match filter(&f, options, symbol, declaration, &marked) {
+            Filtered::Kept => None,
+            Filtered::Skipped => continue,
+            Filtered::Ignored(described) => Some(described),
+        };
+        if described.is_none() && marked.contains(&symbol) {
             continue;
         }
         f.uses(symbol, &mut uses);
@@ -106,26 +119,47 @@ pub fn no_unused_variables<'r>(
             // `isSelfReference` over the host's function.
             uses.retain(|u| !f.scoping.scope_ancestors(u.scope).any(|s| s == body));
         }
-        let kept = if typescript {
-            is_used_as_typescript_eslint(&f, symbol, &declarations(&f, symbol), &uses)
-                || declarations(&f, symbol).any(|d| is_exported(&f, d))
-        } else {
-            is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration)
-        };
-        if !kept {
-            report(&f, symbol, &uses, typescript, assigned(symbol), reporter);
+        let kept = marked.contains(&symbol)
+            || if typescript {
+                is_used_as_typescript_eslint(&f, symbol, &declarations(&f, symbol), &uses)
+                    || declarations(&f, symbol).any(|d| is_exported(&f, d))
+            } else {
+                is_used(&f, symbol, declaration, &uses) || is_exported(&f, declaration)
+            };
+        match described {
+            None if !kept => {
+                let unused = Unused {
+                    typescript,
+                    assigned: assigned(symbol),
+                    allowed: described_by_declaration(&f, options, symbol, declaration).of(options),
+                };
+                report(&f, symbol, &uses, &unused, reporter);
+            }
+            // typescript-eslint marks an enum member used whether or not it is.
+            Some(described)
+                if kept
+                    && options.report_used_ignore_pattern
+                    && !matches!(f.kind(declaration), AstKind::TSEnumMember(_)) =>
+            {
+                report_used_ignored(&f, symbol, &uses, described.of(options), reporter);
+            }
+            _ => {}
         }
     }
-    if typescript {
+    if !typescript {
         // typescript-eslint treats a `this` parameter as used.
-        return;
+        report_this_parameters(&f, reporter);
     }
-    // A `this` parameter is a variable to typescript-eslint and never has a reference.
+}
+
+/// `ESLint`'s core rule over typescript-eslint's scope analysis, where a `this` parameter is a
+/// variable that never has a reference.
+fn report_this_parameters(f: &Facts<'_>, reporter: &mut Reporter<'_>) {
     for node in f.nodes.iter() {
         let this = match node.kind() {
             AstKind::Function(function)
                 if function.this_param.is_some()
-                    && !(function.body.is_some() && any_parameter_used(&f, &function.params)) =>
+                    && !(function.body.is_some() && any_parameter_used(f, &function.params)) =>
             {
                 &function.this_param
             }
@@ -144,42 +178,82 @@ pub fn no_unused_variables<'r>(
     }
 }
 
+/// How [`report`] words an unused name.
+struct Unused<'o> {
+    typescript: bool,
+    /// The host assigns the name where it declares it.
+    assigned: bool,
+    /// The kind of name and the pattern that would have allowed it.
+    allowed: (&'static str, Option<&'o IgnorePattern>),
+}
+
 /// Reports `symbol` as unused, where typescript-eslint skips an import only `typeof` reads.
 fn report(
     f: &Facts<'_>,
     symbol: SymbolId,
     uses: &[Use],
-    typescript: bool,
-    assigned: bool,
+    unused: &Unused<'_>,
     reporter: &mut Reporter<'_>,
 ) {
+    let typescript = unused.typescript;
     let only_as_type = typescript && uses.iter().any(|u| is_type_query_or_predicate(f, u.node));
     if only_as_type && is_import(f.kind(f.declaration(symbol))) {
         return;
     }
-    let variable_scope = f.variable_scope(f.scoping.symbol_scope_id(symbol));
-    let at = uses
-        .iter()
-        .rfind(|u| u.write && f.variable_scope(u.scope) == variable_scope)
-        .map_or_else(|| f.scoping.symbol_span(symbol), |u| u.span);
-    let action = if assigned || uses.iter().any(|u| u.write) {
+    let action = if unused.assigned || uses.iter().any(|u| u.write) {
         "assigned a value"
     } else {
         "defined"
     };
     let name = f.scoping.symbol_name(symbol);
-    let range = if typescript {
+    let suffix = allowed_suffix(unused.allowed);
+    let message = if only_as_type {
+        format!("'{name}' is {action} but only used as a type{suffix}.")
+    } else {
+        format!("'{name}' is {action} but never used{suffix}.")
+    };
+    reporter.range(message, report_range(f, symbol, uses, typescript));
+}
+
+/// `reportUsedIgnorePattern`: a used name that a pattern says is unused.
+fn report_used_ignored(
+    f: &Facts<'_>,
+    symbol: SymbolId,
+    uses: &[Use],
+    (kind, pattern): (&'static str, Option<&IgnorePattern>),
+    reporter: &mut Reporter<'_>,
+) {
+    let name = f.scoping.symbol_name(symbol);
+    let suffix = pattern.map_or_else(String::new, |p| {
+        format!(". Used {kind} must not match {}", p.display())
+    });
+    reporter.range(
+        format!("'{name}' is marked as ignored but is used{suffix}."),
+        report_range(f, symbol, uses, true),
+    );
+}
+
+/// `. Allowed unused args must match /^_/u`, when a pattern applies.
+fn allowed_suffix((kind, pattern): (&'static str, Option<&IgnorePattern>)) -> String {
+    pattern.map_or_else(String::new, |p| {
+        format!(". Allowed unused {kind} must match {}", p.display())
+    })
+}
+
+/// At the last write from the name's own function, or at its declaration.
+fn report_range(f: &Facts<'_>, symbol: SymbolId, uses: &[Use], typescript: bool) -> Span {
+    let variable_scope = f.variable_scope(f.scoping.symbol_scope_id(symbol));
+    let at = uses
+        .iter()
+        .rfind(|u| u.write && f.variable_scope(u.scope) == variable_scope)
+        .map_or_else(|| f.scoping.symbol_span(symbol), |u| u.span);
+    if typescript {
         // typescript-eslint's location spans the name alone.
+        let name = f.scoping.symbol_name(symbol);
         document_span(oxc_span::Span::sized(at.start, name.len() as u32))
     } else {
         identifier_range(f, symbol, at)
-    };
-    let message = if only_as_type {
-        format!("'{name}' is {action} but only used as a type.")
-    } else {
-        format!("'{name}' is {action} but never used.")
-    };
-    reporter.range(message, range);
+    }
 }
 
 /// Whether a name a parameter list declares has a reference.
@@ -199,7 +273,7 @@ fn any_parameter_used(f: &Facts<'_>, parameters: &FormalParameters<'_>) -> bool 
 }
 
 /// The function a parameter belongs to, through its parameter list.
-fn parameter_function(f: &Facts<'_>, parameter: NodeId) -> Option<NodeId> {
+pub(super) fn parameter_function(f: &Facts<'_>, parameter: NodeId) -> Option<NodeId> {
     let list = f.parent(parameter)?;
     if matches!(f.kind(list), AstKind::FormalParameters(_)) {
         f.parent(list)
@@ -217,54 +291,6 @@ fn is_setter_parameter(f: &Facts<'_>, parameter: NodeId) -> bool {
             AstKind::ObjectProperty(property) => property.kind == PropertyKind::Set,
             _ => false,
         })
-}
-
-/// `isFunction(def.name.parent)`: the parameter is the bare name, with no pattern, default or
-/// rest around it, of a function with a body.
-fn is_plain_parameter(f: &Facts<'_>, symbol: SymbolId, parameter: NodeId) -> bool {
-    let with_body =
-        parameter_function(f, parameter).is_some_and(|function| match f.kind(function) {
-            AstKind::Function(function) => function.body.is_some(),
-            AstKind::ArrowFunctionExpression(_) => true,
-            _ => false,
-        });
-    match f.kind(parameter) {
-        AstKind::FormalParameter(p) => {
-            with_body
-                && p.initializer.is_none()
-                && matches!(&p.pattern, BindingPattern::BindingIdentifier(i) if i.symbol_id.get() == Some(symbol))
-        }
-        _ => false,
-    }
-}
-
-/// `isAfterLastUsedArg`: no later parameter of the same function has a reference or is marked
-/// used, where a default value is a write reference to each name its pattern declares.
-fn is_after_last_used_parameter(
-    f: &Facts<'_>,
-    parameter: NodeId,
-    marked: &FxHashSet<SymbolId>,
-) -> bool {
-    let Some(AstKind::FormalParameters(list)) = f.parent(parameter).map(|list| f.kind(list)) else {
-        return true;
-    };
-    let after = f.span(parameter).end;
-    let mut later = list
-        .items
-        .iter()
-        .filter(|item| item.span.start >= after)
-        .map(|item| &item.pattern)
-        .chain(list.rest.as_ref().map(|rest| &rest.rest.argument));
-    let mut unused = |identifier: &BindingIdentifier<'_>| {
-        identifier.symbol_id.get().is_none_or(|symbol| {
-            f.scoping.get_resolved_reference_ids(symbol).is_empty()
-                && !marked.contains(&symbol)
-                && !f.identifiers[symbol.index()]
-                    .iter()
-                    .any(|&identifier| f.written_where_declared(identifier))
-        })
-    };
-    later.all(|pattern| pattern.all_binding_identifiers(&mut unused))
 }
 
 fn is_exported(f: &Facts<'_>, declaration: NodeId) -> bool {

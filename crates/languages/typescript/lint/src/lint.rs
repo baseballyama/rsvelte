@@ -10,7 +10,7 @@ mod no_inner_declarations;
 mod no_unused_variables;
 mod prefer_const;
 pub use no_inner_declarations::{NoInnerDeclarationsOptions, no_inner_declarations};
-pub use no_unused_variables::{Dialect, no_unused_variables};
+pub use no_unused_variables::{Dialect, NoUnusedVariablesOptions, no_unused_variables};
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     Expression, FormalParameter, FormalParameters, Program, TSTypeName, TSTypePredicateName,

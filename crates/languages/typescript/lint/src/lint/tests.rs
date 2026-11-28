@@ -31,6 +31,7 @@ impl Rule<Semantic> for NoUnusedVariables {
         super::no_unused_variables(
             context,
             self.0,
+            &super::NoUnusedVariablesOptions::default(),
             |_| true,
             |_| &[],
             |_| None,

@@ -23,6 +23,7 @@ impl Rule<Semantic> for NoUnusedVariables {
         lint::no_unused_variables(
             context,
             lint::Dialect::TypeScriptEslint,
+            &lint::NoUnusedVariablesOptions::default(),
             |_| true,
             |_| &[],
             |_| None,
