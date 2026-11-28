@@ -3,6 +3,7 @@
 //! sees one server.
 
 use std::collections::HashMap;
+use std::fmt::Write as _;
 
 use serde::Deserialize;
 use serde_json::value::RawValue;
@@ -48,8 +49,10 @@ pub(super) async fn serve(
         open: servers.len(),
         next_id: 0,
         requests: HashMap::new(),
+        shared: HashMap::new(),
         by_editor: HashMap::new(),
         server_requests: HashMap::new(),
+        published: HashMap::new(),
     };
     for (index, server) in servers.into_iter().enumerate() {
         tokio::spawn(read_all(
@@ -84,6 +87,10 @@ pub(super) async fn serve(
     drop(editor_writer.await);
 }
 
+/// The requests every server answers, so that each starts and stops with the editor. The first
+/// server's answer is the editor's.
+const EVERY_SERVER: &[&str] = &["initialize", "shutdown"];
+
 struct Router {
     editor: mpsc::UnboundedSender<Message>,
     /// `None` for a server that stopped.
@@ -92,26 +99,44 @@ struct Router {
     /// How many servers still run.
     open: usize,
     next_id: i64,
-    /// The editor's id of each request a server answers, by the server and the id it got.
-    requests: HashMap<(usize, Id), Id>,
+    /// What each request a server answers is for, by the server and the id it got.
+    requests: HashMap<(usize, Id), Asked>,
+    /// Each request of the editor that every server answers, until the last one does.
+    shared: HashMap<i64, Shared>,
     /// The server and its id of each request of the editor, for the editor's cancellation.
     by_editor: HashMap<Id, (usize, Id)>,
     /// The server and its id of each request it sent the editor, by the id the editor got.
     server_requests: HashMap<Id, (usize, Id)>,
+    /// The diagnostics each server published last for a document, by the server and the URI.
+    published: HashMap<(usize, String), Vec<Box<RawValue>>>,
+}
+
+/// What a server's answer is for.
+enum Asked {
+    /// The editor's request of this id, which this server alone answers.
+    Alone(Id),
+    /// The editor's request that every server answers, by its key in `shared`.
+    Shared(i64),
+}
+
+struct Shared {
+    editor_id: Id,
+    /// How many servers have yet to answer.
+    waiting: usize,
+    /// The first server's answer.
+    answer: Option<Message>,
 }
 
 impl Router {
-    const fn fresh_id(&mut self) -> Id {
+    const fn fresh(&mut self) -> i64 {
         self.next_id += 1;
-        Id::Number(self.next_id)
+        self.next_id
     }
 
     fn on_editor(&mut self, mut message: Message) {
         if message.is_response() {
-            let Some((server, id)) = message
-                .id
-                .take()
-                .and_then(|id| self.server_requests.remove(&id))
+            let Some((server, id)) =
+                (message.id.take()).and_then(|id| self.server_requests.remove(&id))
             else {
                 return;
             };
@@ -120,10 +145,13 @@ impl Router {
             return;
         }
         if let Some(editor_id) = message.id.take() {
+            if EVERY_SERVER.contains(&message.method.as_deref().unwrap_or_default()) {
+                self.ask_every_server(editor_id, &message);
+                return;
+            }
             let server = 0;
-            let id = self.fresh_id();
-            self.requests
-                .insert((server, id.clone()), editor_id.clone());
+            let id = Id::Number(self.fresh());
+            (self.requests).insert((server, id.clone()), Asked::Alone(editor_id.clone()));
             self.by_editor.insert(editor_id, (server, id.clone()));
             message.id = Some(id);
             self.send(server, message);
@@ -144,22 +172,74 @@ impl Router {
         }
     }
 
+    fn ask_every_server(&mut self, editor_id: Id, message: &Message) {
+        let key = self.fresh();
+        let running: Vec<usize> = (0..self.servers.len())
+            .filter(|&server| self.servers[server].is_some())
+            .collect();
+        self.shared.insert(
+            key,
+            Shared {
+                editor_id,
+                waiting: running.len(),
+                answer: None,
+            },
+        );
+        for server in running {
+            let id = Id::Number(self.fresh());
+            self.requests
+                .insert((server, id.clone()), Asked::Shared(key));
+            let mut request = message.clone();
+            request.id = Some(id);
+            self.send(server, request);
+        }
+        self.answered(key, 0, None);
+    }
+
+    /// Counts the answer of `server`, `None` from a server that stopped, to the request every
+    /// server answers, and answers the editor after the last.
+    fn answered(&mut self, key: i64, server: usize, answer: Option<Message>) {
+        let Some(shared) = self.shared.get_mut(&key) else {
+            return;
+        };
+        if answer.is_some() {
+            shared.waiting -= 1;
+            if server == 0 {
+                shared.answer = answer;
+            }
+        }
+        if shared.waiting > 0 {
+            return;
+        }
+        let Some(shared) = self.shared.remove(&key) else {
+            return;
+        };
+        let stopped = format!("rsvelte's {} server stopped", self.names[0]);
+        let mut answer = (shared.answer)
+            .unwrap_or_else(|| Message::error(shared.editor_id.clone(), -32603, &stopped));
+        answer.id = Some(shared.editor_id);
+        self.to_editor(answer);
+    }
+
     fn on_server(&mut self, server: usize, mut message: Message) {
         if message.is_response() {
-            let Some(editor_id) = message
+            match message
                 .id
                 .take()
                 .and_then(|id| self.requests.remove(&(server, id)))
-            else {
-                return;
-            };
-            self.by_editor.remove(&editor_id);
-            message.id = Some(editor_id);
-            self.to_editor(message);
+            {
+                Some(Asked::Alone(editor_id)) => {
+                    self.by_editor.remove(&editor_id);
+                    message.id = Some(editor_id);
+                    self.to_editor(message);
+                }
+                Some(Asked::Shared(key)) => self.answered(key, server, Some(message)),
+                None => {}
+            }
             return;
         }
         if let Some(id) = message.id.take() {
-            let editor_id = self.fresh_id();
+            let editor_id = Id::Number(self.fresh());
             self.server_requests.insert(editor_id.clone(), (server, id));
             message.id = Some(editor_id);
         } else if message.method.as_deref() == Some("$/cancelRequest") {
@@ -171,8 +251,47 @@ impl Router {
                 return;
             };
             message.parameters = cancellation(&editor_id);
+        } else if message.method.as_deref() == Some("textDocument/publishDiagnostics") {
+            // One it cannot read is the editor's to reject.
+            if let Some(parameters) = self.published(server, message.parameters.as_deref()) {
+                message.parameters = Some(parameters);
+            }
         }
         self.to_editor(message);
+    }
+
+    /// The parameters that publish every server's diagnostics of the document that `parameters` of
+    /// `server` publish.
+    fn published(&mut self, server: usize, parameters: Option<&RawValue>) -> Option<Box<RawValue>> {
+        #[derive(Deserialize)]
+        struct Published {
+            uri: String,
+            version: Option<i64>,
+            diagnostics: Vec<Box<RawValue>>,
+        }
+        let published: Published = serde_json::from_str(parameters?.get()).ok()?;
+        let key = (server, published.uri);
+        if published.diagnostics.is_empty() {
+            self.published.remove(&key);
+        } else {
+            self.published.insert(key.clone(), published.diagnostics);
+        }
+        let uri = key.1;
+        let every: Vec<&RawValue> = (0..self.servers.len())
+            .filter_map(|of| self.published.get(&(of, uri.clone())))
+            .flatten()
+            .map(AsRef::as_ref)
+            .collect();
+        let mut parameters = format!(
+            r#"{{"uri":{},"diagnostics":{}"#,
+            serde_json::to_string(&uri).ok()?,
+            serde_json::to_string(&every).ok()?,
+        );
+        if let Some(version) = published.version {
+            write!(parameters, r#","version":{version}"#).ok()?;
+        }
+        parameters.push('}');
+        RawValue::from_string(parameters).ok()
     }
 
     /// Answers what `server` left unanswered; whether a server still runs.
@@ -185,10 +304,19 @@ impl Router {
             .collect();
         let stopped = format!("rsvelte's {} server stopped", self.names[server]);
         for key in unanswered {
-            if let Some(editor_id) = self.requests.remove(&key) {
-                self.by_editor.remove(&editor_id);
-                // The protocol's InternalError.
-                self.to_editor(Message::error(editor_id, -32603, &stopped));
+            match self.requests.remove(&key) {
+                Some(Asked::Alone(editor_id)) => {
+                    self.by_editor.remove(&editor_id);
+                    // The protocol's InternalError.
+                    self.to_editor(Message::error(editor_id, -32603, &stopped));
+                }
+                Some(Asked::Shared(shared)) => {
+                    if let Some(entry) = self.shared.get_mut(&shared) {
+                        entry.waiting -= 1;
+                    }
+                    self.answered(shared, server, None);
+                }
+                None => {}
             }
         }
         self.server_requests.retain(|_, (of, _)| *of != server);

@@ -1,5 +1,6 @@
 //! `rsvelte lsp`: a language server on standard input and output. It lints with oxlint's language
-//! server and the Svelte plugin `rsvelte lint` runs, and formats as `rsvelte format` writes.
+//! server and the Svelte plugin `rsvelte lint` runs, formats as `rsvelte format` writes, and type
+//! checks as `rsvelte typecheck` does.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -21,6 +22,7 @@ use tower_lsp_server::jsonrpc::ErrorCode;
 mod convert;
 mod router;
 mod rpc;
+mod typecheck;
 
 /// Serves the editor until it exits. `arguments` are the words after `lsp`.
 pub(super) fn language_server(arguments: &[String]) -> ExitCode {
@@ -69,7 +71,20 @@ pub(super) fn language_server(arguments: &[String]) -> ExitCode {
             input: Box::new(input),
             output: Box::new(output),
         };
-        router::serve(tokio::io::stdin(), tokio::io::stdout(), vec![lint]).await;
+        let (router_end, server_end) = tokio::io::duplex(1 << 20);
+        let (server_input, server_output) = tokio::io::split(server_end);
+        let (service, socket) = tower_lsp_server::LspService::new(typecheck::TypeCheck::new);
+        tokio::spawn(
+            tower_lsp_server::Server::new(server_input, server_output, socket).serve(service),
+        );
+        let (output, input) = tokio::io::split(router_end);
+        let typecheck = router::Server {
+            name: "typecheck",
+            input: Box::new(input),
+            output: Box::new(output),
+        };
+        let servers = vec![lint, typecheck];
+        router::serve(tokio::io::stdin(), tokio::io::stdout(), servers).await;
     });
     // The read of standard input that may still wait would hold a runtime that waits for it.
     runtime.shutdown_background();

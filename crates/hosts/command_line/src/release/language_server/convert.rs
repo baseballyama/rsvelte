@@ -5,7 +5,7 @@ use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use tower_lsp_server::gen_lsp_types::{Position, Range, TextEdit};
 
 /// The lines of `text`, as a client counts them.
-fn lines(text: &str) -> LineIndex {
+pub(super) fn lines(text: &str) -> LineIndex {
     LineIndex::with_breaks(text, LineBreaks::LanguageServer)
 }
 
@@ -15,7 +15,8 @@ fn position(lines: &LineIndex, offset: u32) -> Position {
     Position::new(at.line - 1, at.column)
 }
 
-fn range(lines: &LineIndex, span: Span) -> Range {
+/// The range of `span`, rounded as [`position`] rounds.
+pub(super) fn range(lines: &LineIndex, span: Span) -> Range {
     Range::new(
         position(lines, span.start_offset),
         position(lines, span.end_offset),

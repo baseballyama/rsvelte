@@ -15,6 +15,7 @@ mod format_options;
 mod format_tailwind;
 mod held;
 mod language_server;
+mod language_server_typecheck;
 mod lint;
 mod lint_globals;
 mod project_check;

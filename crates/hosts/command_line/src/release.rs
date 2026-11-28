@@ -146,7 +146,9 @@ fn run(arguments: &[String]) -> ExitCode {
 
 /// `typecheck`.
 fn typecheck_alone(config: &configuration::Options) -> ExitCode {
-    match configured_registry(config, &[], installation(TYPECHECK)) {
+    let configured = crate::current_directory()
+        .and_then(|here| configured_registry(config, &[], installation(TYPECHECK), &here));
+    match configured {
         Ok((reg, _)) => typecheck::typecheck(&reg, TYPECHECK),
         Err(error) => usage(&error),
     }

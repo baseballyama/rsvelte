@@ -12,7 +12,11 @@ const ORACLES: &[(&str, &[(&str, &str)])] = include!(concat!(env!("OUT_DIR"), "/
 
 /// Prints the versions; the type checker is the one `typecheck` would run with `config`.
 pub(super) fn version(config: &configuration::Options) -> ExitCode {
-    let loaded = match config.load() {
+    let here = match crate::current_directory() {
+        Ok(here) => here,
+        Err(error) => return usage(&error),
+    };
+    let loaded = match config.load(&here) {
         Ok(loaded) => loaded,
         Err(error) => return usage(&error.to_string()),
     };
@@ -20,7 +24,7 @@ pub(super) fn version(config: &configuration::Options) -> ExitCode {
         tool_versions: true,
         ..installation(TYPECHECK)
     };
-    let checker = match install(loaded.as_ref(), &[], reported) {
+    let checker = match install(loaded.as_ref(), &[], reported, &here) {
         Ok((_, tools)) => (tools.iter())
             .map(|tool| format!("{} {}", tool.command, tool.version))
             .collect::<Vec<_>>()

@@ -28,7 +28,7 @@ const COMPONENT: &str =
 const UNFORMATTED: &str = "<script>\nlet   a=1\n</script>\n<p   class=\"x\">{a}</p>\n";
 
 /// An editor's end of a running `rsvelte lsp`.
-struct Client {
+pub(crate) struct Client {
     child: Child,
     input: ChildStdin,
     messages: Receiver<Value>,
@@ -40,7 +40,7 @@ struct Client {
 impl Client {
     /// Starts the server in `root` and initializes it with `root` as the workspace folder. `pull`:
     /// the client asks for diagnostics, else the server publishes them.
-    fn start(root: &Path, pull: bool) -> (Self, Value) {
+    pub(crate) fn start(root: &Path, pull: bool) -> (Self, Value) {
         let mut child = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
             .args(["lsp", "--stdio"])
             .current_dir(root)
@@ -97,7 +97,7 @@ impl Client {
         self.input.flush().expect("flush");
     }
 
-    fn notify(&mut self, method: &str, parameters: &Value) {
+    pub(crate) fn notify(&mut self, method: &str, parameters: &Value) {
         self.send(&json!({ "jsonrpc": "2.0", "method": method, "params": parameters }));
     }
 
@@ -121,7 +121,7 @@ impl Client {
     }
 
     /// The `params` of the next notification `method`.
-    fn notification(&mut self, method: &str) -> Value {
+    pub(crate) fn notification(&mut self, method: &str) -> Value {
         if let Some(i) = self
             .notifications
             .iter()
@@ -164,7 +164,7 @@ impl Client {
         }
     }
 
-    fn open(&mut self, path: &Path, text: &str) {
+    pub(crate) fn open(&mut self, path: &Path, text: &str) {
         self.notify(
             "textDocument/didOpen",
             &json!({ "textDocument": {
@@ -174,7 +174,7 @@ impl Client {
     }
 
     /// Shuts the server down as an editor does, and returns its exit code.
-    fn exit(mut self) -> Option<i32> {
+    pub(crate) fn exit(mut self) -> Option<i32> {
         self.request("shutdown", &Value::Null);
         self.notify("exit", &Value::Null);
         let status = self.child.wait().expect("wait for rsvelte lsp");
@@ -208,8 +208,10 @@ fn merge(into: &mut Value, from: Value) {
     }
 }
 
-fn uri(path: &Path) -> String {
-    format!("file://{}", path.display())
+pub(crate) fn uri(path: &Path) -> String {
+    // A Windows path needs its drive after a slash and its separators turned.
+    let uri = oxc_language_server::uri_utils::file_path_to_uri(path).expect("an absolute path");
+    uri.as_str().to_owned()
 }
 
 /// `text` with LSP `edits` applied, lines and columns read as the protocol reads them.
