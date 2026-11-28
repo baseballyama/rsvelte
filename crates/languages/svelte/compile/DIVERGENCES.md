@@ -104,9 +104,16 @@ The corpus compares JavaScript as a syntax tree
 - rsvelte prints a literal bare, as in `"a".length` and `1 .x`. Both write the parentheses
   JavaScript needs, such as those around an arrow function or a sequence.
 - The report is [#5387](https://github.com/baseballyama/rsvelte/issues/5387).
-- A plain `.ts` file is not part of this entry. There, TypeScript 6.0.3's emit is the output. It
-  keeps each pair of parentheses in the source except those around a type assertion, as in
-  `(f)(1)`. The emit that rsvelte writes drops them. The `ts.compile` corpus task compares that
-  emit with parentheses kept as nodes, and its ledger records the units where they differ
-  ([#5405](https://github.com/baseballyama/rsvelte/issues/5405)). The emit is to match
-  TypeScript's text there, as [#5389](https://github.com/baseballyama/rsvelte/issues/5389) tracks.
+- A plain `.ts` file is not part of this entry. There, TypeScript 6.0.3's emit is the output, and
+  `ts.compile` prints it with the parentheses TypeScript keeps
+  ([`parentheses.rs`](../../typescript/compile/src/parentheses.rs)): those of the source, except
+  around a type assertion, plus those its factory adds at the start of a statement, an arrow's
+  body or a default export. The `ts.compile` corpus task compares that emit with parentheses kept
+  as nodes. Two shapes still differ, as [#5389](https://github.com/baseballyama/rsvelte/issues/5389)
+  tracks:
+  - The parser keeps no parentheses in an assignment target, so `(a) = 1` and `[(a)] = b` print
+    without the pair TypeScript keeps. The corpus reads both sides with that parser, so it cannot
+    see this one.
+  - The tree does not say whether `new A` had an argument list, so `(new A as any).b` prints as
+    `new A().b` where TypeScript writes `(new A).b`.
+  - Test: `tests/parentheses.rs` in `crates/languages/typescript/compile`.

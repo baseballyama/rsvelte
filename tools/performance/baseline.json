@@ -26,8 +26,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 38171823,
-	"alloc_bytes": 9224002897,
+	"allocs": 38183946,
+	"alloc_bytes": 9178121296,
 	"peak_live_growth_bytes": 3489147,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -357,8 +357,8 @@
 		},
 		"ts.compile/default": {
 			"calls": 15050,
-			"allocs": 108640,
-			"alloc_bytes": 507470780
+			"allocs": 120763,
+			"alloc_bytes": 461589179
 		},
 		"ts.format/default": {
 			"calls": 15050,
@@ -402,7 +402,7 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 3745738893
+		"arm64-linux": 3773842762
 	},
 	"load_instructions": {
 		"arm64-linux": 200109075
