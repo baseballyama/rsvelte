@@ -25,8 +25,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 36214644,
-	"alloc_bytes": 6312914330,
+	"allocs": 36214543,
+	"alloc_bytes": 6312889554,
 	"peak_live_growth_bytes": 3023255,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -386,13 +386,13 @@
 		},
 		"vuelte.translate": {
 			"calls": 52578,
-			"allocs": 4115084,
-			"alloc_bytes": 516951648
+			"allocs": 4115077,
+			"alloc_bytes": 516950936
 		},
 		"vuelte.vapor": {
 			"calls": 50136,
-			"allocs": 4049050,
-			"alloc_bytes": 870806492
+			"allocs": 4048956,
+			"alloc_bytes": 870782428
 		}
 	},
 	"instructions": {

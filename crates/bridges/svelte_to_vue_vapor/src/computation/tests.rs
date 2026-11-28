@@ -381,3 +381,42 @@ fn typescript_that_svelte_refuses_is_refused() {
         }
     }
 }
+
+/// The errors oxc reports for `module`, a redeclared import among them.
+fn module_errors(module: &str) -> Vec<String> {
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, module, oxc_span::SourceType::mjs()).parse();
+    let semantic = oxc_semantic::SemanticBuilder::new()
+        .with_check_syntax_error(true)
+        .build(&parsed.program);
+    (parsed.diagnostics.iter().chain(&semantic.diagnostics))
+        .map(ToString::to_string)
+        .collect()
+}
+
+/// A prop cell and an `{#await}` block each need `shallowRef`, and the module imports it once.
+#[test]
+fn an_await_block_and_a_prop_cell_import_shallow_ref_once() {
+    let block = "{#await a then v}{v}{/await}";
+    for source_text in [
+        format!("<script>\n\tlet {{ a = $bindable() }} = $props();\n</script>\n{block}"),
+        format!("<script>\n\tlet {{ a }} = $props();\n\ta = 1;\n</script>\n{block}"),
+        format!("<script>\n\tlet {{ a = [] }} = $props();\n</script>\n{block}"),
+        format!("<script>\n\tlet {{ a }} = $props();\n</script>\n{block}"),
+        format!("<script>\n\tlet a = $state.raw(1);\n</script>\n{block}"),
+        "<script>\n\tlet { a = $bindable() } = $props();\n</script>\n<p>{a}</p>".to_owned(),
+    ] {
+        for server in [false, true] {
+            let module = run(&source_text, server).unwrap_or_else(|e| panic!("{source_text}: {e}"));
+            assert_eq!(
+                module_errors(&module),
+                Vec::<String>::new(),
+                "{source_text}, server: {server}"
+            );
+            assert!(
+                module.matches("shallowRef as $$shallowRef").count() <= 1,
+                "{source_text}, server: {server}: {module}"
+            );
+        }
+    }
+}

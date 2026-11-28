@@ -73,7 +73,11 @@ fn imports<'t>(
             "customRef",
             "$$createState",
         ),
-        (uses.raw || uses.prop_cells, "shallowRef", "$$shallowRef"),
+        (
+            uses.raw || uses.prop_cells || helpers.contains(&Helper::Await),
+            "shallowRef",
+            "$$shallowRef",
+        ),
         (
             uses.derived || uses.prop_cells,
             "computed",
@@ -112,9 +116,6 @@ fn imports<'t>(
             "effectScope",
             "ReactiveEffect",
         ]);
-    }
-    if helpers.contains(&Helper::Await) && !uses.raw {
-        specs.push(("shallowRef", "$$shallowRef".to_owned()));
     }
     let scope_imports = helpers.contains(&Helper::Lifecycle)
         || helpers.contains(&Helper::Group)
