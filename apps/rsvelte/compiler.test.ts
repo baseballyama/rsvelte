@@ -7,7 +7,7 @@ import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping';
 import { parse } from 'acorn';
 import * as official from 'svelte/compiler';
 
-import * as rsvelte from '@rsvelte-experimental/rsvelte/compiler';
+import * as rsvelte from '@rsvelte/rsvelte/compiler';
 
 const COMPONENT = `<script>
 	let count = $state(0);

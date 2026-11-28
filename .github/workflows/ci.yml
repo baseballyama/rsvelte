@@ -104,7 +104,7 @@ jobs:
           package-manager-cache: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
       # rsvelte_node's test runs apps/rsvelte's test against svelte/compiler.
-      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle... --filter @rsvelte-experimental/rsvelte...
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle... --filter @rsvelte/rsvelte...
       # The tests that type check run these programs, and cargo builds a program only for its own
       # package's tests: the store-only mapper, and the mapper `rsvelte` ships.
       - run: cargo build --offline -p rsvelte_typescript_content_mapper -p rsvelte_svelte_typescript_projection --bins
@@ -238,7 +238,7 @@ jobs:
         with:
           path: ~/.cache/.wasm-pack
           key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
-      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/rsvelte...
+      - run: pnpm install --frozen-lockfile --filter @rsvelte/rsvelte...
       - run: node --run generate -- --dev
       - run: node --run test:wasm
       - run: node --run test:browser
