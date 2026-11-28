@@ -4,6 +4,7 @@
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::value::RawValue;
 use tokio::io::{AsyncBufRead, AsyncBufReadExt, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::sync::mpsc;
 
 /// A request's identifier, as its sender chose it.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -55,6 +56,27 @@ impl Message {
         Self {
             id: Some(id),
             error: RawValue::from_string(format!(r#"{{"code":{code},"message":{message}}}"#)).ok(),
+            ..Self::default()
+        }
+    }
+
+    /// The answer to request `id` that has no result, such as no hover.
+    pub(super) fn empty(id: Id) -> Self {
+        Self::answer(id, RawValue::from_string("null".to_owned()).ok())
+    }
+
+    pub(super) fn answer(id: Id, result: Option<Box<RawValue>>) -> Self {
+        Self {
+            id: Some(id),
+            result,
+            ..Self::default()
+        }
+    }
+
+    pub(super) fn notification(method: &str, parameters: Option<Box<RawValue>>) -> Self {
+        Self {
+            method: Some(method.to_owned()),
+            parameters,
             ..Self::default()
         }
     }
@@ -122,6 +144,21 @@ pub(super) async fn write(
 
 fn invalid(error: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, error)
+}
+
+/// A queue of messages to `output`, and the task that writes them until the queue closes.
+pub(super) fn writer(
+    mut output: impl AsyncWrite + Send + Unpin + 'static,
+) -> (mpsc::UnboundedSender<Message>, tokio::task::JoinHandle<()>) {
+    let (sender, mut queue) = mpsc::unbounded_channel::<Message>();
+    let task = tokio::spawn(async move {
+        while let Some(message) = queue.recv().await {
+            if write(&mut output, &message).await.is_err() {
+                return;
+            }
+        }
+    });
+    (sender, task)
 }
 
 #[cfg(test)]

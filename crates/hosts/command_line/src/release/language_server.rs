@@ -1,6 +1,7 @@
 //! `rsvelte lsp`: a language server on standard input and output. It lints with oxlint's language
-//! server and the Svelte plugin `rsvelte lint` runs, formats as `rsvelte format` writes, and type
-//! checks as `rsvelte typecheck` does.
+//! server and the Svelte plugin `rsvelte lint` runs, formats as `rsvelte format` writes, type
+//! checks as `rsvelte typecheck` does, and serves TypeScript's features in components from the
+//! type checker.
 
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -20,16 +21,20 @@ use tower_lsp_server::gen_lsp_types::{
 use tower_lsp_server::jsonrpc::ErrorCode;
 
 mod convert;
+mod folders;
 mod router;
 mod rpc;
 mod typecheck;
+mod typescript;
 
 /// Serves the editor until it exits. `arguments` are the words after `lsp`.
 pub(super) fn language_server(arguments: &[String]) -> ExitCode {
+    let mut with_typescript = true;
     for argument in arguments {
         match argument.as_str() {
             // What language clients add to say the server talks on standard input and output.
             "--stdio" => {}
+            "--no-typescript" => with_typescript = false,
             "-h" | "--help" => {
                 print!("{}", super::help::LSP);
                 return ExitCode::SUCCESS;
@@ -68,6 +73,7 @@ pub(super) fn language_server(arguments: &[String]) -> ExitCode {
         let (output, input) = tokio::io::split(router_end);
         let lint = router::Server {
             name: "lint",
+            answers: router::Answers::Rest,
             input: Box::new(input),
             output: Box::new(output),
         };
@@ -80,10 +86,27 @@ pub(super) fn language_server(arguments: &[String]) -> ExitCode {
         let (output, input) = tokio::io::split(router_end);
         let typecheck = router::Server {
             name: "typecheck",
+            answers: router::Answers::Nothing,
             input: Box::new(input),
             output: Box::new(output),
         };
-        let servers = vec![lint, typecheck];
+        let mut servers = vec![lint, typecheck];
+        if with_typescript {
+            let (router_end, server_end) = tokio::io::duplex(1 << 20);
+            let (server_input, server_output) = tokio::io::split(server_end);
+            tokio::spawn(typescript::serve(server_input, server_output));
+            let (output, input) = tokio::io::split(router_end);
+            servers.push(router::Server {
+                name: "TypeScript",
+                answers: router::Answers::Features {
+                    methods: typescript::METHODS,
+                    capabilities: typescript::CAPABILITIES,
+                    documents: typescript::components,
+                },
+                input: Box::new(input),
+                output: Box::new(output),
+            });
+        }
         router::serve(tokio::io::stdin(), tokio::io::stdout(), servers).await;
     });
     // The read of standard input that may still wait would hold a runtime that waits for it.

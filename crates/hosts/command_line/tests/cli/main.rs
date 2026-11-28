@@ -16,6 +16,7 @@ mod format_tailwind;
 mod held;
 mod language_server;
 mod language_server_typecheck;
+mod language_server_typescript;
 mod lint;
 mod lint_globals;
 mod project_check;
