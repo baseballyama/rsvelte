@@ -1,7 +1,7 @@
-//! `compile` and `compileModule` of `@rsvelte/rsvelte/compiler` in a browser.
+//! `compile`, `compileModule` and `parse` of `@rsvelte/rsvelte/compiler` in a browser.
 //!
-//! Each returns its outcome as the JSON of the Node.js addon's `Outcome`, so that one JavaScript
-//! module shapes both into the official results.
+//! Each returns what the Node.js addon returns, its reports as JSON, so that one JavaScript module
+//! shapes both into the official results.
 // On a function, the expectation goes unfulfilled on the code wasm-bindgen generates from it.
 #![expect(
     clippy::needless_pass_by_value,
@@ -62,6 +62,36 @@ pub fn compile_module(
         source,
         rsvelte_svelte_compile::compile_module(source, &options),
     ))
+}
+
+/// A component's modern AST as JSON, or why it does not parse.
+#[wasm_bindgen(getter_with_clone)]
+#[derive(Debug)]
+pub struct Parsed {
+    #[wasm_bindgen(js_name = ast)]
+    pub syntax_tree: Option<String>,
+    /// The report, as JSON.
+    pub error: Option<String>,
+}
+
+/// Parses a component.
+#[wasm_bindgen]
+#[must_use]
+pub fn parse(source: &str) -> Parsed {
+    match rsvelte_svelte_compile::parse(source) {
+        Ok(syntax_tree) => Parsed {
+            syntax_tree: Some(syntax_tree),
+            error: None,
+        },
+        Err(error) => {
+            let mut json = StructuredDataWriter::new(false);
+            report(&mut json, &LineIndex::new(source), &error);
+            Parsed {
+                syntax_tree: None,
+                error: Some(json.finish()),
+            }
+        }
+    }
 }
 
 fn target(generate: Option<&str>) -> Result<Target, JsError> {

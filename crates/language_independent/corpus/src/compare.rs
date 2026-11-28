@@ -9,6 +9,7 @@
 mod comments;
 mod javascript;
 mod source_map;
+mod syntax_tree;
 
 pub(crate) use javascript::Parentheses;
 use javascript::Unparsed;
@@ -119,6 +120,7 @@ pub(crate) fn verdict(
         let actual = match e.attributes {
             "warnings.json" => ours.diagnostics.as_deref(),
             "lint.txt" => file(ours.output, "lint.json"),
+            "ast.sha256" => file(ours.output, "ast.json"),
             name => file(ours.output, name),
         };
         let v = match actual {
@@ -129,10 +131,10 @@ pub(crate) fn verdict(
         worst = worst.min(v);
     }
     let paired = |name: &str| {
-        let official_name = if name == "lint.json" {
-            "lint.txt"
-        } else {
-            name
+        let official_name = match name {
+            "lint.json" => "lint.txt",
+            "ast.json" => "ast.sha256",
+            name => name,
         };
         official.iter().any(|e| e.attributes == official_name)
     };
@@ -327,6 +329,10 @@ fn compare(
             Err(Unparsed::Expected(e)) => Err(format!("does not parse: {e}")),
         },
         "lint.txt" => lint(official, actual),
+        // An AST that is not JSON is rsvelte's to fix.
+        "ast.sha256" => {
+            Ok(syntax_tree::same_hash(official, actual).map_or(Verdict::Unparseable, same))
+        }
         "warnings.json" => same_diagnostics(official, actual).map(same),
         _ if name.ends_with("json") => {
             same_json(official, actual).map_err(|e| format!("not JSON: {e}"))

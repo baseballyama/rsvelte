@@ -1,0 +1,511 @@
+# rsvelte pack 1
+=== 65 src/lib/components/custom/AppSidebar.svelte	ast.sha256
+0526c979adac0f2300e09e4a79016a265e26acd5b99dddfbb0d0fd66e7cca5f5
+
+=== 65 src/lib/components/custom/ToggleMode.svelte	ast.sha256
+1ca1e7431a59737e5da5357cf595a181ccd0b0548b7a852091297f40af77fbde
+
+=== 65 src/lib/components/custom/Tooltip.svelte	ast.sha256
+e847304c7f4a4e3175254f929337bde06c0e09be756c65b976fd662e3c5412a5
+
+=== 65 src/lib/components/custom/docs/CliCode.svelte	ast.sha256
+ceec02a9d375e1396733f124dffc992dce4d6df51f68e6b5a818ae7e20a1ba56
+
+=== 65 src/lib/components/custom/docs/Code.svelte	ast.sha256
+bf3c626a6f0590bcd5b8f5d5db2ba27357fee3945200baf5aa8099b6724bdd7d
+
+=== 65 src/lib/components/custom/docs/Search.svelte	ast.sha256
+a4422f3c746fd27b3c14bea13e7b07439b8fec7f7d9ca3981908ec2efa1446d4
+
+=== 65 src/lib/components/custom/icons/Github.svelte	ast.sha256
+b2e8e26199e9ded3bb23a86a72dd56d0f1fa620518e734640063dc7b30d30708
+
+=== 65 src/lib/components/magic/dot-pattern/dot-pattern.svelte	ast.sha256
+0c537bb6566f2ace2c5521c3d4e4be7c54af8c70f1b696250c3f2ebb883fd1b2
+
+=== 65 src/lib/components/ui/button/button.svelte	ast.sha256
+b8ebe2e227321f776d27d9b2111450e409e562c70df8c7362513cbacec027806
+
+=== 65 src/lib/components/ui/command/command-group.svelte	ast.sha256
+d28a19fd3ac6174d3d579e821035d59811491183d45e36c1fc8fea2813717862
+
+=== 65 src/lib/components/ui/command/command-input.svelte	ast.sha256
+0e92650dd9a5285a53cfa90fb7b7f113d707e5303e6881a3d82691d96186b5e5
+
+=== 65 src/lib/components/ui/command/command-item.svelte	ast.sha256
+200c7f8a5d44a938555beb3a0d364f643f3b2501c24b5f57937c6058aa406afa
+
+=== 65 src/lib/components/ui/command/command-link-item.svelte	ast.sha256
+c011da80af9c3470807eadcdb603cc3ff9d7dddb3012297a50dfb081353a3371
+
+=== 65 src/lib/components/ui/command/command-separator.svelte	ast.sha256
+1a658863bd04acf41f64702b4ef44da37094ff41119fa990db08d1b786e273d0
+
+=== 65 src/lib/components/ui/command/command-shortcut.svelte	ast.sha256
+0c89b2c48eb938bbc2b1fae5959d0cd88e9b55a1efac6e3e0f741ecdd9420a46
+
+=== 65 src/lib/components/ui/command/command.svelte	ast.sha256
+968e6f59b889092c8012d34e7b5757fb2291f8cd05deb0c3941485fd110d99a7
+
+=== 65 src/lib/components/ui/dialog/dialog-content.svelte	ast.sha256
+f7c4e6f8648a0f28ee8bb525e1d627678590bdfa33fbe2c0a91277123687e6d0
+
+=== 65 src/lib/components/ui/dialog/dialog-description.svelte	ast.sha256
+0bc3262897aaef6b90f56f755793eaa21025d15d2c390159fdaea4f42f190d2f
+
+=== 65 src/lib/components/ui/dialog/dialog-footer.svelte	ast.sha256
+cbf77ec5f675a9d8a538a19bb964497173c0707f64def4a4aa81fb6d2ff7a4b1
+
+=== 65 src/lib/components/ui/dialog/dialog-overlay.svelte	ast.sha256
+fa19a01821234cfecff0e7671eb01e91fddda9c5ecd2f739210d5279f7e8d7a8
+
+=== 65 src/lib/components/ui/dialog/dialog-title.svelte	ast.sha256
+5128797d6502a3bc7a2252312bdd0b5a65a0a76ba8ca5ed67dfb99d6bd400c94
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-checkbox-item.svelte	ast.sha256
+3f0dee86ed6b2a2e348d867a905047eb5dc0f81384658c4f54f5b51fd161b543
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-content.svelte	ast.sha256
+e1975a952f8052eae2d2ec9c085cdc5bec7152edd146e04bb90ced98f3d1276e
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-item.svelte	ast.sha256
+5df0aabac5b941117711a5daa7714eb43d4dae66dd41c7dbff1a35c0167f235e
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-label.svelte	ast.sha256
+59a63dddd4d165afe4c66ceb54fe2079044e8bf294581acb96f0819d3e0017b7
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-radio-item.svelte	ast.sha256
+ebdb887a249918c08ea6b4f03243c280d12201c46d0c5e400a0dd1380aedd3e6
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-separator.svelte	ast.sha256
+7923db701e6e5dcf7771a2c286772e2964afe759b6e6238a92525ffa3afe76fd
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-shortcut.svelte	ast.sha256
+993ef990b1f2589fd696d684083fad341a6fbffb8f7648d53debd306b1e67a98
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-sub-content.svelte	ast.sha256
+0894c9ee4b3010288a78a1347c72bb712df5fec9f91ced48dea38dbad2453028
+
+=== 65 src/lib/components/ui/dropdown-menu/dropdown-menu-sub-trigger.svelte	ast.sha256
+2eb424b6af88fa929d8c6bc8c133c18471ca54200e6f6a8f5445ec20ebc68e95
+
+=== 65 src/lib/components/ui/input-group/input-group-addon.svelte	ast.sha256
+f74c245638fd9dbe7600cec101ce3ad7276514e69102f414bbe8f7799ad8725b
+
+=== 65 src/lib/components/ui/input-group/input-group-button.svelte	ast.sha256
+b07d53eaf7765f4abdfb822590ba59afbf68e06ef0dfae93cb4a7b899364fb5e
+
+=== 65 src/lib/components/ui/input-group/input-group-input.svelte	ast.sha256
+790a64c7d80ca14d2987d6fb23e9003b8b197efb87d3628eefc67e2c61d0186c
+
+=== 65 src/lib/components/ui/input-group/input-group-text.svelte	ast.sha256
+74eec4f2a423edab3ac46b48d74002fea12b0776bc74662c838b5aff0298eae7
+
+=== 65 src/lib/components/ui/input-group/input-group-textarea.svelte	ast.sha256
+bca904f0ae57d996a0e6eaae1881f7f58fb98cf53a75ef5244f5c032784fb50f
+
+=== 65 src/lib/components/ui/input-group/input-group.svelte	ast.sha256
+b69dd5e63cbc0c544c4d5626528ab66211257fc630434de8312b509973537fc7
+
+=== 65 src/lib/components/ui/input/input.svelte	ast.sha256
+030c4ad2b21a4c93443746ca2aab2ea4cd88284fcfeaab6d74c64e3a5b3d945a
+
+=== 65 src/lib/components/ui/popover/popover-content.svelte	ast.sha256
+66511d52499d5a91ce5a69ab9ae08bc2a5a7d9820429dc160dde15b47d9d1f6b
+
+=== 65 src/lib/components/ui/popover/popover-header.svelte	ast.sha256
+4db9112dc11d85965818a0b77bba9e54f3971775cc84bb3ce153085049f3630a
+
+=== 65 src/lib/components/ui/separator/separator.svelte	ast.sha256
+0efe3d50dc3ef94f62e0d077c8ec1b294a74877460d176781f62f50cb061a79e
+
+=== 65 src/lib/components/ui/sheet/sheet-content.svelte	ast.sha256
+f847481bf05b26e1fb0c135cc478d85e6b5bb89b64bbde54d9f317fc5d00e098
+
+=== 65 src/lib/components/ui/sheet/sheet-description.svelte	ast.sha256
+f3342b5833a7fa4bc4131ffb485a469b8b18647fc02c35d2fdc6bce66ed1b19d
+
+=== 65 src/lib/components/ui/sheet/sheet-header.svelte	ast.sha256
+7c9d91d750f369bfb45395ff5f0ddc72228159ecabf44fd05e25884d02bf5bd4
+
+=== 65 src/lib/components/ui/sheet/sheet-title.svelte	ast.sha256
+480b2ac625b10393aebde11cdb0ef7c33d74fa14c8394116b84bed9c07d6acb4
+
+=== 65 src/lib/components/ui/sidebar/sidebar-content.svelte	ast.sha256
+f6c5a0878d2e75ceb67d94ec49db79b3943ff27a37d5d849f02f0c79a3aed6b7
+
+=== 65 src/lib/components/ui/sidebar/sidebar-input.svelte	ast.sha256
+ca0ff4127333d209c0759cacd2e1df24f4bdaa027eddf26bf10b779c065989ec
+
+=== 65 src/lib/components/ui/sidebar/sidebar-inset.svelte	ast.sha256
+fd19d7af0d9c8e661eb868714ea83ddea39ca5449262fc229bb7308683f193be
+
+=== 65 src/lib/components/ui/sidebar/sidebar-menu-badge.svelte	ast.sha256
+a67c13ac6fa759e8f875911d3f5e475c9606bbecaa7b9e68cf4d7d0f24cf6150
+
+=== 65 src/lib/components/ui/sidebar/sidebar-menu-button.svelte	ast.sha256
+ab3e2bb61db0423a20d910608dd1dc22c7c12df62132d26d457e79127bb58dfa
+
+=== 65 src/lib/components/ui/sidebar/sidebar-menu-sub.svelte	ast.sha256
+4bc4c049c5f4ea7d621ab831af7198145c2ef0b73f914b2bed5b6414ef00eacd
+
+=== 65 src/lib/components/ui/sidebar/sidebar-menu.svelte	ast.sha256
+845e7a345b0ba97452eafcba43f761e0e1baee1c9c8fe98e05746f237edbb747
+
+=== 65 src/lib/components/ui/sidebar/sidebar-provider.svelte	ast.sha256
+8c3fc589743a03d1acd53dd6a8846614f549257d7b8bf5c0552e8e197b861e19
+
+=== 65 src/lib/components/ui/sidebar/sidebar-rail.svelte	ast.sha256
+4e5e7c2cf51d2a1afa79d57ee1323a6529b2e1046b95273d1b7046e269a5d2cd
+
+=== 65 src/lib/components/ui/sidebar/sidebar-separator.svelte	ast.sha256
+ba7cac3603b27c9e36c7863e0f31d6c8a0aab5d6a31322ed5ec8eefcde208435
+
+=== 65 src/lib/components/ui/sidebar/sidebar.svelte	ast.sha256
+e8ba28dfd289ca41859a50a20848b1bd47ac587d335f7afaca94bb0270dd4643
+
+=== 65 src/lib/components/ui/skeleton/skeleton.svelte	ast.sha256
+5b7b5700a37f7fdb74fc9dcf76260caebe294f9b9238219655acc66ecf926376
+
+=== 65 src/lib/components/ui/tabs/tabs-list.svelte	ast.sha256
+1e53af71276ad99a09fa7f193775b0a629c85378d5631e0fb081b54375af7a37
+
+=== 65 src/lib/components/ui/tabs/tabs-trigger.svelte	ast.sha256
+9f11090b5cb6fa505d89447b96f4ccc83c756f18e69b0a89423860ad056fc434
+
+=== 65 src/lib/components/ui/textarea/textarea.svelte	ast.sha256
+b2b8f0a491f0ab494301740d1a492d86aa8c7c93ed68029b391aef240ca384ef
+
+=== 65 src/lib/components/ui/tooltip/tooltip-content.svelte	ast.sha256
+9ba20229f71518e9fa29876a9d11c901118ec1155884a12c7022f36be433397d
+
+=== 65 src/lib/components/ui/tooltip/tooltip-trigger.svelte	ast.sha256
+84c8cbeb057edbb60be7bbad364748b3cc5ea38a5a9927b0bc96de4d285ed3b6
+
+=== 65 src/lib/components/ui/tooltip/tooltip.svelte	ast.sha256
+90f6695fa9c300f949438c6e251ccf37a37b24401047ef737018b3072b505a79
+
+=== 65 src/lib/edra/headless/components/Callout.svelte	ast.sha256
+e595457737fa7e070ad892695830aa2fa1045315598f90d962c2146d1d247a04
+
+=== 65 src/lib/edra/headless/components/CodeBlock.svelte	ast.sha256
+d1eaf9319480268583baadf1aca48b34a9d3a9f93755838450615ef7d633d55f
+
+=== 65 src/lib/edra/headless/components/IFrame.svelte	ast.sha256
+becb709d6f2e42fe0888ebc500aea27675d4fa6a02567e5a054167cfb79cfb31
+
+=== 65 src/lib/edra/headless/components/ImageExtended.svelte	ast.sha256
+8b757f88f20cc28e113e0b220484583f9a58a27720321a54440680266ebf7c69
+
+=== 65 src/lib/edra/headless/components/MediaExtended.svelte	ast.sha256
+3733a4b454ab4fd94555e3bebef909ac5445ae57652bdaaab997ab69c37fe898
+
+=== 65 src/lib/edra/headless/components/MediaPlaceHolder.svelte	ast.sha256
+f2bdfbce223a63cbe3f02bfb4db0a97b518abf15b191cc7108be1d5c97cd961c
+
+=== 65 src/lib/edra/headless/components/Mermaid.svelte	ast.sha256
+a13d908447099aeac0e67841151b50d1a2716a3c80b344593b9788385f5ee707
+
+=== 65 src/lib/edra/headless/components/SlashCommand.svelte	ast.sha256
+931906aee5e55ca9a25742677e7667028dcce0dce99de12d779edc3953d6e550
+
+=== 65 src/lib/edra/headless/components/Toolbar.svelte	ast.sha256
+c832b42963a52ad12b732ec4154f1d7ee3e1cee547100c9a1449c1e0d1eec44b
+
+=== 65 src/lib/edra/headless/components/Tooltip.svelte	ast.sha256
+05361740e940cf82039fc7d1c633367ebd5ae6b28ddfe1ce7008d17e7f691471
+
+=== 65 src/lib/edra/headless/components/VideoExtended.svelte	ast.sha256
+f1c10be6f262a44c03f1438c24eaa81feb83405c546076072a5a532193538774
+
+=== 65 src/lib/edra/headless/components/menu/AI.svelte	ast.sha256
+55d54e822ec9794c07ca231148527dc4ff7fa8c2fdebf617029c97eaf7124639
+
+=== 65 src/lib/edra/headless/components/menu/BubbleMenu.svelte	ast.sha256
+531611b177913e88628f1854e5f4e4cb0593c91049539f88655e5934b128134c
+
+=== 65 src/lib/edra/headless/components/menu/Link.svelte	ast.sha256
+502444beed5a29bda1805c69ed8ca1c2adb62b5ebd72606d5cebd54abd12b906
+
+=== 65 src/lib/edra/headless/components/menu/MathBlock.svelte	ast.sha256
+0ae181f641afc70156080cf2d5cd8c89c7588e03d635aed660b4cfffdbddf887
+
+=== 65 src/lib/edra/headless/components/menu/MathInline.svelte	ast.sha256
+19556ebb825a60aaef7637433777cf9a9ddb9ac10f70d69a7fc7c52566a9a3fd
+
+=== 65 src/lib/edra/headless/components/menu/TableCol.svelte	ast.sha256
+92c23931d9c09efeb400768e74aee73f7f664893f64faf3bc72ca26875bd0a8b
+
+=== 65 src/lib/edra/headless/components/menu/TableRow.svelte	ast.sha256
+92b45c3d888e7e2b59c03bbc1d9a4b0ad3a6c3a6676527e328b7a1e942697aca
+
+=== 65 src/lib/edra/headless/components/tools/AlignMent.svelte	ast.sha256
+b30cddbcea99fb60bd112857888a5a3772f66d80f6ac116054bff67f7267973c
+
+=== 65 src/lib/edra/headless/components/tools/Colors.svelte	ast.sha256
+d72046303f353e4a535227b7b10e217c3a265942e70c65fa02764e13a6076a34
+
+=== 65 src/lib/edra/headless/components/tools/Export.svelte	ast.sha256
+2e808fd23049c7f3b9d83f9e28a57efce4067eb6a3af8e8c2e07d1567cfb909d
+
+=== 65 src/lib/edra/headless/components/tools/FontSize.svelte	ast.sha256
+4d3fb09e5e99b2563de065f58a9541b5f1871810a6d4d6151765898b492227de
+
+=== 65 src/lib/edra/headless/components/tools/Link.svelte	ast.sha256
+6007cce6a67a7833342b81e57f4eee45825d922154eab5afa001ee3a89919530
+
+=== 65 src/lib/edra/headless/components/tools/Lists.svelte	ast.sha256
+e25813ad33dc2aef10f60c6ed9832e62713c14322dc4661611bd474c93bf1394
+
+=== 65 src/lib/edra/headless/drag-handle.svelte	ast.sha256
+16ba9d234bae5e87a508f7964ff7268f5d089ff24863cf2d345e7a544560d50f
+
+=== 65 src/lib/edra/headless/editor.svelte	ast.sha256
+e8ebe6acf980f0a970acd792d0b2d60928219efd5745c6ddba6f5eaf2d6b17b6
+
+=== 65 src/lib/edra/headless/primitives/Popover.svelte	ast.sha256
+824ddb862b03aa9b4dd45e1e0477ffd070a9772a476efa985edafd56240fa2c9
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownContent.svelte	ast.sha256
+9c488fce7a8d80164819b5caa5717640c533ed4dd15089e78af60dfc5ee848ca
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownItem.svelte	ast.sha256
+cfa7cfe6f21ccc573c217d9746f3f7d951423fefd1d19516e70d925de10f90a9
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownLabel.svelte	ast.sha256
+abffeabea08039fbd8bebfd9c4de3cd2ea9e5376b4500a80b13c3cafdc0da4c5
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownPortal.svelte	ast.sha256
+7eccc212ea7978d5a1394bf507f8e8d5e456f46a56d1f59f09df81c117f79df0
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownRoot.svelte	ast.sha256
+be94e587e8834485e0740242f9675f1c4c1e6b714206a3a791e4dc5a2b004377
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownSeparator.svelte	ast.sha256
+8777372545fb95935155fee9fb443da17f106562b6ad7524b852c27ab365a87e
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownShortcut.svelte	ast.sha256
+889254b292f76119ce4744e8e48126008fab74b62f0c7ebce35e2f0319b3999a
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownSub.svelte	ast.sha256
+4691d8b866f311b0acb31243c30d7b3ab3cf5a68e711e8cb357c8abd60952132
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownSubContent.svelte	ast.sha256
+fc6d09d6f29924fab1c38a6d5e38ae3a166dc1cb064819e12ff2c5fe761b64bb
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownSubTrigger.svelte	ast.sha256
+1097c1e61e133def3e048008cc393ba8bff0c7f891fe29fc8551744d994213d0
+
+=== 65 src/lib/edra/headless/primitives/dropdown/DropdownTrigger.svelte	ast.sha256
+35aa1ba0d25d9fd7f081751d9db9bd525f4aeda4e3723827d2de3c38f02ea76e
+
+=== 65 src/lib/edra/headless/primitives/tabs/TabsContent.svelte	ast.sha256
+b640791ae4944fd1465c65a7f405318ba1810dccda54de0d19883947a15cc73e
+
+=== 65 src/lib/edra/headless/primitives/tabs/TabsList.svelte	ast.sha256
+c8a2ce2a0ede505cdcc9f80047c44094e66e068d9582a3476798da7580fac0df
+
+=== 65 src/lib/edra/headless/primitives/tabs/TabsRoot.svelte	ast.sha256
+5a2a5523cdcec385e557aa86ab9f1a537bc175615ebd1ca9e367248a0ed9af01
+
+=== 65 src/lib/edra/headless/primitives/tabs/TabsTrigger.svelte	ast.sha256
+a77a59085bb87372290c9864da2068a6d6bfa6bdbfcbef12057a8593825189d4
+
+=== 65 src/lib/edra/shadcn/components/Callout.svelte	ast.sha256
+62399b9cd62801618eb84214f22e69144034d3382583cedbec3ffbcabcafba0d
+
+=== 65 src/lib/edra/shadcn/components/CodeBlock.svelte	ast.sha256
+36f234c5234fc70d506262a99505f2bc615fdbaf8e22a54769cad790ae0b507c
+
+=== 65 src/lib/edra/shadcn/components/IFrame.svelte	ast.sha256
+7606958ff186dd645e440b09ece0a9eee83a33cd21c835aec32baf0528033e64
+
+=== 65 src/lib/edra/shadcn/components/ImageExtended.svelte	ast.sha256
+134ef2e8f4c2e70ed5db264c1bf5e22998e1d917236dbcdeee104adce73e22d7
+
+=== 65 src/lib/edra/shadcn/components/MediaExtended.svelte	ast.sha256
+016c9ef829e8ac8b773438d1cb3becc596e0a3b8b5400e3dbac63c6088b8789e
+
+=== 65 src/lib/edra/shadcn/components/MediaPlaceHolder.svelte	ast.sha256
+20c84f2d737602cc469f668d19a889727272d697aa9032b18e2b4ae894d759fb
+
+=== 65 src/lib/edra/shadcn/components/Mermaid.svelte	ast.sha256
+67d040df6eb222b5c96b6d4faeb6a03e997251a4bbfb321a0c9f39895b69525a
+
+=== 65 src/lib/edra/shadcn/components/SlashCommand.svelte	ast.sha256
+d1570d1d03e91f5186f39a734e456e5e3d7e27ff2a575eedea2ec71c413b21b6
+
+=== 65 src/lib/edra/shadcn/components/Toolbar.svelte	ast.sha256
+3fc1d5029c861d232095a5d6d9deedd2834551519497ca7066271a9766389ae1
+
+=== 65 src/lib/edra/shadcn/components/Tooltip.svelte	ast.sha256
+38ea481c65d9c08a31e3b6add709104174fff2c67e3b0664abeb56a00dbcd1ab
+
+=== 65 src/lib/edra/shadcn/components/VideoExtended.svelte	ast.sha256
+0f32a80a44c10af3c3a7cc71783dcde85ea61f7c99571d3b100f8ae6d83aa0dc
+
+=== 65 src/lib/edra/shadcn/components/menu/AI.svelte	ast.sha256
+2a9990abca9fba5b3ab5a8a55a1331e7207f93ddb762d5f66e8845eaf00d298b
+
+=== 65 src/lib/edra/shadcn/components/menu/BubbleMenu.svelte	ast.sha256
+3df523c0b08a6c95571d0b2436161876d5112cf7426c8c24981afa61061e5e9d
+
+=== 65 src/lib/edra/shadcn/components/menu/Link.svelte	ast.sha256
+8e7aa71a924cd5e42dde5d1d5beac778bbe9da79b3d408c2911af00363e5ea90
+
+=== 65 src/lib/edra/shadcn/components/menu/MathBlock.svelte	ast.sha256
+059f7ec644b5efa628a6b805c1f0bdec4fed2af00ee9c0dd24fea86a8c670053
+
+=== 65 src/lib/edra/shadcn/components/menu/MathInline.svelte	ast.sha256
+2b295c960684ed6c772854c31347716cd786571ebb1ca1d11e340ddf89c39fe9
+
+=== 65 src/lib/edra/shadcn/components/menu/TableCol.svelte	ast.sha256
+46bd3be39d071ae58ce5c032f24b85ab8b30d02e44da9187719f112a748b2bdf
+
+=== 65 src/lib/edra/shadcn/components/menu/TableRow.svelte	ast.sha256
+ec2bd1fdf019dfa3d8cf334a3b176ecf6c6d88fa9ee1ddff836eaed196d0d66e
+
+=== 65 src/lib/edra/shadcn/components/tools/AlignMent.svelte	ast.sha256
+0b651ce3bb015ed5562fcbdffc007537ce094477849510514082c1b68fedf090
+
+=== 65 src/lib/edra/shadcn/components/tools/Colors.svelte	ast.sha256
+0ca7bc703809d21482b6835df912bc5556823860112ce27ba7fe9c82b1a5b58f
+
+=== 65 src/lib/edra/shadcn/components/tools/Export.svelte	ast.sha256
+417614ae583ee32f102ca57b8195e45f1b09cb17624da68d52142bd6b8aa61a3
+
+=== 65 src/lib/edra/shadcn/components/tools/FontSize.svelte	ast.sha256
+59ad4db776563ebfebcd8241f51ef1d1f70787fc5a3056d32ec76f66b89dcb64
+
+=== 65 src/lib/edra/shadcn/components/tools/Link.svelte	ast.sha256
+f30ffe675935f0135cbdf6a6f0639f5f665e39b145aa19118bedcde5ce92123e
+
+=== 65 src/lib/edra/shadcn/components/tools/Lists.svelte	ast.sha256
+e19afe687ef2e3a3dd9b4d37da14a86961a8ea1865073034927e6fd7847f6182
+
+=== 65 src/lib/edra/shadcn/drag-handle.svelte	ast.sha256
+d962918555e5dd986394c29ea5c334aa3f53423c1c19404449058d3a5b56c9b4
+
+=== 65 src/lib/edra/shadcn/editor.svelte	ast.sha256
+e8ca3d650dd76dd7d5dedb35c8f11e1161e86b08092540306a998e6579e43300
+
+=== 65 src/lib/edra/shadcn/toc.svelte	ast.sha256
+f00c9ab0060cced437cb72aea5090de1f1a85d81ebbc3d642a5a521bc2dacecd
+
+=== 65 src/lib/edra/tiptap/components/EditorContent.svelte	ast.sha256
+72c0cd2d1079884aa73917c46b37f4c0ea453621b4496f678054c4fcb4ecf501
+
+=== 65 src/lib/edra/tiptap/components/MarkViewContent.svelte	ast.sha256
+0033d59a5e742d9d8143ee242f586b5972808346122d41bccaae748f3dfe7e8b
+
+=== 65 src/lib/edra/tiptap/components/MarkViewFrame.svelte	ast.sha256
+e8dbce50560c116bddf80f7f2f6dae18af7006c4cfe60431d7c0004783789fca
+
+=== 65 src/lib/edra/tiptap/components/NodeViewContent.svelte	ast.sha256
+1fd3c8d53301794c1bcadcc06856f4c97ec244c7b6433b92c46146850244922f
+
+=== 65 src/lib/edra/tiptap/components/NodeViewFrame.svelte	ast.sha256
+6a2a4887335dd97575610dad85462d57a8fc61f234049e97c4b9566d8b6d4c86
+
+=== 65 src/lib/edra/tiptap/components/NodeViewWrapper.svelte	ast.sha256
+0b06923326a0e507f487784a0a206db3f01ef5693ca368e6a2aff8fcd2f8ce81
+
+=== 65 src/lib/edra/tiptap/components/Tiptap.svelte	ast.sha256
+4f3d50217586f9db34a1df4c9f04934f7fbad5cec95c47c69a72b7658940d131
+
+=== 65 src/lib/edra/tiptap/components/TiptapContent.svelte	ast.sha256
+8b8c90eef46f74ef26369c4bd1721841c1a28806a40ec898aab11b248bcf93f5
+
+=== 65 src/lib/edra/tiptap/components/menus/BubbleMenu.svelte	ast.sha256
+b1e97294e41bcdacdf682646e58d1dae44746d5a88d5094824bc66f5636632a7
+
+=== 65 src/lib/vitest-examples/Welcome.svelte	ast.sha256
+8270d644e067f8215c4bb881e48290ded42200d7f1acd033334d8b52d8b68550
+
+=== 65 src/routes/+layout.svelte	ast.sha256
+e82e4b9b2f8b7829a44567a042b6c9b5143e743a69b8bbb23d58d407ccdc91cd
+
+=== 65 src/routes/docs/+layout.svelte	ast.sha256
+56a05e6746c72c43783fd769fdc623e3446f79729290e465017554ff0d24e50d
+
+=== 65 src/routes/docs/+page.svelte	ast.sha256
+72daa95f5103a2e6806b3b56872ddd4642b54bdbbcaacbd649b9340a3ec87b5b
+
+=== 65 src/routes/docs/collaboration/+page.svelte	ast.sha256
+54bb1118d053e6c933a7506521d9ec7932f9f352bcc5c37e0778ef93891362ed
+
+=== 65 src/routes/docs/configuration/+page.svelte	ast.sha256
+f71186aa9d13851fcbaef14c5f173e2d5ac467926b19c805f79c067252f02b9c
+
+=== 65 src/routes/docs/customization/+page.svelte	ast.sha256
+c54d8e510a27708f4c14184db2bd8dcf60a32072fd86414f6db7b6aedc268afb
+
+=== 65 src/routes/docs/customization/localization/+page.svelte	ast.sha256
+c46b137245854a834fe8d1cec5ebcce977a4d3cffdaf9e578eafbee56b35cd28
+
+=== 65 src/routes/docs/customization/styling/+page.svelte	ast.sha256
+c355c88cfc7ba8d8d5ebf3e7c7a1b15d17be1bf819213139ddb1b9a230990c20
+
+=== 65 src/routes/docs/extensions/ai/+page.svelte	ast.sha256
+715a164b030716cd46add1dbf7d0f70b28299fa5be90e04a75dde1503d819a22
+
+=== 65 src/routes/docs/extensions/callout/+page.svelte	ast.sha256
+6b35b0c6d404fca7786814ceaff890f4d6aaa8f8df92e796f4c484ee2314aa0c
+
+=== 65 src/routes/docs/extensions/code-block/+page.svelte	ast.sha256
+cb10b50db22295a5be0354bc54e8bb01dc0acfca47ed0860a417bbc150d5a59d
+
+=== 65 src/routes/docs/extensions/drag-handle/+page.svelte	ast.sha256
+287e664ce3a4ab02c42fb1d62a497490ea34ae6e47cff1a029475b32f023d2be
+
+=== 65 src/routes/docs/extensions/markdown/+page.svelte	ast.sha256
+78030f34b544efb95989f21b45c249e340d92e535dbe08805ba5a5d4870035ed
+
+=== 65 src/routes/docs/extensions/mathematics/+page.svelte	ast.sha256
+7ddb49ffb2be7632582a8eb62f3317a87c0378c03e3d0037715d3b170b96a3bd
+
+=== 65 src/routes/docs/extensions/media-and-mermaid/+page.svelte	ast.sha256
+532ee9fa8e2c64487de186d7aba352686616d9a2b6a514df9f96b38c4047c2d9
+
+=== 65 src/routes/docs/extensions/slash-command/+page.svelte	ast.sha256
+ff546f02defd75ed1944cdd6025ce14ab1c37d60862f8f4eb03955ca26f339b5
+
+=== 65 src/routes/docs/extensions/starter-kit/+page.svelte	ast.sha256
+d5e046c5bb66b2f344c0cced62f295b9ba3f03746526ca596d90067f627ec99d
+
+=== 65 src/routes/docs/extensions/table-of-contents/+page.svelte	ast.sha256
+30e16aca5cc18b5b63bc827427b16b579eb902a8eedb17fa939e987deb6062a0
+
+=== 65 src/routes/docs/extensions/tables/+page.svelte	ast.sha256
+d6e5b48d51ce3857e660bb25387e9ee55c4f8eafa1321eaca27e74ee249eb0c1
+
+=== 65 src/routes/docs/extensions/tasks/+page.svelte	ast.sha256
+8313e3ea7767dc29009228990964b55171d80a08fe8fd2145a582897ea04050c
+
+=== 65 src/routes/docs/extensions/typography-and-colors/+page.svelte	ast.sha256
+8e781dc62fa81c926895d22cbd4bb8f2a21e228bf835d2306e3ca9ee10632ada
+
+=== 65 src/routes/docs/installation/+page.svelte	ast.sha256
+259069abdf6b8d2e677b779d73aa7e193bc3e603224a98d024e17f28d9969afc
+
+=== 65 src/routes/docs/usages/+page.svelte	ast.sha256
+95d7117b5b9a471bb5274b64d8f67518557096dee8133c53f0fa98960dea9381
+
+=== 65 src/routes/docs/usages/serialization/+page.svelte	ast.sha256
+7ae5f062e7167f50e131e3b046517110c1df10c952485261a6b494102b92a021
+
+=== 65 src/routes/headless/+page.svelte	ast.sha256
+6b9266026e182269839aea051698576ab6d4a3c9ea3904a017d974fd3c2af5aa
+
+=== 65 src/routes/realtime/+page.svelte	ast.sha256
+c428ec76f200b6966a28d5a84ea934f35765ebc3f4159e974ff4960dc742a17b
+
+=== 65 src/routes/templates/ai/+page.svelte	ast.sha256
+bbbbf4a8b203712985d4622da041f0b9739213a9102e8580eff17c2dc4a0b50d
+
+=== 65 src/routes/templates/notion/+page.svelte	ast.sha256
+8bc81fae93b6dbc801d14ece508506fd8906fe57876457b55eb2a5f31589f50a
+
+=== 65 src/routes/templates/simple/+page.svelte	ast.sha256
+e6abca33815113b1b51d002cc6a73524e088255992515b20b0d5ecaee76247ad
+

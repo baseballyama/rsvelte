@@ -491,6 +491,7 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
         .compare("svelte.format/default")
         .compare("svelte.lint/default")
         .compare("svelte.check/default")
+        .compare("svelte.parse/modern")
         .compare_comments("svelte.compile.comments/client", "svelte.compile/client")
         .compare_comments("svelte.compile.comments/server", "svelte.compile/server")
         .compare_comments(

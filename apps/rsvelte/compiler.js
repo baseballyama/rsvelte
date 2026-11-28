@@ -5,7 +5,8 @@ import { readFileSync } from 'node:fs';
 import { compiler } from './compiler-api.js';
 import { wasmBinding } from './wasm-binding.js';
 
-export { preprocess } from 'svelte/compiler';
+// What this compiler does not reimplement, from the official one.
+export { migrate, parseCss, preprocess, print, walk } from 'svelte/compiler';
 
 /** @returns {Promise<import('./compiler-api.js').Compiler>} */
 async function load() {
@@ -30,4 +31,4 @@ const binding = await load();
 
 /** The version of svelte whose output this compiler reproduces. */
 export const VERSION = binding.VERSION;
-export const { compile, compileModule } = compiler(binding);
+export const { compile, compileModule, parse } = compiler(binding);

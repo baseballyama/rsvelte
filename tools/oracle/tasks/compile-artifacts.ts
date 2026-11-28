@@ -23,7 +23,7 @@ const position = (p: Position | undefined, locate: Locate) => {
 };
 
 /** Warnings and errors keep what a user sees and drop the rendered frame. */
-function diagnostic(d: Diagnostic, locate: Locate) {
+export function diagnostic(d: Diagnostic, locate: Locate = (p) => p) {
 	return {
 		code: d.code,
 		message: d.message,

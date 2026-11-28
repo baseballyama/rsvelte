@@ -1,0 +1,82 @@
+# rsvelte pack 1
+=== 65 examples/example-svelte/src/App.svelte	ast.sha256
+25a698d2f3621c41d53f38aad281d252d4fff8d5925c7e03b34096b3f8236fd6
+
+=== 65 examples/example-svelte/src/routes/Dependencies.svelte	ast.sha256
+de9f8a56f1c1b9bc48e1025251e02e95d15b6be70cb42d833272d0d3425b7da6
+
+=== 65 examples/example-svelte/src/routes/Events.svelte	ast.sha256
+a10881fcdfcc3e0677ac9869c6456e815c680243be9a0bc9b0f0f9591680ae66
+
+=== 65 examples/example-svelte/src/routes/External.svelte	ast.sha256
+91339dc926c34a787599f59a24bd3a07bee30be379247f6a8aaf6f5a4c95def1
+
+=== 65 examples/example-svelte/src/routes/LargeDataset.svelte	ast.sha256
+a5891b6737161b67e150c881b1391dd642063eb3958ec85dd56683527747df2c
+
+=== 65 examples/example-svelte/src/routes/Tree.svelte	ast.sha256
+adddf8e27de2a885b0717d1d353b0f4feb0ebc5015e8a6994fa50d58e42f97a5
+
+=== 65 examples/example-sveltekit/src/routes/+layout.svelte	ast.sha256
+46fcb4c9efa732ebd17de4e3269bcf9412d62e778ead2c22b8972b454391714c
+
+=== 65 packages/demo/src/routes/+layout.svelte	ast.sha256
+91b685251aa689402a7683025a32cb3505d0760355c71fbc4f905b5390be2d5f
+
+=== 65 packages/demo/src/routes/+page.svelte	ast.sha256
+aee729de80ba39215300d6c1029950ba5819cb99687b6579f098a1f69e1f5f00
+
+=== 65 packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte	ast.sha256
+96fee38b6acde498f746e298f179d6c076ac4e4c7faf0f39b30c76d78b229dfc
+
+=== 65 packages/docs-mdsvex/src/lib/icons/GithubIcon.svelte	ast.sha256
+466372b615fbc5bc9628786afbd841af6bf8bfaa96e3610aed38ad30a5d0dac9
+
+=== 65 packages/docs-mdsvex/src/lib/icons/MenuIcon.svelte	ast.sha256
+a60fd1bc6375a2de771c8e3f51f0df2fba5f8d1b2b59d4585e3ceb84563aefb3
+
+=== 65 packages/docs-mdsvex/src/lib/icons/MoonIcon.svelte	ast.sha256
+51791704ae03d6e6995e6211cc494f3f716558041c2c9ff4a820bde541a0fb17
+
+=== 65 packages/docs-mdsvex/src/lib/icons/SunIcon.svelte	ast.sha256
+a060fce618680ff43f2ad447565527421964bc2d6a8f3e6139aef203ffe60a77
+
+=== 65 packages/docs-mdsvex/src/routes/+page.svelte	ast.sha256
+2f1f06c7328e5f42a36634420f91b4fa4bfa6254050c345b83b10c1891e0c37d
+
+=== 65 packages/docs-mdsvex/src/routes/FeatureCard.svelte	ast.sha256
+56df626da8f06e557653adbc0f4925e06945f62c2fd9b917bfe24ae949229b58
+
+=== 65 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	ast.sha256
+10f87da701c5b42c0b8bf61abcf29996278000a9dbb3f431ddc293fe7ee4f03d
+
+=== 65 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	ast.sha256
+be30f2e2c22bc7fc3a2589d5e2eab7bd27df7d756b22b6c28eb317e041ade818
+
+=== 65 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	ast.sha256
+1c44fc1681b8b3f46674153e4a6d042878f1803eb680d2971f3f66a1601c7b26
+
+=== 65 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	ast.sha256
+c898967ce0160bfb198f4c4253c97256b770f17b823c10c9203f4ae11438a13a
+
+=== 65 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	ast.sha256
+f8ef49332845de4ddc5797b76f1b3b923cacf6080f128fe22138b161bb20d0f5
+
+=== 65 packages/docs-mdsvex/src/routes/docs/layout.svelte	ast.sha256
+75f4a32eb8a32962fd0873bdaaeb131bf757d83a66398604af95dea3061dda0b
+
+=== 65 packages/docs-mdsvex/src/routes/docs/modules/create-tasks/CreateTasksExample.svelte	ast.sha256
+9e81020b2a6cb5360d340894460d0a7d03e33f46394f49d5e21f94cf23e977ed
+
+=== 65 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	ast.sha256
+9d9332e31eb12fb50711f0f903bf42959e044474b70c0f95b425fd9df1c7ddf6
+
+=== 65 packages/docs-mdsvex/src/routes/docs/modules/table/TableExample.svelte	ast.sha256
+636858d544b69119709fcb002d88add31eb06e77e6c5760113f72a54ad189823
+
+=== 65 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	ast.sha256
+1f76fced82bb7ae32906ac1357bf998b5fc12166d39fe729e04a5a49288c4a81
+
+=== 65 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	ast.sha256
+e3bcc4822db88caae4fab031ec0d6f48138d62d3a2a20cafa2e5a117f5325fa5
+

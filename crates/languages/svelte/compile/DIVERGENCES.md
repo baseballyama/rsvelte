@@ -68,6 +68,23 @@ TypeScript reads on past some syntax errors in a `.svelte.ts` module: a reserved
   `src/module/tests/erased_errors.rs`.
 - The report is [#5347](https://github.com/baseballyama/rsvelte/issues/5347).
 
+## TypeScript emit in a `.svelte.ts` module
+
+Svelte 5.59.1 compiles TypeScript 6.0.3's emit of a `.svelte.ts` module, and rsvelte compiles
+oxc's (`typescript_emit` in [`module.rs`](src/lower/module.rs)). The two write enums and
+namespaces in their own ways.
+
+- TypeScript writes an enum or a namespace as `var E;` and then
+  `(function (E) { … })(E || (E = {}));`.
+- oxc writes an enum as `var E = (function (E) { …; return E; })(E || {});`, and an exported one
+  as `export let E = (function (E) { … })({});`. It writes a namespace as `let N;` and then
+  `(function (_N) { … })(N || (N = {}));`, with the parameter renamed. An import alias in a
+  namespace stays a `var`.
+- TypeScript keeps a module's `export {};`, and rsvelte drops it. oxc also drops a const enum that
+  is the body of an `if` with no braces.
+- rsvelte keeps oxc's emit. Writing TypeScript's text would patch oxc's transform at each of these
+  places.
+
 ## JavaScript layout
 
 Svelte prints its output with esrap, and rsvelte prints with `oxc_codegen`
