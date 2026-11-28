@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_svelte_editor"
-description = "What an editor shows of a Svelte component, such as where it folds"
+description = "What an editor shows of a Svelte component, such as where it folds and its symbols"
 edition.workspace = true
 version.workspace = true
 license.workspace = true

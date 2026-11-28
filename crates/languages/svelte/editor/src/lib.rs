@@ -4,6 +4,8 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
 
 pub mod folding;
+mod outline;
+pub mod symbols;
 
 static PLUGIN: Plugin = Plugin {
     identifier: "svelte.editor",
@@ -18,4 +20,5 @@ pub fn register(registry: &mut Registry) {
     registry.plugin(&PLUGIN);
     rsvelte_svelte_syntax::register(registry);
     registry.task(folding::Folding);
+    registry.task(symbols::Symbols);
 }
