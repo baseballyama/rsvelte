@@ -2513,7 +2513,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_editor"
-version = "0.7.5"
+version = "0.7.6"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_svelte_syntax",

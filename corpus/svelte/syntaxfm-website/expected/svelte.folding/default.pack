@@ -7,6 +7,8 @@
 [{"startLine":0,"endLine":5},{"startLine":10,"endLine":19}]
 === 178 src/lib/AmsterdamBanner.svelte	folding.json
 [{"startLine":0,"endLine":1},{"startLine":11,"endLine":13},{"startLine":10,"endLine":16},{"startLine":9,"endLine":17},{"startLine":4,"endLine":18},{"startLine":21,"endLine":121}]
+=== 239 src/lib/ComponentWindow.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":13,"endLine":15},{"startLine":19,"endLine":20},{"startLine":22,"endLine":23},{"startLine":25,"endLine":26},{"startLine":28,"endLine":29},{"startLine":18,"endLine":30},{"startLine":33,"endLine":41}]
 === 150 src/lib/DropdownMenu.svelte	folding.json
 [{"startLine":0,"endLine":14},{"startLine":18,"endLine":23},{"startLine":25,"endLine":26},{"startLine":17,"endLine":27},{"startLine":30,"endLine":56}]
 === 90 src/lib/FacePile.svelte	folding.json

@@ -19,6 +19,10 @@
 [{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":8,"endLine":15}]
 === 115 src/lib/Main/DragIndicator.svelte	folding.json
 [{"startLine":0,"endLine":3},{"startLine":7,"endLine":8},{"startLine":6,"endLine":9},{"startLine":12,"endLine":27}]
+=== 415 src/lib/Modal/LightModal.svelte	folding.json
+[{"startLine":0,"endLine":122},{"startLine":134,"endLine":144},{"startLine":147,"endLine":159},{"startLine":133,"endLine":161},{"startLine":164,"endLine":179},{"startLine":194,"endLine":195},{"startLine":192,"endLine":196},{"startLine":209,"endLine":214},{"startLine":219,"endLine":224},{"startLine":229,"endLine":234},{"startLine":207,"endLine":236},{"startLine":241,"endLine":246},{"startLine":126,"endLine":250}]
+=== 223 src/lib/Modal/PictureElements/HelpOverlay.svelte	folding.json
+[{"startLine":0,"endLine":101},{"startLine":111,"endLine":114},{"startLine":109,"endLine":115},{"startLine":118,"endLine":119},{"startLine":107,"endLine":120},{"startLine":106,"endLine":121},{"startLine":124,"endLine":216}]
 === 146 src/lib/Settings/CustomJs.svelte	folding.json
 [{"startLine":0,"endLine":2},{"startLine":6,"endLine":8},{"startLine":11,"endLine":12},{"startLine":5,"endLine":15},{"startLine":18,"endLine":40}]
 === 150 src/lib/Settings/Logout.svelte	folding.json

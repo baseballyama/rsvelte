@@ -1,6 +1,8 @@
 # rsvelte pack 1
 === 87 example/src/routes/+page.svelte	folding.json
 [{"startLine":0,"endLine":3},{"startLine":7,"endLine":9},{"startLine":12,"endLine":14}]
+=== 130 src/lib/Splitpanes.svelte	folding.json
+[{"startLine":0,"endLine":42},{"startLine":45,"endLine":1130},{"startLine":1133,"endLine":1145},{"startLine":1148,"endLine":1212}]
 === 57 src/lib/internal/GatheringRound.svelte	folding.json
 [{"startLine":0,"endLine":1},{"startLine":4,"endLine":7}]
 === 241 src/routes/+layout.svelte	folding.json

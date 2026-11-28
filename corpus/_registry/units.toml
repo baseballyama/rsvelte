@@ -7192,3 +7192,9 @@
 
 ["svelte/typescript/types/unknown/unknownType2.svelte.ts".skip]
 "svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/rsvelte-mutants/cnblocks/script-twice/js_parse_error/5556caa365c1a1d9.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<script>` at a `</script` that a line break follows, where Svelte reads on to the next `</script>`"
+
+["svelte/rsvelte-mutants/cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<script>` at a `</script` that a line break follows, where Svelte reads on to the next `</script>`"

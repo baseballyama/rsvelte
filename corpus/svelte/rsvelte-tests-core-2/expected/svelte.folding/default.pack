@@ -4265,6 +4265,8 @@
 []
 === 2 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5326bec40f64f765.svelte	folding.json
 []
+=== 2 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/55233fd392c207df.svelte	folding.json
+[]
 === 2 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5fe5d773ee7f35e7.svelte	folding.json
 []
 === 2 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/671d2aac388388af.svelte	folding.json
@@ -6025,6 +6027,42 @@
 [{"startLine":0,"endLine":2}]
 === 29 prop_trailing_comment_hosts/a_trailing_comment_lands_on_the_node_upstream_puts_it_on/fbd8eb4e632ed166.svelte	folding.json
 [{"startLine":0,"endLine":3}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/020b288a227d609f.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/3878e417553838ff.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/40a18664f4a013d6.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/492c297b9dffb264.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/5ac078c3889eb1e3.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/65f20bb0ed350420.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/75e852fd5e8e2eaa.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/774dd1f9051392b2.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/8137b4bead4b8592.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/83a1774e58f11718.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/867ab3bb973e3de9.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/a0fc2e5a0877c646.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/a6095544abbbf447.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/bef4129c10420c3f.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/cbecb0fa72032a54.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/e715c301f7c8ea7d.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/fa0cd1f02975e700.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 props_bigint_key_3363/a_bigint_key_is_accepted/fafe8e26dd0c636b.svelte	folding.json
+[{"startLine":0,"endLine":1}]
 === 29 props_bigint_key_3363/a_string_key_and_an_identifier_key_are_unaffected/174e1a0283f1b28b.svelte	folding.json
 [{"startLine":0,"endLine":1}]
 === 29 props_bigint_key_3363/a_string_key_and_an_identifier_key_are_unaffected/a03805d70d92421c.svelte	folding.json

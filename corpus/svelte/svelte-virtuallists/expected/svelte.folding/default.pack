@@ -17,6 +17,8 @@
 [{"startLine":0,"endLine":19},{"startLine":22,"endLine":25},{"startLine":28,"endLine":49}]
 === 90 src/comp/ToggleButton.svelte	folding.json
 [{"startLine":0,"endLine":14},{"startLine":17,"endLine":18},{"startLine":21,"endLine":74}]
+=== 189 src/lib/VirtualListNew.svelte	folding.json
+[{"startLine":0,"endLine":33},{"startLine":36,"endLine":648},{"startLine":660,"endLine":669},{"startLine":658,"endLine":670},{"startLine":674,"endLine":685},{"startLine":651,"endLine":687}]
 === 331 src/routes/+layout.svelte	folding.json
 [{"startLine":0,"endLine":42},{"startLine":45,"endLine":48},{"startLine":58,"endLine":62},{"startLine":65,"endLine":69},{"startLine":57,"endLine":70},{"startLine":54,"endLine":71},{"startLine":76,"endLine":78},{"startLine":75,"endLine":80},{"startLine":74,"endLine":83},{"startLine":51,"endLine":84},{"startLine":87,"endLine":198}]
 === 89 src/routes/+page.svelte	folding.json

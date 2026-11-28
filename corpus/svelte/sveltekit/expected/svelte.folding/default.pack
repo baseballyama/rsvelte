@@ -993,6 +993,8 @@
 [{"startLine":0,"endLine":1}]
 === 29 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	folding.json
 [{"startLine":0,"endLine":5}]
+=== 2 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	folding.json
+[]
 === 2 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	folding.json
 []
 === 2 packages/kit/test/prerendering/basics/src/routes/content-type-charset/+page.svelte	folding.json

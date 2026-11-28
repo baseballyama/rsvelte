@@ -97,6 +97,26 @@
 [{"startLine":0,"endLine":16},{"startLine":18,"endLine":24}]
 === 29 crates/rsvelte_core/fixtures_utf8_boundary/sourcemap_column.svelte	folding.json
 [{"startLine":0,"endLine":8}]
+=== 2 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	folding.json
+[]
+=== 29 errors/attribute_contenteditable_dynamic.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 errors/attribute_contenteditable_missing.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 errors/block_invalid_elseif.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 errors/inspect_trace_generator.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 errors/props_invalid_identifier.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 errors/render_tag_invalid_spread_argument.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 errors/script_invalid_attribute_value.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 errors/script_reserved_attribute.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 errors/svelte_boundary_invalid_attribute_value.svelte	folding.json
+[{"startLine":0,"endLine":1}]
 === 29 lint-env/no-sveltekit/src/nav.svelte	folding.json
 [{"startLine":0,"endLine":9}]
 === 57 lint-env/no-sveltekit/src/routes/+page.svelte	folding.json
@@ -4485,6 +4505,10 @@
 [{"startLine":0,"endLine":3}]
 === 29 pattern/issues/3187-dollar-prefixed-still-rejected.svelte	folding.json
 [{"startLine":0,"endLine":6}]
+=== 29 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 59 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":11,"endLine":12}]
 === 88 pattern/issues/3188-boundary-snippet-params.svelte	folding.json
 [{"startLine":0,"endLine":2},{"startLine":5,"endLine":11},{"startLine":14,"endLine":16}]
 === 58 pattern/issues/3188-component-child-snippet-shadow.svelte	folding.json
@@ -4647,8 +4671,6 @@
 [{"startLine":0,"endLine":1}]
 === 29 pattern/issues/3220-assign-rvalue-member.svelte	folding.json
 [{"startLine":0,"endLine":1}]
-=== 2 pattern/issues/3220-assign-rvalue-target.svelte	folding.json
-[]
 === 29 pattern/issues/3228-derived-by-literal.svelte	folding.json
 [{"startLine":0,"endLine":1}]
 === 29 pattern/issues/3228-derived-literal.svelte	folding.json

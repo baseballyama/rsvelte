@@ -1,10 +1,16 @@
 # rsvelte pack 1
 === 29 src/lib/components/common/DragRegion.svelte	folding.json
 [{"startLine":2,"endLine":8}]
+=== 90 src/lib/components/common/ScrollbarContainer.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":33,"endLine":34},{"startLine":40,"endLine":61}]
 === 181 src/lib/components/dashboard/Banner.svelte	folding.json
 [{"startLine":0,"endLine":73},{"startLine":79,"endLine":81},{"startLine":83,"endLine":84},{"startLine":78,"endLine":85},{"startLine":77,"endLine":86},{"startLine":90,"endLine":135}]
 === 116 src/lib/components/dashboard/LoadingScreen.svelte	folding.json
 [{"startLine":0,"endLine":1},{"startLine":7,"endLine":9},{"startLine":5,"endLine":11},{"startLine":14,"endLine":59}]
+=== 191 src/lib/components/dashboard/sidebar/WatchedPersons.svelte	folding.json
+[{"startLine":0,"endLine":119},{"startLine":137,"endLine":138},{"startLine":145,"endLine":150},{"startLine":133,"endLine":151},{"startLine":122,"endLine":156},{"startLine":159,"endLine":221}]
+=== 415 src/lib/components/dashboard/sidebar/WatchedRepos.svelte	folding.json
+[{"startLine":0,"endLine":163},{"startLine":182,"endLine":183},{"startLine":190,"endLine":195},{"startLine":174,"endLine":196},{"startLine":209,"endLine":210},{"startLine":217,"endLine":226},{"startLine":200,"endLine":227},{"startLine":231,"endLine":232},{"startLine":238,"endLine":243},{"startLine":230,"endLine":244},{"startLine":199,"endLine":246},{"startLine":166,"endLine":252},{"startLine":255,"endLine":323}]
 === 148 src/lib/components/settings/accounts/Accounts.svelte	folding.json
 [{"startLine":0,"endLine":6},{"startLine":10,"endLine":11},{"startLine":13,"endLine":14},{"startLine":9,"endLine":15},{"startLine":18,"endLine":23}]
 === 208 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	folding.json

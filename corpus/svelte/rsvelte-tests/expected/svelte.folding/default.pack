@@ -35,8 +35,6 @@
 [{"startLine":1,"endLine":2}]
 === 2 js/scripts/compat-lsp/mechanism.test.mjs/fc77f34582ff0f3f.svelte	folding.json
 []
-=== 2 rsvelte/runtime_api/failures_do_not_expose_compiler_phase_errors/cae0c88bd9675a5a.svelte	folding.json
-[]
 === 2 rsvelte/runtime_api/fixed_css_scope_is_frozen_in_facts_and_runtime_output/0115c930074f2e71.svelte	folding.json
 []
 === 2 rsvelte/runtime_api/prepares_once_and_emits_neutral_client_and_server_artifacts/98eece84c46fb836.svelte	folding.json
@@ -130,8 +128,6 @@
 === 2 rsvelte_check/svelte_check/overlay/tests/relative_tsconfig_path_still_bridges_a_node_modules_sibling_package/ccc309133250f6db.svelte	folding.json
 []
 === 2 rsvelte_check/svelte_check/overlay/tests/relative_tsconfig_path_still_resolves_paths_aliases_that_escape_cwd/413c0fb87e01698a.svelte	folding.json
-[]
-=== 2 rsvelte_check/svelte_check/runner/tests/compiler_errors_keep_their_specific_code/4e810ce2e7d5e62e.svelte	folding.json
 []
 === 2 rsvelte_check/svelte_check/runner/tests/compiler_errors_keep_their_specific_code/a2b0f77fff2325e8.svelte	folding.json
 []
@@ -592,10 +588,6 @@
 === 2 rsvelte_language_server/folding/tests/no_input_panics/83fb9d339f09da1c.svelte	folding.json
 []
 === 2 rsvelte_language_server/folding/tests/no_input_panics/86b5bd8280a5edfd.svelte	folding.json
-[]
-=== 2 rsvelte_language_server/folding/tests/no_input_panics/94343e3237a4bce8.svelte	folding.json
-[]
-=== 2 rsvelte_language_server/folding/tests/no_input_panics/975a1cfd04076805.svelte	folding.json
 []
 === 2 rsvelte_language_server/folding/tests/no_input_panics/a2c04a7ff655c756.svelte	folding.json
 []
@@ -2504,6 +2496,8 @@
 === 2 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/4719f819a20748de.svelte	folding.json
 []
 === 2 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/8c8ae80a4e4ef193.svelte	folding.json
+[]
+=== 2 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	folding.json
 []
 === 2 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/b42d1ee73ee0803f.svelte	folding.json
 []

@@ -1,4 +1,12 @@
 # rsvelte pack 1
+=== 191 src/lib/DateInput.svelte	folding.json
+[{"startLine":0,"endLine":198},{"startLine":203,"endLine":230},{"startLine":241,"endLine":253},{"startLine":233,"endLine":254},{"startLine":202,"endLine":256},{"startLine":259,"endLine":294}]
+=== 639 src/lib/DatePicker.svelte	folding.json
+[{"startLine":0,"endLine":254},{"startLine":270,"endLine":272},{"startLine":269,"endLine":273},{"startLine":262,"endLine":274},{"startLine":283,"endLine":286},{"startLine":277,"endLine":288},{"startLine":290,"endLine":291},{"startLine":276,"endLine":292},{"startLine":295,"endLine":302},{"startLine":304,"endLine":305},{"startLine":294,"endLine":306},{"startLine":315,"endLine":316},{"startLine":308,"endLine":317},{"startLine":261,"endLine":318},{"startLine":320,"endLine":328},{"startLine":335,"endLine":348},{"startLine":332,"endLine":350},{"startLine":260,"endLine":356},{"startLine":259,"endLine":357},{"startLine":360,"endLine":485}]
+=== 223 src/lib/TimePicker.svelte	folding.json
+[{"startLine":0,"endLine":139},{"startLine":153,"endLine":162},{"startLine":164,"endLine":173},{"startLine":176,"endLine":185},{"startLine":188,"endLine":197},{"startLine":143,"endLine":200},{"startLine":204,"endLine":226}]
+=== 451 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":40},{"startLine":50,"endLine":52},{"startLine":47,"endLine":53},{"startLine":45,"endLine":54},{"startLine":63,"endLine":69},{"startLine":62,"endLine":70},{"startLine":57,"endLine":71},{"startLine":85,"endLine":86},{"startLine":79,"endLine":87},{"startLine":73,"endLine":88},{"startLine":56,"endLine":89},{"startLine":44,"endLine":90},{"startLine":92,"endLine":93},{"startLine":43,"endLine":94},{"startLine":97,"endLine":231}]
 === 429 src/routes/+page.svelte	folding.json
 [{"startLine":0,"endLine":37},{"startLine":40,"endLine":41},{"startLine":51,"endLine":53},{"startLine":47,"endLine":55},{"startLine":61,"endLine":75},{"startLine":81,"endLine":84},{"startLine":86,"endLine":89},{"startLine":91,"endLine":94},{"startLine":96,"endLine":99},{"startLine":101,"endLine":104},{"startLine":106,"endLine":109},{"startLine":111,"endLine":114},{"startLine":80,"endLine":115},{"startLine":118,"endLine":126}]
 === 29 src/routes/404/+page.svelte	folding.json
@@ -15,3 +23,7 @@
 [{"startLine":0,"endLine":3},{"startLine":6,"endLine":9}]
 === 57 src/routes/demo/+page.svelte	folding.json
 [{"startLine":0,"endLine":2},{"startLine":5,"endLine":6}]
+=== 241 src/routes/prop.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":33,"endLine":40},{"startLine":47,"endLine":51},{"startLine":55,"endLine":61},{"startLine":54,"endLine":62},{"startLine":67,"endLine":68},{"startLine":28,"endLine":70},{"startLine":73,"endLine":102}]
+=== 116 src/routes/split.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":6,"endLine":9},{"startLine":0,"endLine":10},{"startLine":13,"endLine":36}]
