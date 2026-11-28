@@ -37,9 +37,11 @@ pub fn emit(program: &Program<'_>) -> String {
     debug_assert!(parsed.diagnostics.is_empty(), "the tree read the same text");
     let mut program = parsed.program;
     // Before the types go: an `import type` still makes the file a module.
+    let module = prologue::is_external_module(&program);
     prologue::ensure_use_strict(&allocator, &mut program);
     parentheses::AroundAssertions::new(&allocator).visit_program(&mut program);
-    Strip::new(&allocator).visit_program(&mut program);
+    Strip::verbatim(&allocator).visit_program(&mut program);
+    prologue::keep_module(&allocator, &mut program, module);
     parentheses::Factory::new(&allocator).visit_program(&mut program);
     OriginalText::new(&allocator).visit_program(&mut program);
     print::print_with_parentheses(&program)

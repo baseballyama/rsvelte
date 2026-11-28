@@ -1,10 +1,10 @@
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{ImportOrExportKind, Program, Statement};
-use oxc_ast::builder::AstBuilder;
+use oxc_ast::ast::Program;
 use oxc_ast_visit::VisitMut;
-use oxc_span::{SPAN, Span};
+use oxc_span::Span;
 use rsvelte_typescript_compile::original_text::OriginalText;
-use rsvelte_typescript_compile::strip::{ErasedComments, ModuleErasure, is_erased_module_syntax};
+use rsvelte_typescript_compile::prologue::{is_external_module, keep_module};
+use rsvelte_typescript_compile::strip::{ErasedComments, ModuleErasure};
 
 /// Removes from a `.svelte.ts` module what TypeScript's emit, which upstream reads instead of the
 /// module, does not keep, and writes its numbers as that emit does, which is what the module's
@@ -15,8 +15,7 @@ pub(super) fn erase<'a>(
     program: &mut Program<'a>,
     record: bool,
 ) -> Vec<Span> {
-    let module =
-        (program.body.iter()).any(|s| s.is_module_declaration() || is_erased_module_syntax(s));
+    let module = is_external_module(program);
     let erased = ErasedComments::new(program);
     let kept: Vec<_> = erased.kept(program).map(|comment| comment.span).collect();
     program.comments.retain(|comment| {
@@ -30,16 +29,6 @@ pub(super) fn erase<'a>(
     };
     erasure.visit_program(program);
     OriginalText::new(allocator).visit_program(program);
-    // A module left without an import or an export stays one.
-    if module && !program.body.iter().any(Statement::is_module_declaration) {
-        let b = AstBuilder::new(allocator);
-        let nothing = Statement::new_export_named_declaration(
-            SPAN,
-            oxc_allocator::Vec::new_in(&allocator),
-            ImportOrExportKind::Value,
-            &b,
-        );
-        program.body.push(nothing);
-    }
+    keep_module(allocator, program, module);
     erasure.erased()
 }

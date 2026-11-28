@@ -22,6 +22,9 @@ pub use crate::erased_comments::ErasedComments;
 /// Erases the types of every node it visits.
 pub struct Strip<'a> {
     allocator: &'a Allocator,
+    /// Whether an import or export of types only stays, emptied, as `verbatimModuleSyntax` keeps
+    /// it.
+    verbatim: bool,
 }
 
 impl std::fmt::Debug for Strip<'_> {
@@ -33,7 +36,20 @@ impl std::fmt::Debug for Strip<'_> {
 impl<'a> Strip<'a> {
     #[must_use]
     pub const fn new(allocator: &'a Allocator) -> Self {
-        Self { allocator }
+        Self {
+            allocator,
+            verbatim: false,
+        }
+    }
+
+    /// A [`Strip`] that keeps an import or export of types only as TypeScript's emit does under
+    /// `verbatimModuleSyntax`, without its specifiers.
+    #[must_use]
+    pub const fn verbatim(allocator: &'a Allocator) -> Self {
+        Self {
+            allocator,
+            verbatim: true,
+        }
     }
 }
 
@@ -352,7 +368,11 @@ pub fn strips(statement: &Statement<'_>) -> bool {
 
 impl<'a> VisitMut<'a> for Strip<'a> {
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !strips(s));
+        if self.verbatim {
+            it.retain(|s| !is_type_declaration(s) && !is_ambient_enum(s));
+        } else {
+            it.retain(|s| !strips(s));
+        }
         walk_mut::walk_statements(self, it);
     }
 

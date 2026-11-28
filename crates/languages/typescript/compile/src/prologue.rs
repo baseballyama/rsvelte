@@ -1,7 +1,11 @@
-//! The `"use strict"` prologue TypeScript's emit gives a file that is not a module.
+//! What TypeScript's emit writes because a file is or is not a module: the `"use strict"`
+//! prologue of a script, and the `export {}` of a module its emit leaves without an import or an
+//! export.
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Directive, ImportMeta, Program, Statement, StringLiteral, TSModuleReference};
+use oxc_ast::ast::{
+    Directive, ImportMeta, ImportOrExportKind, Program, Statement, StringLiteral, TSModuleReference,
+};
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::Visit;
 use oxc_span::{FileExtension, SPAN};
@@ -23,6 +27,25 @@ pub fn ensure_use_strict<'a>(allocator: &'a Allocator, program: &mut Program<'a>
     program
         .directives
         .insert(0, Directive::new(SPAN, expression, text, &b));
+}
+
+/// Ends `program` with `export {};` when it was a `module` and nothing in it is an import or an
+/// export any more.
+///
+/// That is what TypeScript's ES module transform does
+/// (`src/compiler/transformers/module/esnextAnd2015.ts:114-120`, `isExternalModuleIndicator` in
+/// `src/compiler/utilitiesPublic.ts:2148-2151`).
+pub fn keep_module<'a>(allocator: &'a Allocator, program: &mut Program<'a>, module: bool) {
+    if module && !program.body.iter().any(Statement::is_module_declaration) {
+        let b = AstBuilder::new(allocator);
+        let nothing = Statement::new_export_named_declaration(
+            SPAN,
+            oxc_allocator::Vec::new_in(&allocator),
+            ImportOrExportKind::Value,
+            &b,
+        );
+        program.body.push(nothing);
+    }
 }
 
 /// TypeScript's `findUseStrictPrologue`, which reads a directive's value, so an escape in its text
