@@ -36,3 +36,31 @@ fn a_component_folds_where_the_official_language_server_folds_it() {
     assert_eq!(other, json!(null));
     client.exit();
 }
+
+#[test]
+fn a_component_lists_its_elements_as_the_official_language_server_does() {
+    let root = Scratch::new(&[("src/App.svelte", APP)]);
+    let (mut client, initialized) = Client::start_with(&root, false, &["--no-typescript"]);
+    assert_eq!(initialized["capabilities"]["documentSymbolProvider"], true);
+    let app = root.join("src/App.svelte");
+    client.open(&app, APP);
+    let listed = client.request(
+        "textDocument/documentSymbol",
+        &json!({ "textDocument": { "uri": uri(&app) } }),
+    );
+    let range = |start: [u32; 2], end: [u32; 2]| {
+        json!({ "start": { "line": start[0], "character": start[1] },
+                "end": { "line": end[0], "character": end[1] } })
+    };
+    // A client without nested symbols gets the list the official server's HTML part makes.
+    assert_eq!(
+        listed,
+        json!([
+            { "name": "script", "kind": 8, "containerName": "",
+              "location": { "uri": uri(&app), "range": range([0, 0], [2, 9]) } },
+            { "name": "p", "kind": 8, "containerName": "",
+              "location": { "uri": uri(&app), "range": range([7, 0], [9, 4]) } },
+        ]),
+    );
+    client.exit();
+}

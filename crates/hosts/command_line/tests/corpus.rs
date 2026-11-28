@@ -490,6 +490,7 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
         .compare("svelte.compileModule/server")
         .compare("svelte.format/default")
         .compare("svelte.folding/default")
+        .compare("svelte.symbols/default")
         .compare("svelte.lint/default")
         .compare("svelte.check/default")
         .compare_comments("svelte.compile.comments/client", "svelte.compile/client")

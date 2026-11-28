@@ -10,6 +10,8 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_svelte_syntax::syntax_tree::{Component, ElementEnd, Range, TemplateNode};
 
+use crate::outline::{self, Item};
+
 /// The identifier of the task that writes each component's folding ranges.
 pub const TASK: &str = "svelte.folding/default";
 
@@ -103,88 +105,16 @@ struct Folds<'a> {
     ranges: Vec<FoldingRange>,
 }
 
-/// A node of the outline the language server reads: the markup's elements and comments, with the
-/// blocks between them left out, and the scripts and the style sheet as elements.
-#[derive(Clone, Copy)]
-enum Item {
-    Node(u32),
-    Tag(Span),
-}
-
 impl Folds<'_> {
     fn top_level(&mut self) {
-        let component = self.component;
-        let mut items: Vec<(u32, Item)> = Vec::new();
-        self.items(component.root, &mut items);
-        let tags = [
-            component.module.as_ref().map(|script| script.span),
-            component.instance.as_ref().map(|script| script.span),
-            component.style.as_ref().map(|style| style.span),
-        ];
-        items.extend(
-            tags.into_iter()
-                .flatten()
-                .map(|span| (span.start_offset, Item::Tag(span))),
-        );
-        items.sort_by_key(|(start, _)| *start);
-        for (_, item) in items {
+        for item in outline::top_level(self.component, self.text) {
             self.item(item);
         }
     }
 
-    /// The elements and comments of `nodes` and of the blocks among them, in order.
-    fn items(&self, nodes: Range, items: &mut Vec<(u32, Item)>) {
-        let component = self.component;
-        for &id in nodes.get(&component.children) {
-            let node = &component.nodes[id as usize];
-            match node {
-                TemplateNode::Element { .. } | TemplateNode::Comment { .. } => {
-                    items.push((node.span().start_offset, Item::Node(id)));
-                }
-                TemplateNode::If {
-                    consequent,
-                    alternate,
-                    ..
-                } => {
-                    self.items(*consequent, items);
-                    if let Some(alternate) = alternate {
-                        self.items(*alternate, items);
-                    }
-                }
-                TemplateNode::Each {
-                    body,
-                    fallback,
-                    has_fallback,
-                    ..
-                } => {
-                    self.items(*body, items);
-                    if *has_fallback {
-                        self.items(*fallback, items);
-                    }
-                }
-                TemplateNode::Key { body, .. } | TemplateNode::Snippet { body, .. } => {
-                    self.items(*body, items);
-                }
-                TemplateNode::Await {
-                    pending,
-                    then,
-                    catch,
-                    ..
-                } => {
-                    for branch in [pending, then, catch] {
-                        if let Some(branch) = branch.present() {
-                            self.items(branch, items);
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    fn item(&mut self, item: Item) {
+    fn item(&mut self, item: Item<'_>) {
         match item {
-            Item::Tag(span) => self.element(span, None),
+            Item::Tag { span, .. } => self.element(span, None),
             Item::Node(id) => match &self.component.nodes[id as usize] {
                 TemplateNode::Comment { data, .. } => self.comment(*data),
                 TemplateNode::Element {
@@ -207,9 +137,7 @@ impl Folds<'_> {
         self.next_element += 1;
         self.stack.push(open);
         if let Some(children) = children {
-            let mut items = Vec::new();
-            self.items(children, &mut items);
-            for (_, item) in items {
+            for item in outline::within(self.component, self.text, children) {
                 self.item(item);
             }
         }
