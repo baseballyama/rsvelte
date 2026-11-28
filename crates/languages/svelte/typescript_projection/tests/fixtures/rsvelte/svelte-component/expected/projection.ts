@@ -6,16 +6,11 @@ import A from './A.svelte';;
 function $$render() {
   
 	
-	let /** @type {typeof __rsvelte_public_props0} */ { depth = 0, other } = $props();
+	let /** @typedef {{ depth?: number, other: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { depth = 0, other } = $props();
 	let current = $state(A);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    other: __rsvelte_untyped_prop(),
-  }, {
-    depth: 0,
-  }, false);
   async () => {
     {
       __rsvelte_component(current)(__rsvelte_internals(), {
@@ -37,7 +32,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const SvelteComponent__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof SvelteComponent__SvelteComponent_>} SvelteComponent__SvelteComponent_ */

@@ -10,13 +10,10 @@ function $$render() {
 	const store = writable('v');;let $store = __sveltets_2_store_get(store);
 
 	const color = 'red';
-	let /** @type {typeof __rsvelte_public_props0} */ { size } = $props();
+	let /** @typedef {{ size: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { size } = $props();
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    size: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("div", {});
@@ -29,7 +26,7 @@ function $$render() {
       __sveltets_2_ensureType(String, Number, width);
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const StyleShorthandOfAnUnboundName__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof StyleShorthandOfAnUnboundName__SvelteComponent_>} StyleShorthandOfAnUnboundName__SvelteComponent_ */

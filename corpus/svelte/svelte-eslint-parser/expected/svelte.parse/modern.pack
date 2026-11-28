@@ -1,0 +1,1339 @@
+# rsvelte pack 1
+=== 65 explorer-v2/src/lib/Header.svelte	ast.sha256
+41491880bc08399cf465cc9ca2affb54960130030d146bf4538113bf40615317
+
+=== 65 explorer-v2/src/lib/SnsBar.svelte	ast.sha256
+7ebdc6a51fe56f01e32cd48433b1e4006d5c2a97a57d3371cd5cfa8f5333c63c
+
+=== 65 explorer-v2/src/routes/+layout.svelte	ast.sha256
+8029f3fc27281a07115e64b6df03c2134e3429fe93140723af217995d4029176
+
+=== 65 explorer-v2/src/routes/+page.svelte	ast.sha256
+7b73fd0723440e3bab780b58a9ad79b3294901145b1f0fa8a86ee2f0235468ff
+
+=== 65 explorer-v2/src/routes/playground/+page.svelte	ast.sha256
+abe996ea4ecab3cb99d4b044ebddffc4f7029f373d6ddfe9841f1d53ff29401b
+
+=== 65 explorer-v2/src/routes/scope/+page.svelte	ast.sha256
+61549dc1a77f86b4c2421bc72003ccf2bedb0a444d09c59512ea520e6dc82f5b
+
+=== 65 explorer-v2/src/routes/virtual-script-code/+page.svelte	ast.sha256
+20d0469b9620996f02a71e8b45c60af8a36c6beaaf6ede1fc4a0cd2b737be7e2
+
+=== 65 tests/fixtures/integrations/prettier-plugin/x-input.svelte	ast.sha256
+88a447e8cd0992ad304d5ed615f0fd1a94898144dc45248378bb53a3ac6d9f78
+
+=== 65 tests/fixtures/integrations/snippet-scope/snippet-shadow-scope-input.svelte	ast.sha256
+4ba8e14c4f89704649de074ed67e2bee2f8b2e89492da353d12f8021feb752d5
+
+=== 65 tests/fixtures/integrations/snippet-scope/ts-snippet-hoist-scope-input.svelte	ast.sha256
+3b6ab2a0c6e80c578b3571de80ffffc4877c0679fa54591f6998b97e8aeddeae
+
+=== 65 tests/fixtures/integrations/type-info-tests/$derived-input.svelte	ast.sha256
+8cdc06a409566c99fae34612923f2925384cd50f0d0a9cdc44925803f85ad9bd
+
+=== 65 tests/fixtures/integrations/type-info-tests/$props-input.svelte	ast.sha256
+ec096bd7698bbbeacdc8f1ee90066229cfe5a7504a34463cb1c39aaede0edfd8
+
+=== 65 tests/fixtures/integrations/type-info-tests/await-input.svelte	ast.sha256
+a17b5101983f6e685b3b9bb8525581ece267a75e4d0bb037f6b15b27011d531e
+
+=== 65 tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	ast.sha256
+03df390317edea4727931bce17317705a15391d880b9dae46c828b27708cf8aa
+
+=== 65 tests/fixtures/integrations/type-info-tests/i18n-input.svelte	ast.sha256
+79e7d0d6f41fde9a08ebeb2251ffb7ecb64529eb53e47f8fd0ddb126bd48ad2e
+
+=== 65 tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	ast.sha256
+2f5d4560afc0a2319964ae4e1c4d56df61d4b46a09b67425fb6daaf025dac16a
+
+=== 65 tests/fixtures/parser/ast/$$slots-input.svelte	ast.sha256
+00bd3c011d7ff74c41acad4a9213905aaccd99b1f0d1f4b933a44ec6d48e2dab
+
+=== 65 tests/fixtures/parser/ast/$var-input.svelte	ast.sha256
+71fff36b20ffe86f2a4d57993918e25f3924bd1d4b4596edfafdf7bd2d1d2b5e
+
+=== 65 tests/fixtures/parser/ast/at-const01-within-component-input.svelte	ast.sha256
+bb7712398e049a1194e1dce74383e7d1bad54e4cd62bf8f5271f40321f26a4b5
+
+=== 65 tests/fixtures/parser/ast/at-html01-input.svelte	ast.sha256
+3d650cd55d818e599104ab78f7c36df2e0a128e7a3173a1132605794125cd612
+
+=== 65 tests/fixtures/parser/ast/attr01-input.svelte	ast.sha256
+0db02d44afbef6b53b2658fe46dd2d528a9232e6bab59bba6f712f93093529b0
+
+=== 65 tests/fixtures/parser/ast/await01-input.svelte	ast.sha256
+a82a760a9d9e60af6e4434853cab4eda5f31ea44115cac165426aa67fe38c71b
+
+=== 65 tests/fixtures/parser/ast/await02-input.svelte	ast.sha256
+b26a0c5ca30709d244d91dec320871eaaff4260e27b12cb302a653d18fed0975
+
+=== 65 tests/fixtures/parser/ast/await03-input.svelte	ast.sha256
+309667f3569043a487a9e9aeba9b5f13d8287484156e8c128c7857feb327de39
+
+=== 65 tests/fixtures/parser/ast/await04-input.svelte	ast.sha256
+7747682144f85df95ac014fc692555a4778d28d77ac05c02ecbb141c86dc28a9
+
+=== 65 tests/fixtures/parser/ast/blog/write-less-code01-input.svelte	ast.sha256
+28b732ff21f27dcb1c7673169bdc47d3d80a333a3f56d08dcd274b346731a63e
+
+=== 65 tests/fixtures/parser/ast/class-directive01-input.svelte	ast.sha256
+ddc23136a7aaae7750d77c18e665ce70c7960c43716f983e956bec7a646559a9
+
+=== 65 tests/fixtures/parser/ast/comments01-input.svelte	ast.sha256
+9169c957f4ffafed8ed19b997c9705e88e83fee32e13c499f0c26905222b5bd5
+
+=== 65 tests/fixtures/parser/ast/components01-input.svelte	ast.sha256
+3066062162de24562e734785e7a2ade9c5c25e5de845ebbb2a98641107205809
+
+=== 65 tests/fixtures/parser/ast/components02-input.svelte	ast.sha256
+859b98302074a71943354b7094dea388c4fdfcf574fbdb927a355d9d02f919d1
+
+=== 65 tests/fixtures/parser/ast/components03-input.svelte	ast.sha256
+01c0128732349c1d8b2b0e550f5dd5c2b8fdf55bf91a2cfe2d22979d5ad048ac
+
+=== 65 tests/fixtures/parser/ast/components04-input.svelte	ast.sha256
+c2598509bc8bd22b5328afa86c3a88b3090cbd668999dd2c6e39b723e241564e
+
+=== 65 tests/fixtures/parser/ast/directive-on-with-expr-like-input.svelte	ast.sha256
+6c3d3d6593c114d9cd894078e5e79ec15b0dd261936becc8a9cfc492fbb126bd
+
+=== 65 tests/fixtures/parser/ast/directive-use-with-expr-input.svelte	ast.sha256
+5a969165c6253231ba4bf6421d942088351c6edfdf242eb364ec31781e807846
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/01-input.svelte	ast.sha256
+ee279c1e8a085b8dff8c8e9904fe4956524b42f7d91963063154d6b3a433a08a
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/05-input.svelte	ast.sha256
+58bfdacbe7582de782e268ab556f216f8c77b2bd71d6ba9c22740e46ce1c5548
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/01-script/02-assignments-are-reactive/01-input.svelte	ast.sha256
+c5a42a66a41305de78fa4245c4d4ae6e18463c3e4b5f3b98497d3eef1c4c20fc
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/01-script/04-prefix-stores-with-$-to-access-their-values/01-input.svelte	ast.sha256
+9327e330916533fe6ac451d0b55b36635694badd4e36b9141c69512e12a07c21
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/02-script-context-module/01-input.svelte	ast.sha256
+5225df0e3b83117038257bc6304085e1a9c3c2eb9cee04c8f4e098631c3ce0fd
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/03-style/01-input.svelte	ast.sha256
+f539aed3bb048849dd0ac376903196d2c38a352175a3af463b65d3311b1e79be
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/03-style/02-input.svelte	ast.sha256
+0311550c3a6114113ab2fc44f5206ebf50e3bebf039cd6acd2586f5fafe51aff
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/03-style/03-input.svelte	ast.sha256
+b75e05ac24611718699d9fad5c07948dcab08e037e86793388867095b45555f7
+
+=== 65 tests/fixtures/parser/ast/docs/component-format/03-style/04-input.svelte	ast.sha256
+7695462f41caa09631e3ec5a1c7839d7106f17de92966c7596fda3123a4ab530
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/01-input.svelte	ast.sha256
+053179e5b6e032cfc77aa16e537af8afeca6ac892b17bffb7cf009eb8237c70b
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/02-input.svelte	ast.sha256
+c7853d1a94086a5ae926c1a442045c8d777bb1e3157ab2d054065fad4f09f94f
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/03-input.svelte	ast.sha256
+bb56dd884c19b68f45eccc12f837d4642207c347622751a38b2103d2492fa1d5
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/04-input.svelte	ast.sha256
+bcb2aa0a2abc2c28b1c828c22f0d324050a3a179b37c54ebe52d8d8ee142060b
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/05-input.svelte	ast.sha256
+1288819070b57d6466d14f3dec3a8d774f56379217f9a1732c6876d5701dec21
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/06-input.svelte	ast.sha256
+0156862c3c014633963325a0e049bb09e512c02628df45c0a8e39a62292a4506
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/07-input.svelte	ast.sha256
+2d25683ebb58be31c866b0ec1cfcff8b2692b35065e01666754eaa22ef20be51
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/08-input.svelte	ast.sha256
+94df4bd9f6ee3257a760c4edb1f73afb097ad635bdbda4aa89251afdeb3852e5
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/09-input.svelte	ast.sha256
+2e0d20ef11cba7ee7ba8fe84c200dc9b4f3f5da5e1a39a89dc47521e84b0c222
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/01-input.svelte	ast.sha256
+b0ef0ed89de5cb63c630685ef46058129264411efd5883656a038bf68b14a60d
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/02-input.svelte	ast.sha256
+8b526f43e504a2eea530babbf717cee54c3f32290435f65b33779816f783e419
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	ast.sha256
+c49e191646aeb2e1108d187ab766f64f41ebcaa9afe35f4d06147cdea8fe285d
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	ast.sha256
+537755803b62db2404238bb6971b3020779b2075b5f6a085747c6ad8809ce0cd
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/02-input.svelte	ast.sha256
+b44c2ab9c94ec185a3fe4ede74942ca57a4eb55c5b67b62b3509d1a4030758d4
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/01-input.svelte	ast.sha256
+bb35ab42983c063c67e68b5fec1e1f61191573276dbf5d9ac0b82971e896a167
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/02-input.svelte	ast.sha256
+15de06f83e0d8f543f50c0a5a03ee84bf07f03c30a49eda8c5de84f4c432f950
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/03-input.svelte	ast.sha256
+5c355d61ac518f48bd448f47dab86e26bc674728f1afe93dd61decab6dd09e4b
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/04-input.svelte	ast.sha256
+199ebb679429adbc5bf75ff4746b463f6ecdf8cb6cd1ae01d3870e5a7a7957cb
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/05-input.svelte	ast.sha256
+f47f13416f728dad5f69f2f82ea854153b90c5158b7603df3a0725d7398c39ed
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/06-input.svelte	ast.sha256
+c56676f47b7dbe1ef48da274bf59deeed87f0f32cea304082f7688bed80d0bbb
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/01-input.svelte	ast.sha256
+730996b477448b620a07d3e3d12c0002db93a1d26fc995cc70bf085f952e7e9a
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/02-input.svelte	ast.sha256
+b3c0e7a88f21bbcde7f89c21f5f27aa657f6db43d312ac28c9e59aa7c9266b67
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/03-input.svelte	ast.sha256
+db18dd95f475da8f490aeeb9bff8fd53e2341b87f8ec90b1d4f52853da26a1da
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/04-input.svelte	ast.sha256
+749e46457aa0a08f5c04d5ec12fb0a8f212e395cfc264281f9ac4df00fdb15d2
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/05-input.svelte	ast.sha256
+e87821040de42f07cd051d4a3de040e458e57a69a14ea4dd0dd37a0c9c839668
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/01-input.svelte	ast.sha256
+a7c398dbe520167d4d63d95233ac82fd05eae175b6f912fe4f660804722cad78
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/02-input.svelte	ast.sha256
+6658b39d5663c19363697f39fb5cbcf3d576f8cf7d2e429a7ca103e98cd223a1
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/01-input.svelte	ast.sha256
+6d4d45e3c2fa6f024e1053c7b2af8cc50098cf84851b1e171c206f484f6984f1
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/02-input.svelte	ast.sha256
+66bd49d45e23ef373373221197b3e71dd96c53a7c81013c9cf3d387ef63808c8
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/01-input.svelte	ast.sha256
+6b3510de331ecc04854d269c20d73f1a7dd74958bdaba2874fa9e7b55071c6cb
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/02-input.svelte	ast.sha256
+41d979690c88cd758813b20b85f1169664c8e09d0f1ca0fd9ca3f12e1a188745
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/03-input.svelte	ast.sha256
+39295d55b116f9412096d425506e4ebf6473ff9f6ba5939381cd24ae614b714c
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	ast.sha256
+e4258d82a45e7702fe7e85fa2488e775465d2c3902b1c133eb3e9049d01d1429
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/03-input.svelte	ast.sha256
+e1df5f95c7aa873239fdcc3f79d4dc9f5e1e35cce6f159e3c885a4c88d609e89
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/04-input.svelte	ast.sha256
+c02f4e6407d5625a6971231cc28f2679c2ae38defcdbb1ea839c67ec0a4d2b92
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/05-input.svelte	ast.sha256
+f34ff391990ac132941089cbad450ea1be68e755a17d0f926c4ac0a3bfc1824c
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/06-input.svelte	ast.sha256
+a7d4a68045c017a390280a12cfd91c349f484d5f1c5b0d5bf7d1995a05af94e4
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	ast.sha256
+a3adc76aa6a2eac1437db3a2bfff9a09f53d3fbfe43e5b68ab560273da0d3a29
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/01-input.svelte	ast.sha256
+b041c31c4ec334166145208cb29040cd693df6e28c85feecfcc7b29b0b1ae176
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/02-input.svelte	ast.sha256
+d573c36da8f1097508ad3b7e472c28228350381cc8f67c16a1ab32d42cac6f30
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/01-input.svelte	ast.sha256
+73a3f36a40cc37b725d5b7c5689afd702221438f8ba913fc587f1b9cc7208ddc
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/02-input.svelte	ast.sha256
+6def84c4cbfbd18509bb4dc124e77350bb16de4d428e295b5473ab79ff7005b0
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/01-input.svelte	ast.sha256
+01871aa74c6683ab1cf1b6ad83a1aab2a06f64ce39fd80614fbc7aeddadb0ed9
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02-input.svelte	ast.sha256
+680902546e03c13b66e08597cdafcd7f18b00a785ecfd45a64c1f04aecd9bdb9
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02.1-input.svelte	ast.sha256
+2c21ea63e2afce1186c9e665e9a2e22a6b70e41b9a814494b7ce1b863498d9c3
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/03-input.svelte	ast.sha256
+91f6f2ddc423352ed150bf353c3d3c2f8083c0be38d2f911d045bd3343f49b20
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/01-input.svelte	ast.sha256
+c88719bb99cd9538cb91b15ee7ad01b93eac4fe99ab846dadbcf971d1c5edf09
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/02-input.svelte	ast.sha256
+1aabdb5fd6ead5b1eb94d2fd3320ab726d7ee7ab066bfb160e12f703c96338de
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/01-input.svelte	ast.sha256
+98503e66a8f872849002ae7447ea2d5f2f58c36a888f52830fdca04ebc9ddf20
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/02-input.svelte	ast.sha256
+757f018b8aeed695f9959543549cc82992cffb05417e589f3a2d37718a7c2ba0
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/03-input.svelte	ast.sha256
+256e3f4234269e5651ce9064ef523b207106068e297f5bd5f13d1277a00bb5b3
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/06-input.svelte	ast.sha256
+28b12fc262fd46fcef9ad89595999a9f44a74a42edea99b9273673a31a710c9a
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/07-input.svelte	ast.sha256
+5c299a8479c23ee02b623f8d88163424aa1929eba3d81d0909105e66a91e7bef
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/01-input.svelte	ast.sha256
+31a3c10a8bdbd39a99c0605baaba541b7b486a6bb3a2bfb41584d4359b2fe64d
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/02-input.svelte	ast.sha256
+5232622cf5e9e94d72e3a8041ed25290f708f9b69ebd04ef89da29c1c83896ac
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	ast.sha256
+e83562f4204ad6910fdf00a35e8661bd8c7fddfa936bcc50f26e2066bc8518ab
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/03-input.svelte	ast.sha256
+65028b1bcbd17b9fe13c3f6b5c293d1c9c48d990dd68d4e76a8122b9680f9402
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/04-input.svelte	ast.sha256
+e2df4abd40e5ce70c614f35cfcbf6b1569672841790927e79bd8ef304beefaf3
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/05-input.svelte	ast.sha256
+4ba52953e80898443e82301b10292e6fbb8cfbd6d5072774caee29d4875d41af
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/01-input.svelte	ast.sha256
+4201a73b608838d3335d5b3aab6c3208de11b05401c70e16941c73d003e1cd64
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/02-input.svelte	ast.sha256
+ab62bc74bc25fcadabbc4cd729bc9a64236958a1976eeb3cfcf9ba718a5a8a28
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	ast.sha256
+b207c5cfbdd27c0f3f098a2e48da56b36f60713027df52bd2c859650993af788
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	ast.sha256
+c54c511956c5a3b2ea2ad3bef2ed999076caa3a7fe64b3ae13ca685ffd00ed0c
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	ast.sha256
+f92ec3c725aa2ed8f8b19fe3d584aa1af936364549bab6c41ebada7230afcd14
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/02-input.svelte	ast.sha256
+af2cf2acca7c6efe1fdfca9580ad61b5f35cf9bd532336241ecfa81f575f28da
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/01-input.svelte	ast.sha256
+96a685afdd8d0732a66d3407c7e625e12c898d5ed5c5d9d18556aa65d37a5a9e
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/02-input.svelte	ast.sha256
+85a49c3ae5ad6790af835c25cc08ed24e49eb33e82ef44ea0448b36ab5c4a85b
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/01-input.svelte	ast.sha256
+4a7385e421d8c7c3d2a29c1564a4ffc5bf6cdeccf87eea05f683dd2c513fd5d6
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/02-input.svelte	ast.sha256
+7011deb7fef1b3959d21e327d252c0d8e2b2cef5e11e1f716d2a01068b117c7d
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/02-$$slots/01-input.svelte	ast.sha256
+3a52c75876fe4e0d253a89ed1276709b5e378a9af7159f5ea29c0c496945f3b2
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/01-input.svelte	ast.sha256
+faa8049d98f7a463c0858774b98a16f7996d4f5d5d0d675cfe8860ee5396cd00
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/02-input.svelte	ast.sha256
+c263abdfb865074b30bbff938f98f44c1f6133e0338d98775c3df62ef93b1fc6
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/01-input.svelte	ast.sha256
+8478aa2a20daa648456a114de890c2f4d9812aa8900cad555c6df9d9ef23a66e
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/02-input.svelte	ast.sha256
+9e677c13d41de13bb801656f4a98c19840d28c9716281230717673cf9c2290b8
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/15_2-svelte-element/01-input.svelte	ast.sha256
+719953ab11cf4713c724f79a3703935fc87455ecad3dd04afe906eb147055b70
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	ast.sha256
+30af02003d094a7de1de0dc8de0e8a35f95e9f13e1483f26a52be98a37d598f6
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	ast.sha256
+3f7071a1fb106867177edf1c737b028679f467673db45ed78f56a2b6a97f4f82
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	ast.sha256
+e2f13300d6840a18ab9ecd9b4839a11fe4f5771851f48a9653d4ac01a9bf4835
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/02-input.svelte	ast.sha256
+0ef18ba04849dea3515646cc1414d089be124130473ccf32adcef911c6694bbc
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/01-input.svelte	ast.sha256
+8f36eaa6463303b08af207d388d170ea5dabfd8bc0c6b95c7dbccb26ab19f55b
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/02-input.svelte	ast.sha256
+7a37a80d8f7558837d3400b9ee7ce6a3770024c29ad9bb85a3f1487af82176cd
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/01-input.svelte	ast.sha256
+b9f4d974bab86acdcbec1731c6239d9ec45ad53b377fa915a1f42fe1dc2b60d7
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/02-input.svelte	ast.sha256
+60f8e8654fe5170401c438dd72a2eb5be05f44e01d84c5126744ca99d95fe1f8
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	ast.sha256
+4ce68938250e83da77e3958f32e5e5a9809a7a3aceb2552971f7bbdcd7ff08ba
+
+=== 65 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	ast.sha256
+c25082676028753860dffa87af19a17ed2bdd8f5e1ebd0f54793d0d498255291
+
+=== 65 tests/fixtures/parser/ast/each-with-comment-input.svelte	ast.sha256
+1d6ee87861a90b0aab1045a6b4e371b4728c6ad5a79a61198790c7a5789c7763
+
+=== 65 tests/fixtures/parser/ast/empty-elements01-input.svelte	ast.sha256
+9896517cece1d2bccfe58288249d59a85818bd6875528f408737161ed4f5731c
+
+=== 65 tests/fixtures/parser/ast/hello/hello-world01-input.svelte	ast.sha256
+2650b6287ed5f825560f12dff168593d8ba72c02388aa012fd3c5f400918f2d9
+
+=== 65 tests/fixtures/parser/ast/hello/hello-world02-input.svelte	ast.sha256
+7ffb4a7553909b8fb4841ccf23a1dd59a5925b2ebade8122f48e6caa9461882c
+
+=== 65 tests/fixtures/parser/ast/hello/hello-world03-input.svelte	ast.sha256
+e924e80c9406b95ef0840e3af78b06dcc7aea4fba2519c445958315e6496c944
+
+=== 65 tests/fixtures/parser/ast/hello/hello-world04-input.svelte	ast.sha256
+b463e825ab7ae89b55344e0c830dc41254978f76a63b8a1f071512a4d407cc2a
+
+=== 65 tests/fixtures/parser/ast/hello/hello-world05-input.svelte	ast.sha256
+04b30f52d7ed592ebc5f8475682e57e7d5b691d692a2f41bd0faf3bd81197472
+
+=== 65 tests/fixtures/parser/ast/html-comments01-input.svelte	ast.sha256
+9bda2b6d3e9f4bc71cef5649bb8309c3e8dd7d061fff63d76575f39c75da3800
+
+=== 65 tests/fixtures/parser/ast/i18n-test-input.svelte	ast.sha256
+65faa64d1873e5a895633f365a30b064177146459abe5a0c62b28b6708ca6ead
+
+=== 65 tests/fixtures/parser/ast/i18n-test-type-output.svelte	ast.sha256
+c366d54b97561f57da729ed967c295ae39593bec5765e04a452c1f73366b06f5
+
+=== 65 tests/fixtures/parser/ast/if-block01-input.svelte	ast.sha256
+0c79d3028486d0906241d040d8329c4207655fcb5e726e67d2b3e6b8970efb76
+
+=== 65 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	ast.sha256
+433f820409dd372d0fe8866aefcb9204aea0c4570fdf110862cd6c897a12be93
+
+=== 65 tests/fixtures/parser/ast/kit-demo-home-input.svelte	ast.sha256
+dbc6101e8b0e4f597f4490fbbbc801fd1d32c657d5fdd8e5f1d54f94306dd799
+
+=== 65 tests/fixtures/parser/ast/let-directive01-input.svelte	ast.sha256
+a83d551710514fbef3b9d59a7c986a61a6b338b5a32e6fd5691da0fd2d62d17a
+
+=== 65 tests/fixtures/parser/ast/let-directive02-input.svelte	ast.sha256
+e6bb521cc70f11a15860125d7df02cc8971ffa7de898ac7564aebfed5fd022e4
+
+=== 65 tests/fixtures/parser/ast/let-directive03-input.svelte	ast.sha256
+9dfb2b133303c79fcf362f9b8ca558a8ca9ecc966a8d834ffafc8ee038af284d
+
+=== 65 tests/fixtures/parser/ast/mustache-with-comment-input.svelte	ast.sha256
+22e78adb2816539486e26d0e6a4d375d2a81d6d19b26d679df3be70e0260c8ff
+
+=== 65 tests/fixtures/parser/ast/nesting-script-tag01-input.svelte	ast.sha256
+cd7566e9d5bc6ff5fff77a16f5eeac6c95cc6825d51e7167a5723569cba8a525
+
+=== 65 tests/fixtures/parser/ast/postcss-input.svelte	ast.sha256
+f13fb8e95db0f093aaa35f22956dd806c55b06f544d8f7a162b7ad43174a43ae
+
+=== 65 tests/fixtures/parser/ast/props03-input.svelte	ast.sha256
+d5c0a435ebad5eff4afa9757b5ec905ceb4ce17da2b560f00129178664fc52e8
+
+=== 65 tests/fixtures/parser/ast/props04-input.svelte	ast.sha256
+dd3425806063127de509ba12c71efd63d90babc4a81af5a1770abe01abe04a15
+
+=== 65 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	ast.sha256
+92b36b2efc4e55e477991b66a99215bdad5fc1102217c587bd1237e98793d46e
+
+=== 65 tests/fixtures/parser/ast/script-in-style-input.svelte	ast.sha256
+306a24bb5fefec9f56fa2fce20b8575f18e9c6a325bfa521b79bfdc3f3ab21db
+
+=== 65 tests/fixtures/parser/ast/script-tag-input.svelte	ast.sha256
+3c9dc3fe7341ecd43402af8b66ce81b391082ce48d5c2d660feb6bec846e6d42
+
+=== 65 tests/fixtures/parser/ast/store-bindings-input.svelte	ast.sha256
+56ffe5a325f123842294b774df5b774a7fe88411d1dcd33e0d99c7793dfe510f
+
+=== 65 tests/fixtures/parser/ast/style-directive01-input.svelte	ast.sha256
+3a5b6223721478201e421c75606cb165c27055c6666dee59066528753175813d
+
+=== 65 tests/fixtures/parser/ast/style-directive02-input.svelte	ast.sha256
+9a4a1330e88a06c333ed8f01316d2211fda4a4a98d43011fbe267ed0111ee9ad
+
+=== 65 tests/fixtures/parser/ast/style-directive03-input.svelte	ast.sha256
+398e3912f337c2843fa2ba158325afb28664dceb43110f184bc8718fdbc1f674
+
+=== 65 tests/fixtures/parser/ast/style-global01-input.svelte	ast.sha256
+d9385e0a36b79ee333b05967a9728c1e2708faa1efaef3b966e160f1989e9fb9
+
+=== 65 tests/fixtures/parser/ast/style-global02-input.svelte	ast.sha256
+6e12db9ec24358a82215c952362a5ad2d6affce77641a702dec07045bca69c53
+
+=== 65 tests/fixtures/parser/ast/style01-input.svelte	ast.sha256
+ddc66ad70cfe56bfb2fd58b10673027ca2aeba1022b9e71281f80e5e4210603f
+
+=== 65 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	ast.sha256
+4dc443efd1387f6be26c883534fc0e354a33fa3cfb01c72ee8d4e321f370808b
+
+=== 65 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	ast.sha256
+bea2b026f09a4572701eb1860bb1f808e9bb850decaa1daa94a6b32c0c8be9e1
+
+=== 65 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-without-runes-input.svelte	ast.sha256
+c23c954c91167658038eadbc106c9eb165ac9ec41d7e8687de7ceea6c8a562ab
+
+=== 65 tests/fixtures/parser/ast/svelte5/$props-without-runes01-input.svelte	ast.sha256
+fa0b415fcbde7f3cfbb0e0b412fd24d1032477f05e17e347c04b41cc45631eea
+
+=== 65 tests/fixtures/parser/ast/svelte5/async/boundaries-input.svelte	ast.sha256
+e28f09579802b4436880a0a8294f765a11d23c6c852ded1a75e6bdee6a6d761d
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach-ts-01-input.svelte	ast.sha256
+ef1eb4bb0b2526ea78473a3dcc953d2de2a09493144665a40733f3a274f85601
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach-ts-02-input.svelte	ast.sha256
+c2a6578a629c20fe37b8880080f3b05ff59d8c1e9b7b42a956a456a2e210742e
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach-ts-03-input.svelte	ast.sha256
+eb9d5d7e0a8e4e18f992c606494d7c89e620145b7a2db5b61c4a8665c82537a5
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach01-input.svelte	ast.sha256
+5cbc1a8d22cdcac3097755ef6e10ad3e1914cbcba87e8d1d6f9f6f001b737f90
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach02-input.svelte	ast.sha256
+e2eaaeff3b3fd95fc6d82244215c0272f41119de9bbdb1d4a866885c6b3c69d4
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach03-input.svelte	ast.sha256
+0978777b09236b72215f551ced39afd8c46d43c301faba31d2122db2a1820870
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach04-input.svelte	ast.sha256
+511b1e779f077b1fac6a12eda7382034e4d77f05c1c580a9d4e11dfbd3bb338b
+
+=== 65 tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	ast.sha256
+3ab525a38fc2d3ad355a0fc87fd6a2ab6a912895dabc0266a86dff9235aefd50
+
+=== 65 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	ast.sha256
+c59f70c0ad31fee26142a111539dfee9544bb6ded3b9c5ae8031980a8fe01404
+
+=== 65 tests/fixtures/parser/ast/svelte5/declaration-tag-input.svelte	ast.sha256
+2394bb4bdc178bc0f658cf6c3adbf01ae0d625b490303dd1c051a5f1d3bef0f4
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/fine-grained-reactivity/example01-input.svelte	ast.sha256
+62125954c7da086e14872bb26dca6f42b2dd7cf4072f557f44130d60ae32f0c7
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	ast.sha256
+494914143ee6e032d9747f215b16ed0cf91fa5af24432d59f34b6c0a907f91e4
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/01-counter-input.svelte	ast.sha256
+bc32ccf671cb79642d453b6a67023593051525b737ce41cc13da6eb02ca2015a
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/02-tracking-dependencies-input.svelte	ast.sha256
+b0394dea7c08863baa477b7b590eca3faa3c1c43a9eba462ef57b5115841fe9f
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/03-untracking-dependencies-input.svelte	ast.sha256
+10c7e8027827838a3163d32dbd959a99087bb5dd87de4d10f12d943496d04ecc
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/04-simple-component-props-input.svelte	ast.sha256
+927bfbd650a8eed8bb2e7bd87b968f885a5342045e9fced502aa5480cc413b9f
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/05-advanced-component-props-input.svelte	ast.sha256
+0bd7887edee390c5b09809c577e8b1ce28a3996e58c5cce36cd9b3a88330a6a7
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/06-autoscroll-input.svelte	ast.sha256
+8ddfd2755625d228e48f3919ddcb90651aca6dffc4026a0e8dc491c114790b4d
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	ast.sha256
+b101d06d9c745edf9f548f53dbec502f8c54bd90b02baf79d66c07810e244a59
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	ast.sha256
+267800713501f828ce06535fbcc08ee0c5956bafa7f513e09ee5d4535699357b
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/02-2-$derived-by-input.svelte	ast.sha256
+a384bb77fe2f55b13db7762883144eeadc0b00401f765801cfc63c441525885d
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	ast.sha256
+3440c80adbc4ae9d5be940ba2eebcfd38d36311f36ec7763ec5368563599b2c0
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	ast.sha256
+461cab1deb26cfc061c9cdf31074af969598c0b2d49ee3d7aa12368e01d21ff3
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	ast.sha256
+9d21dc7a29315f1071cb1f11283616b6ed20c5f5b7ff9eaddc1e80dc1341ab2f
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/05-$props-input.svelte	ast.sha256
+dfc0151dc9a221e5e94da9be236a325f5f7f17582e9dcf270bb964b763117c3d
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/06-$props-input.svelte	ast.sha256
+7aa62cffee5e0c4da66c979e53718d3d15589e44893842663819be1b321f3bb4
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/07-$props-input.svelte	ast.sha256
+221f6f7608e816a94d9ae06e830de1bbbbca1ef68e60f5435ab163cf888d58f0
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-input.svelte	ast.sha256
+0e75cbe0ccdc5d7e3ab2344e0f5ca827c95fe1fb7c18b9c80c6d6479d1ddb664
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-ts-input.svelte	ast.sha256
+23a76a90d95261d91a2d5b9e9d2bd7a3a0a87428eb22b2175066128d44e28e11
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-ts-input.svelte	ast.sha256
+740c9efafae0953a78169fa3d300436808ff06a7dd97bf3bee10b91d8682e97f
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/08-2-$bindable-input.svelte	ast.sha256
+f054bafd74940f7d1a1ccbbd2d6d362abe62e6b873a1a3264d739ead82798612
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/08-3-$bindable-input.svelte	ast.sha256
+ab953990a8f3b59f4e13625a7470d0c2c9d54d9e3a2b4420e4d1bbcd37427702
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/08-4-$bindable-ts-input.svelte	ast.sha256
+9494852ca3cf4506169b9eb327e18b25176959dc299329073ed514df85ffb298
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/09-how-to-opt-in-input.svelte	ast.sha256
+4885f3a3b3fb0166551e0208eda85d67b713ab96494730c56383b7f1ad98926f
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/10-$effect-root-input.svelte	ast.sha256
+98df4d6a08016700b09330dfefc674a036b9054efea93101db283e856c0895a6
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-input.svelte	ast.sha256
+2c443242d804a619ab2a0f86aeaf71b08ed413727d80722c15c0aa8364bd48fe
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-ts-input.svelte	ast.sha256
+10cb53864c81843e5169c1d736271ad46d21f25806bb89e1f3b3b6cbc59f6ca7
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-input.svelte	ast.sha256
+dd108afc0fb982866da227db25fc5a66a4f6c1f93f1f84930f359a16517f7691
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-ts-input.svelte	ast.sha256
+c9c718a25589efc93ded1aa50f44a9a4320a3d90073132f01b5a459d589405a1
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-input.svelte	ast.sha256
+244bfdee0929bb1179d205e694bcabf1451f6fa8087bb568ec8515f8b85c7c67
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-ts-input.svelte	ast.sha256
+9467758d851574f163504b29758b65e2d7e52523bd747640869370b9db19a365
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/12-$inspect-input.svelte	ast.sha256
+b5623fd0e8bcd58808a25508de8f4462ad1999a016a06e246372cc9db9a39a71
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/runes/13-$inspect-input.svelte	ast.sha256
+e6143ba676c5fcabb85122704e3401e34a26f2933df7844ba92531df01dc1f71
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/01-input.svelte	ast.sha256
+c5f04bd46689f34850951671675eb18d14462314c29fd1a3fe80d61089e71435
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/02-input.svelte	ast.sha256
+fc8e23cded396d2ae353050be3de824e484f042b8ad82c49a3bc77737ed6bc1a
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/03-snippet-scope-input.svelte	ast.sha256
+41c4c9e30a0963c8b85b33304e6b2bb1301283c95eedf423a6a87258bf58b049
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/04-snippet-scope-input.svelte	ast.sha256
+3fe6e9fa528feee36af40d1610f880a64d577cad109aa3c60bbc51cdc929b2db
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/05-snippet-scope-input.svelte	ast.sha256
+6364cdc5a9fb30205829854f1649c9f385a3bfb64acc6bbd004481731d9814e3
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/06-passing-snippets-to-components-input.svelte	ast.sha256
+3dc196412cfde802b3684c0e5950cc5960c8e9ffdef2695e6b653db036b442b6
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/07-passing-snippets-to-components-input.svelte	ast.sha256
+b0f2d0f12311c62875684c0cd590ada17841148f7587221e640af4eead4f808e
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/08-passing-snippets-to-components-input.svelte	ast.sha256
+b46c2b1e830ac8e4ef69bdf2a6b7ad94698427bf1bbd4310aeab49e798b8c8a1
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/09-passing-snippets-to-components-input.svelte	ast.sha256
+ac919db7e28354458d8ee1f88b6ecd95a9f027d1b49bfc526cae1f756f597f6c
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-input.svelte	ast.sha256
+b918251266751e876f1f8c47e0cc070b7bcbda6a2f44a746abb66aff272856cc
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-type-output.svelte	ast.sha256
+48e50e7163982ac6c3935fff3a080266af50bc7b57025fae7c29e62d5aec7542
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-input.svelte	ast.sha256
+f262fcbdbc7df3b01b8113fb211408a717921040d881b474c0de1d7428fbbe77
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-type-output.svelte	ast.sha256
+f6f6f78e65b2acd2a5d1802597bd0431b5f569e4e913db58bf9d05b43c7c797a
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/01-input.svelte	ast.sha256
+1250e7b0186e76cedde95c45e791c7f3ee993a735c44ca668d17adf41e7ca345
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/02-input.svelte	ast.sha256
+aa371af4d9afa6642e36c4065984d1030ba4989dc5069f8f5000aa2cc5d0a670
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/03-input.svelte	ast.sha256
+2577995f3db37bd89e8bed9a041d50905af00685cabab908127de2e5735577ea
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/04-input.svelte	ast.sha256
+f5ac474604f3056bd24cff6fde1c5575c2513cd2a4b81978ba201c5890dc2513
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/05-input.svelte	ast.sha256
+2fd806850ce2c04655cb9802779db78d26fe6c3eeb4622859ee6e32e73ca6abf
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/01-each-blocks-without-an-item-input.svelte	ast.sha256
+72893a43d8a9cdc5dfd8ccd5457703eb8e0cd40e5c9c31acd287d6b49af4548f
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/02-each-blocks-without-an-item-input.svelte	ast.sha256
+9c5bcdee8d02a0e886b96b46a1501e34dd5c1cfbbfbd7099208d6f1be9f922c1
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/03-each-blocks-without-an-item-input.svelte	ast.sha256
+49b74d3fa61e6c458ff397623841af1395aedee7c7d03efa1ad700569ff9b949
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	ast.sha256
+17a153a8ce1da7153ea780a9c3be43b38858ed9d966675beb427bde9ed89054a
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/02-input.svelte	ast.sha256
+c3ac81e1d69aba9973057781ee69b79478a1d418ef214169420e8e4b1eb82e5e
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/01-input.svelte	ast.sha256
+d41f5f2b947c5d63f89f5d188599f94caa3e902eb81477f66ff4aed8927e386b
+
+=== 65 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/02-input.svelte	ast.sha256
+9b8f920566815c15f4ef215eaf4e30c26692dd232abf9afb6efd062b817a626a
+
+=== 65 tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	ast.sha256
+9f4516e89377d1cf3449a4273586e30da97832ca4f78ef132093e97f5f5cd1a6
+
+=== 65 tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	ast.sha256
+a50de2db239e48808848983ad526acc5a08cb06c36b9d7e85bf4c306086089a5
+
+=== 65 tests/fixtures/parser/ast/svelte5/generics01-snippets-input.svelte	ast.sha256
+f1a2c30233341b70df2d34b3586fa39e674ab28d99ef275e29992d88e7a553d0
+
+=== 65 tests/fixtures/parser/ast/svelte5/generics01-snippets-type-output.svelte	ast.sha256
+bb656781e076346084ee34694e0c59abba4d48894d72c330e3256b526e5a0671
+
+=== 65 tests/fixtures/parser/ast/svelte5/non-function-binding01-input.svelte	ast.sha256
+f272075ae4c420bea37a64ac9dbd94b75673ecba73462ef11bef1db3acc6a13d
+
+=== 65 tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	ast.sha256
+9f855970084d0c9e6453ff4d7d7e70c4f677426c5b425af78cd08c2b9f3083f8
+
+=== 65 tests/fixtures/parser/ast/svelte5/render01-input.svelte	ast.sha256
+ec603e81ac6a0d00379bf42b3bba33ad3175549d7590a272ec6feeae295050fa
+
+=== 65 tests/fixtures/parser/ast/svelte5/render02-optional-input.svelte	ast.sha256
+8a3e065a186e0d49e9e7fc0e61f8fb50bcb358ddf24bc030d71c2f2920268422
+
+=== 65 tests/fixtures/parser/ast/svelte5/snippet01-hoist-input.svelte	ast.sha256
+4cb60fc547210c77cf99146184d0056542aa98c7381a874f2ed1ad203c595ccd
+
+=== 65 tests/fixtures/parser/ast/svelte5/snippet02-nesting-input.svelte	ast.sha256
+c24a091e1c92880a1744fd5ab6f168b79c436250cd974fc3accbd4623beb358e
+
+=== 65 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options01-input.svelte	ast.sha256
+298981b50f24570a050bca7c96cecd0aaa13583dc19f4d575f71c0e19f7e4831
+
+=== 65 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	ast.sha256
+478b9674d9c9d32f5710599b91737cc59cc9b65a97c20183935078029376fb49
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-input.svelte	ast.sha256
+6228f3db08ad3c75e67acfcb5b0a5f1b21fc6438968c49a98c0c4c3b7928ba62
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-type-output.svelte	ast.sha256
+f32cabf2b289d24be1049d629d1cd369e3edf82268fcba07e81e6ec23e19215a
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$derived01-input.svelte	ast.sha256
+929f4b15a10f17e48c5a2dff8d4ec53ea97ce5b412132b10186295d9cc542235
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$derived01-type-output.svelte	ast.sha256
+f5f61c5a6a33cbb7764a40ba0cf75cdf4e7ef655f0958d610a39480f8e9af0f3
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	ast.sha256
+ab63d76b21ecd25591400432bb9d4924a1bada079cf018c602d102b60fd30028
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	ast.sha256
+5e0143f3e7ea7816d9fd02835c7955d48b72ddf00732e3bad90f4af7bbc324ee
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	ast.sha256
+139063971acba708e51cd4d2f397cd671d74b020c6c901be052c464696bd8c51
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	ast.sha256
+990eded9893db3c77ad707608fb342af1aa828a74ed9131d949f51a4d06f722d
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$props01-input.svelte	ast.sha256
+5c15e652b1330f6c9419552b64de552c9b50af59550226e825ec2c602bf9c8e4
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$props01-type-output.svelte	ast.sha256
+f890c81a86777f1934e447e1e399ae9c42f5c35f36866684d9b450923ac08b29
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$props02-input.svelte	ast.sha256
+dca4a56affb8e6f34b876b60bd8d487773b9dea0254465354460527bdaf2f190
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	ast.sha256
+8135855f4ac09fa4a802de7dc0510a57a71e41e4c3c55b0d09253afb467ef7ec
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	ast.sha256
+f8439bd3e81400918165fbf1405a5be89ce1fb933f476e864ba60ec765832d62
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-$state01-type-output.svelte	ast.sha256
+1a82e38cc3788022837c2c1d1120d3c886e80de4e7993cae89e27376ed388a62
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-derived-in-snippet-declaration-tag-input.svelte	ast.sha256
+6ec00c6a87f6b1e279b0810105bfd3b80ded3381d7c8542f4ca9b05687dfa330
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event01-input.svelte	ast.sha256
+2e102dbc2f96e8e77c600ee8bff55dd10ddecd834e51be797ecc681379751763
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	ast.sha256
+d16709a3666ab3dc2e4fd9d0114140b0fd184a37d691ccf23cf2364a744c3295
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	ast.sha256
+cb810a90b1f235cc993fe8073ad313d6ffb10d4a6ac1f080800eddc9a6bbc4aa
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event03-input.svelte	ast.sha256
+bac839724477a9d27056bea9aadad5df75d6a5a675f2bd320f55d407281bb199
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event03-type-output.svelte	ast.sha256
+a5d93d6843da28039a9258060e40bdb71e0c1d43c4558c7bc75137029809c535
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event04-input.svelte	ast.sha256
+7fa5726933be9371db91662180aaea074a5a94e338435ac464edae1c45ce4cd4
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event04-type-output.svelte	ast.sha256
+10c3d280a967edbe987bed59d187c89d5b2b3fc139b51bedc46c7b2161a18a85
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event05-input.svelte	ast.sha256
+96f7b037d1d303329f6940a90dbe619793cdd5efbb0bb533706f61fdfe93c67c
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event05-type-output.svelte	ast.sha256
+b4feafdf60ce4fd05cf682a62220767a70359dd0bb6739d6df959747ae378647
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event06-input.svelte	ast.sha256
+7b4e65290562225961bdaef0bbd7614e391a53ae10623af2c797c20f5d0537c5
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event06-type-output.svelte	ast.sha256
+1ae13f11a4c023102f5b8c6f42210c50f83644276c9f06a86bb1b3b95e4ed961
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	ast.sha256
+9570f101a50ee0904affc2ad9dc189620d6ebc762e321c0f2228c782293d8abe
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event08-input.svelte	ast.sha256
+30fb5068792db5f16d6e57886ae7419a117b26f58d6057018d396d005f81839a
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-event08-type-output.svelte	ast.sha256
+d43dab7b0a0a944bc221000e6947e1f981b7c5fa637083a26fbb83968fe209a1
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-snippet01-input.svelte	ast.sha256
+72b5152474641b1b943afafc714ef2267bee8970caa7610f8962dfcfb4eddbf3
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-snippet01-type-output.svelte	ast.sha256
+1cb1919cebed2284d2691fa123fdbe7e24630dc6647f49fd3386555ca279aa63
+
+=== 65 tests/fixtures/parser/ast/svelte5/ts-snippet03-input.svelte	ast.sha256
+1813427ebce556ec0c1dca0b143592da2c51d102637315a9431399b915142b5d
+
+=== 65 tests/fixtures/parser/ast/template-curly-spacing-test-input.svelte	ast.sha256
+de8a738bedbe51dccbf38938a46f74890c50de694269f41f917a44253431f97d
+
+=== 65 tests/fixtures/parser/ast/this-attr01-input.svelte	ast.sha256
+989d86cf18606f18c88e6ad286f6791e0f7c50fb6223589dfe9d3106db88a2fc
+
+=== 65 tests/fixtures/parser/ast/this-attr02-input.svelte	ast.sha256
+ba31347a7e4d122796e1ef61fa5fc6a77d3c70663f53bfbffb5510b32a4575ac
+
+=== 65 tests/fixtures/parser/ast/this-attr03-input.svelte	ast.sha256
+3b7781a89492e728ca102afacad1101867caa7f2167ef84ab5ac4bd6429424b2
+
+=== 65 tests/fixtures/parser/ast/this-attr04-input.svelte	ast.sha256
+3c9c2c85ff666060645dab40bb29a3f36018c09b19f236a3003a22304b1c7669
+
+=== 65 tests/fixtures/parser/ast/this-attr05-input.svelte	ast.sha256
+b431823cf5be6de0d5f508edf077b7b4cfd96688fc624b164fe56bf68eae7cae
+
+=== 65 tests/fixtures/parser/ast/trailing-comment01-input.svelte	ast.sha256
+e953627ba14c1fea1dc5858b19d9af20e6b2055e5537e8b55c7afed4baa035f3
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots01-input.svelte	ast.sha256
+19e0b3d93e35f8b5dd799800a897da546e1ca2fd222b4093c6ec3224db0c034e
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots01-type-output.svelte	ast.sha256
+d6fd8a173877ebc8f99344de465e8d26aec8255520b8d1cd9f173dbc56ff973c
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots02-no-slot-input.svelte	ast.sha256
+6bcc2c8728060deaed47f36b97f336cef1006a17562366b03e1c8c667f76167c
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots02-no-slot-type-output.svelte	ast.sha256
+2eb0956ac5e9cfa44c327103fcb07cea062375fe56702efaa945c05f515ff953
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots03-named-input.svelte	ast.sha256
+0f3bd430810b8fa05e6e180697cd9e95b0140150713daeccadf5c1031e57ed6a
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots03-named-type-output.svelte	ast.sha256
+3c8c1d11b48e0ebceca21a75026ccc9568978c2117067914b052a96c0354f5bf
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots04-named-input.svelte	ast.sha256
+15c2cff6142d810be5fa8d4959ddb3d6dc096a2f102e65a0c2117d7647219786
+
+=== 65 tests/fixtures/parser/ast/ts-$$slots04-named-type-output.svelte	ast.sha256
+c7685355a1a3d22456bb4ec87d515fba9d41121438f8d9e19004b0dc4016573c
+
+=== 65 tests/fixtures/parser/ast/ts-await-non-promise01-input.svelte	ast.sha256
+7c4cef7bfaa464f6ad87d83f2f619d75305195e571fb3d493e371e3da957ea48
+
+=== 65 tests/fixtures/parser/ast/ts-await-non-promise01-type-output.svelte	ast.sha256
+99568803ef013fd17fb601479acc6dd98212e463f06ca4b3570f33a25f92a250
+
+=== 65 tests/fixtures/parser/ast/ts-each01-input.svelte	ast.sha256
+c4a3c34db9d81a4e1dd9486ece875707f818f356027dd7659dd98a5f0264a1ac
+
+=== 65 tests/fixtures/parser/ast/ts-each01-type-output.svelte	ast.sha256
+18544486bb8b7e49e6e894b4b68fd30ec894866b9bf67f410cc9a49f011f7c26
+
+=== 65 tests/fixtures/parser/ast/ts-event01-input.svelte	ast.sha256
+85b74602db69c6fae1867c2eb96922f408c26f5e4689e8c33022511407e1d05e
+
+=== 65 tests/fixtures/parser/ast/ts-event02-input.svelte	ast.sha256
+149a83d28a7045aa6083c65be99b19b7698aa895fcb29535c4c116306e640aa8
+
+=== 65 tests/fixtures/parser/ast/ts-event02-type-output.svelte	ast.sha256
+72cf66acd270e56bc9fc8c62167cc461ab90a088c70e04a2b09cf99cb5eb6bd3
+
+=== 65 tests/fixtures/parser/ast/ts-event03-input.svelte	ast.sha256
+f53a43a62bf202b416ba9d1e337fb0a34bc599dc4c764433428b249faa4ec69d
+
+=== 65 tests/fixtures/parser/ast/ts-event03-type-output.svelte	ast.sha256
+e3b10961da0eb74a86f10f4d904636378b3581dc70ebaa0f8aa2e530a07d1d12
+
+=== 65 tests/fixtures/parser/ast/ts-event04-input.svelte	ast.sha256
+7e3f3e800e60260029a031c52d95e9513b648391f933f71bafd9d84ff41afad3
+
+=== 65 tests/fixtures/parser/ast/ts-event04-type-output.svelte	ast.sha256
+e6dec37593c83fad6a13e210fecde57c5ed0d8e8e0d8ecf0e1a1dae5d97f269b
+
+=== 65 tests/fixtures/parser/ast/ts-event05-input.svelte	ast.sha256
+df5f221ffd63421cf2116cc5811835c7df776c4f52425f805e373997f82e41e9
+
+=== 65 tests/fixtures/parser/ast/ts-event05-type-output.svelte	ast.sha256
+e8d168cfa4b93018b4e358a092e278e3c8ce1a4148415ebb455766ca3fd52bbe
+
+=== 65 tests/fixtures/parser/ast/ts-event06-input.svelte	ast.sha256
+b993f7f8b9e79f0d4b48100a3ebce20776abee3094e25da6756ed56bacb6b62e
+
+=== 65 tests/fixtures/parser/ast/ts-event06-sveltev4-type-output.svelte	ast.sha256
+cda2f6b6de5fee6f6d245c31600e06c2052bef817a000ff815b75b6d90646c71
+
+=== 65 tests/fixtures/parser/ast/ts-event06-type-output.svelte	ast.sha256
+4fc4c72dc6a28f7d8830322868860baf0ee4ee272dadd766477d4f0a36122f33
+
+=== 65 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	ast.sha256
+ca43d155f0aac044fa3e19d51cbb5de0080f0678b69fba006c50a402ef91ba91
+
+=== 65 tests/fixtures/parser/ast/ts-let/ts-let01-sveltev4-type-output.svelte	ast.sha256
+feeb1ce1717fb22b8a731cfe15353529d83fa932978d9bea74ff8451bec751b2
+
+=== 65 tests/fixtures/parser/ast/ts-let/ts-let01-type-output.svelte	ast.sha256
+2ba351cb59860a92005f34ce3c01d162f83e5c8830e9dccccd82ee97cebf10bb
+
+=== 65 tests/fixtures/parser/ast/ts-promise01-input.svelte	ast.sha256
+b3f02fa576702ee197fdabfc6c3c9ac29df48414325919dad83ae47f3df3b40a
+
+=== 65 tests/fixtures/parser/ast/ts-promise01-type-output.svelte	ast.sha256
+1947ba9137f567ad2a17195e8b791b77bd6185fedbe8f95490b08739c0110836
+
+=== 65 tests/fixtures/parser/ast/ts-promise02-input.svelte	ast.sha256
+ce6c1492b2f68d66b1052c68a3e00d4373544d6e4c8eb6a171f4da90bcd16579
+
+=== 65 tests/fixtures/parser/ast/ts-promise02-type-output.svelte	ast.sha256
+4fe6b59ead3a1ea1c0d9bdf1533c6a9b525be1241b38511d549796575670d070
+
+=== 65 tests/fixtures/parser/ast/ts-shorthand-attr01-input.svelte	ast.sha256
+623bd4265462fdeb078653d29b85355ca7cff47f30dfaaa401e7ad02be6431ee
+
+=== 65 tests/fixtures/parser/ast/ts-shorthand-attr01-type-output.svelte	ast.sha256
+087f408fb1e40068fe05c0b8780aae296e0f36263cbe078d58932e9a2e28e2b7
+
+=== 65 tests/fixtures/parser/ast/ts-slot-binding01-input-child.svelte	ast.sha256
+3fa70b14389062bf8dcece5bdb8e0b6ec4b9d526c7e93549601431e2d62bbd8b
+
+=== 65 tests/fixtures/parser/ast/ts-slot-binding01-input.svelte	ast.sha256
+7a040e004cae7525876ea745248d985ca5f548427e604b8933aaeb98936a9f57
+
+=== 65 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-input.svelte	ast.sha256
+9c3903a988a12b278e460b9764c0679fbef7cb7bc11bae0805e7ac83489f9a99
+
+=== 65 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-type-output.svelte	ast.sha256
+300e747d526c17e00ed71d439eb21df775a05360b974d7c1a4eceb1b7c817271
+
+=== 65 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	ast.sha256
+13575e1d8cc4603049fcf0bc08fa37902b47f676e4e0a6bfd188a265ffdf9279
+
+=== 65 tests/fixtures/parser/ast/ts-store02-input.svelte	ast.sha256
+34d974fd98366d497b98db0ccad9cd216870041792ab3b595c9979f684db2a45
+
+=== 65 tests/fixtures/parser/ast/ts-store02-type-output.svelte	ast.sha256
+1e0ea36cef118f98d65299a735c662c048acf8ffa238f46f25d451c5b1a8f672
+
+=== 65 tests/fixtures/parser/ast/ts-store03-input.svelte	ast.sha256
+2fc8f0994e6696c332109c6a485fb352fb788c6da2097aedaf797f34c99d9983
+
+=== 65 tests/fixtures/parser/ast/ts-store03-type-output.svelte	ast.sha256
+61ad554281fbdbc8157e3abe18dcb16d53307bcf2d6a5280b526f62527b73c4f
+
+=== 65 tests/fixtures/parser/ast/ts-use01-input.svelte	ast.sha256
+bce7b10879ca8fd8eab5761a44b862cf14912c3ef3c9728d4ac35a4d9ce5ad2d
+
+=== 65 tests/fixtures/parser/ast/ts-use01-type-output.svelte	ast.sha256
+faf22c6eca775d31b6a7b3261c33e309698d1f35fefe42c7d8728f621a550e50
+
+=== 65 tests/fixtures/parser/ast/tutorial/actions-input.svelte	ast.sha256
+fef7caf44bba9c2791ae4e5a028a371738d023641e5a700207d9cba98da2a2ab
+
+=== 65 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	ast.sha256
+d4884691a488e062cb89c9bc029c6c158197f9f3df7807e1bc57e494b32700a3
+
+=== 65 tests/fixtures/parser/ast/tutorial/adding-parameters-to-transitions-input.svelte	ast.sha256
+3280333260ed573fb39797d17afc42ffc54d4a0dd48f0982ad2f489e6b9d7b0b
+
+=== 65 tests/fixtures/parser/ast/tutorial/animate-input.svelte	ast.sha256
+5c07819976956b53d2f26461cad68bef4ffcc659cedf87e79b8bf3068c0c9525
+
+=== 65 tests/fixtures/parser/ast/tutorial/auto-subscriptions01-input.svelte	ast.sha256
+c7d00db9654f6bdf64d1e2d9ceb199752c92e623f2f8dfca9e195dd48d4978f3
+
+=== 65 tests/fixtures/parser/ast/tutorial/await-blocks-input.svelte	ast.sha256
+6c3d49a0870b03086fdeaf1115eff365520eda92f255e2e053f8af537ab1a36c
+
+=== 65 tests/fixtures/parser/ast/tutorial/bind-this-input.svelte	ast.sha256
+74a6bdb1e706e59498ec370b7ba96f58f7f5bf01283b66f3447f82ed59e5ef5c
+
+=== 65 tests/fixtures/parser/ast/tutorial/checkbox-inputs-input.svelte	ast.sha256
+246e54ee560b4992bb395c2c81ed4794288fb6dfcd67a850a2e64a3d22cb6dc0
+
+=== 65 tests/fixtures/parser/ast/tutorial/class-shorthand-input.svelte	ast.sha256
+151bed33e3ebca1e9066e5a6f09d4249616a06b636b87fc75c09bf222d4e16e2
+
+=== 65 tests/fixtures/parser/ast/tutorial/classes-input.svelte	ast.sha256
+f5e6228a0405afc7b965f9c70cb1b9da6e77a5e3401961b7e330d975992576dd
+
+=== 65 tests/fixtures/parser/ast/tutorial/component-events01-input.svelte	ast.sha256
+0e2f188fcad1947b3acde8c8fee1e879551f6559f1f874b090d1855de9b252ee
+
+=== 65 tests/fixtures/parser/ast/tutorial/component-events02-input.svelte	ast.sha256
+c4a77d83a0853b6ca049a5c808890969d154ba1992c2f97432b05416024d10fc
+
+=== 65 tests/fixtures/parser/ast/tutorial/congratulations-input.svelte	ast.sha256
+6ba750912579fe280d569f81c92bd18360be0ae4f1389675f738fee1df5b863c
+
+=== 65 tests/fixtures/parser/ast/tutorial/contenteditable-bindings-input.svelte	ast.sha256
+ed867103db8400fb7e0cec658505eb5708940bad8c56d7ce818c1db96e24dd7f
+
+=== 65 tests/fixtures/parser/ast/tutorial/context-api01-input.svelte	ast.sha256
+da02af6aca252deedefc087d501e852b56d6c9afab788bbc2ee220e7d5e16d18
+
+=== 65 tests/fixtures/parser/ast/tutorial/custom-css-transitions01-input.svelte	ast.sha256
+f18773acbf91a22830c3f2ee59bbe362c05e826ad95f251cf6619b843a3a3fd9
+
+=== 65 tests/fixtures/parser/ast/tutorial/custom-css-transitions02-input.svelte	ast.sha256
+f3bb89e7b5595022deb87a0d73f9429f0d45ca05d45f2f7482b76904d029637a
+
+=== 65 tests/fixtures/parser/ast/tutorial/custom-js-transitions-input.svelte	ast.sha256
+acb18fdf8a19f4003f21815b5a39eba6776445fb5b81f1c3006d1d6095618d99
+
+=== 65 tests/fixtures/parser/ast/tutorial/custom-stores-input.svelte	ast.sha256
+17ee5d901a19259dd9a1651b3cb9f0404c1a0fd08ee4643cdb7ba662ffc9dacd
+
+=== 65 tests/fixtures/parser/ast/tutorial/debug01-input.svelte	ast.sha256
+e622435fbb84b02699b6cce5c0e4431710532681d7e77931a2706f9944017775
+
+=== 65 tests/fixtures/parser/ast/tutorial/debug02-input.svelte	ast.sha256
+8e87a7bced9c4c7b36d17a12d8c1f4b11df372cad64c66ad823d59210da3c197
+
+=== 65 tests/fixtures/parser/ast/tutorial/declaring-props01-input.svelte	ast.sha256
+e50700397eae15b7407ba1233902b0588453da302e8b3c912f2687f74ef3b4cb
+
+=== 65 tests/fixtures/parser/ast/tutorial/default-values01-input.svelte	ast.sha256
+435716655e118f0c6786d23ceaacf601d541a215f7e286ee31d1a31f84b2c47d
+
+=== 65 tests/fixtures/parser/ast/tutorial/deferred-transitions-input.svelte	ast.sha256
+675a998c69d955e009c5bbc0f37de037199d40009579f1a762d07c2deaad6973
+
+=== 65 tests/fixtures/parser/ast/tutorial/derived-stores-input.svelte	ast.sha256
+d3f79e4e5e81da4697e95b93342c2422194ce5b2b4306529cd9ce3af1bb5fda0
+
+=== 65 tests/fixtures/parser/ast/tutorial/dimensions-input.svelte	ast.sha256
+673a3075b9361bab9c3fa94bc5c8f743b4359f69b38eaa141261feadd74ec77e
+
+=== 65 tests/fixtures/parser/ast/tutorial/dom-event-forwarding01-input.svelte	ast.sha256
+8793a7443212b1148a19661be0ed50b7bc8b73c219a43f5b021b868a16215754
+
+=== 65 tests/fixtures/parser/ast/tutorial/dom-event-forwarding02-input.svelte	ast.sha256
+db62726fd86a0ec3b2fe656c9a60fe976cbb0792d56567d17a0ff7cbf86722c1
+
+=== 65 tests/fixtures/parser/ast/tutorial/dom-events-input.svelte	ast.sha256
+c46e1f076a5a96bdfce2c92927e323272b73731327b2abdf7102ff3ff1c66a25
+
+=== 65 tests/fixtures/parser/ast/tutorial/dynamic-attributes-input.svelte	ast.sha256
+0efbbe87be253b723da681b32103545834a1766ac794cccd1a77ea60a67c4ccd
+
+=== 65 tests/fixtures/parser/ast/tutorial/each-blocks01-input.svelte	ast.sha256
+ecc2fd84750a20f71787ffaab90e505fbe05476a23c99ed4be883faf1e49ec3f
+
+=== 65 tests/fixtures/parser/ast/tutorial/each-blocks02-input.svelte	ast.sha256
+d3e396eabd6bb3e0fe911f7e9b6a0a2f4ac8873414b72123f9b8aa9074fe7591
+
+=== 65 tests/fixtures/parser/ast/tutorial/else-blocks-input.svelte	ast.sha256
+6bfe49a29833e61eba95d2f769804bbdf5857baf7eccf4ccf461e878d27923a9
+
+=== 65 tests/fixtures/parser/ast/tutorial/else-if-blocks01-input.svelte	ast.sha256
+564de42381ff7fab2d8b0468a8334b58d803d7d03a50320612bfd369338e9c24
+
+=== 65 tests/fixtures/parser/ast/tutorial/else-if-blocks02-input.svelte	ast.sha256
+b0b24065e52af298bde406d987d37bc0149363aebb9f55e07709294ebb04c29c
+
+=== 65 tests/fixtures/parser/ast/tutorial/event-forwarding01-input.svelte	ast.sha256
+4fd0e2e1102757ad6e688d51640d40cca251682297a8c9d12f6fe2ef41ac9845
+
+=== 65 tests/fixtures/parser/ast/tutorial/event-forwarding03-input.svelte	ast.sha256
+b90e3796f90444853e11b1c3193537212b60e8fd825fe0891af86d7e1c673368
+
+=== 65 tests/fixtures/parser/ast/tutorial/event-forwarding04-input.svelte	ast.sha256
+363b3efcda12d5e817fd0e1f0f176cc0d4586cc0eb54aba28f8738f19ddfb383
+
+=== 65 tests/fixtures/parser/ast/tutorial/event-modifiers-input.svelte	ast.sha256
+2b53f8eac839695fdb3593f475482a3e13fc5dc448416c7aa7bd6169096ae379
+
+=== 65 tests/fixtures/parser/ast/tutorial/group-inputs-input.svelte	ast.sha256
+3b87c756a9322970e38271a64c06e6accbe8e494e29fd55225aa51e558bcb20a
+
+=== 65 tests/fixtures/parser/ast/tutorial/html-tags01-input.svelte	ast.sha256
+9cd2c0abf8a9127c6856e256f56700c2cd4843a03184c92df672a99f07677a66
+
+=== 65 tests/fixtures/parser/ast/tutorial/html-tags02-input.svelte	ast.sha256
+b8240a51e81ef29ce815a115956861cadd437dd0470a8de4429c93d518316758
+
+=== 65 tests/fixtures/parser/ast/tutorial/if-blocks-input.svelte	ast.sha256
+73f341f1ed83d110e0e3629983a7555676cd04dbbc3cdf3e853d7498692a8273
+
+=== 65 tests/fixtures/parser/ast/tutorial/in-and-out-input.svelte	ast.sha256
+9501821a281bf3a841b588c43d21274a6e16685b732caf4493b83d6ea87cc48c
+
+=== 65 tests/fixtures/parser/ast/tutorial/inline-handlers-input.svelte	ast.sha256
+a1b849fd642d12b968dec307b996c8312bbf389f30169f4a0d1f16e95b1af8df
+
+=== 65 tests/fixtures/parser/ast/tutorial/keyed-each-blocks-input.svelte	ast.sha256
+15cc01807ca8adbff9a0ecd7ba263b0af3c1518372dd1b2fd82f586b3937464d
+
+=== 65 tests/fixtures/parser/ast/tutorial/local-transitions-input.svelte	ast.sha256
+f60dd536d8f8aa0c5558098d94b5992b74b9fd7474cca546bfdd9f56fe838a9c
+
+=== 65 tests/fixtures/parser/ast/tutorial/media-elements-input.svelte	ast.sha256
+d034b16f44b10f1e5770c411587e880e9a3d347dcf721219da9bc8ed5fa38795
+
+=== 65 tests/fixtures/parser/ast/tutorial/module-exports01-input.svelte	ast.sha256
+7d9e45aed75284f8598a4c0c039ce0f88e7afc205619340a5afe788b3763a566
+
+=== 65 tests/fixtures/parser/ast/tutorial/multiple-select-bindings-input.svelte	ast.sha256
+24d502e79125a0bc6d85b31b62d746aa5439c57354fae30b92fd75cb81382276
+
+=== 65 tests/fixtures/parser/ast/tutorial/named-slots01-input.svelte	ast.sha256
+febaddb7c8f9cf46315fd27924721a52b9269dba116a456578ec9a976e86ddaa
+
+=== 65 tests/fixtures/parser/ast/tutorial/named-slots02-input.svelte	ast.sha256
+b47cca9a0bdf41384cb0a8a678e4b43c236d4b92be784b0d812547c6023db093
+
+=== 65 tests/fixtures/parser/ast/tutorial/nested-components01-input.svelte	ast.sha256
+ad1d2b83ca817097759af3f44b85d7f29449650c8cd2d62502ac62039a7303c7
+
+=== 65 tests/fixtures/parser/ast/tutorial/nested-components02-input.svelte	ast.sha256
+f6d47e7bb6bd793969c55ff451eefd96019e7b9ad5a35290afc5e89498c44557
+
+=== 65 tests/fixtures/parser/ast/tutorial/numeric-inputs01-input.svelte	ast.sha256
+a8408ab49a26e180446d13f45bd59f5ff6b41f6f5a04482b377623a805cafd06
+
+=== 65 tests/fixtures/parser/ast/tutorial/numeric-inputs02-input.svelte	ast.sha256
+a98f4ee2a8f813e8484a1ea39b74eec4acac85f931256c6a839b246d803aaa71
+
+=== 65 tests/fixtures/parser/ast/tutorial/ondestroy-input.svelte	ast.sha256
+a1fe57b3f26c84940dfc32c36bb1bd78a07426971d4469f12f2968fb48c1fd16
+
+=== 65 tests/fixtures/parser/ast/tutorial/onmount-input.svelte	ast.sha256
+104686b49a25c2a9646ecb1abb54099859f35d224abacedd7afdd03034141697
+
+=== 65 tests/fixtures/parser/ast/tutorial/optional-slots01-input.svelte	ast.sha256
+934f079be4e412aafa950659d08cdb6fc1303492efe021f8e0eef696e0c456c0
+
+=== 65 tests/fixtures/parser/ast/tutorial/reactive-assignments-input.svelte	ast.sha256
+21824dd3c6b3bcd5c1d10bda0bbb1a583c391ca9cff4f1dc67aa09df8d0e2fa4
+
+=== 65 tests/fixtures/parser/ast/tutorial/readable-stores-input.svelte	ast.sha256
+430306bbcc09d4b6dea12850a03e2f0917c27299d7e98f4f5c26430d2e371b23
+
+=== 65 tests/fixtures/parser/ast/tutorial/select-bindings-input.svelte	ast.sha256
+48ce33f5ad9da2a2533124e528839eb66cedb027f498bc5fc99669e33f044b6d
+
+=== 65 tests/fixtures/parser/ast/tutorial/sharing-code01-input.svelte	ast.sha256
+d228adf01c7cfbee43dfed8c3ee80d5a7be2ced1dbf005b08bc1b6a678b772ad
+
+=== 65 tests/fixtures/parser/ast/tutorial/slot-fallbacks01-input.svelte	ast.sha256
+edd72ad6ad89a79fef04c5b8f6e7dcff033c356ea1cbaed3c02913041f3371f3
+
+=== 65 tests/fixtures/parser/ast/tutorial/slot-fallbacks02-input.svelte	ast.sha256
+822aaf6f47a07222d736f3d8c7f166feab134f110581e032f50646f07bf266dc
+
+=== 65 tests/fixtures/parser/ast/tutorial/slot-props01-input.svelte	ast.sha256
+b35c9487041f45a86f8511050579d5f64da818e9e4e7c89f2812ae7389d952c5
+
+=== 65 tests/fixtures/parser/ast/tutorial/slot-props02-input.svelte	ast.sha256
+9fc3e2e82fe3b37b348492ff9be0e6483f7e5d7ab6ddd0c12e20874a57a1ac36
+
+=== 65 tests/fixtures/parser/ast/tutorial/slot-props03-input.svelte	ast.sha256
+d6bf97ae404aa8c964199f83a048c26ac9a6639b028b2128c899b1823b32b7ce
+
+=== 65 tests/fixtures/parser/ast/tutorial/slots01-input.svelte	ast.sha256
+a87b1f85db82c957b5fb7087e319d8c17fc66245f0f8ac5484eeef3cf60e601d
+
+=== 65 tests/fixtures/parser/ast/tutorial/slots02-input.svelte	ast.sha256
+175ce770a8c5631fc493cb3fd8f501af697c1c5239ce9b03359568efcdbef663
+
+=== 65 tests/fixtures/parser/ast/tutorial/spread-props01-input.svelte	ast.sha256
+ef452e8b504164122259e2d3c3762c784df9e639271017c39ceea2b99b125bba
+
+=== 65 tests/fixtures/parser/ast/tutorial/spread-props03-input.svelte	ast.sha256
+a5fce6616d83900be71e774e7338b18b39b31b5ed3b8baba908ae1a841d61859
+
+=== 65 tests/fixtures/parser/ast/tutorial/spring-input.svelte	ast.sha256
+e09d58fbb7bd4de893eebc45ab9abb2882d5ceca0e02775ef3184bfc5acc5e08
+
+=== 65 tests/fixtures/parser/ast/tutorial/styling01-input.svelte	ast.sha256
+f543b52cbd04a32c5d2fd0cab41a8d4bdd048766ff341155fb315378e62f3fea
+
+=== 65 tests/fixtures/parser/ast/tutorial/styling02-input.svelte	ast.sha256
+c69b56a278da73ec018b087c8f81cef497e0341b0ea79aa0a9e97016b8919540
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-body-input.svelte	ast.sha256
+44e40c2efcd36c532a11c3c098d7476545a94d440f34f8ac0673f613396509ac
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-component-input.svelte	ast.sha256
+9c8fa8495d0d1e4d2f36a0fdd086d47581a01a963aeec9db134163c696656a1f
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-document-input.svelte	ast.sha256
+6810ec05023e6f898a68f7bee38b3dbccad4350e9c1041669462812bd6760f1a
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-element-input.svelte	ast.sha256
+497162e7802fbb6a5c8c6410104658141250cc97ca1e69407c1ff5afc81b144f
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-fragment-input.svelte	ast.sha256
+34946e60b384bd6198ef6b0849a5314baec31fe5e9ea0c8cc5a27c248050e513
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-head-input.svelte	ast.sha256
+146a80d0d0b25dd4df75904afeea7b9e1ac18eed27803313e8a2fd686697a736
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-options01-input.svelte	ast.sha256
+bb151ca407696e987380fe8b6f2900c0f2fa8df1eaaa56111b637a4d6c759475
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-self01-input.svelte	ast.sha256
+90bdfd5c724a107bc562c60a1b571f4bc41cdd8f9c59d1709e21c3f03b903ce3
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-window-bindings-input.svelte	ast.sha256
+82567e7d33700f63911bf483f233db6e5234b7a1fc51b5e1af4c4bd82b7eb3e8
+
+=== 65 tests/fixtures/parser/ast/tutorial/svelte-window-input.svelte	ast.sha256
+83322c4c66ee636f1743f2eaa526bd6d9ea3629a6c9ce759ae546f94abdc2b38
+
+=== 65 tests/fixtures/parser/ast/tutorial/text-inputs01-input.svelte	ast.sha256
+756a53c332c25d4879a33c02aafacfb3d8cebcfb0449cdb57d8d44a0349bf52c
+
+=== 65 tests/fixtures/parser/ast/tutorial/text-inputs02-input.svelte	ast.sha256
+b942081ecb2e4afb92ef0e70ceff2a83088582485499f5ba917b82ea826068a1
+
+=== 65 tests/fixtures/parser/ast/tutorial/textarea-inputs-input.svelte	ast.sha256
+d3f3b1fd33dabf0a7796061363e8be5b2cef0827cbc00b866125bd6764eb6831
+
+=== 65 tests/fixtures/parser/ast/tutorial/tick-input.svelte	ast.sha256
+0e7e8d574294653da4c33b650a7ec26ef22a8eacf8dbee11284b9919334dc718
+
+=== 65 tests/fixtures/parser/ast/tutorial/transition-events-input.svelte	ast.sha256
+4ef472e0b44ec4c255a2c0c62312312396dde4af810aa8c92e4e08305a93d3b5
+
+=== 65 tests/fixtures/parser/ast/tutorial/transition-input.svelte	ast.sha256
+ef7f24248867d0955cdd327cada7b9cf6a7707a3d514af3ce74631e6d2eb2236
+
+=== 65 tests/fixtures/parser/ast/tutorial/tweened-input.svelte	ast.sha256
+0cb1513630a6bac5a3c12ac37a49d39534464e10657a5839795eb80d5a680476
+
+=== 65 tests/fixtures/parser/ast/tutorial/writable-stores01-input.svelte	ast.sha256
+a7f64b9cbd8a7898ad0345e90486e53df7f8041ccf782d3905754103c2bc94fe
+
+=== 65 tests/fixtures/parser/ast/tutorial/writable-stores02-input.svelte	ast.sha256
+dbc39e1e0d2062c1b6e3a227d94f38062a62414e8f702d3aa42763fa277103da
+
+=== 65 tests/fixtures/parser/ast/tutorial/writable-stores03-input.svelte	ast.sha256
+c6d8a1d7b0ae5cf5bbccbce7c4793fc788bb406dff70f99eb3915037c44d5bc3
+
+=== 65 tests/fixtures/parser/ast/tutorial/writable-stores04-input.svelte	ast.sha256
+b12fa750fd63aa4d744638c0bccc6a847cc17ef7ec6f2c4ce508a4027897acd5
+
+=== 65 tests/fixtures/parser/ast/unknown-directive01-input.svelte	ast.sha256
+cae52075d07617358f2a1765ab0d8b63f1f6ff0926d4521ca0dcbfcb57768a6b
+
+=== 65 tests/fixtures/parser/ast/unused-write-only-store-input.svelte	ast.sha256
+7c18197b0751e93b27e4c643df6176a3fe714d7d5229dc49796900dd672a275d
+
+=== 65 tests/fixtures/parser/error/directive-animate-with-expr-input.svelte	ast.sha256
+7999f8d776ba0888b1e6f78a161e41dc3dec252f94cefedda44ce7bd5bb962af
+
+=== 65 tests/fixtures/parser/error/directive-class-with-expr-input.svelte	ast.sha256
+a64cbcc06db90c0e9094ff900181206272f71c9acef1a6bd4fd7e1d69337c351
+
+=== 65 tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte	ast.sha256
+6df619387bf68947a3717da8551ed11df8827f741eb59bfbff1d217da96c39a0
+
+=== 65 tests/fixtures/parser/error/directive-out-with-expr-input.svelte	ast.sha256
+3ae94e00eeac6cc4c954b71602fa8510e6a9098159f1e71b2701e5ea6f4f19aa
+
+=== 65 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	ast.sha256
+8ab3fc4403c6d19bb1c44576697ac76a3af8f613f72a5ff05873bb241ffcf707
+
+=== 65 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	ast.sha256
+70b85a04d70e671b9bd1590d3b9920cfd4b653c75344311ecce36e888bbad394
+
+=== 65 tests/fixtures/parser/error/directive-use-with-expr01-input.svelte	ast.sha256
+fe2571e4fbc9d0c063d67f833e9f7ef75b45bce137d574b5f4f6a858be7478b6
+
+=== 65 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	ast.sha256
+f317f94edcbb31c88c20de98638dfc36c4d39bf7375e8e783da611e52b94f225
+
+=== 65 tests/fixtures/parser/error/name01-input.svelte	ast.sha256
+b35ad7c3150961f7330776da479a29dea2de23af17639f266337829a0ff9373a
+
+=== 65 tests/fixtures/parser/error/shorthand02-input.svelte	ast.sha256
+4093cb7d810633e3261777d6de8379da659504e53467cb10739f59c9edb0684d
+
+=== 65 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	ast.sha256
+3c81fd528bca139146340ede028842d3c778c540bc543f2c5367682e3956ecd2
+
+=== 65 tests/fixtures/parser/selector-parsing/simple-postcss-input.svelte	ast.sha256
+989328acc120ac8d2825801195d2eb4480f3a70786a94551f5852981fb15915a
+
+=== 65 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	ast.sha256
+cf2d525c81d06df5b78dfd9874349088ae4e57087f750be19f417dde30aa1102
+
+=== 65 tests/fixtures/parser/style-context/empty-style-element-input.svelte	ast.sha256
+48379b786cb3b28b640d7e27d5fbf11159d7377ce880e6d494a93e14e248042f
+
+=== 65 tests/fixtures/parser/style-context/no-style-element-input.svelte	ast.sha256
+77adfe8b7f5cdcc7e1e2269cc6873bf61b788622ba462b6930b91c3c1e5a3665
+
+=== 65 tests/fixtures/parser/style-context/one-line-css-input.svelte	ast.sha256
+57c3ce5000765035d53e545a89c592184b0a31da44868a44e431c2dbc5996e75
+
+=== 65 tests/fixtures/parser/style-context/simple-css-input.svelte	ast.sha256
+734354936f49b94088a9fa0dff133a928ecd0a0c279866aacbcb7d0f25ee62da
+
+=== 65 tests/fixtures/parser/style-context/simple-postcss-input.svelte	ast.sha256
+525c80d56284d647a7ee63b9d26939938a593d1df0b47e7cfeae6f1180863725
+
+=== 65 tests/fixtures/parser/style-context/simple-scss-input.svelte	ast.sha256
+e3f5eff506cb2c6a564bd83fee22412fa1dc234a0e4ccb2fc154adeb689675af
+
+=== 65 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	ast.sha256
+19559a7f1805bcf3ee5602f6c5d5e99b47a7b3d7d565d17f1136f6688a90e478
+
+=== 65 tests/fixtures/parser/style-location-converter/simple-postcss-input.svelte	ast.sha256
+24fcae7a138c633f476670c47dacc5bf7cbb0541db27c676b15b350be14881c5
+

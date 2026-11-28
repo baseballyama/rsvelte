@@ -319,6 +319,214 @@
 	}
 ]
 
+=== 3507 src/lib/commandCenter/panels/template.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '../commands' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 71
+		},
+		"end": {
+			"line": 1,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../commandCenter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 40
+		},
+		"end": {
+			"line": 7,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../subPanels' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 59
+		},
+		"end": {
+			"line": 9,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 43
+		},
+		"end": {
+			"line": 11,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 39
+		},
+		"end": {
+			"line": 12,
+			"character": 63
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'groupsAndOptions' is possibly 'null'.",
+		"start": {
+			"line": 80,
+			"character": 31
+		},
+		"end": {
+			"line": 80,
+			"character": 47
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'options.length' is possibly 'undefined'.",
+		"start": {
+			"line": 113,
+			"character": 22
+		},
+		"end": {
+			"line": 113,
+			"character": 37
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'options.length' is possibly 'undefined'.",
+		"start": {
+			"line": 114,
+			"character": 19
+		},
+		"end": {
+			"line": 114,
+			"character": 34
+		}
+	},
+	{
+		"code": 2488,
+		"message": "Type 'Option[] | undefined' must have a '[Symbol.iterator]()' method that returns an iterator.",
+		"start": {
+			"line": 136,
+			"character": 52
+		},
+		"end": {
+			"line": 136,
+			"character": 83
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'Option[] | null' is not assignable to parameter of type 'Option[]'.\n  Type 'null' is not assignable to type 'Option[]'.",
+		"start": {
+			"line": 191,
+			"character": 46
+		},
+		"end": {
+			"line": 191,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'panel' implicitly has an 'any' type.",
+		"start": {
+			"line": 212,
+			"character": 33
+		},
+		"end": {
+			"line": 212,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'panel' implicitly has an 'any' type.",
+		"start": {
+			"line": 212,
+			"character": 71
+		},
+		"end": {
+			"line": 212,
+			"character": 76
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'groupsAndOptions' is possibly 'null'.",
+		"start": {
+			"line": 234,
+			"character": 25
+		},
+		"end": {
+			"line": 234,
+			"character": 41
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'groupsAndOptions' is possibly 'null'.",
+		"start": {
+			"line": 235,
+			"character": 21
+		},
+		"end": {
+			"line": 235,
+			"character": 37
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'groupsAndOptions' is possibly 'null'.",
+		"start": {
+			"line": 243,
+			"character": 25
+		},
+		"end": {
+			"line": 243,
+			"character": 41
+		}
+	},
+	{
+		"code": 18047,
+		"message": "'groupsAndOptions' is possibly 'null'.",
+		"start": {
+			"line": 244,
+			"character": 21
+		},
+		"end": {
+			"line": 244,
+			"character": 37
+		}
+	}
+]
+
 === 643 src/lib/commandCenter/panels/users.svelte	json
 [
 	{
@@ -1754,6 +1962,22 @@
 === 3 src/lib/components/clickableList.svelte	json
 []
 
+=== 220 src/lib/components/collapsibleItem.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/a11y' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 33
+		},
+		"end": {
+			"line": 1,
+			"character": 52
+		}
+	}
+]
+
 === 2118 src/lib/components/columnSelector.svelte	json
 [
 	{
@@ -1874,6 +2098,70 @@
 		"end": {
 			"line": 58,
 			"character": 34
+		}
+	}
+]
+
+=== 1225 src/lib/components/consent.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 28
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | null' is not assignable to parameter of type 'string'.\n  Type 'null' is not assignable to type 'string'.",
+		"start": {
+			"line": 11,
+			"character": 19
+		},
+		"end": {
+			"line": 11,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '.' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 26
+		},
+		"end": {
+			"line": 22,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 27
+		},
+		"end": {
+			"line": 23,
+			"character": 48
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type '\"analytics\"' can't be used to index type '{}'.\n  Property 'analytics' does not exist on type '{}'.",
+		"start": {
+			"line": 107,
+			"character": 64
+		},
+		"end": {
+			"line": 107,
+			"character": 85
 		}
 	}
 ]
@@ -4811,6 +5099,46 @@
 	}
 ]
 
+=== 653 src/lib/components/modalWrapper.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 38
+		},
+		"end": {
+			"line": 2,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/commandCenter' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 56
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'null' is not assignable to type '\"big\" | \"small\" | \"huge\"'.",
+		"start": {
+			"line": 6,
+			"character": 15
+		},
+		"end": {
+			"line": 6,
+			"character": 19
+		}
+	}
+]
+
 === 895 src/lib/components/multiSelectTable.svelte	json
 [
 	{
@@ -5266,6 +5594,9 @@
 	}
 ]
 
+=== 3 src/lib/components/regionCard.svelte	json
+[]
+
 === 3 src/lib/components/roles/base.svelte	json
 []
 
@@ -5427,6 +5758,22 @@
 		"end": {
 			"line": 10,
 			"character": 97
+		}
+	}
+]
+
+=== 218 src/lib/components/svgIcon.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/app' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 29
+		},
+		"end": {
+			"line": 1,
+			"character": 46
 		}
 	}
 ]
@@ -6130,6 +6477,34 @@
 		"end": {
 			"line": 4,
 			"character": 52
+		}
+	}
+]
+
+=== 419 src/lib/elements/forms/inputDateRange.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@melt-ui/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 64
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '.' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 29
 		}
 	}
 ]
@@ -6861,6 +7236,182 @@
 	}
 ]
 
+=== 2476 src/lib/layout/unauthenticated.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 41
+		},
+		"end": {
+			"line": 2,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/images/appwrite-logo-dark.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/images/appwrite-logo-light.svg' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/images/login/login-dark-mode.png' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/images/login/login-light-mode.png' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/app' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 47
+		},
+		"end": {
+			"line": 8,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/campaign' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 40
+		},
+		"end": {
+			"line": 9,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 36
+		},
+		"end": {
+			"line": 10,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 32
+		},
+		"end": {
+			"line": 11,
+			"character": 54
+		}
+	}
+]
+
+=== 622 src/lib/layout/wizardCover.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/wizard' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'null' is not assignable to type 'string'.",
+		"start": {
+			"line": 4,
+			"character": 15
+		},
+		"end": {
+			"line": 4,
+			"character": 27
+		}
+	}
+]
+
 === 3 src/lib/layout/wizardSecondaryFooter.svelte	json
 []
 
@@ -7054,6 +7605,154 @@
 		"end": {
 			"line": 38,
 			"character": 21
+		}
+	}
+]
+
+=== 2603 src/routes/(authenticated)/mfa/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/layout' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 32
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/mfaChallengeFormList.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 49
+		},
+		"end": {
+			"line": 7,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 25
+		},
+		"end": {
+			"line": 8,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 36
+		},
+		"end": {
+			"line": 9,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 33
+		},
+		"end": {
+			"line": 10,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 36
+		},
+		"end": {
+			"line": 11,
+			"character": 68
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 44,
+			"character": 25
+		},
+		"end": {
+			"line": 44,
+			"character": 30
 		}
 	}
 ]
@@ -8373,6 +9072,374 @@
 		"end": {
 			"line": 5,
 			"character": 54
+		}
+	}
+]
+
+=== 2804 src/routes/(console)/onboarding/create-organization/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/system' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 41
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 33
+		},
+		"end": {
+			"line": 4,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 36
+		},
+		"end": {
+			"line": 5,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$routes/(console)/regions' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 41
+		},
+		"end": {
+			"line": 6,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 51
+		},
+		"end": {
+			"line": 7,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 69
+		},
+		"end": {
+			"line": 8,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 25
+		},
+		"end": {
+			"line": 9,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 37
+		},
+		"end": {
+			"line": 10,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 28
+		},
+		"end": {
+			"line": 11,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/billing' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 41
+		},
+		"end": {
+			"line": 12,
+			"character": 62
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 45,
+			"character": 25
+		},
+		"end": {
+			"line": 45,
+			"character": 26
+		}
+	}
+]
+
+=== 3690 src/routes/(console)/onboarding/create-project/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 41
+		},
+		"end": {
+			"line": 1,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 25
+		},
+		"end": {
+			"line": 2,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/system' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 28
+		},
+		"end": {
+			"line": 3,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 53
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './loading.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 33
+		},
+		"end": {
+			"line": 7,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 51
+		},
+		"end": {
+			"line": 8,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 37
+		},
+		"end": {
+			"line": 9,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 34
+		},
+		"end": {
+			"line": 10,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 36
+		},
+		"end": {
+			"line": 11,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/layout/createProject.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 30
+		},
+		"end": {
+			"line": 12,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$routes/(console)/regions' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 41
+		},
+		"end": {
+			"line": 13,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/organization' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 44
+		},
+		"end": {
+			"line": 14,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/user' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 25
+		},
+		"end": {
+			"line": 15,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/layout' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 44
+		},
+		"end": {
+			"line": 16,
+			"character": 64
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 76,
+			"character": 25
+		},
+		"end": {
+			"line": 76,
+			"character": 26
 		}
 	}
 ]
@@ -19308,6 +20375,118 @@
 	}
 ]
 
+=== 2031 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/empty.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 11
+		},
+		"end": {
+			"line": 8,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 60
+		},
+		"end": {
+			"line": 9,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 54
+		},
+		"end": {
+			"line": 10,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 31
+		},
+		"end": {
+			"line": 11,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/types' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 32
+		},
+		"end": {
+			"line": 12,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 78
+		},
+		"end": {
+			"line": 13,
+			"character": 98
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/debounce' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 29
+		},
+		"end": {
+			"line": 15,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/store' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 51
+		},
+		"end": {
+			"line": 16,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/collection-[collection]/(components)/editor' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 32
+		},
+		"end": {
+			"line": 17,
+			"character": 87
+		}
+	}
+]
+
 === 442 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/emptySheetCards.svelte	json
 [
 	{
@@ -20120,6 +21299,574 @@
 	}
 ]
 
+=== 9859 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/empty.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 11
+		},
+		"end": {
+			"line": 12,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 56
+		},
+		"end": {
+			"line": 13,
+			"character": 88
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 54
+		},
+		"end": {
+			"line": 14,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/types' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 32
+		},
+		"end": {
+			"line": 15,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 31
+		},
+		"end": {
+			"line": 16,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../table-[table]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 61
+		},
+		"end": {
+			"line": 17,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferences' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 32
+		},
+		"end": {
+			"line": 18,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../store' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 45
+		},
+		"end": {
+			"line": 19,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 41
+		},
+		"end": {
+			"line": 20,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 57
+		},
+		"end": {
+			"line": 22,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 25
+		},
+		"end": {
+			"line": 23,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../(observer)/columnObserver' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 40
+		},
+		"end": {
+			"line": 24,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './store' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 11
+		},
+		"end": {
+			"line": 32,
+			"character": 20
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 57
+		},
+		"end": {
+			"line": 33,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 51
+		},
+		"end": {
+			"line": 34,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/promises' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 26
+		},
+		"end": {
+			"line": 35,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 31
+		},
+		"end": {
+			"line": 36,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 33
+		},
+		"end": {
+			"line": 37,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/numbers' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 38
+		},
+		"end": {
+			"line": 38,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../table-[table]/columns/store' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 55
+		},
+		"end": {
+			"line": 39,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 41,
+			"character": 43
+		},
+		"end": {
+			"line": 41,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/system' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 34
+		},
+		"end": {
+			"line": 42,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 32
+		},
+		"end": {
+			"line": 46,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$routes/(console)/project-[region]-[project]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 45
+		},
+		"end": {
+			"line": 47,
+			"character": 97
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'interactable' implicitly has an 'any' type.",
+		"start": {
+			"line": 1765,
+			"character": 37
+		},
+		"end": {
+			"line": 1765,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'column' implicitly has an 'any' type.",
+		"start": {
+			"line": 1765,
+			"character": 51
+		},
+		"end": {
+			"line": 1765,
+			"character": 57
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'id' implicitly has an 'any' type.",
+		"start": {
+			"line": 1810,
+			"character": 36
+		},
+		"end": {
+			"line": 1810,
+			"character": 38
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'columnObj' implicitly has an 'any' type.",
+		"start": {
+			"line": 1810,
+			"character": 40
+		},
+		"end": {
+			"line": 1810,
+			"character": 49
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'iconColor' implicitly has an 'any' type.",
+		"start": {
+			"line": 1810,
+			"character": 51
+		},
+		"end": {
+			"line": 1810,
+			"character": 60
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'icon' implicitly has an 'any' type.",
+		"start": {
+			"line": 1810,
+			"character": 62
+		},
+		"end": {
+			"line": 1810,
+			"character": 66
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'isColumnInteractable' implicitly has an 'any' type.",
+		"start": {
+			"line": 1810,
+			"character": 68
+		},
+		"end": {
+			"line": 1810,
+			"character": 88
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 1810,
+			"character": 90
+		},
+		"end": {
+			"line": 1810,
+			"character": 95
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 1820,
+			"character": 27
+		},
+		"end": {
+			"line": 1820,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'col' implicitly has an 'any' type.",
+		"start": {
+			"line": 553,
+			"character": 60
+		},
+		"end": {
+			"line": 553,
+			"character": 63
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'response' implicitly has an 'any' type.",
+		"start": {
+			"line": 602,
+			"character": 80
+		},
+		"end": {
+			"line": 602,
+			"character": 88
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'column' implicitly has an 'any' type.",
+		"start": {
+			"line": 677,
+			"character": 35
+		},
+		"end": {
+			"line": 677,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 677,
+			"character": 43
+		},
+		"end": {
+			"line": 677,
+			"character": 48
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 715,
+			"character": 54
+		},
+		"end": {
+			"line": 715,
+			"character": 59
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 761,
+			"character": 13
+		},
+		"end": {
+			"line": 761,
+			"character": 19
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 1106,
+			"character": 25
+		},
+		"end": {
+			"line": 1106,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'col' implicitly has an 'any' type.",
+		"start": {
+			"line": 1363,
+			"character": 29
+		},
+		"end": {
+			"line": 1363,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 1411,
+			"character": 57
+		},
+		"end": {
+			"line": 1411,
+			"character": 62
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'col' implicitly has an 'any' type.",
+		"start": {
+			"line": 1519,
+			"character": 83
+		},
+		"end": {
+			"line": 1519,
+			"character": 86
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 1508,
+			"character": 64
+		},
+		"end": {
+			"line": 1508,
+			"character": 65
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'opt' implicitly has an 'any' type.",
+		"start": {
+			"line": 1510,
+			"character": 61
+		},
+		"end": {
+			"line": 1510,
+			"character": 64
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 1541,
+			"character": 51
+		},
+		"end": {
+			"line": 1541,
+			"character": 56
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'string | null' is not assignable to parameter of type 'string'.\n  Type 'null' is not assignable to type 'string'.",
+		"start": {
+			"line": 1682,
+			"character": 53
+		},
+		"end": {
+			"line": 1682,
+			"character": 69
+		}
+	}
+]
+
 === 227 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/icon/ai.svelte	json
 [
 	{
@@ -20154,6 +21901,538 @@
 
 === 3 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/icon/aiNotification.svelte	json
 []
+
+=== 9288 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/indexes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 73
+		},
+		"end": {
+			"line": 1,
+			"character": 99
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 56
+		},
+		"end": {
+			"line": 3,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './store' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 87
+		},
+		"end": {
+			"line": 4,
+			"character": 96
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 26
+		},
+		"end": {
+			"line": 5,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 43
+		},
+		"end": {
+			"line": 6,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 47
+		},
+		"end": {
+			"line": 8,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/string' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 31
+		},
+		"end": {
+			"line": 9,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/store' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 33
+		},
+		"end": {
+			"line": 10,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../table-[table]/rows/store' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 35
+		},
+		"end": {
+			"line": 11,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$routes/(console)/project-[region]-[project]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 45
+		},
+		"end": {
+			"line": 12,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/system' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 25
+		},
+		"end": {
+			"line": 13,
+			"character": 38
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/promises' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 26
+		},
+		"end": {
+			"line": 14,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 24
+		},
+		"end": {
+			"line": 15,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 25
+		},
+		"end": {
+			"line": 16,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 31
+		},
+		"end": {
+			"line": 17,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 33
+		},
+		"end": {
+			"line": 18,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 36
+		},
+		"end": {
+			"line": 19,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 51
+		},
+		"end": {
+			"line": 20,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../table-[table]/columns/store' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 55
+		},
+		"end": {
+			"line": 22,
+			"character": 87
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'label' implicitly has an 'any' type.",
+		"start": {
+			"line": 427,
+			"character": 26
+		},
+		"end": {
+			"line": 427,
+			"character": 31
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'showLabel' implicitly has an 'any' type.",
+		"start": {
+			"line": 427,
+			"character": 33
+		},
+		"end": {
+			"line": 427,
+			"character": 42
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 441,
+			"character": 26
+		},
+		"end": {
+			"line": 441,
+			"character": 31
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'count' implicitly has an 'any' type.",
+		"start": {
+			"line": 441,
+			"character": 33
+		},
+		"end": {
+			"line": 441,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 449,
+			"character": 28
+		},
+		"end": {
+			"line": 449,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 480,
+			"character": 32
+		},
+		"end": {
+			"line": 480,
+			"character": 37
+		}
+	},
+	{
+		"code": 7031,
+		"message": "Binding element 'count' implicitly has an 'any' type.",
+		"start": {
+			"line": 519,
+			"character": 30
+		},
+		"end": {
+			"line": 519,
+			"character": 35
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type '{ value: string; label: string; leadingIcon?: ComponentType | undefined; }[] | undefined' is not assignable to type '{ value: string; label: string; leadingIcon?: ComponentType | undefined; }[]'.\n  Type 'undefined' is not assignable to type '{ value: string; label: string; leadingIcon?: ComponentType | undefined; }[]'.",
+		"start": {
+			"line": 36,
+			"character": 8
+		},
+		"end": {
+			"line": 36,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'column' implicitly has an 'any' type.",
+		"start": {
+			"line": 44,
+			"character": 57
+		},
+		"end": {
+			"line": 44,
+			"character": 63
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 47,
+			"character": 53
+		},
+		"end": {
+			"line": 47,
+			"character": 59
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'column' implicitly has an 'any' type.",
+		"start": {
+			"line": 52,
+			"character": 22
+		},
+		"end": {
+			"line": 52,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 55,
+			"character": 57
+		},
+		"end": {
+			"line": 55,
+			"character": 63
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'column' implicitly has an 'any' type.",
+		"start": {
+			"line": 68,
+			"character": 63
+		},
+		"end": {
+			"line": 68,
+			"character": 69
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 68,
+			"character": 71
+		},
+		"end": {
+			"line": 68,
+			"character": 76
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 84,
+			"character": 51
+		},
+		"end": {
+			"line": 84,
+			"character": 56
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 96,
+			"character": 29
+		},
+		"end": {
+			"line": 96,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'idx' implicitly has an 'any' type.",
+		"start": {
+			"line": 147,
+			"character": 48
+		},
+		"end": {
+			"line": 147,
+			"character": 51
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'columnKey' implicitly has an 'any' type.",
+		"start": {
+			"line": 170,
+			"character": 40
+		},
+		"end": {
+			"line": 170,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 170,
+			"character": 51
+		},
+		"end": {
+			"line": 170,
+			"character": 52
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'string' is not assignable to type 'null'.",
+		"start": {
+			"line": 211,
+			"character": 16
+		},
+		"end": {
+			"line": 211,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'field' implicitly has an 'any' type.",
+		"start": {
+			"line": 222,
+			"character": 21
+		},
+		"end": {
+			"line": 222,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'field' implicitly has an 'any' type.",
+		"start": {
+			"line": 225,
+			"character": 22
+		},
+		"end": {
+			"line": 225,
+			"character": 27
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 251,
+			"character": 33
+		},
+		"end": {
+			"line": 251,
+			"character": 38
+		}
+	}
+]
 
 === 1520 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/input.svelte	json
 [
@@ -21743,6 +24022,610 @@
 	}
 ]
 
+=== 11205 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/view' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 11
+		},
+		"end": {
+			"line": 25,
+			"character": 29
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/commands' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 34
+		},
+		"end": {
+			"line": 26,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/language' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 11
+		},
+		"end": {
+			"line": 35,
+			"character": 33
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/search' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 46
+		},
+		"end": {
+			"line": 36,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/autocomplete' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 34
+		},
+		"end": {
+			"line": 37,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/lint' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 63
+		},
+		"end": {
+			"line": 38,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/state' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 11
+		},
+		"end": {
+			"line": 45,
+			"character": 30
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@codemirror/state' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 40
+		},
+		"end": {
+			"line": 46,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/id.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 35
+		},
+		"end": {
+			"line": 48,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 49,
+			"character": 71
+		},
+		"end": {
+			"line": 49,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 50,
+			"character": 34
+		},
+		"end": {
+			"line": 50,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 51,
+			"character": 27
+		},
+		"end": {
+			"line": 51,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 52,
+			"character": 25
+		},
+		"end": {
+			"line": 52,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 53,
+			"character": 36
+		},
+		"end": {
+			"line": 53,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/platform' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 26
+		},
+		"end": {
+			"line": 54,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helpers/errorMessages' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 37
+		},
+		"end": {
+			"line": 56,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helpers/theme' or its corresponding type declarations.",
+		"start": {
+			"line": 57,
+			"character": 58
+		},
+		"end": {
+			"line": 57,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helpers/keymaps' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 58
+		},
+		"end": {
+			"line": 58,
+			"character": 77
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './extensions' or its corresponding type declarations.",
+		"start": {
+			"line": 69,
+			"character": 11
+		},
+		"end": {
+			"line": 69,
+			"character": 25
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './helpers/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 82,
+			"character": 11
+		},
+		"end": {
+			"line": 82,
+			"character": 32
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 83,
+			"character": 23
+		},
+		"end": {
+			"line": 83,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/promises' or its corresponding type declarations.",
+		"start": {
+			"line": 84,
+			"character": 26
+		},
+		"end": {
+			"line": 84,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/date' or its corresponding type declarations.",
+		"start": {
+			"line": 85,
+			"character": 37
+		},
+		"end": {
+			"line": 85,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../sonners' or its corresponding type declarations.",
+		"start": {
+			"line": 86,
+			"character": 76
+		},
+		"end": {
+			"line": 86,
+			"character": 88
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'codemirror-json5' or its corresponding type declarations.",
+		"start": {
+			"line": 88,
+			"character": 61
+		},
+		"end": {
+			"line": 88,
+			"character": 79
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'null' is not assignable to type 'HTMLDivElement'.",
+		"start": {
+			"line": 131,
+			"character": 8
+		},
+		"end": {
+			"line": 131,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'view' implicitly has an 'any' type.",
+		"start": {
+			"line": 151,
+			"character": 39
+		},
+		"end": {
+			"line": 151,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'view' implicitly has an 'any' type.",
+		"start": {
+			"line": 152,
+			"character": 37
+		},
+		"end": {
+			"line": 152,
+			"character": 41
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'JsonValue | undefined' is not assignable to parameter of type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 160,
+			"character": 41
+		},
+		"end": {
+			"line": 160,
+			"character": 45
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'JsonValue | undefined' is not assignable to parameter of type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 189,
+			"character": 29
+		},
+		"end": {
+			"line": 189,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_measure' implicitly has an 'any' type.",
+		"start": {
+			"line": 317,
+			"character": 18
+		},
+		"end": {
+			"line": 317,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'view' implicitly has an 'any' type.",
+		"start": {
+			"line": 317,
+			"character": 28
+		},
+		"end": {
+			"line": 317,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'diagnostic' implicitly has an 'any' type.",
+		"start": {
+			"line": 893,
+			"character": 34
+		},
+		"end": {
+			"line": 893,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'diagnostic' implicitly has an 'any' type.",
+		"start": {
+			"line": 960,
+			"character": 31
+		},
+		"end": {
+			"line": 960,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 960,
+			"character": 43
+		},
+		"end": {
+			"line": 960,
+			"character": 48
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type '\"$id\"' can't be used to index type 'object | JsonObject'.\n  Property '$id' does not exist on type 'object | JsonObject'.",
+		"start": {
+			"line": 1033,
+			"character": 17
+		},
+		"end": {
+			"line": 1033,
+			"character": 31
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'JsonValue | undefined' is not assignable to parameter of type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 1038,
+			"character": 23
+		},
+		"end": {
+			"line": 1038,
+			"character": 33
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'JsonValue | undefined' is not assignable to type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 1041,
+			"character": 8
+		},
+		"end": {
+			"line": 1041,
+			"character": 20
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'JsonValue | undefined' is not assignable to parameter of type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 1088,
+			"character": 45
+		},
+		"end": {
+			"line": 1088,
+			"character": 49
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'view' implicitly has an 'any' type.",
+		"start": {
+			"line": 1096,
+			"character": 31
+		},
+		"end": {
+			"line": 1096,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tr' implicitly has an 'any' type.",
+		"start": {
+			"line": 1153,
+			"character": 54
+		},
+		"end": {
+			"line": 1153,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 1154,
+			"character": 49
+		},
+		"end": {
+			"line": 1154,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'update' implicitly has an 'any' type.",
+		"start": {
+			"line": 1185,
+			"character": 42
+		},
+		"end": {
+			"line": 1185,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tr' implicitly has an 'any' type.",
+		"start": {
+			"line": 1186,
+			"character": 46
+		},
+		"end": {
+			"line": 1186,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 1186,
+			"character": 70
+		},
+		"end": {
+			"line": 1186,
+			"character": 71
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'update' implicitly has an 'any' type.",
+		"start": {
+			"line": 1263,
+			"character": 42
+		},
+		"end": {
+			"line": 1263,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tr' implicitly has an 'any' type.",
+		"start": {
+			"line": 1264,
+			"character": 69
+		},
+		"end": {
+			"line": 1264,
+			"character": 71
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'JsonValue | undefined' is not assignable to type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 1376,
+			"character": 12
+		},
+		"end": {
+			"line": 1376,
+			"character": 24
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'JsonValue | undefined' is not assignable to parameter of type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 1389,
+			"character": 46
+		},
+		"end": {
+			"line": 1389,
+			"character": 50
+		}
+	},
+	{
+		"code": 2322,
+		"message": "Type 'JsonValue | undefined' is not assignable to type 'JsonValue'.\n  Type 'undefined' is not assignable to type 'JsonValue'.",
+		"start": {
+			"line": 1404,
+			"character": 12
+		},
+		"end": {
+			"line": 1404,
+			"character": 24
+		}
+	}
+]
+
 === 3 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/hintBadge.svelte	json
 []
 
@@ -21961,6 +24844,34 @@
 		"end": {
 			"line": 16,
 			"character": 14
+		}
+	}
+]
+
+=== 447 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 65
+		},
+		"end": {
+			"line": 1,
+			"character": 91
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 36
+		},
+		"end": {
+			"line": 2,
+			"character": 58
 		}
 	}
 ]
@@ -23109,6 +26020,754 @@
 	}
 ]
 
+=== 12943 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/spreadsheet.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 58
+		},
+		"end": {
+			"line": 3,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 44
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 57
+		},
+		"end": {
+			"line": 5,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 57
+		},
+		"end": {
+			"line": 6,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferences' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 39
+		},
+		"end": {
+			"line": 10,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 34
+		},
+		"end": {
+			"line": 12,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/types' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 32
+		},
+		"end": {
+			"line": 13,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 11
+		},
+		"end": {
+			"line": 22,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/dualTimeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 29
+		},
+		"end": {
+			"line": 23,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 11
+		},
+		"end": {
+			"line": 29,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 54
+		},
+		"end": {
+			"line": 30,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 73
+		},
+		"end": {
+			"line": 31,
+			"character": 93
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 25
+		},
+		"end": {
+			"line": 32,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/load' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 33
+		},
+		"end": {
+			"line": 34,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/string' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 25
+		},
+		"end": {
+			"line": 35,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/numbers' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 43
+		},
+		"end": {
+			"line": 36,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/array' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 27
+		},
+		"end": {
+			"line": 37,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/filters/store' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 37
+		},
+		"end": {
+			"line": 38,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/store' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 59
+		},
+		"end": {
+			"line": 39,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/unsavedChanges' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 45
+		},
+		"end": {
+			"line": 40,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(suggestions)' or its corresponding type declarations.",
+		"start": {
+			"line": 41,
+			"character": 36
+		},
+		"end": {
+			"line": 41,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/collection-[collection]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 50,
+			"character": 11
+		},
+		"end": {
+			"line": 50,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/store' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 11
+		},
+		"end": {
+			"line": 56,
+			"character": 28
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/collection-[collection]/(components)/editor' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 11
+		},
+		"end": {
+			"line": 60,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/collection-[collection]/(components)/editor/embeddingModal.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 31
+		},
+		"end": {
+			"line": 61,
+			"character": 108
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)/helpers/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 34
+		},
+		"end": {
+			"line": 62,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 67,
+			"character": 11
+		},
+		"end": {
+			"line": 67,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/search' or its corresponding type declarations.",
+		"start": {
+			"line": 68,
+			"character": 36
+		},
+		"end": {
+			"line": 68,
+			"character": 57
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'selectedDocuments' implicitly has type 'any[]' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 121,
+			"character": 8
+		},
+		"end": {
+			"line": 121,
+			"character": 25
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 152,
+			"character": 25
+		},
+		"end": {
+			"line": 152,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'name' implicitly has an 'any' type.",
+		"start": {
+			"line": 193,
+			"character": 18
+		},
+		"end": {
+			"line": 193,
+			"character": 22
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'key' implicitly has an 'any' type.",
+		"start": {
+			"line": 195,
+			"character": 56
+		},
+		"end": {
+			"line": 195,
+			"character": 59
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'selectedDocuments' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 311,
+			"character": 47
+		},
+		"end": {
+			"line": 311,
+			"character": 64
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'selectedDocuments' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 332,
+			"character": 24
+		},
+		"end": {
+			"line": 332,
+			"character": 41
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 337,
+			"character": 54
+		},
+		"end": {
+			"line": 337,
+			"character": 59
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 408,
+			"character": 29
+		},
+		"end": {
+			"line": 408,
+			"character": 30
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 424,
+			"character": 29
+		},
+		"end": {
+			"line": 424,
+			"character": 30
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 485,
+			"character": 25
+		},
+		"end": {
+			"line": 485,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 575,
+			"character": 44
+		},
+		"end": {
+			"line": 575,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'key' implicitly has an 'any' type.",
+		"start": {
+			"line": 581,
+			"character": 47
+		},
+		"end": {
+			"line": 581,
+			"character": 50
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'column' implicitly has an 'any' type.",
+		"start": {
+			"line": 589,
+			"character": 49
+		},
+		"end": {
+			"line": 589,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'doc' implicitly has an 'any' type.",
+		"start": {
+			"line": 602,
+			"character": 42
+		},
+		"end": {
+			"line": 602,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'navigation' implicitly has an 'any' type.",
+		"start": {
+			"line": 633,
+			"character": 32
+		},
+		"end": {
+			"line": 633,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_' implicitly has an 'any' type.",
+		"start": {
+			"line": 637,
+			"character": 29
+		},
+		"end": {
+			"line": 637,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'onConfirm' implicitly has an 'any' type.",
+		"start": {
+			"line": 637,
+			"character": 32
+		},
+		"end": {
+			"line": 637,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'document' implicitly has an 'any' type.",
+		"start": {
+			"line": 917,
+			"character": 27
+		},
+		"end": {
+			"line": 917,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_' implicitly has an 'any' type.",
+		"start": {
+			"line": 918,
+			"character": 23
+		},
+		"end": {
+			"line": 918,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'hasDataChanged' implicitly has an 'any' type.",
+		"start": {
+			"line": 918,
+			"character": 26
+		},
+		"end": {
+			"line": 918,
+			"character": 40
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'selectedDocuments' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 674,
+			"character": 31
+		},
+		"end": {
+			"line": 674,
+			"character": 48
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 702,
+			"character": 39
+		},
+		"end": {
+			"line": 702,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'columnId' implicitly has an 'any' type.",
+		"start": {
+			"line": 702,
+			"character": 47
+		},
+		"end": {
+			"line": 702,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'toggle' implicitly has an 'any' type.",
+		"start": {
+			"line": 704,
+			"character": 47
+		},
+		"end": {
+			"line": 704,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 792,
+			"character": 59
+		},
+		"end": {
+			"line": 792,
+			"character": 65
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'visible' implicitly has an 'any' type.",
+		"start": {
+			"line": 795,
+			"character": 70
+		},
+		"end": {
+			"line": 795,
+			"character": 77
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'toggle' implicitly has an 'any' type.",
+		"start": {
+			"line": 798,
+			"character": 67
+		},
+		"end": {
+			"line": 798,
+			"character": 73
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 866,
+			"character": 44
+		},
+		"end": {
+			"line": 866,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 990,
+			"character": 19
+		},
+		"end": {
+			"line": 990,
+			"character": 20
+		}
+	}
+]
+
 === 3791 src/routes/(console)/project-[region]-[project]/databases/database-[database]/delete.svelte	json
 [
 	{
@@ -23697,6 +27356,758 @@
 		"end": {
 			"line": 66,
 			"character": 34
+		}
+	}
+]
+
+=== 4070 src/routes/(console)/project-[region]-[project]/databases/database-[database]/subNavigation.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 34
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/layout' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 38
+		},
+		"end": {
+			"line": 3,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/layout/headerAlert.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './store' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 83
+		},
+		"end": {
+			"line": 5,
+			"character": 92
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 11
+		},
+		"end": {
+			"line": 16,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 11
+		},
+		"end": {
+			"line": 22,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 37
+		},
+		"end": {
+			"line": 23,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 32
+		},
+		"end": {
+			"line": 24,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms/button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 25,
+			"character": 23
+		},
+		"end": {
+			"line": 25,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 26,
+			"character": 26
+		},
+		"end": {
+			"line": 26,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/database' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 34
+		},
+		"end": {
+			"line": 28,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 11
+		},
+		"end": {
+			"line": 34,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 33
+		},
+		"end": {
+			"line": 35,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/navigation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 29
+		},
+		"end": {
+			"line": 36,
+			"character": 56
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 55,
+			"character": 42
+		},
+		"end": {
+			"line": 55,
+			"character": 43
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 55,
+			"character": 45
+		},
+		"end": {
+			"line": 55,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 92,
+			"character": 46
+		},
+		"end": {
+			"line": 92,
+			"character": 51
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'entity' implicitly has an 'any' type.",
+		"start": {
+			"line": 262,
+			"character": 56
+		},
+		"end": {
+			"line": 262,
+			"character": 62
+		}
+	}
+]
+
+=== 9396 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/columns/store' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 32
+		},
+		"end": {
+			"line": 2,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 37
+		},
+		"end": {
+			"line": 20,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 33
+		},
+		"end": {
+			"line": 21,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 57
+		},
+		"end": {
+			"line": 22,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 43
+		},
+		"end": {
+			"line": 23,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 34,
+			"character": 11
+		},
+		"end": {
+			"line": 34,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/commandCenter' or its corresponding type declarations.",
+		"start": {
+			"line": 35,
+			"character": 75
+		},
+		"end": {
+			"line": 35,
+			"character": 95
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/createColumn.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 36,
+			"character": 29
+		},
+		"end": {
+			"line": 36,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/commandCenter/panels' or its corresponding type declarations.",
+		"start": {
+			"line": 37,
+			"character": 38
+		},
+		"end": {
+			"line": 37,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 25
+		},
+		"end": {
+			"line": 38,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/roles' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 35
+		},
+		"end": {
+			"line": 39,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 11
+		},
+		"end": {
+			"line": 47,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 11
+		},
+		"end": {
+			"line": 54,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/rows/edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 55,
+			"character": 24
+		},
+		"end": {
+			"line": 55,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/rows/editRelated.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 31
+		},
+		"end": {
+			"line": 56,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/columns/edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 57,
+			"character": 27
+		},
+		"end": {
+			"line": 57,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 63
+		},
+		"end": {
+			"line": 58,
+			"character": 89
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 59,
+			"character": 36
+		},
+		"end": {
+			"line": 59,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/faker' or its corresponding type declarations.",
+		"start": {
+			"line": 60,
+			"character": 56
+		},
+		"end": {
+			"line": 60,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 61,
+			"character": 36
+		},
+		"end": {
+			"line": 61,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/string' or its corresponding type declarations.",
+		"start": {
+			"line": 62,
+			"character": 25
+		},
+		"end": {
+			"line": 62,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferences' or its corresponding type declarations.",
+		"start": {
+			"line": 63,
+			"character": 32
+		},
+		"end": {
+			"line": 63,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)/helpers/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 64,
+			"character": 34
+		},
+		"end": {
+			"line": 64,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/rows/store' or its corresponding type declarations.",
+		"start": {
+			"line": 65,
+			"character": 49
+		},
+		"end": {
+			"line": 65,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/array' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 27
+		},
+		"end": {
+			"line": 66,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 67,
+			"character": 39
+		},
+		"end": {
+			"line": 67,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/store' or its corresponding type declarations.",
+		"start": {
+			"line": 75,
+			"character": 11
+		},
+		"end": {
+			"line": 75,
+			"character": 28
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 77,
+			"character": 36
+		},
+		"end": {
+			"line": 77,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 78,
+			"character": 43
+		},
+		"end": {
+			"line": 78,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 79,
+			"character": 37
+		},
+		"end": {
+			"line": 79,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(suggestions)' or its corresponding type declarations.",
+		"start": {
+			"line": 80,
+			"character": 48
+		},
+		"end": {
+			"line": 80,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(suggestions)/indexes.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 81,
+			"character": 35
+		},
+		"end": {
+			"line": 81,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(suggestions)/columns.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 82,
+			"character": 35
+		},
+		"end": {
+			"line": 82,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(observer)/columnObserver' or its corresponding type declarations.",
+		"start": {
+			"line": 83,
+			"character": 40
+		},
+		"end": {
+			"line": 83,
+			"character": 77
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'response' implicitly has an 'any' type.",
+		"start": {
+			"line": 144,
+			"character": 80
+		},
+		"end": {
+			"line": 144,
+			"character": 88
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 312,
+			"character": 29
+		},
+		"end": {
+			"line": 312,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 334,
+			"character": 39
+		},
+		"end": {
+			"line": 334,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 351,
+			"character": 36
+		},
+		"end": {
+			"line": 351,
+			"character": 39
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 364,
+			"character": 25
+		},
+		"end": {
+			"line": 364,
+			"character": 26
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'newOrder' implicitly has an 'any' type.",
+		"start": {
+			"line": 414,
+			"character": 27
+		},
+		"end": {
+			"line": 414,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'opts' implicitly has an 'any' type.",
+		"start": {
+			"line": 467,
+			"character": 60
+		},
+		"end": {
+			"line": 467,
+			"character": 64
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'opts' implicitly has an 'any' type.",
+		"start": {
+			"line": 486,
+			"character": 60
+		},
+		"end": {
+			"line": 486,
+			"character": 64
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 544,
+			"character": 30
+		},
+		"end": {
+			"line": 544,
+			"character": 35
 		}
 	}
 ]
@@ -24905,6 +29316,130 @@
 		"end": {
 			"line": 1,
 			"character": 64
+		}
+	}
+]
+
+=== 2202 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/string.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 32
+		},
+		"end": {
+			"line": 3,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/system' or its corresponding type declarations.",
+		"start": {
+			"line": 41,
+			"character": 28
+		},
+		"end": {
+			"line": 41,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/billing' or its corresponding type declarations.",
+		"start": {
+			"line": 42,
+			"character": 37
+		},
+		"end": {
+			"line": 42,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/organization' or its corresponding type declarations.",
+		"start": {
+			"line": 43,
+			"character": 32
+		},
+		"end": {
+			"line": 43,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 44,
+			"character": 39
+		},
+		"end": {
+			"line": 44,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 45,
+			"character": 41
+		},
+		"end": {
+			"line": 45,
+			"character": 67
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 47,
+			"character": 58
+		},
+		"end": {
+			"line": 47,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 59
+		},
+		"end": {
+			"line": 48,
+			"character": 85
 		}
 	}
 ]
@@ -27693,6 +32228,874 @@
 		"end": {
 			"line": 130,
 			"character": 89
+		}
+	}
+]
+
+=== 14806 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/spreadsheet.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 37
+		},
+		"end": {
+			"line": 2,
+			"character": 54
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 58
+		},
+		"end": {
+			"line": 3,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 44
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 57
+		},
+		"end": {
+			"line": 5,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 57
+		},
+		"end": {
+			"line": 6,
+			"character": 78
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/notifications' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 36
+		},
+		"end": {
+			"line": 7,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/preferences' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 32
+		},
+		"end": {
+			"line": 8,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$routes/(console)/project-[region]-[project]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 45
+		},
+		"end": {
+			"line": 10,
+			"character": 97
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/console' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 39
+		},
+		"end": {
+			"line": 11,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 34
+		},
+		"end": {
+			"line": 13,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/rows/store' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 11
+		},
+		"end": {
+			"line": 20,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/store' or its corresponding type declarations.",
+		"start": {
+			"line": 38,
+			"character": 11
+		},
+		"end": {
+			"line": 38,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)/helpers/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 39,
+			"character": 34
+		},
+		"end": {
+			"line": 39,
+			"character": 73
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/types' or its corresponding type declarations.",
+		"start": {
+			"line": 40,
+			"character": 44
+		},
+		"end": {
+			"line": 40,
+			"character": 64
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 11
+		},
+		"end": {
+			"line": 56,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/date' or its corresponding type declarations.",
+		"start": {
+			"line": 57,
+			"character": 37
+		},
+		"end": {
+			"line": 57,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/dualTimeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 58,
+			"character": 29
+		},
+		"end": {
+			"line": 58,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 78,
+			"character": 11
+		},
+		"end": {
+			"line": 78,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 79,
+			"character": 54
+		},
+		"end": {
+			"line": 79,
+			"character": 76
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/(entity)' or its corresponding type declarations.",
+		"start": {
+			"line": 86,
+			"character": 11
+		},
+		"end": {
+			"line": 86,
+			"character": 31
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/table-[table]/rows/cell/edit.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 87,
+			"character": 28
+		},
+		"end": {
+			"line": 87,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/copy' or its corresponding type declarations.",
+		"start": {
+			"line": 88,
+			"character": 25
+		},
+		"end": {
+			"line": 88,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/load' or its corresponding type declarations.",
+		"start": {
+			"line": 90,
+			"character": 33
+		},
+		"end": {
+			"line": 90,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/debounce' or its corresponding type declarations.",
+		"start": {
+			"line": 91,
+			"character": 29
+		},
+		"end": {
+			"line": 91,
+			"character": 52
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/string' or its corresponding type declarations.",
+		"start": {
+			"line": 92,
+			"character": 25
+		},
+		"end": {
+			"line": 92,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/numbers' or its corresponding type declarations.",
+		"start": {
+			"line": 93,
+			"character": 43
+		},
+		"end": {
+			"line": 93,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/array' or its corresponding type declarations.",
+		"start": {
+			"line": 94,
+			"character": 27
+		},
+		"end": {
+			"line": 94,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/filters/store' or its corresponding type declarations.",
+		"start": {
+			"line": 95,
+			"character": 37
+		},
+		"end": {
+			"line": 95,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$database/store' or its corresponding type declarations.",
+		"start": {
+			"line": 105,
+			"character": 11
+		},
+		"end": {
+			"line": 105,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 125,
+			"character": 55
+		},
+		"end": {
+			"line": 125,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 125,
+			"character": 60
+		},
+		"end": {
+			"line": 125,
+			"character": 65
+		}
+	},
+	{
+		"code": 7034,
+		"message": "Variable 'selectedRows' implicitly has type 'any[]' in some locations where its type cannot be determined.",
+		"start": {
+			"line": 140,
+			"character": 8
+		},
+		"end": {
+			"line": 140,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'col' implicitly has an 'any' type.",
+		"start": {
+			"line": 174,
+			"character": 29
+		},
+		"end": {
+			"line": 174,
+			"character": 32
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'columnId' implicitly has an 'any' type.",
+		"start": {
+			"line": 180,
+			"character": 41
+		},
+		"end": {
+			"line": 180,
+			"character": 49
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'selectedRows' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 201,
+			"character": 22
+		},
+		"end": {
+			"line": 201,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 202,
+			"character": 54
+		},
+		"end": {
+			"line": 202,
+			"character": 57
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'columnId' implicitly has an 'any' type.",
+		"start": {
+			"line": 286,
+			"character": 34
+		},
+		"end": {
+			"line": 286,
+			"character": 42
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'widths' implicitly has an 'any' type.",
+		"start": {
+			"line": 320,
+			"character": 29
+		},
+		"end": {
+			"line": 320,
+			"character": 35
+		}
+	},
+	{
+		"code": 2366,
+		"message": "Function lacks ending return statement and return type does not include 'undefined'.",
+		"start": {
+			"line": 358,
+			"character": 47
+		},
+		"end": {
+			"line": 358,
+			"character": 60
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'selectedRows' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 429,
+			"character": 83
+		},
+		"end": {
+			"line": 429,
+			"character": 95
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'rowId' implicitly has an 'any' type.",
+		"start": {
+			"line": 457,
+			"character": 47
+		},
+		"end": {
+			"line": 457,
+			"character": 52
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 502,
+			"character": 54
+		},
+		"end": {
+			"line": 502,
+			"character": 59
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'id' implicitly has an 'any' type.",
+		"start": {
+			"line": 524,
+			"character": 21
+		},
+		"end": {
+			"line": 524,
+			"character": 23
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 540,
+			"character": 54
+		},
+		"end": {
+			"line": 540,
+			"character": 59
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'attr' implicitly has an 'any' type.",
+		"start": {
+			"line": 609,
+			"character": 63
+		},
+		"end": {
+			"line": 609,
+			"character": 67
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'opts' implicitly has an 'any' type.",
+		"start": {
+			"line": 616,
+			"character": 48
+		},
+		"end": {
+			"line": 616,
+			"character": 52
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 655,
+			"character": 33
+		},
+		"end": {
+			"line": 655,
+			"character": 34
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'e' is of type 'unknown'.",
+		"start": {
+			"line": 671,
+			"character": 33
+		},
+		"end": {
+			"line": 671,
+			"character": 34
+		}
+	},
+	{
+		"code": 18046,
+		"message": "'error' is of type 'unknown'.",
+		"start": {
+			"line": 710,
+			"character": 25
+		},
+		"end": {
+			"line": 710,
+			"character": 30
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'includeRelationships' implicitly has an 'any' type.",
+		"start": {
+			"line": 738,
+			"character": 13
+		},
+		"end": {
+			"line": 738,
+			"character": 33
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'queries' implicitly has an 'any' type.",
+		"start": {
+			"line": 747,
+			"character": 13
+		},
+		"end": {
+			"line": 747,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'includeRelationships' implicitly has an 'any' type.",
+		"start": {
+			"line": 769,
+			"character": 17
+		},
+		"end": {
+			"line": 769,
+			"character": 37
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'queries' implicitly has an 'any' type.",
+		"start": {
+			"line": 777,
+			"character": 17
+		},
+		"end": {
+			"line": 777,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'attribute' implicitly has an 'any' type.",
+		"start": {
+			"line": 818,
+			"character": 9
+		},
+		"end": {
+			"line": 818,
+			"character": 18
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'state' implicitly has an 'any' type.",
+		"start": {
+			"line": 855,
+			"character": 8
+		},
+		"end": {
+			"line": 855,
+			"character": 13
+		}
+	},
+	{
+		"code": 7005,
+		"message": "Variable 'selectedRows' implicitly has an 'any[]' type.",
+		"start": {
+			"line": 881,
+			"character": 17
+		},
+		"end": {
+			"line": 881,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'order' implicitly has an 'any' type.",
+		"start": {
+			"line": 889,
+			"character": 29
+		},
+		"end": {
+			"line": 889,
+			"character": 34
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'resize' implicitly has an 'any' type.",
+		"start": {
+			"line": 890,
+			"character": 31
+		},
+		"end": {
+			"line": 890,
+			"character": 37
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'col' implicitly has an 'any' type.",
+		"start": {
+			"line": 925,
+			"character": 65
+		},
+		"end": {
+			"line": 925,
+			"character": 68
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 930,
+			"character": 39
+		},
+		"end": {
+			"line": 930,
+			"character": 45
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'columnId' implicitly has an 'any' type.",
+		"start": {
+			"line": 930,
+			"character": 47
+		},
+		"end": {
+			"line": 930,
+			"character": 55
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'toggle' implicitly has an 'any' type.",
+		"start": {
+			"line": 932,
+			"character": 47
+		},
+		"end": {
+			"line": 932,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'col' implicitly has an 'any' type.",
+		"start": {
+			"line": 995,
+			"character": 63
+		},
+		"end": {
+			"line": 995,
+			"character": 66
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'option' implicitly has an 'any' type.",
+		"start": {
+			"line": 1067,
+			"character": 55
+		},
+		"end": {
+			"line": 1067,
+			"character": 61
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'visible' implicitly has an 'any' type.",
+		"start": {
+			"line": 1071,
+			"character": 66
+		},
+		"end": {
+			"line": 1071,
+			"character": 73
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'toggle' implicitly has an 'any' type.",
+		"start": {
+			"line": 1074,
+			"character": 63
+		},
+		"end": {
+			"line": 1074,
+			"character": 69
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 1187,
+			"character": 73
+		},
+		"end": {
+			"line": 1187,
+			"character": 76
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 1197,
+			"character": 55
+		},
+		"end": {
+			"line": 1197,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'row' implicitly has an 'any' type.",
+		"start": {
+			"line": 1198,
+			"character": 55
+		},
+		"end": {
+			"line": 1198,
+			"character": 58
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'e' implicitly has an 'any' type.",
+		"start": {
+			"line": 1268,
+			"character": 44
+		},
+		"end": {
+			"line": 1268,
+			"character": 45
 		}
 	}
 ]
@@ -34683,6 +40086,58 @@
 	}
 ]
 
+=== 890 src/routes/(console)/project-[region]-[project]/messaging/provider.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 64,
+			"character": 25
+		},
+		"end": {
+			"line": 64,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/app' or its corresponding type declarations.",
+		"start": {
+			"line": 65,
+			"character": 24
+		},
+		"end": {
+			"line": 65,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 29
+		},
+		"end": {
+			"line": 66,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 67,
+			"character": 33
+		},
+		"end": {
+			"line": 67,
+			"character": 59
+		}
+	}
+]
+
 === 2604 src/routes/(console)/project-[region]-[project]/messaging/providers/+page.svelte	json
 [
 	{
@@ -38613,6 +44068,310 @@
 		"end": {
 			"line": 40,
 			"character": 55
+		}
+	}
+]
+
+=== 5564 src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './store' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/wizard' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 27
+		},
+		"end": {
+			"line": 2,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './wizard/store' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 35
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 38
+		},
+		"end": {
+			"line": 9,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 63,
+			"character": 28
+		},
+		"end": {
+			"line": 63,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/elements/forms' or its corresponding type declarations.",
+		"start": {
+			"line": 64,
+			"character": 27
+		},
+		"end": {
+			"line": 64,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/roles' or its corresponding type declarations.",
+		"start": {
+			"line": 65,
+			"character": 38
+		},
+		"end": {
+			"line": 65,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../context' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 38
+		},
+		"end": {
+			"line": 66,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 75,
+			"character": 11
+		},
+		"end": {
+			"line": 75,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './action.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 76,
+			"character": 23
+		},
+		"end": {
+			"line": 76,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-icons-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 85,
+			"character": 11
+		},
+		"end": {
+			"line": 85,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/dualTimeView.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 87,
+			"character": 29
+		},
+		"end": {
+			"line": 87,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/platform' or its corresponding type declarations.",
+		"start": {
+			"line": 88,
+			"character": 37
+		},
+		"end": {
+			"line": 88,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 90,
+			"character": 25
+		},
+		"end": {
+			"line": 90,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './$types' or its corresponding type declarations.",
+		"start": {
+			"line": 91,
+			"character": 35
+		},
+		"end": {
+			"line": 91,
+			"character": 45
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components' or its corresponding type declarations.",
+		"start": {
+			"line": 97,
+			"character": 11
+		},
+		"end": {
+			"line": 97,
+			"character": 28
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 98,
+			"character": 24
+		},
+		"end": {
+			"line": 98,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 99,
+			"character": 39
+		},
+		"end": {
+			"line": 99,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 100,
+			"character": 31
+		},
+		"end": {
+			"line": 100,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants' or its corresponding type declarations.",
+		"start": {
+			"line": 101,
+			"character": 33
+		},
+		"end": {
+			"line": 101,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/platform' or its corresponding type declarations.",
+		"start": {
+			"line": 102,
+			"character": 42
+		},
+		"end": {
+			"line": 102,
+			"character": 65
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'platformId' implicitly has an 'any' type.",
+		"start": {
+			"line": 141,
+			"character": 42
+		},
+		"end": {
+			"line": 141,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'root' implicitly has an 'any' type.",
+		"start": {
+			"line": 169,
+			"character": 25
+		},
+		"end": {
+			"line": 169,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'root' implicitly has an 'any' type.",
+		"start": {
+			"line": 177,
+			"character": 27
+		},
+		"end": {
+			"line": 177,
+			"character": 31
+		}
+	},
+	{
+		"code": 7053,
+		"message": "Element implicitly has an 'any' type because expression of type 'any' can't be used to index type '{ readonly android: \"Android\"; readonly apple: \"Apple\"; readonly web: \"Web\"; readonly windows: \"Windows\"; readonly linux: \"Linux\"; }'.",
+		"start": {
+			"line": 186,
+			"character": 29
+		},
+		"end": {
+			"line": 186,
+			"character": 57
 		}
 	}
 ]
@@ -51084,6 +56843,62 @@
 	}
 ]
 
+=== 437 src/routes/(public)/auth/oauth2/failure/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	}
+]
+
+=== 437 src/routes/(public)/auth/oauth2/success/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	}
+]
+
 === 1457 src/routes/(public)/auth/preview/+page.svelte	json
 [
 	{
@@ -53017,4 +58832,272 @@
 
 === 3 src/routes/+error.svelte	json
 []
+
+=== 4804 src/routes/+layout.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 40
+		},
+		"end": {
+			"line": 2,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/paths' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/state' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/analytics' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 34
+		},
+		"end": {
+			"line": 5,
+			"character": 58
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/layout' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 44
+		},
+		"end": {
+			"line": 6,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/app' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 39
+		},
+		"end": {
+			"line": 7,
+			"character": 56
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/system' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 28
+		},
+		"end": {
+			"line": 8,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './store' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 39
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/helpers/object' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 34
+		},
+		"end": {
+			"line": 11,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/sdk' or its corresponding type declarations.",
+		"start": {
+			"line": 12,
+			"character": 24
+		},
+		"end": {
+			"line": 12,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/user' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 25
+		},
+		"end": {
+			"line": 13,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$routes/store' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 28
+		},
+		"end": {
+			"line": 14,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/appwrite/impersonation' or its corresponding type declarations.",
+		"start": {
+			"line": 18,
+			"character": 11
+		},
+		"end": {
+			"line": 18,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/headerAlert' or its corresponding type declarations.",
+		"start": {
+			"line": 19,
+			"character": 32
+		},
+		"end": {
+			"line": 19,
+			"character": 57
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/impersonation/banner.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 20,
+			"character": 36
+		},
+		"end": {
+			"line": 20,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@appwrite.io/pink-svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 21,
+			"character": 25
+		},
+		"end": {
+			"line": 21,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../themes' or its corresponding type declarations.",
+		"start": {
+			"line": 22,
+			"character": 75
+		},
+		"end": {
+			"line": 22,
+			"character": 86
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/viewport' or its corresponding type declarations.",
+		"start": {
+			"line": 23,
+			"character": 52
+		},
+		"end": {
+			"line": 23,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/feedback' or its corresponding type declarations.",
+		"start": {
+			"line": 24,
+			"character": 29
+		},
+		"end": {
+			"line": 24,
+			"character": 51
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '$lib/profiles/css/base.css'.",
+		"start": {
+			"line": 25,
+			"character": 11
+		},
+		"end": {
+			"line": 25,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'navigation' implicitly has an 'any' type.",
+		"start": {
+			"line": 130,
+			"character": 19
+		},
+		"end": {
+			"line": 130,
+			"character": 29
+		}
+	}
+]
 

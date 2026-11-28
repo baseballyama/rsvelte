@@ -10,10 +10,10 @@ import { parseArgs } from 'node:util';
 import { TASKS, taskById } from './tasks.ts';
 import { allUnits, unitKey, writes } from './manifest.ts';
 import path from 'node:path';
-import { ORACLES_FILE, expectedPack } from './paths.ts';
+import { ORACLES_FILE, UNPARSEABLE_FILE, expectedPack } from './paths.ts';
 import { readPack, writePack, type Entry } from './pack.ts';
 import { writeIfChanged, stableStringify } from './files.ts';
-import type { Job, JobResult } from './regen-worker.ts';
+import type { Job, JobResult, Unparseable } from './regen-worker.ts';
 
 const require = createRequire(import.meta.url);
 const packageVersion = (name: string): string => require(`${name}/package.json`).version;
@@ -25,6 +25,46 @@ export interface RegenOptions {
 	paths?: string[];
 	/** Workers; defaults to one per core. */
 	jobs?: number;
+}
+
+const UNPARSEABLE_HEADER =
+	'# Written by `oracle regen`: <unit key>\t<task>/<variant>\t<why the unit is skipped>\n';
+
+/**
+ * unparseable.txt after a run: its lines for what the run did not cover, without those of units
+ * that left the corpus, and a skip for each unit whose task records the unparseable output it found.
+ */
+export function updateUnparseable(
+	text: string,
+	ran: (key: string, task: string) => boolean,
+	left: (key: string) => boolean,
+	found: readonly Unparseable[],
+): string {
+	const kept = text
+		.split('\n')
+		.filter((line) => line && !line.startsWith('#'))
+		.filter((line) => {
+			const [key = '', task = ''] = line.split('\t');
+			return !ran(key, task) && !left(key);
+		});
+	const fresh = found.flatMap((u) => {
+		const recorded = taskById(u.task.split('/')[0]!).unparseable;
+		return recorded
+			? [`${u.key}\t${u.task}\t${recorded.reason}: ${u.message} (${recorded.tag})`]
+			: [];
+	});
+	const lines = [...new Set([...kept, ...fresh])].toSorted();
+	return UNPARSEABLE_HEADER + lines.map((l) => `${l}\n`).join('');
+}
+
+/** Whether a unit key is gone: its source is one of those read, `sourceIds` or all, and lacks it. */
+export function gone(
+	keys: readonly string[],
+	sourceIds?: readonly string[],
+): (key: string) => boolean {
+	const known = new Set(keys);
+	// A key is `<family>/<source>/<path>`.
+	return (key) => (!sourceIds || sourceIds.includes(key.split('/')[1]!)) && !known.has(key);
 }
 
 /** Units per job: small enough that the largest source does not keep one worker busy alone. */
@@ -127,7 +167,22 @@ export async function regen({
 	const started = performance.now();
 	const results = await runPool(work, jobs ?? os.availableParallelism());
 
-	const unparseable = results.flatMap((r) => r.unparseable);
+	const found = results.flatMap((r) => r.unparseable);
+	const ranTasks = new Set(tasks.flatMap((t) => t.variants.map((v) => `${t.id}/${v.id}`)));
+	const ranUnits = new Set(units.map(unitKey));
+	writeIfChanged(
+		UNPARSEABLE_FILE,
+		updateUnparseable(
+			fs.existsSync(UNPARSEABLE_FILE) ? fs.readFileSync(UNPARSEABLE_FILE, 'utf8') : '',
+			(key, task) => ranTasks.has(task) && ranUnits.has(key),
+			gone(every.map(unitKey), sourceIds),
+			found,
+		),
+	);
+	const skipped = found.filter((u) => taskById(u.task.split('/')[0]!).unparseable);
+	const unparseable = found
+		.filter((u) => !skipped.includes(u))
+		.map((u) => `${u.task} ${u.key} (${u.ext}): ${u.message}`);
 	const packs = Map.groupBy(results, (r) => expectedPack(r.family, r.source, r.task, r.variant));
 	const written = new Map<string, number>();
 	for (const [file, parts] of packs) {
@@ -161,6 +216,10 @@ export async function regen({
 	}
 	writeIfChanged(ORACLES_FILE, stableStringify(lock) + '\n');
 
+	if (skipped.length)
+		console.log(
+			`oracle output the canonicalizer cannot parse, skipped in unparseable.txt: ${skipped.length}`,
+		);
 	if (unparseable.length) {
 		console.log(`oracle output the canonicalizer cannot parse: ${unparseable.length}`);
 		for (const u of unparseable) console.log(`  ${u}`);

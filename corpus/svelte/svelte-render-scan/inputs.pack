@@ -380,6 +380,11 @@
 	});
 </script>
 
+=== 199 src/lib/index.ts	ts	module	-
+// Reexport your entry components here
+export { default as RenderScan } from './components/RenderScan.svelte';
+export { default as RenderScanObserver } from './components/RenderScanObserver.svelte';
+
 === 1151 src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
 	import '../app.css';
@@ -765,4 +770,39 @@
 		}
 	}
 </style>
+
+=== 276 tailwind.config.ts	ts	module	-
+import forms from '@tailwindcss/forms';
+import typography from '@tailwindcss/typography';
+import type { Config } from 'tailwindcss';
+
+export default {
+	content: ['./src/**/*.{html,js,svelte,ts}'],
+
+	theme: {
+		extend: {}
+	},
+
+	plugins: [typography, forms]
+} satisfies Config;
+
+=== 326 vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default defineConfig({
+	plugins: [
+		sveltekit(),
+		visualizer({
+			emitFile: true,
+			filename: 'stats.html'
+		})
+	],
+	server: {
+		fs: {
+			allow: ['./package.json']
+		}
+	}
+});
 

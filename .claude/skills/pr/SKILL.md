@@ -19,7 +19,9 @@ part of this PR. Write outputs to files under `mktemp -d`, and never read them t
    with trade-offs. Do the same when it changes a public API, the fixture format or a principle.
    Comment the cause, the options and your recommendation, then stop until the owner picks one.
 4. Otherwise branch `fix/issue-<N>-<name>` and fix it. Add a test that fails before the fix and
-   passes after it, and check both. Then create the PR below and link it on the issue.
+   passes after it, and check both. Put the reproduction in the corpus too, as
+   `corpus/_own/README.md` says, so the official tool keeps judging it after the fix. Then
+   create the PR below and link it on the issue.
 
 ## Create
 

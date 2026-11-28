@@ -1,4 +1,39 @@
 # rsvelte pack 1
+=== 379 playwright.config.ts	ts	module	-
+import { PlaywrightTestConfig } from '@playwright/test'
+
+const config: PlaywrightTestConfig = {
+	use: {
+		launchOptions: {
+			headless: false
+		},
+		storageState: './playwright/.auth/user.json',
+		baseURL: 'http://localhost:5173' // Adjust this to your app's URL
+	},
+	testDir: './tests/e2e',
+	timeout: 30000,
+	globalSetup: './playwright/global-setup.js'
+}
+
+export default config
+
+=== 390 src/hooks.client.ts	ts	module	-
+import type { HandleClientError } from '@sveltejs/kit'
+import posthog, { initialized } from '$lib/PostHog'
+import { instance } from '$lib/instance'
+
+export const handleError: HandleClientError = async ({ error, status }) => {
+	// Only track errors if it's not a 404
+	if (status === 404) {
+		return
+	}
+
+	await initialized
+	posthog.captureException(error, {
+		version: instance.version
+	})
+}
+
 === 21973 src/lib/Content.svelte.ts	svelte-module-ts	runes	-
 import type { Entry } from '$lib/common/models/Entry.js'
 import type { locales } from './common'
@@ -629,6 +664,66 @@ const resolveEntries = ({ entity, field, entries, parentEntry }: { entity: Entit
 	}
 }
 
+=== 1676 src/lib/Entity.ts	ts	module	-
+import type { ObjectOf } from './pocketbase/CollectionMapping.svelte'
+import { Sites, Pages, PageTypes, SiteSymbols, LibrarySymbols, PageTypeSections, PageSections } from './pocketbase/collections'
+
+/**
+ * Entry models by name of the owning collection.
+ */
+export const ENTITY_COLLECTIONS = {
+	library_symbols: LibrarySymbols,
+	sites: Sites,
+	site_symbols: SiteSymbols,
+	page_types: PageTypes,
+	pages: Pages,
+	page_type_sections: PageTypeSections,
+	page_sections: PageSections
+} as const
+
+export type EntityOf<Collection extends keyof typeof ENTITY_COLLECTIONS> = ObjectOf<(typeof ENTITY_COLLECTIONS)[Collection]>
+export type Entity = EntityOf<keyof typeof ENTITY_COLLECTIONS>
+
+export const identify_entity_collection = <Collection extends keyof typeof ENTITY_COLLECTIONS>(entity: EntityOf<Collection>): Collection => {
+	switch (true) {
+		case 'group' in entity && 'html' in entity: {
+			return 'library_symbols' as Collection
+		}
+
+		case 'host' in entity: {
+			return 'sites' as Collection
+		}
+
+		case 'html' in entity: {
+			return 'site_symbols' as Collection
+		}
+
+		case 'head' in entity: {
+			return 'page_types' as Collection
+		}
+
+		case 'slug' in entity: {
+			return 'pages' as Collection
+		}
+
+		case 'page_type' in entity && 'symbol' in entity: {
+			return 'page_type_sections' as Collection
+		}
+
+		case 'page' in entity && 'symbol' in entity: {
+			return 'page_sections' as Collection
+		}
+
+		default: {
+			throw new Error('Unknown entity')
+		}
+	}
+}
+
+export const is_entity_of = <Collection extends keyof typeof ENTITY_COLLECTIONS>(entity: Entity, collection: Collection): entity is EntityOf<Collection> => {
+	return identify_entity_collection(entity) === collection
+}
+
 === 4197 src/lib/PageData.svelte.ts	svelte-module-ts	runes	-
 import type Client from 'pocketbase'
 import type { ObjectOf } from './pocketbase/CollectionMapping.svelte'
@@ -721,6 +816,48 @@ const deduplicate =
 	<T>(key: keyof T) =>
 	(item: T, index: number, array: T[]) =>
 		array.findIndex((value) => value[key] === item[key]) === index
+
+=== 1062 src/lib/PostHog.ts	ts	module	-
+import { self } from './pocketbase/managers'
+import posthog from 'posthog-js/dist/module.no-external'
+import 'posthog-js/dist/exception-autocapture'
+import 'posthog-js/dist/tracing-headers'
+import 'posthog-js/dist/web-vitals'
+import { instance } from './instance'
+
+const POSTHOG_KEY = 'phc_uh5ILOgLhZ4Pg5KLdrzTmiuZNLwsQeihA1Af1rTqNK1'
+const POSTHOG_HOST = 'https://us.i.posthog.com'
+
+export const initialized = (async () => {
+	if (!instance.telemetry_enabled) {
+		return
+	}
+
+	posthog.init(POSTHOG_KEY, {
+		api_host: POSTHOG_HOST,
+
+		// Privacy settings - disable all tracking features except events
+		disable_session_recording: true,
+		disable_surveys: true,
+		disable_compression: false,
+		disable_persistence: false,
+
+		// Don't capture pageviews automatically
+		capture_pageview: false,
+		capture_pageleave: false,
+
+		// Reduce data collection
+		property_blacklist: ['$initial_referrer', '$initial_referring_domain'],
+
+		// Set instance ID as distinct ID
+		bootstrap: {
+			distinctID: instance.id,
+			isIdentifiedID: true
+		}
+	})
+})()
+
+export default posthog
 
 === 6234 src/lib/Snapshot.svelte.ts	svelte-module-ts	runes	-
 import type { CollectionManager } from '$lib/pocketbase/CollectionManager'
@@ -1291,6 +1428,20 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 		font-size: 10px;
 	}
 </style>
+
+=== 323 src/lib/builder/code_generators.ts	ts	module	-
+import { processors } from './component.js'
+
+export async function block_html({ code, data }) {
+	const { html, css: postcss, js } = code
+	// @ts-ignore
+	const { css, error } = await processors.css(postcss || '')
+	const res = await processors.html({
+		component: { html, css, js, data },
+		css: 'injected'
+	})
+	return res
+}
 
 === 23039 src/lib/builder/components/CodeEditor/CodeMirror.svelte	svelte	runes	runes
 <script module>
@@ -2251,6 +2402,632 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 	}
 </style>
 
+=== 265 src/lib/builder/components/CodeEditor/extensions.ts	ts	module	-
+import { css } from '@codemirror/lang-css'
+import { javascript } from '@codemirror/lang-javascript'
+import { svelte } from 'codemirror-lang-svelte'
+
+export function getLanguage(mode) {
+	return {
+		html: svelte(),
+		css: css(),
+		javascript: javascript()
+	}[mode]
+}
+
+=== 271 src/lib/builder/components/CodeEditor/extensions/emmet.ts	ts	module	-
+import { abbreviationTracker, expandAbbreviation } from '@emmetio/codemirror6-plugin'
+
+export function emmetExtension(syntax: string = 'html') {
+	return abbreviationTracker({
+		syntax // Specify document syntax (html, css, jsx, etc.)
+	})
+}
+
+export { expandAbbreviation }
+
+=== 1710 src/lib/builder/components/CodeEditor/extensions/inspector.ts	ts	module	-
+import { EditorView, Decoration } from '@codemirror/view'
+import type { DecorationSet } from '@codemirror/view'
+import { StateEffect, StateField } from '@codemirror/state'
+
+const addUnderline = StateEffect.define<{ from: number; to: number }>()
+
+const underlineField = StateField.define<DecorationSet>({
+	create() {
+		return Decoration.none
+	},
+	update(underlines, tr) {
+		underlines = underlines.map(tr.changes)
+		for (let e of tr.effects)
+			if (e.is(addUnderline)) {
+				underlines = underlines.update({
+					add: [underlineMark.range(e.value.from, e.value.from)],
+					filter: (f, t, value) => {
+						if (value.spec.class === 'cm-highlight') return false
+						else return true
+					}
+				})
+			}
+		return underlines
+	},
+	provide: (f) => EditorView.decorations.from(f)
+})
+
+const underlineMark = Decoration.line({ class: 'cm-highlight' })
+
+const underlineTheme = EditorView.baseTheme({
+	'.cm-highlight': { background: '#333' }
+})
+
+export default function highlight_active_line(Editor, loc) {
+	if (!loc) return
+	let activeLine
+	for (let { from, to } of Editor.visibleRanges) {
+		for (let pos = from; pos <= to; ) {
+			let line = Editor.state.doc.lineAt(pos)
+			if (line.number === loc.line && line.from !== line.to) {
+				activeLine = line
+				break
+			} else {
+				pos = line.to + 1
+			}
+		}
+	}
+
+	if (activeLine) {
+		highlightLine(Editor, activeLine)
+	}
+
+	function highlightLine(view: EditorView, line) {
+		let effects: StateEffect<unknown>[] = [addUnderline.of({ from: line.from, to: line.to })]
+		if (!effects.length) return false
+
+		if (!view.state.field(underlineField, false)) effects.push(StateEffect.appendConfig.of([underlineField, underlineTheme]))
+		view.dispatch({ effects })
+		return true
+	}
+}
+
+=== 16994 src/lib/builder/components/CodeEditor/theme.ts	ts	module	-
+import { EditorView } from '@codemirror/view';
+import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
+import { tags } from '@lezer/highlight';
+
+// Helper module for styling options
+const generalContent = {
+	fontSize: '14px',
+	fontFamily: 'JetBrains Mono, Consolas, monospace',
+	lineHeight: '1.6',
+};
+const generalCursor = {
+	borderLeftWidth: '2px',
+};
+const generalDiff = {
+	insertedTextDecoration: 'none',
+	deletedTextDecoration: 'line-through',
+	insertedLinePadding: '1px 3px',
+	borderRadious: '3px'
+};
+const generalGutter = {
+	// paddingRight: '8px',
+	paddingRight: '0',
+	fontSize: '0.9em',
+	fontWeight: '500',
+};
+const generalPanel = {
+	borderRadius: '4px',
+	padding: '2px 10px',
+};
+const generalLine = {
+	borderRadius: '2px',
+};
+const generalMatching = {
+	borderRadius: '2px',
+};
+const generalPlaceholder = {
+	borderRadius: '4px',
+	padding: '0 5px',
+	margin: '0 2px',
+};
+const generalScroller = {
+	width: '12px',
+	height: '12px',
+	borderRadius: '6px',
+};
+const generalSearchField = {
+	borderRadius: '4px',
+	padding: '2px 6px',
+};
+const generalTooltip = {
+	borderRadius: '4px',
+	borderRadiusSelected: '3px',
+	lineHeight: '1.3',
+	padding: '4px 8px',
+	paddingRight: '8px',
+};
+/**
+ * Function to apply merge revert styles for a theme
+ * @param styles Styles for the merge revert buttons
+ * @param styles.backgroundColor Background color of the revert area
+ * @param styles.borderColor Border color of the revert area
+ * @param styles.buttonColor Color of the revert buttons
+ * @param styles.buttonHoverColor Hover color of the revert buttons
+ */
+function applyMergeRevertStyles(styles) {
+	// Create a stylesheet
+	const styleEl = document.createElement('style');
+	styleEl.id = 'cm-merge-revert-styles';
+	// Define CSS with the theme-specific values
+	styleEl.textContent = `
+    .cm-merge-revert {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 4px;
+      background-color: ${styles.backgroundColor};
+      border-left: 1px solid ${styles.borderColor};
+      border-right: 1px solid ${styles.borderColor};
+      width: 32px;
+    }
+    
+    .cm-merge-revert button {
+      width: 100%;
+      height: auto;
+      background-color: transparent;
+      border: none;
+      color: ${styles.buttonColor};
+      cursor: pointer;
+      margin: 0 auto;
+      font-size: 20px;
+    }
+    
+    .cm-merge-revert button:hover {
+      background-color: ${styles.buttonHoverColor};
+    }
+  `;
+	// Remove any existing merge styles
+	const existingStyle = document.getElementById('cm-merge-revert-styles');
+	if (existingStyle)
+		existingStyle.remove();
+	// Add the new styles
+	document.head.appendChild(styleEl);
+}
+
+/**
+ * Enhanced VSCode Dark theme color definitions
+ * --------------------------------------------
+ * Colors organized by function with visual color blocks
+ */
+// Base colors
+const base00 = '#1e1e1e', // Background
+	base01 = '#252526', // Lighter background (popups, statuslines)
+	base02 = '#2d2d30', // Selection background
+	base03 = '#838383', // Comments, invisibles
+	base04 = '#c6c6c6', // Cursor color
+	base05 = '#d4d4d4', // Default foreground
+	base06 = '#e9e9e9', // Light foreground
+	base07 = '#1c1c1c', // Dark background (gutter)
+	// Accent colors
+	base08 = '#569cd6', // Keywords, storage
+	base09 = '#c586c0', // Control keywords, operators
+	base0A = '#9cdcfe', // Variables, parameters
+	base0B = '#4ec9b0', // Classes, types
+	base0C = '#dcdcaa', // Functions, attributes
+	base0D = '#b5cea8', // Numbers, constants
+	base0E = '#ce9178', // Strings
+	base0F = '#f44747', // Errors, invalid
+	base10 = '#d7ba7d', // Modified elements
+	base11 = '#6a9955'; // Comments
+// UI specific colors
+const invalid = base0F, highlightBackground = '#FFFFFF08', // Line highlight with transparency
+	background = base00, tooltipBackground = base01, selection = '#264F7899', // Selection background with transparency
+	selectionMatch = '#72a1ff59', // Selection match background with transparency
+	cursor = base04, // Cursor color
+	activeBracketBg = '#ffffff15', // Active bracket background with transparency
+	activeBracketBorder = base08, // Active bracket border
+	diagnosticWarning = base10, // Warning color
+	linkColor = '#3794ff', // Link color
+	visitedLinkColor = '#c586c0'; // Visited link color
+// Diff/merge specific colors
+const addedBackground = '#1e3f1e80', // Dark green with transparency for insertions
+	removedBackground = '#4b1c1c80', // Dark red with transparency for deletions
+	addedText = '#6cc26f', // VS Code green for added text
+	removedText = '#f14c4c'; // VS Code red for removed text
+/**
+ * Enhanced editor theme styles for VSCode Dark
+ */
+const vsCodeDarkTheme = /*@__PURE__*/EditorView.theme({
+	// Base editor styles
+	'&': {
+		color: base05,
+		backgroundColor: background,
+		fontSize: generalContent.fontSize,
+		fontFamily: generalContent.fontFamily,
+	},
+	// Content and cursor
+	'.cm-content': {
+		caretColor: cursor,
+		lineHeight: generalContent.lineHeight,
+	},
+	'.cm-cursor, .cm-dropCursor': {
+		borderLeftColor: cursor,
+		borderLeftWidth: generalCursor.borderLeftWidth,
+	},
+	'.cm-fat-cursor': {
+		backgroundColor: `${cursor}99`,
+		color: background,
+	},
+	// Selection
+	'&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
+		backgroundColor: selection,
+	},
+	// Make sure selection appears above active line
+	'.cm-selectionLayer': {
+		zIndex: 100,
+	},
+	// Search functionality
+	'.cm-searchMatch': {
+		backgroundColor: '#72a1ff40',
+		outline: `1px solid ${base08}90`,
+		color: base06,
+		borderRadius: generalSearchField.borderRadius,
+	},
+	'.cm-searchMatch.cm-searchMatch-selected': {
+		backgroundColor: '#3794ff90',
+		color: base06,
+		padding: generalSearchField.padding,
+		'& span': {
+			color: base06,
+		},
+	},
+	'.cm-search.cm-panel.cm-textfield': {
+		color: base05,
+		borderRadius: generalSearchField.borderRadius,
+		padding: generalSearchField.padding,
+	},
+	// Panels
+	'.cm-panels': {
+		backgroundColor: base01,
+		color: base05,
+		borderRadius: '3px',
+		boxShadow: '0 2px 6px rgba(0, 0, 0, 0.45)',
+	},
+	'.cm-panels.cm-panels-top': {
+		borderBottom: `1px solid ${base02}`,
+	},
+	'.cm-panels.cm-panels-bottom': {
+		borderTop: `1px solid ${base02}`,
+	},
+	'.cm-panel button': {
+		backgroundColor: base02,
+		color: base05,
+		border: `1px solid ${base02}`,
+		borderRadius: generalPanel.borderRadius,
+		padding: generalPanel.padding,
+	},
+	'.cm-panel button:hover': {
+		backgroundColor: '#3a3a3a',
+		border: `1px solid ${base03}80`,
+	},
+	// Line highlighting
+	'.cm-activeLine': {
+		backgroundColor: highlightBackground,
+		borderRadius: generalLine.borderRadius,
+		zIndex: 1,
+	},
+	// Gutters
+	'.cm-gutters': {
+		backgroundColor: base07,
+		color: base03,
+		border: 'none',
+		// borderRight: `1px solid ${base02}`,
+		borderRight: `1px solid #222`,
+		paddingRight: generalGutter.paddingRight,
+	},
+	'.cm-activeLineGutter': {
+		backgroundColor: highlightBackground,
+		color: base06,
+		fontWeight: generalGutter.fontWeight,
+	},
+	'.cm-lineNumbers': {
+		fontSize: generalGutter.fontSize,
+	},
+	'.cm-foldGutter': {
+		fontSize: generalGutter.fontSize,
+	},
+	'.cm-foldGutter .cm-gutterElement': {
+		color: base03,
+		cursor: 'pointer',
+	},
+	'.cm-foldGutter .cm-gutterElement:hover': {
+		color: base06,
+	},
+	// Diff/Merge View Styles
+	// Inserted/Added Content
+	'.cm-insertedLine': {
+		textDecoration: generalDiff.insertedTextDecoration,
+		backgroundColor: addedBackground,
+		color: addedText,
+		padding: generalDiff.insertedLinePadding,
+		borderRadius: generalDiff.borderRadious,
+	},
+	'ins.cm-insertedLine, ins.cm-insertedLine:not(:has(.cm-changedText))': {
+		textDecoration: generalDiff.insertedTextDecoration,
+		backgroundColor: `${addedBackground} !important`,
+		color: addedText,
+		padding: generalDiff.insertedLinePadding,
+		borderRadius: generalDiff.borderRadious,
+		border: `1px solid ${addedText}40`,
+	},
+	'ins.cm-insertedLine .cm-changedText': {
+		background: 'transparent !important',
+	},
+	// Deleted/Removed Content
+	'.cm-deletedLine': {
+		textDecoration: generalDiff.deletedTextDecoration,
+		backgroundColor: removedBackground,
+		color: removedText,
+		padding: generalDiff.insertedLinePadding,
+		borderRadius: generalDiff.borderRadious,
+	},
+	'del.cm-deletedLine, del, del:not(:has(.cm-deletedText))': {
+		textDecoration: generalDiff.deletedTextDecoration,
+		backgroundColor: `${removedBackground} !important`,
+		color: removedText,
+		padding: generalDiff.insertedLinePadding,
+		borderRadius: generalDiff.borderRadious,
+		border: `1px solid ${removedText}40`,
+	},
+	'del .cm-deletedText, del .cm-changedText': {
+		background: 'transparent !important',
+	},
+	// Tooltips and autocomplete
+	'.cm-tooltip': {
+		backgroundColor: tooltipBackground,
+		border: `1px solid ${base02}`,
+		borderRadius: generalTooltip.borderRadius,
+		padding: generalTooltip.padding,
+		boxShadow: '0 3px 8px rgba(0, 0, 0, 0.3)',
+	},
+	'.cm-tooltip-autocomplete': {
+		'& > ul': {
+			backgroundColor: tooltipBackground,
+			border: 'none',
+			maxHeight: '300px',
+		},
+		'& > ul > li': {
+			padding: generalTooltip.padding,
+			lineHeight: generalTooltip.lineHeight,
+		},
+		'& > ul > li[aria-selected]': {
+			backgroundColor: '#04395e',
+			color: base06,
+			borderRadius: generalTooltip.borderRadiusSelected,
+		},
+		'& > ul > li > span.cm-completionIcon': {
+			color: base03,
+			paddingRight: generalTooltip.paddingRight,
+		},
+		'& > ul > li > span.cm-completionDetail': {
+			color: base03,
+			fontStyle: 'italic',
+		},
+	},
+	'.cm-tooltip .cm-tooltip-arrow:before': {
+		borderTopColor: 'transparent',
+		borderBottomColor: 'transparent',
+	},
+	'.cm-tooltip .cm-tooltip-arrow:after': {
+		borderTopColor: tooltipBackground,
+		borderBottomColor: tooltipBackground,
+	},
+	// Diagnostics styling
+	'.cm-diagnostic': {
+		'&-error': {
+			borderLeft: `3px solid ${invalid}`,
+		},
+		'&-warning': {
+			borderLeft: `3px solid ${diagnosticWarning}`,
+		},
+		'&-info': {
+			borderLeft: `3px solid ${linkColor}`,
+		},
+	},
+	'.cm-lintPoint-error': {
+		borderBottom: `2px wavy ${invalid}`,
+	},
+	'.cm-lintPoint-warning': {
+		borderBottom: `2px wavy ${diagnosticWarning}`,
+	},
+	// Matching brackets
+	'.cm-matchingBracket': {
+		backgroundColor: activeBracketBg,
+		outline: `1px solid ${activeBracketBorder}80`,
+		borderRadius: generalMatching.borderRadius,
+	},
+	'.cm-nonmatchingBracket': {
+		backgroundColor: `${base0F}40`,
+		outline: `1px solid ${invalid}`,
+		borderRadius: generalMatching.borderRadius,
+	},
+	// Selection matches
+	'.cm-selectionMatch': {
+		backgroundColor: selectionMatch,
+		outline: `1px solid ${base02}70`,
+		borderRadius: generalMatching.borderRadius,
+	},
+	// Fold placeholder
+	'.cm-foldPlaceholder': {
+		backgroundColor: tooltipBackground,
+		color: base03,
+		border: `1px dotted ${base03}70`,
+		borderRadius: generalPlaceholder.borderRadius,
+		padding: generalPlaceholder.padding,
+		margin: generalPlaceholder.margin,
+	},
+	// Focus outline
+	'&.cm-focused': {
+		outline: 'none',
+		// boxShadow: `0 0 0 1px ${base02}`,
+	},
+	// Scrollbars
+	'& .cm-scroller::-webkit-scrollbar': {
+		width: generalScroller.width,
+		height: generalScroller.height,
+	},
+	'& .cm-scroller::-webkit-scrollbar-track': {
+		background: background,
+	},
+	'& .cm-scroller::-webkit-scrollbar-thumb': {
+		backgroundColor: '#424242',
+		borderRadius: generalScroller.borderRadius,
+		border: `3px solid ${background}`,
+	},
+	'& .cm-scroller::-webkit-scrollbar-thumb:hover': {
+		backgroundColor: '#525252',
+	},
+	// Ghost text
+	'.cm-ghostText': {
+		opacity: '0.5',
+		color: base03,
+	},
+}, { dark: true });
+/**
+ * Enhanced syntax highlighting for VSCode Dark theme
+ */
+const vsCodeDarkHighlightStyle = /*@__PURE__*/HighlightStyle.define([
+	// Keywords and control flow
+	{ tag: tags.keyword, color: base08, fontWeight: 'bold' },
+	{ tag: tags.controlKeyword, color: base09, fontWeight: 'bold' },
+	{ tag: tags.moduleKeyword, color: base08, fontWeight: 'bold' },
+	// Names and variables
+	{ tag: [tags.name, tags.deleted, tags.character, tags.macroName], color: base05 },
+	{ tag: [tags.variableName], color: base0A },
+	{ tag: [tags.propertyName], color: base0A, fontStyle: 'normal' },
+	// Classes and types
+	{ tag: [tags.typeName], color: base0B },
+	{ tag: [tags.className], color: base0B, fontStyle: 'normal' },
+	{ tag: [tags.namespace], color: base05, fontStyle: 'normal' },
+	// Operators and punctuation
+	{ tag: [tags.operator, tags.operatorKeyword], color: base05 },
+	{ tag: [tags.bracket], color: base05 },
+	{ tag: [tags.brace], color: base05 },
+	{ tag: [tags.punctuation], color: base05 },
+	// Functions and parameters
+	{ tag: [/*@__PURE__*/tags.function(tags.variableName)], color: base0C },
+	{ tag: [tags.labelName], color: base0C, fontStyle: 'normal' },
+	{ tag: [/*@__PURE__*/tags.definition(/*@__PURE__*/tags.function(tags.variableName))], color: base0C },
+	{ tag: [/*@__PURE__*/tags.definition(tags.variableName)], color: base0A },
+	// Constants and literals
+	{ tag: tags.number, color: base0D },
+	{ tag: tags.changed, color: base10 },
+	{ tag: tags.annotation, color: base10, fontStyle: 'italic' },
+	{ tag: tags.modifier, color: base08, fontStyle: 'normal' },
+	{ tag: tags.self, color: base08 },
+	{
+		tag: [tags.color, /*@__PURE__*/tags.constant(tags.name), /*@__PURE__*/tags.standard(tags.name)],
+		color: base0A,
+	},
+	{ tag: [tags.atom, tags.bool, /*@__PURE__*/tags.special(tags.variableName)], color: base08 },
+	// Strings and regex
+	{ tag: [tags.processingInstruction, tags.inserted], color: base0E },
+	{ tag: [/*@__PURE__*/tags.special(tags.string), tags.regexp], color: '#d16969' },
+	{ tag: tags.string, color: base0E },
+	// Punctuation and structure
+	{ tag: /*@__PURE__*/tags.definition(tags.typeName), color: base0B, fontWeight: 'bold' },
+	{ tag: [/*@__PURE__*/tags.definition(tags.name), tags.separator], color: base05 },
+	// Comments and documentation
+	{ tag: tags.meta, color: base03 },
+	{ tag: tags.comment, fontStyle: 'italic', color: base11 },
+	{ tag: tags.docComment, fontStyle: 'italic', color: base11 },
+	// HTML/XML elements
+	{ tag: [tags.tagName], color: base08 },
+	{ tag: [tags.attributeName], color: base0A },
+	// Markdown and text formatting
+	{ tag: [tags.heading], fontWeight: 'bold', color: base08 },
+	{ tag: tags.heading1, color: base08, fontWeight: 'bold' },
+	{ tag: tags.heading2, color: base08 },
+	{ tag: tags.heading3, color: base08 },
+	{ tag: tags.heading4, color: base08 },
+	{ tag: tags.heading5, color: base08 },
+	{ tag: tags.heading6, color: base08 },
+	{ tag: [tags.strong], fontWeight: 'bold', color: base08 },
+	{ tag: [tags.emphasis], fontStyle: 'italic', color: base0B },
+	// Links and URLs
+	{
+		tag: [tags.link],
+		color: visitedLinkColor,
+		textDecoration: 'underline',
+		textUnderlinePosition: 'under',
+	},
+	{
+		tag: [tags.url],
+		color: linkColor,
+		textDecoration: 'underline',
+		textUnderlineOffset: '2px',
+	},
+	// Special states
+	{
+		tag: [tags.invalid],
+		color: base05,
+		textDecoration: 'underline wavy',
+		borderBottom: `1px wavy ${invalid}`,
+	},
+	{ tag: [tags.strikethrough], color: invalid, textDecoration: 'line-through' },
+	// Enhanced syntax highlighting
+	{ tag: /*@__PURE__*/tags.constant(tags.name), color: base0A },
+	{ tag: tags.deleted, color: invalid },
+	{ tag: tags.squareBracket, color: base05 },
+	{ tag: tags.angleBracket, color: base05 },
+	// Additional specific styles
+	{ tag: tags.monospace, color: base05 },
+	{ tag: [tags.contentSeparator], color: base05 },
+	{ tag: tags.quote, color: base11 },
+]);
+/**
+ * Combined VSCode Dark theme extension
+ */
+const vsCodeDark = [
+	vsCodeDarkTheme,
+    /*@__PURE__*/syntaxHighlighting(vsCodeDarkHighlightStyle),
+];
+/**
+ * VS Code Dark merge revert styles configuration
+ */
+const vsCodeDarkMergeStyles = {
+	backgroundColor: tooltipBackground,
+	borderColor: base02,
+	buttonColor: base05,
+	buttonHoverColor: '#3a3a3a',
+};
+
+export { applyMergeRevertStyles, vsCodeDark, vsCodeDarkMergeStyles };
+
+// Copied from https://github.com/fsegurai/codemirror-themes under the MIT License
+
+// MIT License
+
+// Copyright (c) 2025 fsegurai
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
 === 19663 src/lib/builder/components/ComponentPreview.svelte	svelte	runes	runes
 <script module>
 	import { writable } from 'svelte/store'
@@ -9864,6 +10641,115 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 	}
 </style>
 
+=== 463 src/lib/builder/rich-text/extensions.ts	ts	module	-
+import StarterKit from '@tiptap/starter-kit'
+import Typography from '@tiptap/extension-typography'
+import Image from '@tiptap/extension-image'
+import Youtube from '@tiptap/extension-youtube'
+import Highlight from '@tiptap/extension-highlight'
+
+export const rich_text_extensions = [
+	StarterKit.configure({
+		link: {
+			openOnClick: false
+		}
+	}),
+	Image,
+	Youtube.configure({
+		modestBranding: true
+	}),
+	Typography,
+	Highlight.configure({ multicolor: false })
+]
+
+=== 1796 src/lib/builder/stores/app/misc.ts	ts	module	-
+import { self } from '$lib/pocketbase/managers'
+import { writable } from 'svelte/store'
+
+export const saved = writable(true)
+
+export const mod_key_held = writable(false)
+
+export const loadingSite = writable(false)
+
+export const onMobile = !import.meta.env.SSR ? writable(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) : writable(false)
+
+export const locale = writable('en')
+
+export const highlightedElement = writable(null)
+
+export const page_loaded = writable(false)
+
+export const dragging_symbol = writable(false)
+
+// Last selected Library group (session-only; no persistence)
+export const last_library_group_id = writable<string | null>(null)
+
+// Persist Field|Entry tab selection per-entity (cross-tab, per-user)
+const FIELD_TABS_KEY = 'field-tabs-by-entity:v1'
+function load_field_tabs() {
+	if (import.meta.env.SSR || !self.instance?.authStore.record) return {}
+	try {
+		const key = [FIELD_TABS_KEY, self.instance.authStore.record?.id].join(':')
+		const raw = localStorage.getItem(key)
+		return raw ? JSON.parse(raw) : {}
+	} catch {
+		return {}
+	}
+}
+
+export const field_tabs_by_entity = writable<Record<string, Record<string, 'field' | 'entry'>>>(load_field_tabs())
+
+if (!import.meta.env.SSR) {
+	// Write-through on change
+	field_tabs_by_entity.subscribe((val) => {
+		if (!self.instance?.authStore.record) return
+		try {
+			const key = [FIELD_TABS_KEY, self.instance.authStore.record?.id].join(':')
+			localStorage.setItem(key, JSON.stringify(val))
+		} catch {
+			// ignore quota or serialization errors
+		}
+	})
+
+	// Cross-tab sync
+	window.addEventListener('storage', (e) => {
+		if (e.key === FIELD_TABS_KEY) {
+			try {
+				field_tabs_by_entity.set(e.newValue ? JSON.parse(e.newValue) : {})
+			} catch {
+				// ignore parse errors
+			}
+		}
+	})
+}
+
+=== 216 src/lib/builder/stores/app/page.ts	ts	module	-
+import { writable } from 'svelte/store'
+import type { Writable } from 'svelte/store'
+
+export const site_html: Writable<string | null> = writable(null)
+export const page_html: Writable<string | null> = writable(null)
+
+=== 996 src/lib/builder/stores/context.ts	ts	module	-
+import { Context } from 'runed'
+import type { ObjectOf } from '$lib/pocketbase/CollectionMapping.svelte'
+import type { Sites, Pages, PageTypes } from '$lib/pocketbase/collections'
+
+// Define typed contexts
+export const site_context = new Context<{ value: ObjectOf<typeof Sites> }>('site')
+export const page_context = new Context<{ value: ObjectOf<typeof Pages> }>('page')
+export const page_type_context = new Context<{ value: ObjectOf<typeof PageTypes> }>('page_type')
+
+// Environment and debugging contexts
+export const debugging_context = new Context<boolean>('DEBUGGING')
+export const environment_context = new Context<'DESKTOP' | 'SERVER' | 'TRY'>('ENVIRONMENT')
+
+// Field visibility contexts
+export const hide_dynamic_field_types_context = new Context<boolean>('hide_dynamic_field_types')
+export const hide_page_field_field_type_context = new Context<boolean>('hide_page_field_field_type')
+export const hide_site_field_field_type_context = new Context<boolean>('hide_site_field_field_type')
+
 === 2563 src/lib/builder/ui/Button.svelte	svelte	runes	runes
 <!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot making the component unusable -->
 <script>
@@ -11296,6 +12182,378 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 </script>
 
 {@render children?.({ label, button })}
+
+=== 9409 src/lib/builder/utils.ts	ts	module	-
+import * as _ from 'lodash-es'
+import { customAlphabet } from 'nanoid/non-secure'
+import MarkdownIt from 'markdown-it'
+import hljs from 'highlight.js' // https://highlightjs.org
+import { generateHTML, generateJSON } from '@tiptap/core'
+import { rich_text_extensions } from '$lib/builder/rich-text/extensions'
+
+import { processors } from './component.js'
+
+const utf8_decoder = typeof TextDecoder !== 'undefined' ? new TextDecoder('utf-8') : null
+
+function is_byte_array(value: unknown): value is number[] {
+	return Array.isArray(value) && value.length > 0 && value.every(item => Number.isInteger(item) && item >= 0 && item <= 255)
+}
+
+// Spread-based String.fromCharCode throws RangeError on large arrays and only
+// handles code points, not UTF-8 bytes. TextDecoder handles both safely.
+function decode_bytes(bytes: number[]): string {
+	const buf = Uint8Array.from(bytes)
+	return utf8_decoder ? utf8_decoder.decode(buf) : String.fromCharCode.apply(null, Array.from(buf) as number[])
+}
+
+/**
+ * Normalize entry values that may have been stored incorrectly as byte arrays.
+ * YAML can marshal []byte as integer arrays, which need to be converted back to strings.
+ */
+export function normalize_entry_value(value: unknown): unknown {
+	// Handle byte arrays (YAML sometimes marshals []byte as integer arrays)
+	if (is_byte_array(value)) {
+		const str = decode_bytes(value)
+		// Try to parse as JSON first (might be serialized JSON)
+		try {
+			return JSON.parse(str)
+		} catch {
+			// Not valid JSON, return as string
+			return str
+		}
+	}
+	// Recursively normalize objects
+	if (value && typeof value === 'object' && !Array.isArray(value)) {
+		const normalized: Record<string, unknown> = {}
+		for (const [k, v] of Object.entries(value)) {
+			normalized[k] = normalize_entry_value(v)
+		}
+		return normalized
+	}
+	// Recursively normalize arrays (but not byte arrays, handled above)
+	if (Array.isArray(value)) {
+		return value.map(item => normalize_entry_value(item))
+	}
+	return value
+}
+
+export async function processCode({
+	component,
+	head = { code: '', data: {} },
+	buildStatic = true,
+	format = 'esm',
+	hydrated = true,
+	runtime = []
+}: {
+	component: {
+		head?: string
+		html?: string
+		css?: string
+		js?: string
+		data?: object
+	}
+	head?: { code: string; data: object }
+	buildStatic?: boolean
+	format?: 'esm'
+	hydrated?: boolean
+	runtime?: string[]
+}) {
+	let css = ''
+	if (component.css) {
+		try {
+			css = await processCSS(component.css || '')
+		} catch (error) {
+			return {
+				error: formatCssCompilationError(error)
+			}
+		}
+	}
+
+	const res = await processors.html({
+		component: {
+			...component,
+			css
+		},
+		head,
+		buildStatic,
+		css: 'injected',
+		format,
+		hydrated,
+		runtime
+	})
+	return res
+}
+
+const css_cache = new Map()
+let requesting = new Set()
+
+export class CssCompilationError extends Error {
+	constructor(message, details = {}) {
+		super(message)
+		this.name = 'CssCompilationError'
+		Object.assign(this, details)
+	}
+}
+
+function toCssCompilationError(error) {
+	if (error instanceof CssCompilationError) return error
+
+	const message = typeof error === 'string' ? error : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : 'Unknown CSS compilation error'
+
+	const details = {}
+	if (error && typeof error === 'object') {
+		if ('line' in error && typeof error.line === 'number') {
+			details.line = error.line
+		}
+		if ('column' in error && typeof error.column === 'number') {
+			details.column = error.column
+		}
+		if ('reason' in error && typeof error.reason === 'string') {
+			details.reason = error.reason
+		}
+	}
+
+	return new CssCompilationError(message, details)
+}
+
+export async function processCSS(raw) {
+	if (css_cache.has(raw)) {
+		return css_cache.get(raw)
+	} else if (requesting.has(raw)) {
+		while (requesting.has(raw)) {
+			await new Promise((resolve) => setTimeout(resolve, 25))
+		}
+		if (css_cache.has(raw)) {
+			return css_cache.get(raw)
+		}
+	}
+
+	let res
+	try {
+		requesting.add(raw)
+		res = (await processors.css(raw)) || {}
+	} catch (error) {
+		throw toCssCompilationError(error)
+	} finally {
+		requesting.delete(raw)
+	}
+
+	if (!res) {
+		return ''
+	}
+
+	if (res.error) {
+		throw toCssCompilationError(res.error)
+	}
+
+	if (res.css) {
+		css_cache.set(raw, res.css)
+		return res.css
+	}
+
+	return ''
+}
+
+// Lets us debounce from reactive statements
+export function createDebouncer(time) {
+	return _.debounce((val) => {
+		const [fn, arg] = val
+		fn(arg)
+	}, time)
+}
+
+export function wrapInStyleTags(css, id) {
+	return `<style type="text/css" ${id ? `id = "${id}"` : ''}>${css}</style>`
+}
+
+export function get_empty_value(field) {
+	if (field.type === 'repeater') return null
+	else if (field.type === 'group') return null
+	else if (field.type === 'image')
+		return {
+			url: '',
+			src: '',
+			alt: '',
+			size: null,
+			width: null,
+			height: null
+		}
+	else if (field.type === 'text') return ''
+	else if (field.type === 'markdown') return ''
+	else if (field.type === 'rich-text')
+		return {
+			type: 'doc',
+			content: [{ type: 'paragraph' }]
+		}
+	else if (field.type === 'link')
+		return {
+			label: '',
+			text: '',
+			url: ''
+		}
+	else if (field.type === 'url') return ''
+	else if (field.type === 'select') return ''
+	else if (field.type === 'switch') return true
+	else if (field.type === 'number') return 0
+	else if (field.type === 'page-field') return null
+	else if (field.type === 'site-field') return null
+	else if (field.type === 'page') return null
+	else if (field.type === 'page-list') return []
+	else if (field.type === 'info') return null
+	else if (field.type === 'icon') return ''
+	else {
+		console.warn('No empty set for field type', field.type)
+		return ''
+	}
+}
+let markdown_renderer
+function get_markdown_renderer() {
+	if (!markdown_renderer) {
+		markdown_renderer = new MarkdownIt({
+			html: true,
+			linkify: true,
+			typographer: true,
+			highlight: function (str, lang) {
+				if (lang && hljs.getLanguage(lang)) {
+					try {
+						return '<pre><code class="hljs">' + hljs.highlight(str, { language: lang, ignoreIllegals: true }).value + '</code></pre>'
+					} catch (__) { }
+				}
+
+				return '<pre><code class="hljs">' + markdown_renderer.utils.escapeHtml(str) + '</code></pre>'
+			}
+		})
+	}
+	return markdown_renderer
+}
+
+const markdown_cache = new Map()
+export function convert_markdown_to_html(markdown = '') {
+	if (markdown_cache.has(markdown)) return markdown_cache.get(markdown)
+	try {
+		const html = get_markdown_renderer().render(markdown)
+		markdown_cache.set(markdown, html)
+		return html
+	} catch (error) {
+		console.error('Failed to convert markdown to html', error)
+		return ''
+	}
+}
+
+const rich_text_cache = new Map()
+export function convert_rich_text_to_html(tiptap_obj) {
+	if (rich_text_cache.has(tiptap_obj)) return rich_text_cache.get(tiptap_obj)
+	try {
+		// Check if tiptap_obj is a string instead of a proper TipTap object
+		let processed_obj = tiptap_obj
+
+		// Handle byte arrays (YAML sometimes marshals []byte as integer arrays)
+		if (is_byte_array(tiptap_obj)) {
+			const str = decode_bytes(tiptap_obj)
+			// Try to parse as JSON first (it might be a JSON string of TipTap content)
+			try {
+				processed_obj = JSON.parse(str)
+			} catch {
+				// Not valid JSON, treat as markdown
+				const html = convert_markdown_to_html(str)
+				processed_obj = generateJSON(html, rich_text_extensions)
+			}
+		} else if (typeof tiptap_obj === 'string') {
+			// Assume it's markdown and convert to HTML first, then to TipTap JSON
+			const html = convert_markdown_to_html(tiptap_obj)
+			processed_obj = generateJSON(html, rich_text_extensions)
+		}
+
+		const html = generateHTML(processed_obj, rich_text_extensions)
+		rich_text_cache.set(tiptap_obj, html)
+		return html
+	} catch (error) {
+		console.error('Failed to render rich text content', { error, tiptap_obj })
+		return ''
+	}
+}
+
+export function is_regex(str) {
+	return /^\/.*\/$/.test(str)
+}
+
+export function createUniqueID(length = 5) {
+	const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', length)
+	return nanoid()
+}
+
+export function compare_urls(url1, url2) {
+	// Function to decode and normalize a URL
+	function normalize_url(url) {
+		// Decode the URL
+		let decoded = decodeURIComponent(url)
+		// Trim whitespace
+		decoded = decoded.trim()
+		// Remove any surrounding quotes
+		decoded = decoded.replace(/^["']|["']$/g, '')
+		// Normalize spaces in the path
+		return decoded.replace(/ /g, '%20')
+	}
+
+	const normalizedURL1 = normalize_url(url1)
+	const normalizedURL2 = normalize_url(url2)
+
+	// Compare the normalized URLs
+	return normalizedURL1 === normalizedURL2
+}
+
+export function debounce({ instant, delay }, wait = 200) {
+	let timeout
+	return (...args) => {
+		instant(...args)
+		clearTimeout(timeout)
+		timeout = setTimeout(() => delay(...args), wait)
+	}
+}
+
+function formatCssCompilationError(error) {
+	const baseMessage =
+		typeof error === 'string' ? error : error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' ? error.message : 'Unknown CSS compilation error'
+
+	if (!error || typeof error !== 'object') {
+		return `CSS Error: ${baseMessage}`
+	}
+
+	const positions = []
+	if ('line' in error && typeof error.line === 'number') {
+		positions.push(`line ${error.line}`)
+	}
+	if ('column' in error && typeof error.column === 'number') {
+		positions.push(`column ${error.column}`)
+	}
+
+	const suffix = positions.length ? ` (${positions.join(', ')})` : ''
+
+	return `CSS Error: ${baseMessage}${suffix}`
+}
+
+=== 520 src/lib/builder/utils/popper-fix.ts	ts	module	-
+export const offsetByFixedParents = {
+	name: 'offsetByFixedParents',
+	enabled: true,
+	phase: 'read',
+	fn: ({ state }) => {
+		if (state.options.strategy !== 'fixed') {
+			return
+		}
+
+		let el = state.elements.reference
+		while (el.parentElement) {
+			if (getComputedStyle(el.parentElement).position === 'fixed') {
+				const rect = el.parentElement.getBoundingClientRect()
+				state.modifiersData.popperOffsets.x -= rect.x
+				state.modifiersData.popperOffsets.y -= rect.y
+			}
+
+			el = el.parentElement
+		}
+	}
+} as const
 
 === 4153 src/lib/builder/views/editor/Layout/BlockToolbar-simple.svelte	svelte	runes	runes
 <script>
@@ -19693,6 +20951,1053 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 	}
 </style>
 
+=== 766 src/lib/common/baseline-css.ts	ts	module	-
+export const PRIMO_BASELINE_CSS = `
+  :root {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  p,
+  figure,
+  blockquote,
+  dl,
+  dd {
+    margin: 0;
+  }
+
+  ul,
+  ol {
+    margin: 0;
+    padding: 0;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  input,
+  button,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  a {
+    color: inherit;
+  }
+`
+
+=== 419 src/lib/common/constants.ts	ts	module	-
+export const locales = [
+	'af',
+	'ar',
+	'be',
+	'bg',
+	'bs',
+	'ca',
+	'cs',
+	'cy',
+	'da',
+	'de',
+	'el',
+	'en',
+	'fa',
+	'fi',
+	'fr',
+	'he',
+	'hi',
+	'hu',
+	'hy-am',
+	'id',
+	'is',
+	'it',
+	'ja',
+	'ka',
+	'kk',
+	'km',
+	'ko',
+	'lo',
+	'lt',
+	'lv',
+	'mk',
+	'mn',
+	'ms',
+	'my',
+	'ne',
+	'nl',
+	'pl',
+	'pt',
+	'ro',
+	'ru',
+	'sk',
+	'sl',
+	'sq',
+	'sv',
+	'th',
+	'tl-ph',
+	'tr',
+	'uk',
+	'ur',
+	'uz',
+	'vi',
+	'zh',
+	'es',
+	'et'
+] as const
+
+=== 53 src/lib/common/index.ts	ts	module	-
+export * from './models'
+export * from './constants'
+
+=== 294 src/lib/common/models/Collaborator.ts	ts	module	-
+import { z } from 'zod'
+
+export const Collaborator = z.object({
+	id: z.string(),
+	email: z.string().nonempty(),
+	serverRole: z.enum(['editor', 'developer', '']).optional(),
+	name: z.string().optional(),
+	avatar: z.string().optional()
+})
+
+export type Collaborator = z.infer<typeof Collaborator>
+
+=== 200 src/lib/common/models/Condition.ts	ts	module	-
+import { z } from 'zod'
+
+export const Condition = z.object({
+  field: z.string().nullable(),
+  comparison: z.enum(['=', '!=']),
+  value: z.any()
+})
+
+export type Condition = z.infer<typeof Condition>
+
+
+=== 342 src/lib/common/models/Entry.ts	ts	module	-
+import { z } from 'zod'
+import { locales } from '../constants'
+
+export const Entry = z.object({
+	id: z.string().nonempty(),
+	locale: z.enum(locales).or(z.string()).catch('en'),
+	value: z.any(),
+	field: z.string().nonempty(),
+	parent: z.string().optional(),
+	index: z.number().int().nonnegative()
+})
+
+export type Entry = z.infer<typeof Entry>
+
+=== 1348 src/lib/common/models/Field.ts	ts	module	-
+import { z } from 'zod'
+import { RepeaterField } from './fields/RepeaterField'
+import { GroupField } from './fields/GroupField'
+import { TextField } from './fields/TextField'
+import { MarkdownField } from './fields/MarkdownField'
+import { RichTextField } from './fields/RichTextField'
+import { LinkField } from './fields/LinkField'
+import { ImageField } from './fields/ImageField'
+import { IconField } from './fields/IconField'
+import { NumberField } from './fields/NumberField'
+import { DateField } from './fields/DateField'
+import { UrlField } from './fields/UrlField'
+import { PageFieldField } from './fields/PageFieldField'
+import { SiteFieldField } from './fields/SiteFieldField'
+import { PageField } from './fields/PageField'
+import { PageListField } from './fields/PageListField'
+import { SliderField } from './fields/SliderField'
+import { SwitchField } from './fields/SwitchField'
+import { SelectField } from './fields/SelectField'
+import { InfoField } from './fields/InfoField'
+
+export const Field = z.discriminatedUnion('type', [
+	RepeaterField,
+	GroupField,
+	TextField,
+	MarkdownField,
+	RichTextField,
+	LinkField,
+	ImageField,
+	IconField,
+	NumberField,
+	DateField,
+	UrlField,
+	PageFieldField,
+	SiteFieldField,
+	PageField,
+	PageListField,
+	SliderField,
+	SwitchField,
+	SelectField,
+	InfoField
+])
+
+export type Field = z.infer<typeof Field>
+
+=== 333 src/lib/common/models/FieldBase.ts	ts	module	-
+import { z } from 'zod'
+
+export const FieldBase = z.object({
+	id: z.string().nonempty(),
+	key: z.string().optional(),
+	label: z.string().optional(),
+	type: z.string().nonempty(),
+	config: z.any().nullable(),
+	parent: z.string().optional(),
+	index: z.number().int().nonnegative()
+})
+
+export type FieldBase = z.infer<typeof FieldBase>
+
+=== 196 src/lib/common/models/LibrarySymbol.ts	ts	module	-
+import { z } from 'zod'
+import { Symbol } from './Symbol'
+
+export const LibrarySymbol = Symbol.extend({
+	group: z.string().nonempty()
+})
+
+export type LibrarySymbol = z.infer<typeof LibrarySymbol>
+
+=== 166 src/lib/common/models/LibrarySymbolEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const LibrarySymbolEntry = Entry
+
+export type LibrarySymbolEntry = z.infer<typeof LibrarySymbolEntry>
+
+=== 221 src/lib/common/models/LibrarySymbolField.ts	ts	module	-
+import { z } from 'zod'
+import { Field } from './Field'
+
+export const LibrarySymbolField = Field.and(
+	z.object({
+		symbol: z.string().nonempty()
+	})
+)
+
+export type LibrarySymbolField = z.infer<typeof LibrarySymbolField>
+
+=== 239 src/lib/common/models/LibrarySymbolGroup.ts	ts	module	-
+import { z } from 'zod'
+
+export const LibrarySymbolGroup = z.object({
+	id: z.string().nonempty(),
+	name: z.string().nonempty(),
+	index: z.number().int().nonnegative()
+})
+
+export type LibrarySymbolGroup = z.infer<typeof LibrarySymbolGroup>
+
+=== 154 src/lib/common/models/LibraryUpload.ts	ts	module	-
+import { z } from 'zod'
+import { Upload } from './Upload'
+
+export const LibraryUpload = Upload
+
+export type LibraryUpload = z.infer<typeof LibraryUpload>
+
+=== 354 src/lib/common/models/Page.ts	ts	module	-
+import { z } from 'zod'
+
+export const Page = z.object({
+	id: z.string().nonempty(),
+	name: z.string().nonempty(),
+	slug: z.string(),
+	compiled_html: z.string().or(z.file()).optional(),
+	page_type: z.string().nonempty(),
+	parent: z.string(),
+	site: z.string().nonempty(),
+	index: z.number().int().nonnegative()
+})
+
+export type Page = z.infer<typeof Page>
+
+=== 180 src/lib/common/models/PageEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const PageEntry = Entry.extend({
+	page: z.string().nonempty()
+})
+
+export type PageEntry = z.infer<typeof PageEntry>
+
+=== 250 src/lib/common/models/PageSection.ts	ts	module	-
+import { z } from 'zod'
+
+export const PageSection = z.object({
+	id: z.string().nonempty(),
+	page: z.string().nonempty(),
+	symbol: z.string().nonempty(),
+	index: z.number().int().nonnegative()
+})
+
+export type PageSection = z.infer<typeof PageSection>
+
+=== 204 src/lib/common/models/PageSectionEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const PageSectionEntry = Entry.extend({
+	section: z.string().nonempty()
+})
+
+export type PageSectionEntry = z.infer<typeof PageSectionEntry>
+
+=== 276 src/lib/common/models/PageType.ts	ts	module	-
+import { z } from 'zod'
+
+export const PageType = z.object({
+	id: z.string().nonempty(),
+	name: z.string().nonempty(),
+	head: z.string(),
+	foot: z.string(),
+	color: z.string(),
+	icon: z.string(),
+	site: z.string().nonempty()
+})
+
+export type PageType = z.infer<typeof PageType>
+
+=== 151 src/lib/common/models/PageTypeEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const PageTypeEntry = Entry
+
+export type PageTypeEntry = z.infer<typeof PageTypeEntry>
+
+=== 209 src/lib/common/models/PageTypeField.ts	ts	module	-
+import { z } from 'zod'
+import { Field } from './Field'
+
+export const PageTypeField = Field.and(
+	z.object({
+		page_type: z.string().nonempty()
+	})
+)
+
+export type PageTypeField = z.infer<typeof PageTypeField>
+
+=== 312 src/lib/common/models/PageTypeSection.ts	ts	module	-
+import { z } from 'zod'
+
+export const PageTypeSection = z.object({
+	id: z.string().nonempty(),
+	page_type: z.string().nonempty(),
+	symbol: z.string().nonempty(),
+	index: z.number().int().nonnegative(),
+	zone: z.enum(['header', 'body', 'footer'])
+})
+
+export type PageTypeSection = z.infer<typeof PageTypeSection>
+
+=== 216 src/lib/common/models/PageTypeSectionEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const PageTypeSectionEntry = Entry.extend({
+	section: z.string().nonempty()
+})
+
+export type PageTypeSectionEntry = z.infer<typeof PageTypeSectionEntry>
+
+=== 224 src/lib/common/models/PageTypeSymbol.ts	ts	module	-
+import { z } from 'zod'
+
+export const PageTypeSymbol = z.object({
+	id: z.string().nonempty(),
+	page_type: z.string().nonempty(),
+	symbol: z.string().nonempty()
+})
+
+export type PageTypeSymbol = z.infer<typeof PageTypeSymbol>
+
+=== 827 src/lib/common/models/Site.ts	ts	module	-
+import { z } from 'zod'
+
+export const Site = z.object({
+	id: z.string().nonempty(),
+	name: z.string().nonempty(),
+	description: z.string(),
+	host: z.string().nonempty(),
+	group: z.string().nonempty(),
+	head: z.string(),
+	foot: z.string(),
+	preview: z.string().or(z.file()).optional(),
+	index: z.number().int().nonnegative(),
+	// Custom-domain connection state (see internal/domain_provider.go). Optional
+	// so older records / non-hosted instances validate without them.
+	// domain_dns_records is a JSON column: PocketBase returns it parsed (array),
+	// so it's typed loosely like other JSON fields (config, entry value).
+	domain_status: z.string().optional(),
+	domain_dns_records: z.any().optional(),
+	domain_provider_id: z.string().optional(),
+	domain_error: z.string().optional()
+})
+
+export type Site = z.infer<typeof Site>
+
+=== 139 src/lib/common/models/SiteEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const SiteEntry = Entry
+
+export type SiteEntry = z.infer<typeof SiteEntry>
+
+=== 192 src/lib/common/models/SiteField.ts	ts	module	-
+import { z } from 'zod'
+import { Field } from './Field'
+
+export const SiteField = Field.and(
+	z.object({
+		site: z.string().nonempty()
+	})
+)
+
+export type SiteField = z.infer<typeof SiteField>
+
+=== 212 src/lib/common/models/SiteGroup.ts	ts	module	-
+import { z } from 'zod'
+
+export const SiteGroup = z.object({
+	id: z.string().nonempty(),
+	name: z.string().nonempty(),
+	index: z.number().int().nonnegative()
+})
+
+export type SiteGroup = z.infer<typeof SiteGroup>
+
+=== 258 src/lib/common/models/SiteRoleAssignment.ts	ts	module	-
+import { z } from 'zod'
+
+export const SiteRoleAssignment = z.object({
+	id: z.string(),
+	site: z.string().nonempty(),
+	user: z.string().nonempty(),
+	role: z.enum(['editor', 'developer'])
+})
+
+export type SiteRoleAssignment = z.infer<typeof SiteRoleAssignment>
+
+=== 213 src/lib/common/models/SiteSnapshot.ts	ts	module	-
+import { z } from 'zod'
+
+export const SiteSnapshot = z.object({
+	id: z.string().nonempty(),
+	site: z.string().nonempty(),
+	file: z.string().or(z.file())
+})
+
+export type SiteSnapshot = z.infer<typeof SiteSnapshot>
+
+=== 236 src/lib/common/models/SiteSymbol.ts	ts	module	-
+import { z } from 'zod'
+import { Symbol } from './Symbol'
+
+export const SiteSymbol = Symbol.extend({
+	site: z.string().nonempty(),
+	compiled_js: z.string().or(z.file()).optional()
+})
+
+export type SiteSymbol = z.infer<typeof SiteSymbol>
+
+=== 157 src/lib/common/models/SiteSymbolEntry.ts	ts	module	-
+import { z } from 'zod'
+import { Entry } from './Entry'
+
+export const SiteSymbolEntry = Entry
+
+export type SiteSymbolEntry = z.infer<typeof SiteSymbolEntry>
+
+=== 212 src/lib/common/models/SiteSymbolField.ts	ts	module	-
+import { z } from 'zod'
+import { Field } from './Field'
+
+export const SiteSymbolField = Field.and(
+	z.object({
+		symbol: z.string().nonempty()
+	})
+)
+
+export type SiteSymbolField = z.infer<typeof SiteSymbolField>
+
+=== 186 src/lib/common/models/SiteUpload.ts	ts	module	-
+import { z } from 'zod'
+import { Upload } from './Upload'
+
+export const SiteUpload = Upload.extend({
+	site: z.string().nonempty()
+})
+
+export type SiteUpload = z.infer<typeof SiteUpload>
+
+=== 4830 src/lib/common/models/Snapshot.ts	ts	module	-
+import { z } from 'zod'
+import { Site } from './Site'
+import { SiteUpload } from './SiteUpload'
+import { SiteField } from './SiteField'
+import { SiteEntry } from './SiteEntry'
+import { SiteSymbol } from './SiteSymbol'
+import { SiteSymbolField } from './SiteSymbolField'
+import { SiteSymbolEntry } from './SiteSymbolEntry'
+import { PageType } from './PageType'
+import { PageTypeField } from './PageTypeField'
+import { PageTypeEntry } from './PageTypeEntry'
+import { PageTypeSymbol } from './PageTypeSymbol'
+import { PageTypeSectionEntry } from './PageTypeSectionEntry'
+import { Page } from './Page'
+import { PageEntry } from './PageEntry'
+import { PageSection } from './PageSection'
+import { PageSectionEntry } from './PageSectionEntry'
+import { PageTypeSection } from './PageTypeSection'
+
+type FileEntry = {
+	name: string
+	size: number
+}
+
+/**
+ * File signature for snapshot file. Kept as the legacy "PALACMS:3.0" magic
+ * bytes so existing .pala / .primo files round-trip across the rebrand. The
+ * bytes are an on-disk identifier, not a user-visible brand string.
+ */
+const SIGNATURE = new Uint8Array([0x50, 0x41, 0x4c, 0x41, 0x43, 0x4d, 0x53, 0x3a, 0x33, 0x2e, 0x30])
+const FILE_COLLECTIONS = ['site_uploads']
+
+export const Snapshot = z.codec(
+	z.file(),
+	z.object({
+		metadata: z.object({
+			created_at: z.iso.datetime(),
+			source_instance_id: z.string(),
+			source_instance_version: z.string()
+		}),
+		records: z.object({
+			sites: Site.omit({ preview: true }).array(),
+			site_uploads: SiteUpload.omit({ file: true }).extend({ file: z.file() }).array(),
+			site_fields: SiteField.array(),
+			site_entries: SiteEntry.array(),
+			site_symbols: SiteSymbol.omit({ compiled_js: true }).array(),
+			site_symbol_fields: SiteSymbolField.array(),
+			site_symbol_entries: SiteSymbolEntry.array(),
+			page_types: PageType.array(),
+			page_type_fields: PageTypeField.array(),
+			page_type_entries: PageTypeEntry.array(),
+			page_type_symbols: PageTypeSymbol.array(),
+			page_type_sections: PageTypeSection.array(),
+			page_type_section_entries: PageTypeSectionEntry.array(),
+			pages: Page.omit({ compiled_html: true }).array(),
+			page_entries: PageEntry.array(),
+			page_sections: PageSection.array(),
+			page_section_entries: PageSectionEntry.array()
+		})
+	}),
+	{
+		decode: async (file) => {
+			const buffer = await file.arrayBuffer()
+			let head = 0
+
+			// Check file signature
+			const signature = new Uint8Array(buffer.slice(0, SIGNATURE.byteLength))
+			for (; head < SIGNATURE.length; head++) {
+				if (signature[head] !== SIGNATURE[head]) {
+					throw new Error('Invalid snapshot file signature')
+				}
+			}
+
+			const header_size = 4 * 4
+			const header = new Uint32Array(buffer.slice(head, head + header_size))
+			head += header_size
+
+			const metadata_size = header[0]
+			const metadata = decodeJson(buffer.slice(head, head + metadata_size))
+			head += metadata_size
+
+			const records_size = header[1]
+			const records = decodeJson(buffer.slice(head, head + records_size))
+			head += records_size
+
+			const filemeta_size = header[2]
+			const filemeta = decodeJson(buffer.slice(head, head + filemeta_size)) as FileEntry[]
+			head += filemeta_size
+
+			const files = filemeta.map(({ name, size }) => {
+				const file = new File([buffer.slice(head, head + size)], name)
+				head += size
+				return file
+			})
+			for (const collection of FILE_COLLECTIONS) {
+				for (const record of records[collection]) {
+					record.file = files[record.file]
+				}
+			}
+
+			return { metadata, records, files }
+		},
+		encode: (snapshot) => {
+			const files: File[] = FILE_COLLECTIONS.flatMap((collection) => snapshot.records[collection].map(({ file }) => file))
+			const file_entries: FileEntry[] = files.map(({ name, size }) => ({ name, size }))
+			const filemeta = toJsonBlob(file_entries)
+			const filedata = new Blob(files)
+
+			// Replace file values with index numbers that they appear at in the snapshot file
+			const file_records = Object.fromEntries(
+				FILE_COLLECTIONS.map((collection) => [collection, snapshot.records[collection].map((record: { file: File }) => ({ ...record, file: files.indexOf(record.file) }))])
+			)
+
+			const metadata = toJsonBlob(snapshot.metadata)
+			const records = toJsonBlob({
+				...snapshot.records,
+				...file_records
+			})
+
+			const data_segements = [metadata, records, filemeta, filedata]
+			const header = new Uint32Array(data_segements.map((segment) => segment.size))
+			const data = new Blob(data_segements)
+			const file = new File([SIGNATURE, header, data], 'snapshot.bin')
+			return file
+		}
+	}
+)
+
+const textEncoder = new TextEncoder()
+const textDecoder = new TextDecoder()
+const toJsonBlob = (data: unknown) => new Blob([textEncoder.encode(JSON.stringify(data))])
+const decodeJson = (data: ArrayBufferLike) => JSON.parse(textDecoder.decode(data))
+
+export type Snapshot = z.infer<typeof Snapshot>
+
+=== 217 src/lib/common/models/Symbol.ts	ts	module	-
+import { z } from 'zod'
+
+export const Symbol = z.object({
+	id: z.string().nonempty(),
+	name: z.string().optional(),
+	js: z.string(),
+	css: z.string(),
+	html: z.string()
+})
+
+export type Symbol = z.infer<typeof Symbol>
+
+=== 176 src/lib/common/models/Upload.ts	ts	module	-
+import { z } from 'zod'
+
+export const Upload = z.object({
+	id: z.string().nonempty(),
+	file: z.string().nonempty().or(z.file())
+})
+
+export type Upload = z.infer<typeof Upload>
+
+=== 398 src/lib/common/models/User.ts	ts	module	-
+import { z } from 'zod'
+
+export const User = z.object({
+	id: z.string(),
+	email: z.string().nonempty(),
+	password: z.string().optional(),
+	passwordConfirm: z.string().optional(),
+	serverRole: z.enum(['editor', 'developer', '']).optional(),
+	invite: z.enum(['pending', 'sent', '']).optional(),
+	name: z.string().optional(),
+	avatar: z.string().optional()
+})
+
+export type User = z.infer<typeof User>
+
+=== 394 src/lib/common/models/UserActivity.ts	ts	module	-
+import { z } from 'zod'
+
+export const UserActivity = z.object({
+	id: z.string().nonempty(),
+	user: z.string().nonempty(),
+	site: z.string().nonempty(),
+	page_type: z.string().optional(),
+	page: z.string().optional(),
+	site_symbol: z.string().optional(),
+	page_type_section: z.string().optional(),
+	page_section: z.string().optional()
+})
+
+export type UserActivity = z.infer<typeof UserActivity>
+
+=== 189 src/lib/common/models/fields/DateField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const DateField = FieldBase.extend({
+	type: z.literal('date')
+})
+
+export type DateField = z.infer<typeof DateField>
+
+=== 193 src/lib/common/models/fields/GroupField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const GroupField = FieldBase.extend({
+	type: z.literal('group')
+})
+
+export type GroupField = z.infer<typeof GroupField>
+
+=== 189 src/lib/common/models/fields/IconField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const IconField = FieldBase.extend({
+	type: z.literal('icon')
+})
+
+export type IconField = z.infer<typeof IconField>
+
+=== 432 src/lib/common/models/fields/ImageField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+import { Condition } from '../Condition'
+
+export const ImageField = FieldBase.extend({
+	type: z.literal('image'),
+	config: z
+		.object({
+			maxSizeMB: z.number().positive().optional(),
+			maxWidthOrHeight: z.number().int().positive().optional(),
+			condition: Condition.nullable().optional()
+		})
+		.nullable()
+})
+
+export type ImageField = z.infer<typeof ImageField>
+
+=== 189 src/lib/common/models/fields/InfoField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const InfoField = FieldBase.extend({
+	type: z.literal('info')
+})
+
+export type InfoField = z.infer<typeof InfoField>
+
+=== 189 src/lib/common/models/fields/LinkField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const LinkField = FieldBase.extend({
+	type: z.literal('link')
+})
+
+export type LinkField = z.infer<typeof LinkField>
+
+=== 205 src/lib/common/models/fields/MarkdownField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const MarkdownField = FieldBase.extend({
+	type: z.literal('markdown')
+})
+
+export type MarkdownField = z.infer<typeof MarkdownField>
+
+=== 197 src/lib/common/models/fields/NumberField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const NumberField = FieldBase.extend({
+	type: z.literal('number')
+})
+
+export type NumberField = z.infer<typeof NumberField>
+
+=== 356 src/lib/common/models/fields/PageField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+import { Condition } from '../Condition'
+
+export const PageField = FieldBase.extend({
+	type: z.literal('page'),
+	config: z
+		.object({
+			page_type: z.string().nonempty(),
+			condition: Condition.nullable().optional()
+		})
+		.nullable()
+})
+
+export type PageField = z.infer<typeof PageField>
+
+=== 210 src/lib/common/models/fields/PageFieldField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const PageFieldField = FieldBase.extend({
+	type: z.literal('page-field')
+})
+
+export type PageFieldField = z.infer<typeof PageFieldField>
+
+=== 373 src/lib/common/models/fields/PageListField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+import { Condition } from '../Condition'
+
+export const PageListField = FieldBase.extend({
+	type: z.literal('page-list'),
+	config: z
+		.object({
+			page_type: z.string().nonempty(),
+			condition: Condition.nullable().optional()
+		})
+		.nullable()
+})
+
+export type PageListField = z.infer<typeof PageListField>
+
+=== 205 src/lib/common/models/fields/RepeaterField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const RepeaterField = FieldBase.extend({
+	type: z.literal('repeater')
+})
+
+export type RepeaterField = z.infer<typeof RepeaterField>
+
+=== 206 src/lib/common/models/fields/RichTextField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const RichTextField = FieldBase.extend({
+	type: z.literal('rich-text')
+})
+
+export type RichTextField = z.infer<typeof RichTextField>
+
+=== 457 src/lib/common/models/fields/SelectField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+import { Condition } from '../Condition'
+
+export const SelectField = FieldBase.extend({
+	type: z.literal('select'),
+	config: z
+		.object({
+			options: z
+				.object({
+					value: z.string(),
+					label: z.string(),
+					icon: z.string().optional()
+				})
+				.array(),
+			condition: Condition.nullable().optional()
+		})
+		.nullable()
+})
+
+export type SelectField = z.infer<typeof SelectField>
+
+=== 210 src/lib/common/models/fields/SiteFieldField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const SiteFieldField = FieldBase.extend({
+	type: z.literal('site-field')
+})
+
+export type SiteFieldField = z.infer<typeof SiteFieldField>
+
+=== 197 src/lib/common/models/fields/SliderField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const SliderField = FieldBase.extend({
+	type: z.literal('slider')
+})
+
+export type SliderField = z.infer<typeof SliderField>
+
+=== 197 src/lib/common/models/fields/SwitchField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const SwitchField = FieldBase.extend({
+	type: z.literal('switch')
+})
+
+export type SwitchField = z.infer<typeof SwitchField>
+
+=== 189 src/lib/common/models/fields/TextField.ts	ts	module	-
+import { z } from 'zod'
+import { FieldBase } from '../FieldBase'
+
+export const TextField = FieldBase.extend({
+	type: z.literal('text')
+})
+
+export type TextField = z.infer<typeof TextField>
+
+=== 185 src/lib/common/models/fields/UrlField.ts	ts	module	-
+import { FieldBase } from '../FieldBase'
+import { z } from 'zod'
+
+export const UrlField = FieldBase.extend({
+	type: z.literal('url')
+})
+
+export type UrlField = z.infer<typeof UrlField>
+
+=== 2279 src/lib/common/models/index.ts	ts	module	-
+import { Site } from './Site'
+import { Page } from './Page'
+import { PageSection } from './PageSection'
+import { PageSectionEntry } from './PageSectionEntry'
+import { PageType } from './PageType'
+import { PageTypeSection } from './PageTypeSection'
+import { PageTypeSectionEntry } from './PageTypeSectionEntry'
+import { PageTypeSymbol } from './PageTypeSymbol'
+import { SiteEntry } from './SiteEntry'
+import { SiteField } from './SiteField'
+import { SiteGroup } from './SiteGroup'
+import { SiteSymbol } from './SiteSymbol'
+import { SiteSymbolEntry } from './SiteSymbolEntry'
+import { SiteSymbolField } from './SiteSymbolField'
+import { User } from './User'
+import { LibrarySymbolEntry } from './LibrarySymbolEntry'
+import { LibrarySymbolField } from './LibrarySymbolField'
+import { LibrarySymbolGroup } from './LibrarySymbolGroup'
+import { LibrarySymbol } from './LibrarySymbol'
+import { PageTypeField } from './PageTypeField'
+import { PageTypeEntry } from './PageTypeEntry'
+import { PageEntry } from './PageEntry'
+import { SiteRoleAssignment } from './SiteRoleAssignment'
+import { SiteUpload } from './SiteUpload'
+import { LibraryUpload } from './LibraryUpload'
+import { UserActivity } from './UserActivity'
+import { SiteSnapshot } from './SiteSnapshot'
+
+/**
+ * Model for each collection. Used in a PocketBase hook to validate records.
+ */
+export const models = {
+	users: User,
+	user_activities: UserActivity,
+	library_symbol_entries: LibrarySymbolEntry,
+	library_symbol_fields: LibrarySymbolField,
+	library_symbol_groups: LibrarySymbolGroup,
+	library_symbols: LibrarySymbol,
+	library_upload: LibraryUpload,
+	page_entries: PageEntry,
+	page_section_entries: PageSectionEntry,
+	page_sections: PageSection,
+	page_type_section_entries: PageTypeSectionEntry,
+	page_type_sections: PageTypeSection,
+	page_type_entries: PageTypeEntry,
+	page_type_fields: PageTypeField,
+	page_type_symbols: PageTypeSymbol,
+	page_types: PageType,
+	pages: Page,
+	site_entries: SiteEntry,
+	site_fields: SiteField,
+	site_groups: SiteGroup,
+	site_role_assignments: SiteRoleAssignment,
+	site_symbol_entries: SiteSymbolEntry,
+	site_symbol_fields: SiteSymbolField,
+	site_symbols: SiteSymbol,
+	site_uploads: SiteUpload,
+	site_snapshots: SiteSnapshot,
+	sites: Site
+} satisfies Record<string, import('zod').ZodType>
+
+=== 1994 src/lib/common/upload-references.ts	ts	module	-
+/**
+ * Collect the upload ids a site's content actually references, so the snapshot
+ * builder can pack only those files instead of every upload record for the site
+ * (which includes orphaned and duplicate uploads). See Snapshot.svelte.ts.
+ *
+ * Image-field entries store the reference as `value.upload = <upload_id>`.
+ * Repeater and group children are flat entries with their own value, so a plain
+ * walk over every entry value catches nested images too.
+ *
+ * Note: rich-text / markdown / symbol-CSS images embedded as a raw file URL
+ * (rather than an id) are not traced here. A snapshot missing such a file only
+ * degrades a restored copy of the site, never the published site itself, so the
+ * simpler id-only trace is the intentional trade-off.
+ */
+
+const collect = (value: unknown, ids: Set<string>) => {
+	if (value == null || typeof value !== 'object') return
+	if (Array.isArray(value)) {
+		for (const item of value) collect(item, ids)
+		return
+	}
+	const record = value as Record<string, unknown>
+	if (typeof record.upload === 'string' && record.upload) ids.add(record.upload)
+	for (const key in record) collect(record[key], ids)
+}
+
+/**
+ * `data` is the assembled site data (PageData.svelte.ts). Returns the set of
+ * upload ids referenced by any entry across the site's content.
+ */
+export const collect_referenced_upload_ids = (data: {
+	site_entries?: Array<{ value?: unknown }> | null
+	page_entries?: Array<{ value?: unknown }> | null
+	page_section_entries?: Array<{ value?: unknown }> | null
+	page_type_entries?: Array<{ value?: unknown }> | null
+	page_type_section_entries?: Array<{ value?: unknown }> | null
+	symbol_entries?: Array<{ value?: unknown }> | null
+}): Set<string> => {
+	const ids = new Set<string>()
+	for (const entries of [
+		data.site_entries,
+		data.page_entries,
+		data.page_section_entries,
+		data.page_type_entries,
+		data.page_type_section_entries,
+		data.symbol_entries
+	]) {
+		for (const entry of entries ?? []) collect(entry.value, ids)
+	}
+	return ids
+}
+
 === 8407 src/lib/components/BlockPickerPanel.svelte	svelte	runes	runes
 <script lang="ts">
 	import { tick } from 'svelte'
@@ -22520,6 +24825,48 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 
 <AlertDialogPrimitive.Title bind:ref class={cn('text-lg font-semibold', className)} {level} {...restProps} />
 
+=== 1058 src/lib/components/ui/alert-dialog/index.ts	ts	module	-
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui'
+
+import Title from './alert-dialog-title.svelte'
+import Action from './alert-dialog-action.svelte'
+import Cancel from './alert-dialog-cancel.svelte'
+import Footer from './alert-dialog-footer.svelte'
+import Header from './alert-dialog-header.svelte'
+import Overlay from './alert-dialog-overlay.svelte'
+import Content from './alert-dialog-content.svelte'
+import Description from './alert-dialog-description.svelte'
+
+const Root = AlertDialogPrimitive.Root
+const Trigger = AlertDialogPrimitive.Trigger
+const Portal = AlertDialogPrimitive.Portal
+
+export {
+	Root,
+	Title,
+	Action,
+	Cancel,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	//
+	Root as AlertDialog,
+	Title as AlertDialogTitle,
+	Action as AlertDialogAction,
+	Cancel as AlertDialogCancel,
+	Portal as AlertDialogPortal,
+	Footer as AlertDialogFooter,
+	Header as AlertDialogHeader,
+	Trigger as AlertDialogTrigger,
+	Overlay as AlertDialogOverlay,
+	Content as AlertDialogContent,
+	Description as AlertDialogDescription
+}
+
 === 380 src/lib/components/ui/avatar/avatar-fallback.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Avatar as AvatarPrimitive } from 'bits-ui'
@@ -22549,6 +24896,21 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 </script>
 
 <AvatarPrimitive.Root bind:loadingStatus bind:ref class={cn('relative flex size-10 shrink-0 overflow-hidden rounded-full', className)} {...restProps} />
+
+=== 235 src/lib/components/ui/avatar/index.ts	ts	module	-
+import Root from './avatar.svelte'
+import Image from './avatar-image.svelte'
+import Fallback from './avatar-fallback.svelte'
+
+export {
+	Root,
+	Image,
+	Fallback,
+	//
+	Root as Avatar,
+	Image as AvatarImage,
+	Fallback as AvatarFallback
+}
 
 === 1741 src/lib/components/ui/badge/badge.svelte	svelte	runes	runes
 <script lang="ts" module>
@@ -22648,6 +25010,37 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 		{@render children?.()}
 	</button>
 {/if}
+
+=== 252 src/lib/components/ui/button/index.ts	ts	module	-
+import Root, { type ButtonProps, type ButtonSize, type ButtonVariant, buttonVariants } from './button.svelte'
+
+export {
+	Root,
+	type ButtonProps as Props,
+	//
+	Root as Button,
+	buttonVariants,
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant
+}
+
+=== 428 src/lib/components/ui/collapsible/index.ts	ts	module	-
+import { Collapsible as CollapsiblePrimitive } from 'bits-ui'
+
+const Root: typeof CollapsiblePrimitive.Root = CollapsiblePrimitive.Root
+const Trigger: typeof CollapsiblePrimitive.Trigger = CollapsiblePrimitive.Trigger
+const Content: typeof CollapsiblePrimitive.Content = CollapsiblePrimitive.Content
+
+export {
+	Root,
+	Content,
+	Trigger,
+	//
+	Root as Collapsible,
+	Content as CollapsibleContent,
+	Trigger as CollapsibleTrigger
+}
 
 === 1517 src/lib/components/ui/dialog/dialog-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -22785,6 +25178,45 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 </script>
 
 <DialogPrimitive.Title bind:ref class={cn('text-sm leading-none tracking-tight', className)} {...restProps} />
+
+=== 963 src/lib/components/ui/dialog/index.ts	ts	module	-
+import { Dialog as DialogPrimitive } from 'bits-ui'
+
+import Title from './dialog-title.svelte'
+import Footer from './dialog-footer.svelte'
+import Header from './dialog-header.svelte'
+import Overlay from './dialog-overlay.svelte'
+import Content from './dialog-content.svelte'
+import Description from './dialog-description.svelte'
+
+const Root: typeof DialogPrimitive.Root = DialogPrimitive.Root
+const Trigger: typeof DialogPrimitive.Trigger = DialogPrimitive.Trigger
+const Close: typeof DialogPrimitive.Close = DialogPrimitive.Close
+const Portal: typeof DialogPrimitive.Portal = DialogPrimitive.Portal
+
+export {
+	Root,
+	Title,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	Close,
+	//
+	Root as Dialog,
+	Title as DialogTitle,
+	Portal as DialogPortal,
+	Footer as DialogFooter,
+	Header as DialogHeader,
+	Trigger as DialogTrigger,
+	Overlay as DialogOverlay,
+	Content as DialogContent,
+	Description as DialogDescription,
+	Close as DialogClose
+}
 
 === 1274 src/lib/components/ui/dropdown-menu/dropdown-menu-checkbox-item.svelte	svelte	runes	runes
 <script lang="ts">
@@ -23010,6 +25442,67 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 	<ChevronRight class="ml-auto" />
 </DropdownMenuPrimitive.SubTrigger>
 
+=== 1532 src/lib/components/ui/dropdown-menu/index.ts	ts	module	-
+import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui'
+import CheckboxItem from './dropdown-menu-checkbox-item.svelte'
+import Content from './dropdown-menu-content.svelte'
+import GroupHeading from './dropdown-menu-group-heading.svelte'
+import Item from './dropdown-menu-item.svelte'
+import Label from './dropdown-menu-label.svelte'
+import RadioItem from './dropdown-menu-radio-item.svelte'
+import Separator from './dropdown-menu-separator.svelte'
+import Shortcut from './dropdown-menu-shortcut.svelte'
+import SubContent from './dropdown-menu-sub-content.svelte'
+import SubTrigger from './dropdown-menu-sub-trigger.svelte'
+
+const Sub = DropdownMenuPrimitive.Sub
+const Root = DropdownMenuPrimitive.Root
+const Trigger = DropdownMenuPrimitive.Trigger
+const Group = DropdownMenuPrimitive.Group
+const RadioGroup = DropdownMenuPrimitive.RadioGroup
+
+export {
+	CheckboxItem,
+	Content,
+	Root as DropdownMenu,
+	CheckboxItem as DropdownMenuCheckboxItem,
+	Content as DropdownMenuContent,
+	Group as DropdownMenuGroup,
+	GroupHeading as DropdownMenuGroupHeading,
+	Item as DropdownMenuItem,
+	Label as DropdownMenuLabel,
+	RadioGroup as DropdownMenuRadioGroup,
+	RadioItem as DropdownMenuRadioItem,
+	Separator as DropdownMenuSeparator,
+	Shortcut as DropdownMenuShortcut,
+	Sub as DropdownMenuSub,
+	SubContent as DropdownMenuSubContent,
+	SubTrigger as DropdownMenuSubTrigger,
+	Trigger as DropdownMenuTrigger,
+	Group,
+	GroupHeading,
+	Item,
+	Label,
+	RadioGroup,
+	RadioItem,
+	Root,
+	Separator,
+	Shortcut,
+	Sub,
+	SubContent,
+	SubTrigger,
+	Trigger
+}
+
+=== 72 src/lib/components/ui/input/index.ts	ts	module	-
+import Root from './input.svelte'
+
+export {
+	Root,
+	//
+	Root as Input
+}
+
 === 735 src/lib/components/ui/input/input.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { HTMLInputAttributes } from 'svelte/elements'
@@ -23029,6 +25522,15 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 	{...restProps}
 />
 
+=== 72 src/lib/components/ui/label/index.ts	ts	module	-
+import Root from './label.svelte'
+
+export {
+	Root,
+	//
+	Root as Label
+}
+
 === 382 src/lib/components/ui/label/label.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Label as LabelPrimitive } from 'bits-ui'
@@ -23038,6 +25540,25 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 </script>
 
 <LabelPrimitive.Root bind:ref class={cn('text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70', className)} {...restProps} />
+
+=== 362 src/lib/components/ui/popover/index.ts	ts	module	-
+import { Popover as PopoverPrimitive } from 'bits-ui'
+import Content from './popover-content.svelte'
+const Root = PopoverPrimitive.Root
+const Trigger = PopoverPrimitive.Trigger
+const Close = PopoverPrimitive.Close
+
+export {
+	Root,
+	Content,
+	Trigger,
+	Close,
+	//
+	Root as Popover,
+	Content as PopoverContent,
+	Trigger as PopoverTrigger,
+	Close as PopoverClose
+}
 
 === 959 src/lib/components/ui/popover/popover-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -23068,6 +25589,18 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 		{...restProps}
 	/>
 </PopoverPrimitive.Portal>
+
+=== 160 src/lib/components/ui/radio-group/index.ts	ts	module	-
+import Root from './radio-group.svelte'
+import Item from './radio-group-item.svelte'
+
+export {
+	Root,
+	Item,
+	//
+	Root as RadioGroup,
+	Item as RadioGroupItem
+}
 
 === 848 src/lib/components/ui/radio-group/radio-group-item.svelte	svelte	runes	runes
 <script lang="ts">
@@ -23110,6 +25643,42 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 </script>
 
 <RadioGroupPrimitive.Root bind:value class={cn('grid gap-2', className)} {...restProps} bind:ref />
+
+=== 880 src/lib/components/ui/select/index.ts	ts	module	-
+import { Select as SelectPrimitive } from 'bits-ui'
+
+import GroupHeading from './select-group-heading.svelte'
+import Item from './select-item.svelte'
+import Content from './select-content.svelte'
+import Trigger from './select-trigger.svelte'
+import Separator from './select-separator.svelte'
+import ScrollDownButton from './select-scroll-down-button.svelte'
+import ScrollUpButton from './select-scroll-up-button.svelte'
+
+const Root = SelectPrimitive.Root
+const Group = SelectPrimitive.Group
+
+export {
+	Root,
+	Item,
+	Group,
+	GroupHeading,
+	Content,
+	Trigger,
+	Separator,
+	ScrollDownButton,
+	ScrollUpButton,
+	//
+	Root as Select,
+	Item as SelectItem,
+	Group as SelectGroup,
+	GroupHeading as SelectGroupHeading,
+	Content as SelectContent,
+	Trigger as SelectTrigger,
+	Separator as SelectSeparator,
+	ScrollDownButton as SelectScrollDownButton,
+	ScrollUpButton as SelectScrollUpButton
+}
 
 === 1428 src/lib/components/ui/select/select-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -23247,6 +25816,15 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 	<ChevronDown class="size-4 opacity-50" />
 </SelectPrimitive.Trigger>
 
+=== 80 src/lib/components/ui/separator/index.ts	ts	module	-
+import Root from './separator.svelte'
+
+export {
+	Root,
+	//
+	Root as Separator
+}
+
 === 440 src/lib/components/ui/separator/separator.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Separator as SeparatorPrimitive } from 'bits-ui'
@@ -23256,6 +25834,45 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 </script>
 
 <SeparatorPrimitive.Root bind:ref class={cn('bg-border shrink-0', orientation === 'horizontal' ? 'h-[1px] w-full' : 'min-h-full w-[1px]', className)} {orientation} {...restProps} />
+
+=== 820 src/lib/components/ui/sheet/index.ts	ts	module	-
+import { Dialog as SheetPrimitive } from 'bits-ui'
+
+import Overlay from './sheet-overlay.svelte'
+import Content from './sheet-content.svelte'
+import Header from './sheet-header.svelte'
+import Footer from './sheet-footer.svelte'
+import Title from './sheet-title.svelte'
+import Description from './sheet-description.svelte'
+
+const Root = SheetPrimitive.Root
+const Close = SheetPrimitive.Close
+const Trigger = SheetPrimitive.Trigger
+const Portal = SheetPrimitive.Portal
+
+export {
+	Root,
+	Close,
+	Trigger,
+	Portal,
+	Overlay,
+	Content,
+	Header,
+	Footer,
+	Title,
+	Description,
+	//
+	Root as Sheet,
+	Close as SheetClose,
+	Trigger as SheetTrigger,
+	Portal as SheetPortal,
+	Overlay as SheetOverlay,
+	Content as SheetContent,
+	Header as SheetHeader,
+	Footer as SheetFooter,
+	Title as SheetTitle,
+	Description as SheetDescription
+}
 
 === 2160 src/lib/components/ui/sheet/sheet-content.svelte	svelte	runes	runes
 <script lang="ts" module>
@@ -23374,6 +25991,14 @@ export const getUserActivity = ({ filter }: { filter?: (activity: UserActivityIn
 
 <SheetPrimitive.Title bind:ref class={cn('text-foreground text-lg font-semibold', className)} {...restProps} />
 
+=== 273 src/lib/components/ui/sidebar/constants.ts	ts	module	-
+export const SIDEBAR_COOKIE_NAME = 'sidebar:state'
+export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
+export const SIDEBAR_WIDTH = '16rem'
+export const SIDEBAR_WIDTH_MOBILE = '18rem'
+export const SIDEBAR_WIDTH_ICON = '3rem'
+export const SIDEBAR_KEYBOARD_SHORTCUT = 'b'
+
 === 2325 src/lib/components/ui/sidebar/context.svelte.ts	svelte-module-ts	runes	-
 import { IsMobile } from '$lib/hooks/is-mobile.svelte.js'
 import { getContext, setContext } from 'svelte'
@@ -23453,6 +26078,83 @@ export function setSidebar(props: SidebarStateProps): SidebarState {
  */
 export function useSidebar(): SidebarState {
 	return getContext(Symbol.for(SYMBOL_KEY))
+}
+
+=== 2146 src/lib/components/ui/sidebar/index.ts	ts	module	-
+import { useSidebar } from './context.svelte.js'
+import Content from './sidebar-content.svelte'
+import Footer from './sidebar-footer.svelte'
+import GroupAction from './sidebar-group-action.svelte'
+import GroupContent from './sidebar-group-content.svelte'
+import GroupLabel from './sidebar-group-label.svelte'
+import Group from './sidebar-group.svelte'
+import Header from './sidebar-header.svelte'
+import Input from './sidebar-input.svelte'
+import Inset from './sidebar-inset.svelte'
+import MenuAction from './sidebar-menu-action.svelte'
+import MenuBadge from './sidebar-menu-badge.svelte'
+import MenuButton from './sidebar-menu-button.svelte'
+import MenuItem from './sidebar-menu-item.svelte'
+import MenuSkeleton from './sidebar-menu-skeleton.svelte'
+import MenuSubButton from './sidebar-menu-sub-button.svelte'
+import MenuSubItem from './sidebar-menu-sub-item.svelte'
+import MenuSub from './sidebar-menu-sub.svelte'
+import Menu from './sidebar-menu.svelte'
+import Provider from './sidebar-provider.svelte'
+import Rail from './sidebar-rail.svelte'
+import Separator from './sidebar-separator.svelte'
+import Trigger from './sidebar-trigger.svelte'
+import Root from './sidebar.svelte'
+
+export {
+	Content,
+	Footer,
+	Group,
+	GroupAction,
+	GroupContent,
+	GroupLabel,
+	Header,
+	Input,
+	Inset,
+	Menu,
+	MenuAction,
+	MenuBadge,
+	MenuButton,
+	MenuItem,
+	MenuSkeleton,
+	MenuSub,
+	MenuSubButton,
+	MenuSubItem,
+	Provider,
+	Rail,
+	Root,
+	Separator,
+	//
+	Root as Sidebar,
+	Content as SidebarContent,
+	Footer as SidebarFooter,
+	Group as SidebarGroup,
+	GroupAction as SidebarGroupAction,
+	GroupContent as SidebarGroupContent,
+	GroupLabel as SidebarGroupLabel,
+	Header as SidebarHeader,
+	Input as SidebarInput,
+	Inset as SidebarInset,
+	Menu as SidebarMenu,
+	MenuAction as SidebarMenuAction,
+	MenuBadge as SidebarMenuBadge,
+	MenuButton as SidebarMenuButton,
+	MenuItem as SidebarMenuItem,
+	MenuSkeleton as SidebarMenuSkeleton,
+	MenuSub as SidebarMenuSub,
+	MenuSubButton as SidebarMenuSubButton,
+	MenuSubItem as SidebarMenuSubItem,
+	Provider as SidebarProvider,
+	Rail as SidebarRail,
+	Separator as SidebarSeparator,
+	Trigger as SidebarTrigger,
+	Trigger,
+	useSidebar
 }
 
 === 509 src/lib/components/ui/sidebar/sidebar-content.svelte	svelte	runes	runes
@@ -24114,6 +26816,15 @@ export function useSidebar(): SidebarState {
 	</div>
 {/if}
 
+=== 78 src/lib/components/ui/skeleton/index.ts	ts	module	-
+import Root from './skeleton.svelte'
+
+export {
+	Root,
+	//
+	Root as Skeleton
+}
+
 === 432 src/lib/components/ui/skeleton/skeleton.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { WithElementRef, WithoutChildren } from 'bits-ui'
@@ -24124,6 +26835,9 @@ export function useSidebar(): SidebarState {
 </script>
 
 <div bind:this={ref} class={cn('bg-primary/10 animate-pulse rounded-md', className)} {...restProps}></div>
+
+=== 53 src/lib/components/ui/sonner/index.ts	ts	module	-
+export { default as Toaster } from './sonner.svelte'
 
 === 670 src/lib/components/ui/sonner/sonner.svelte	svelte	runes	runes
 <script lang="ts">
@@ -24146,6 +26860,26 @@ export function useSidebar(): SidebarState {
 	}}
 	{...restProps}
 />
+
+=== 340 src/lib/components/ui/tabs/index.ts	ts	module	-
+import { Tabs as TabsPrimitive } from 'bits-ui'
+import Content from './tabs-content.svelte'
+import List from './tabs-list.svelte'
+import Trigger from './tabs-trigger.svelte'
+
+const Root = TabsPrimitive.Root
+
+export {
+	Root,
+	Content,
+	List,
+	Trigger,
+	//
+	Root as Tabs,
+	Content as TabsContent,
+	List as TabsList,
+	Trigger as TabsTrigger
+}
 
 === 442 src/lib/components/ui/tabs/tabs-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -24189,6 +26923,26 @@ export function useSidebar(): SidebarState {
 	{value}
 	{...restProps}
 />
+
+=== 378 src/lib/components/ui/tooltip/index.ts	ts	module	-
+import { Tooltip as TooltipPrimitive } from 'bits-ui'
+import Content from './tooltip-content.svelte'
+
+const Root = TooltipPrimitive.Root
+const Trigger = TooltipPrimitive.Trigger
+const Provider = TooltipPrimitive.Provider
+
+export {
+	Root,
+	Trigger,
+	Content,
+	Provider,
+	//
+	Root as Tooltip,
+	Content as TooltipContent,
+	Trigger as TooltipTrigger,
+	Provider as TooltipProvider
+}
 
 === 715 src/lib/components/ui/tooltip/tooltip-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -24234,6 +26988,243 @@ export class IsMobile {
 
 	get current() {
 		return this.#current
+	}
+}
+
+=== 400 src/lib/instance.ts	ts	module	-
+import { self } from './pocketbase/instances'
+
+export type InstanceInfo = {
+	id: string
+	version: string
+	telemetry_enabled: boolean
+	smtp_enabled: boolean
+	hosted_mode: boolean
+	billing_url?: string
+	dev_mode: boolean
+	site_cap?: number
+	site_count: number
+	editor_cap?: number
+}
+
+export const instance: InstanceInfo = await fetch(new URL('/api/primo/info', self.baseURL)).then((res) => res.json())
+
+=== 2602 src/lib/pages.ts	ts	module	-
+import type { ObjectOf } from './pocketbase/CollectionMapping.svelte'
+import { Pages, Sites } from './pocketbase/collections'
+
+/**
+ * Resolve page from path
+ *
+ * This function should be called reactively (e.g. inside `$deferred`). While
+ * a new page is being fetched, it returns the last resolved page for the same
+ * site. This avoids flashing empty content or cross-site stale pages during
+ * route transitions and ensures we never return a page from a different site.
+ *
+ * Internally, a small per-site cache (keyed by `site.id`) stores the most
+ * recently resolved page so that switching paths within the same site can show
+ * the previous page until the new one loads.
+ *
+ * @param site Site the pages should belong in
+ * @param path Path segments
+ * @returns Resolved page, or the last known page for the same site while fetching
+ */
+const last_page_by_site = new Map<string, ObjectOf<typeof Pages> | undefined>()
+export const resolve_page = (site: ObjectOf<typeof Sites>, path: string[]) => {
+	if (!site || !path) {
+		return
+	}
+
+	let page = site.homepage()
+	if (!page) {
+		return last_page_by_site.get(site.id)
+	}
+
+	for (const slug of path) {
+		page = Pages.list({
+			filter: {
+				site: site.id,
+				slug,
+				parent: page.id
+			}
+		})?.[0]
+		if (!page) {
+			return last_page_by_site.get(site.id)
+		}
+	}
+
+	last_page_by_site.set(site.id, page)
+	return page
+}
+
+/**
+ * Build page editing URL
+ *
+ * This function should be called reactively (eg. inside $deferred).
+ */
+export const build_cms_page_url = (page: ObjectOf<typeof Pages>, current_url: URL) => {
+	const path = build_page_path(page)
+	if (!path) {
+		return
+	}
+
+	const base_path = current_url.pathname.includes('/sites/') ? `/admin/sites/${page.site}` : '/admin/site'
+	path.push(base_path)
+
+	return new URL(path.reverse().join('/'), current_url)
+}
+
+/**
+ * Build page URL (eg. for a link)
+ *
+ * This function should be called reactively (eg. inside $deferred).
+ */
+export const build_live_page_url = (page: ObjectOf<typeof Pages>) => {
+	const site = Sites.one(page.site)
+	if (!site) {
+		return
+	}
+
+	const path = build_page_path(page)
+	if (!path) {
+		return
+	}
+
+	const base_path = ''
+	path.push(base_path)
+
+	return new URL(path.reverse().join('/'), site.host ? `${location.protocol}//${site.host}` : location.origin)
+}
+
+const build_page_path = (page: ObjectOf<typeof Pages>) => {
+	let path: string[] = []
+	let current_page: ObjectOf<typeof Pages> | undefined | null = page
+	while (current_page?.parent) {
+		path.push(current_page.slug)
+		current_page = Pages.one(current_page.parent)
+		if (!current_page) {
+			return
+		}
+	}
+	return path
+}
+
+=== 3405 src/lib/pocketbase/CollectionManager.ts	ts	module	-
+import type { ObjectWithId } from './Object'
+import { OrderedSvelteMap } from './OrderedSvelteMap'
+import { is_files_mode } from './author_mode'
+import type Client from 'pocketbase'
+
+export type Change<T extends ObjectWithId> =
+	| { collection: string; operation: 'create'; committed: boolean; data: Omit<T, 'id'> }
+	| { collection: string; operation: 'update'; committed: boolean; data: Partial<T> }
+	| { collection: string; operation: 'delete'; committed: boolean }
+
+export type TrackedRecord = {
+	data: ObjectWithId
+}
+
+export type TrackedList = {
+	invalidated: boolean
+	ids: string[]
+}
+
+export type CollectionManager = ReturnType<typeof createCollectionManager>
+
+export const createCollectionManager = (instance?: Client) => {
+	const changes = new OrderedSvelteMap<string, Change<ObjectWithId>>()
+	const records = new OrderedSvelteMap<string, TrackedRecord | undefined | null>()
+	const lists = new OrderedSvelteMap<string, TrackedList | undefined | null>()
+
+	let promise = Promise.resolve()
+
+	const commitChanges = async () => {
+		if (!instance) {
+			throw new Error('No instance')
+		}
+
+		// Process each change individually
+		for (const [id, change] of changes) {
+			// Skip already committed changes
+			if (change.committed) {
+				continue
+			}
+
+			change.committed = true
+
+			try {
+				switch (change.operation) {
+					case 'create': {
+						const result = await instance.collection(change.collection).create(change.data)
+						records.set(id, { data: result })
+						break
+					}
+
+					case 'update': {
+						const result = await instance.collection(change.collection).update(id, change.data)
+						records.set(id, { data: result })
+						break
+					}
+
+					case 'delete': {
+						await instance.collection(change.collection).delete(id)
+						records.set(id, null)
+						break
+					}
+				}
+			} catch (error) {
+				// Undo change on failure
+				changes.delete(id)
+				throw error
+			}
+		}
+	}
+
+	return {
+		instance,
+		changes,
+		records,
+		lists,
+		// Mark all cached lists as invalidated so the next read re-fetches from
+		// the server. Use after out-of-band DB writes (e.g. CLI import in local
+		// dev where realtime subscriptions are off) to avoid serving stale ids.
+		// `block` drops cached ids so consumers' loaded-checks (which read the
+		// list to gate work) wait for the refetch instead of racing with stale
+		// data — pass true when correctness matters more than avoiding a flicker.
+		invalidate_lists: (options?: { collection_name?: string; block?: boolean }) => {
+			const { collection_name, block = false } = options ?? {}
+			for (const [list_id, list] of lists) {
+				if (!list) continue
+				if (collection_name && !list_id.startsWith(collection_name)) continue
+				if (block) {
+					lists.delete(list_id)
+				} else {
+					lists.set(list_id, { ...list, invalidated: true })
+				}
+			}
+		},
+		commit: async () => {
+			// In files-author mode the CLI's sync layer overwrites the DB on
+			// the next pull, so committing here would create user-visible
+			// edits that vanish. Drop pending changes instead.
+			if (is_files_mode()) {
+				for (const [id, change] of [...changes]) {
+					if (!change.committed) {
+						changes.delete(id)
+					}
+				}
+				return
+			}
+			promise = promise.then(commitChanges, commitChanges)
+			return promise
+		},
+		discard: () => {
+			for (const [id, change] of [...changes]) {
+				if (!change.committed) {
+					changes.delete(id)
+				}
+			}
+		}
 	}
 }
 
@@ -24599,6 +27590,551 @@ export const createCollectionMapping = <T extends ObjectWithId, Options extends 
 	}
 
 	return collectionMapping
+}
+
+=== 42 src/lib/pocketbase/Object.ts	ts	module	-
+export type ObjectWithId = { id: string }
+
+=== 1241 src/lib/pocketbase/OrderedSvelteMap.ts	ts	module	-
+import { SvelteMap } from 'svelte/reactivity'
+
+/**
+ * SvelteMap that determines order based initial "set" call. Calls to set with
+ * existing id, aka. overwrites, does not change the order.
+ */
+export class OrderedSvelteMap<K, V> extends SvelteMap<K, V> {
+	private order: K[] = []
+
+	private *iterator(): IterableIterator<[K, V]> {
+		for (const key of this.order) {
+			const value = super.get(key) as V
+			yield [key, value]
+		}
+	}
+
+	forEach(callbackfn: (value: V, key: K, thisArg?: any) => void): void {
+		for (const [key, value] of this.iterator()) {
+			callbackfn(value, key, this)
+		}
+	}
+
+	set(key: K, value: V): this {
+		if (!this.order.includes(key)) {
+			this.order.push(key)
+		}
+
+		super.set(key, value)
+		return this
+	}
+
+	delete(key: K): boolean {
+		this.order = this.order.filter((k) => k !== key)
+		return super.delete(key)
+	}
+
+	clear(): void {
+		this.order = []
+		super.clear()
+	}
+
+	*keys(): IterableIterator<K> {
+		super.keys()
+		for (const [key] of this.iterator()) yield key
+	}
+
+	*values(): IterableIterator<V> {
+		super.values()
+		for (const [, value] of this.iterator()) yield value
+	}
+
+	entries(): IterableIterator<[K, V]> {
+		super.entries()
+		return this.iterator()
+	}
+
+	[Symbol.iterator]() {
+		return this.entries()
+	}
+}
+
+=== 1510 src/lib/pocketbase/author_mode.ts	ts	module	-
+import { writable, readonly, get } from 'svelte/store'
+
+export type AuthorMode = 'files' | 'cms' | 'both'
+
+const author_mode_store = writable<AuthorMode>('both')
+
+export const author_mode = readonly(author_mode_store)
+
+export const set_author_mode = (mode: unknown) => {
+	if (mode === 'files' || mode === 'cms' || mode === 'both') {
+		author_mode_store.set(mode)
+	} else {
+		author_mode_store.set('both')
+	}
+}
+
+// Synchronous read for non-Svelte modules (e.g. CollectionManager).
+export const is_files_mode = () => get(author_mode) === 'files'
+
+const is_localhost = () => {
+	if (typeof window === 'undefined') return false
+	const host = window.location.hostname
+	return host === 'localhost' || host === '127.0.0.1' || host.endsWith('.localhost')
+}
+
+let refresh_promise: Promise<void> | null = null
+
+// Hits the dev-auth endpoint to read the CLI's current --author flag.
+// Safe to call on a route reload after the auth handshake already ran;
+// the endpoint is idempotent and only available on localhost.
+export const refresh_author_mode = () => {
+	if (!is_localhost()) return Promise.resolve()
+	if (refresh_promise) return refresh_promise
+	refresh_promise = fetch('/api/primo/dev-auth', { method: 'POST' })
+		.then(async (response) => {
+			if (!response.ok) return
+			const data = await response.json().catch(() => null)
+			set_author_mode(data?.author_mode)
+		})
+		.catch(() => {
+			// Dev auth not available — leave default
+		})
+		.finally(() => {
+			refresh_promise = null
+		})
+	return refresh_promise
+}
+
+=== 10602 src/lib/pocketbase/collections.ts	ts	module	-
+import { Collaborator } from '$lib/common/models/Collaborator'
+import { LibrarySymbol } from '$lib/common/models/LibrarySymbol'
+import { LibrarySymbolEntry } from '$lib/common/models/LibrarySymbolEntry'
+import { LibrarySymbolField } from '$lib/common/models/LibrarySymbolField'
+import { LibrarySymbolGroup } from '$lib/common/models/LibrarySymbolGroup'
+import { LibraryUpload } from '$lib/common/models/LibraryUpload'
+import { Page } from '$lib/common/models/Page'
+import { PageEntry } from '$lib/common/models/PageEntry'
+import { PageSection } from '$lib/common/models/PageSection'
+import { PageSectionEntry } from '$lib/common/models/PageSectionEntry'
+import { PageType } from '$lib/common/models/PageType'
+import { PageTypeEntry } from '$lib/common/models/PageTypeEntry'
+import { PageTypeField } from '$lib/common/models/PageTypeField'
+import { PageTypeSection } from '$lib/common/models/PageTypeSection'
+import { PageTypeSectionEntry } from '$lib/common/models/PageTypeSectionEntry'
+import { PageTypeSymbol } from '$lib/common/models/PageTypeSymbol'
+import { Site } from '$lib/common/models/Site'
+import { SiteEntry } from '$lib/common/models/SiteEntry'
+import { SiteField } from '$lib/common/models/SiteField'
+import { SiteGroup } from '$lib/common/models/SiteGroup'
+import { SiteRoleAssignment } from '$lib/common/models/SiteRoleAssignment'
+import { SiteSnapshot } from '$lib/common/models/SiteSnapshot'
+import { SiteSymbol } from '$lib/common/models/SiteSymbol'
+import { SiteSymbolEntry } from '$lib/common/models/SiteSymbolEntry'
+import { SiteSymbolField } from '$lib/common/models/SiteSymbolField'
+import { SiteUpload } from '$lib/common/models/SiteUpload'
+import { User } from '$lib/common/models/User'
+import { UserActivity } from '$lib/common/models/UserActivity'
+import { createCollectionMapping } from './CollectionMapping.svelte'
+import { activity, self } from './managers'
+
+const is_local_dev =
+	typeof location !== 'undefined' &&
+	(location.hostname === 'localhost' ||
+		location.hostname === '127.0.0.1' ||
+		location.hostname.endsWith('.localhost'))
+
+const enable_subscriptions = !is_local_dev
+
+export const Users = createCollectionMapping('users', User, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		site_groups() {
+			return SiteGroups.list()
+		},
+		site_role_assignments() {
+			return SiteRoleAssignments.list({ filter: { user: this.id } })
+		}
+	}
+})
+
+export const Collaborators = createCollectionMapping('collaborators', Collaborator, self, {
+	subscribe: enable_subscriptions
+})
+
+export const LibrarySymbolGroups = createCollectionMapping('library_symbol_groups', LibrarySymbolGroup, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		symbols() {
+			return LibrarySymbols.from(this.collection.manager).list({ filter: { group: this.id } })
+		}
+	}
+})
+
+export const LibrarySymbols = createCollectionMapping('library_symbols', LibrarySymbol, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		fields() {
+			return LibrarySymbolFields.from(this.collection.manager).list({ filter: { symbol: this.id } })
+		},
+		entries() {
+			const fields = LibrarySymbolFields.from(this.collection.manager).list({ filter: { symbol: this.id } })
+			if (!fields) {
+				return fields
+			}
+
+			const entries = fields.map((field) => LibrarySymbolEntries.from(this.collection.manager).list({ filter: { field: field.id } }))
+			if (entries.some((entry) => entry === null)) {
+				return null
+			}
+			if (entries.some((entry) => !entry)) {
+				return undefined
+			}
+
+			return entries.filter((entry) => !!entry).flat()
+		}
+	}
+})
+
+export const LibrarySymbolFields = createCollectionMapping('library_symbol_fields', LibrarySymbolField, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		entries() {
+			return LibrarySymbolEntries.from(this.collection.manager).list({ filter: { field: this.id } })
+		}
+	}
+})
+
+export const LibrarySymbolEntries = createCollectionMapping('library_symbol_entries', LibrarySymbolEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const LibraryUploads = createCollectionMapping('library_uploads', LibraryUpload, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const SiteGroups = createCollectionMapping('site_groups', SiteGroup, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		sites() {
+			return Sites.from(this.collection.manager).list({ filter: { group: this.id } })
+		}
+	}
+})
+
+export const Sites = createCollectionMapping('sites', Site, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		role_assignments() {
+			return SiteRoleAssignments.from(this.collection.manager).list({ filter: { site: this.id } })
+		},
+		symbols() {
+			return SiteSymbols.from(this.collection.manager).list({ filter: { site: this.id }, sort: '-created' })
+		},
+		fields() {
+			return SiteFields.from(this.collection.manager).list({ filter: { site: this.id } })
+		},
+		entries() {
+			return SiteEntries.from(this.collection.manager).list({ filter: { 'field.site': this.id } })
+		},
+		uploads() {
+			return SiteUploads.from(this.collection.manager).list({ filter: { site: this.id } })
+		},
+		page_types() {
+			// Sort by creation time ascending so newly created types appear at the bottom
+			return PageTypes.from(this.collection.manager).list({ filter: { site: this.id }, sort: 'created' })
+		},
+		pages() {
+			return Pages.from(this.collection.manager).list({ filter: { site: this.id } })
+		},
+		homepage() {
+			return Pages.from(this.collection.manager).list({ filter: { site: this.id, parent: '' } })?.[0]
+		}
+	}
+})
+
+export const SiteRoleAssignments = createCollectionMapping('site_role_assignments', SiteRoleAssignment, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const SiteFields = createCollectionMapping('site_fields', SiteField, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		entries() {
+			return SiteEntries.from(this.collection.manager).list({ filter: { field: this.id } })
+		}
+	}
+})
+
+export const SiteEntries = createCollectionMapping('site_entries', SiteEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const SiteSymbols = createCollectionMapping('site_symbols', SiteSymbol, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		fields() {
+			return SiteSymbolFields.from(this.collection.manager).list({ filter: { symbol: this.id } })
+		},
+		entries() {
+			const fields = SiteSymbolFields.from(this.collection.manager).list({ filter: { symbol: this.id } })
+			if (!fields) {
+				return fields
+			}
+
+			const entries = fields.map((field) => SiteSymbolEntries.from(this.collection.manager).list({ filter: { field: field.id } }))
+			if (entries.some((entry) => entry === null)) {
+				return null
+			}
+			if (entries.some((entry) => !entry)) {
+				return undefined
+			}
+
+			return entries.filter((entry) => !!entry).flat()
+		}
+	}
+})
+
+export const SiteSymbolFields = createCollectionMapping('site_symbol_fields', SiteSymbolField, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		entries() {
+			return SiteSymbolEntries.from(this.collection.manager).list({ filter: { field: this.id } })
+		}
+	}
+})
+
+export const SiteSymbolEntries = createCollectionMapping('site_symbol_entries', SiteSymbolEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const PageTypes = createCollectionMapping('page_types', PageType, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		symbols() {
+			return PageTypeSymbols.from(this.collection.manager).list({ filter: { page_type: this.id } })
+		},
+		sections() {
+			return PageTypeSections.from(this.collection.manager).list({ filter: { page_type: this.id } })
+		},
+		fields() {
+			return PageTypeFields.from(this.collection.manager).list({ filter: { page_type: this.id } })
+		},
+		entries() {
+			const fields = PageTypeFields.from(this.collection.manager).list({ filter: { page_type: this.id } })
+			if (!fields) {
+				return fields
+			}
+
+			const entries = fields.map((field) => PageTypeEntries.from(this.collection.manager).list({ filter: { field: field.id } }))
+			if (entries.some((entry) => entry === null)) {
+				return null
+			}
+			if (entries.some((entry) => !entry)) {
+				return undefined
+			}
+
+			return entries.filter((entry) => !!entry).flat()
+		}
+	}
+})
+
+export const PageTypeFields = createCollectionMapping('page_type_fields', PageTypeField, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		entries() {
+			return PageTypeEntries.from(this.collection.manager).list({ filter: { field: this.id } })
+		}
+	}
+})
+
+export const PageTypeEntries = createCollectionMapping('page_type_entries', PageTypeEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const PageTypeSymbols = createCollectionMapping('page_type_symbols', PageTypeSymbol, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const PageTypeSections = createCollectionMapping('page_type_sections', PageTypeSection, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		entries() {
+			return PageTypeSectionEntries.from(this.collection.manager).list({ filter: { section: this.id } })
+		}
+	}
+})
+
+export const PageTypeSectionEntries = createCollectionMapping('page_type_section_entries', PageTypeSectionEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const Pages = createCollectionMapping('pages', Page, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		children() {
+			return this.collection.list({ filter: { parent: this.id } })?.sort((a, b) => (a.index || 0) - (b.index || 0))
+		},
+		sections() {
+			return PageSections.from(this.collection.manager)
+				.list({ filter: { page: this.id } })
+				?.sort((a, b) => a.index - b.index)
+		},
+		entries() {
+			return PageEntries.from(this.collection.manager).list({ filter: { page: this.id } })
+		}
+	}
+})
+
+export const PageEntries = createCollectionMapping('page_entries', PageEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const PageSections = createCollectionMapping('page_sections', PageSection, self, {
+	subscribe: enable_subscriptions,
+	links: {
+		entries() {
+			return PageSectionEntries.from(this.collection.manager).list({ filter: { section: this.id } })
+		}
+	}
+})
+
+export const PageSectionEntries = createCollectionMapping('page_section_entries', PageSectionEntry, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const SiteUploads = createCollectionMapping('site_uploads', SiteUpload, self, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+export const SiteSnapshots = createCollectionMapping('site_snapshots', SiteSnapshot, self, {
+	subscribe: false,
+	links: {}
+})
+
+export const UserActivities = createCollectionMapping('user_activities', UserActivity, activity, {
+	subscribe: enable_subscriptions,
+	links: {}
+})
+
+=== 311 src/lib/pocketbase/instances.ts	ts	module	-
+import PocketBase from 'pocketbase'
+
+const marketplace_url = import.meta.env.VITE_MARKETPLACE_URL || 'https://main.marketplace.primo.page'
+
+export const self = new PocketBase(typeof location !== 'undefined' ? location.origin : 'http://127.0.0.1:3000')
+export const marketplace = new PocketBase(marketplace_url)
+
+=== 347 src/lib/pocketbase/managers.ts	ts	module	-
+import { createCollectionManager } from './CollectionManager'
+import { self as this_instance, marketplace as marketplace_instance } from './instances'
+
+export const self = createCollectionManager(this_instance)
+export const activity = createCollectionManager(this_instance)
+export const marketplace = createCollectionManager(marketplace_instance)
+
+=== 1409 src/lib/pocketbase/user.ts	ts	module	-
+import { self } from './managers'
+import type { Site } from '$lib/common/models/Site'
+import { SiteRoleAssignments, Users } from './collections'
+import { writable, readonly } from 'svelte/store'
+
+let current_user_store = writable<
+	| {
+			id: string
+			email: string
+			serverRole: '' | 'editor' | 'developer' | undefined
+			siteRole: 'editor' | 'developer' | null
+			name: string | undefined
+			avatar: string | undefined
+	  }
+	| null
+	| undefined
+>()
+
+export const current_user = readonly(current_user_store)
+
+export const set_current_user = (site?: Site) => {
+	const user = self.instance?.authStore.record && Users.one(self.instance.authStore.record.id)
+	const assignments = site && user && SiteRoleAssignments.list({ filter: { site: site.id, user: user.id } })
+	const siteRole = user?.serverRole || assignments?.[0].role || null
+	current_user_store.set(user && { id: user.id, email: user.email, serverRole: user.serverRole, siteRole, name: user.name, avatar: user.avatar })
+}
+
+export const check_session = async () => {
+	if (self.instance?.authStore.isValid) {
+		return self.instance
+			.collection('users')
+			.authRefresh()
+			.then(() => {
+				// Clear cached data since auth was refreshed - forces refetch with valid token
+				self.lists.clear()
+				self.records.clear()
+				return true
+			})
+			.catch(() => {
+				self.instance?.authStore.clear()
+				return false
+			})
+	} else {
+		return false
+	}
+}
+
+=== 1132 src/lib/site_host.ts	ts	module	-
+import type { Site } from '$lib/common/models/Site'
+
+// A pushed/auto-created site is seeded with `host = id` as a placeholder (see
+// import.go: the sites collection has a UNIQUE, required `host`, so "no host"
+// can't be empty). That sentinel means "unassigned" — the site is editable in
+// the dashboard but not publicly served until an operator assigns a real
+// domain. Bootstrap of the very first site on a fresh instance is the one path
+// that assigns a real host up front (the deploy URL).
+export const is_host_assigned = (site: Pick<Site, 'id' | 'host'>) => !!site.host && site.host !== site.id
+
+// Where to open a site in the editor.
+//
+// Assigned sites live at their own vhost (`//host/admin/site`) — the host-based
+// editor route resolves the site from the request Host. Unassigned sites have
+// no reachable vhost, so they're edited by id via the same-origin id-based
+// route (`/admin/sites/{id}`), which resolves the site directly and never
+// touches `host`.
+export const site_editor_url = (site: Pick<Site, 'id' | 'host'>) =>
+	is_host_assigned(site) ? `//${site.host}/admin/site` : `/admin/sites/${site.id}`
+
+=== 529 src/lib/utils.ts	ts	module	-
+import { type ClassValue, clsx } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+	return twMerge(clsx(inputs))
+}
+
+export function clickOutside(node) {
+	const handleClick = (event) => {
+		if (node && !node.contains(event.target) && !event.defaultPrevented) {
+			node.dispatchEvent(new CustomEvent('click_outside', node))
+		}
+	}
+
+	document.addEventListener('click', handleClick, true)
+
+	return {
+		destroy() {
+			document.removeEventListener('click', handleClick, true)
+		}
+	}
 }
 
 === 4124 src/lib/workers/CopyEntries.svelte.ts	svelte-module-ts	runes	-

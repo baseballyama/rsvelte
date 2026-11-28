@@ -1,0 +1,591 @@
+# rsvelte pack 1
+=== 142 playwright.config.ts	js
+const config = {
+    webServer: {
+        command: 'pnpm run build && pnpm run preview',
+        port: 3000,
+    },
+};
+export default config;
+
+=== 127 posts/learn-svelte/examples/accordion/index.ts	js
+export { default as Accordion } from './accordion.svelte';
+export { default as AccordionItem } from './accordion-item.svelte';
+
+=== 640 src/lib/analytics/index.ts	js
+import posthog from 'posthog-js';
+import { browser } from '$app/environment';
+import { beforeNavigate, afterNavigate } from '$app/navigation';
+const POSTHOG_KEY = 'phc_nZDwmyGFBKKFyA7fag8ia0Lq9PYMqxeofhojcOX67jW';
+export function initAnalytics() {
+    if (browser) {
+        posthog.init(POSTHOG_KEY, {
+            api_host: 'https://eu.i.posthog.com',
+            capture_pageview: false,
+            capture_pageleave: false,
+        });
+    }
+    return;
+}
+export function useAnalytics() {
+    if (browser) {
+        beforeNavigate(() => posthog.capture('$pageleave'));
+        afterNavigate(() => posthog.capture('$pageview'));
+    }
+}
+
+=== 762 src/lib/icons/index.ts	js
+import ArrowRight from './arrow-right.svelte';
+import ChevronDoubleLeft from './chevron-double-left.svelte';
+import ChevronDoubleRight from './chevron-double-right.svelte';
+import Cog from './cog.svelte';
+import Envelope from './envelope.svelte';
+import Eye from './eye.svelte';
+import GitHub from './github.svelte';
+import Heart from './heart.svelte';
+import Mail from './mail.svelte';
+import Menu from './menu.svelte';
+import PencilSquare from './pencil-square.svelte';
+import RSS from './rss.svelte';
+import X from './x.svelte';
+import Bluesky from './bluesky.svelte';
+import YouTube from './youtube.svelte';
+export { ArrowRight, Bluesky, ChevronDoubleLeft, ChevronDoubleRight, Cog, Envelope, Eye, GitHub, Heart, Mail, Menu, PencilSquare, RSS, X, YouTube, };
+
+=== 276 src/lib/sfx/index.ts	js
+/**
+ * Credits
+ * https://www.zapsplat.com/music/organic-button-click-good-for-apps-games-ui-software-etc-7/
+ */
+export const sfx = {
+    click() {
+        const click = new Audio('/sfx/click.mp3');
+        click.volume = 0.4;
+        click.play().catch(() => { });
+    },
+};
+
+=== 1279 src/lib/site/config.ts	js
+export const siteName = 'Joy of Code';
+export const siteUrl = 'https://joyofcode.xyz/';
+export const siteTitle = 'Joy of Code';
+export const siteDescription = 'Web development and design-focused content';
+export const siteImage = `${siteUrl}social.png`;
+export const postImage = 'https://social-share-images.vercel.app/';
+export const twitterHandle = '@joyofcodedev';
+export const twitter = 'https://x.com/joyofcodedev';
+export const bluesky = 'https://bsky.app/profile/joyofcode.xyz';
+export const youtube = 'https://www.youtube.com/@joyofcodedev';
+export const github = 'https://github.com/mattcroat';
+export const uses = 'https://github.com/mattcroat/uses';
+export const categories = {
+    javascript: 'JavaScript',
+    react: 'React',
+    css: 'CSS',
+    general: 'General',
+    design: 'Design',
+    git: 'Git & GitHub',
+    next: 'Next.js',
+    typescript: 'TypeScript',
+    svelte: 'Svelte',
+    sveltekit: 'SvelteKit',
+};
+// https://github.com/user/repo/blob/main/posts
+export const fileUrl = `https://github.com/mattcroat/joy-of-code/blob/main/posts`;
+// https://raw.githubusercontent.com/user/repo/main/posts/post-slug/images/image.webp
+export const imagesUrl = `https://raw.githubusercontent.com/mattcroat/joy-of-code/main/posts`;
+export const imagesLocal = `/posts`;
+
+=== 1138 src/lib/site/posts.ts	js
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import matter from 'gray-matter';
+async function parseMarkdownFiles() {
+    try {
+        const posts = [];
+        const postsPath = path.resolve('posts');
+        const folders = await fs.readdir(postsPath);
+        for (const folder of folders) {
+            const markdownFilePath = path.join(postsPath, folder, `${folder}.md`);
+            const markdownContent = await fs.readFile(markdownFilePath, 'utf-8');
+            const { data } = matter(markdownContent);
+            posts.push(data);
+        }
+        return posts;
+    }
+    catch (e) {
+        throw new Error('Could not parse Markdown files');
+    }
+}
+function getTime(date) {
+    return new Date(date).getTime();
+}
+export async function getPosts() {
+    let posts = await parseMarkdownFiles();
+    posts = posts.sort((first, second) => {
+        return getTime(second.published) - getTime(first.published);
+    });
+    return posts;
+}
+export async function getPostsByCategory(category) {
+    const posts = await getPosts();
+    return posts.filter((post) => !post.draft && post.category === category);
+}
+
+=== 11 src/lib/types/index.ts	js
+export {};
+
+=== 1949 src/lib/ui/header/preferences/preferences.svelte.ts	js
+import { browser } from '$app/environment';
+const DEFAULT_TEXT_SIZE = 20;
+const DEFAULT_TEXT_LENGTH = 70;
+const DEFAULT_TEXT_HEIGHT = 34;
+class Preferences {
+    #textSize = $state(DEFAULT_TEXT_SIZE);
+    #textLength = $state(DEFAULT_TEXT_LENGTH);
+    #textHeight = $state(DEFAULT_TEXT_HEIGHT);
+    #htmlEl;
+    resetTheme = $state(false);
+    get textSize() {
+        return this.#textSize;
+    }
+    set textSize(value) {
+        this.#textSize = value;
+        localStorage.textSize = `${value}px`;
+        this.#htmlEl?.style.setProperty('--post-txt-size', `${value}px`);
+    }
+    get textLength() {
+        return this.#textLength;
+    }
+    set textLength(value) {
+        this.#textLength = value;
+        localStorage.textLength = `${value}ch`;
+        this.#htmlEl?.style.setProperty('--post-txt-length', `${value}ch`);
+    }
+    get textHeight() {
+        return this.#textHeight;
+    }
+    set textHeight(value) {
+        this.#textHeight = value;
+        localStorage.textHeight = `${value}px`;
+        this.#htmlEl?.style.setProperty('--post-txt-height', `${value}px`);
+    }
+    constructor() {
+        if (!browser)
+            return;
+        const { textSize, textLength, textHeight } = localStorage;
+        if (textSize)
+            this.textSize = +textSize.replace('px', '');
+        if (textLength)
+            this.textLength = +textLength.replace('ch', '');
+        if (textHeight)
+            this.textHeight = +textHeight.replace('px', '');
+        this.#htmlEl = document.documentElement;
+    }
+    reset() {
+        this.textSize = DEFAULT_TEXT_SIZE;
+        this.textLength = DEFAULT_TEXT_LENGTH;
+        this.textHeight = DEFAULT_TEXT_HEIGHT;
+        this.#htmlEl.dataset.theme = '🌛 Night';
+        delete this.#htmlEl.dataset.font;
+        localStorage.theme = '🌛 Night';
+        localStorage.removeItem('font');
+        this.resetTheme = !this.resetTheme;
+    }
+}
+export const preferences = new Preferences();
+
+=== 43 src/lib/ui/header/search/index.ts	js
+export { default } from './search.svelte';
+
+=== 542 src/lib/ui/header/search/search-worker.ts	js
+import { createPostsIndex, searchPostsIndex } from './search';
+addEventListener('message', async (e) => {
+    const { type, payload } = e.data;
+    if (type === 'load') {
+        const posts = await fetch('/api/search').then((res) => res.json());
+        createPostsIndex(posts);
+        postMessage({ type: 'ready' });
+    }
+    if (type === 'search') {
+        const searchTerm = payload.searchTerm;
+        const results = searchPostsIndex(searchTerm);
+        postMessage({ type: 'results', payload: { results, searchTerm } });
+    }
+});
+
+=== 1432 src/lib/ui/header/search/search.ts	js
+import FlexSearch from 'flexsearch';
+let postsIndex;
+let posts;
+export function createPostsIndex(data) {
+    postsIndex = new FlexSearch.Index({ tokenize: 'forward' });
+    data.forEach((post, i) => {
+        const item = `${post.title} ${post.content}`;
+        postsIndex.add(i, item);
+    });
+    posts = data;
+}
+export function searchPostsIndex(searchTerm) {
+    const match = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const results = postsIndex.search(match);
+    return results
+        .map((index) => posts[index])
+        .map(({ slug, title, content }) => {
+        return {
+            slug,
+            title: replaceTextWithMarker(title, match),
+            content: getMatches(content, match),
+        };
+    });
+}
+function replaceTextWithMarker(text, match) {
+    const regex = new RegExp(match, 'gi');
+    return text.replaceAll(regex, (match) => `<mark>${match}</mark>`);
+}
+function getMatches(text, searchTerm, limit = 1) {
+    const regex = new RegExp(searchTerm, 'gi');
+    const indexes = [];
+    let matches = 0;
+    let match;
+    while ((match = regex.exec(text)) !== null && matches < limit) {
+        indexes.push(match.index);
+        matches++;
+    }
+    return indexes.map((index) => {
+        const start = index - 20;
+        const end = index + 80;
+        const excerpt = text.substring(start, end).trim();
+        return `...${replaceTextWithMarker(excerpt, searchTerm)}...`;
+    });
+}
+
+=== 1037 src/lib/utils/index.ts	js
+import { onNavigate } from '$app/navigation';
+export async function fetchJSON(url, fetchFn = fetch) {
+    const response = await fetchFn(url);
+    if (!response.ok)
+        throw new Error(`Error fetching JSON from ${response.url}`);
+    return await response.json();
+}
+export function formatDate(date, dateStyle = 'medium', locales = 'en') {
+    // safari is mad about dashes in the date
+    const dateToFormat = new Date(date.replaceAll('-', '/'));
+    const dateFormatter = new Intl.DateTimeFormat(locales, { dateStyle });
+    return dateFormatter.format(dateToFormat);
+}
+export function formatNumber(number, locales = 'en') {
+    return new Intl.NumberFormat(locales).format(number);
+}
+export async function setupViewTransition() {
+    onNavigate((navigation) => {
+        if (!document.startViewTransition)
+            return;
+        return new Promise((resolve) => {
+            document.startViewTransition(async () => {
+                resolve();
+                await navigation.complete;
+            });
+        });
+    });
+}
+
+=== 118 src/routes/+layout.server.ts	js
+export const prerender = true;
+export async function load({ url }) {
+    return {
+        url: url.pathname,
+    };
+}
+
+=== 102 src/routes/+layout.ts	js
+import { initAnalytics } from '$lib/analytics';
+export async function load() {
+    initAnalytics();
+}
+
+=== 373 src/routes/+page.server.ts	js
+import { fetchJSON } from '$lib/utils';
+import { error } from '@sveltejs/kit';
+export async function load({ fetch }) {
+    try {
+        const posts = await fetchJSON('/api/posts', fetch);
+        const publishedPosts = posts.filter(({ draft }) => !draft);
+        return { posts: publishedPosts.slice(0, 10) };
+    }
+    catch (e) {
+        error(404, e.message);
+    }
+}
+
+=== 349 src/routes/[slug]/+page.ts	js
+import { error } from '@sveltejs/kit';
+export async function load({ params: { slug } }) {
+    try {
+        const module = await import(`../../../posts/${slug}/${slug}.md`);
+        return { component: module.default, frontmatter: module.metadata };
+    }
+    catch (e) {
+        console.error(e);
+        error(404, `Post does not exist`);
+    }
+}
+
+=== 271 src/routes/api/posts/+server.ts	js
+import { error, json } from '@sveltejs/kit';
+import { getPosts } from '$lib/site/posts';
+export async function GET() {
+    try {
+        const posts = await getPosts();
+        return json(posts);
+    }
+    catch (e) {
+        error(404, 'Failed to load posts');
+    }
+}
+
+=== 1794 src/routes/api/search/+server.ts	js
+import { json } from '@sveltejs/kit';
+import matter from 'gray-matter';
+export const prerender = true;
+const patterns = {
+    frontmatter: /---.*?---/gs,
+    code: /```.*?\n|```/gs,
+    inline: /`([^`]*)`/g,
+    heading: /^#{1,6}\s.*$/gm,
+    link: /\[([^\]]+)\]\(([^)]+)\)/g,
+    image: /\!\[.*?\]\(.*?\)/g,
+    blockquote: /> /gm,
+    bold: /\*\*/g,
+    italic: /\b_([^_]+)_(?!\w)/g,
+    special: /{%.*?%}/g,
+    tags: /[<>]/g,
+};
+const htmlEntities = {
+    '<': '&lt;',
+    '>': '&gt;',
+};
+function stripMarkdown(markdown) {
+    for (const pattern in patterns) {
+        switch (pattern) {
+            case 'inline':
+                markdown = markdown.replace(patterns[pattern], '$1');
+                break;
+            case 'tags':
+                markdown = markdown.replace(patterns[pattern], (match) => htmlEntities[match]);
+                break;
+            case 'link':
+                markdown = markdown.replace(patterns[pattern], '$2');
+                break;
+            case 'italic':
+                markdown = markdown.replace(patterns[pattern], '$1');
+                break;
+            default:
+                markdown = markdown.replace(patterns[pattern], '');
+        }
+    }
+    return markdown;
+}
+export async function GET() {
+    const paths = import.meta.glob('/posts/**/*.md', {
+        query: '?raw',
+        import: 'default',
+        eager: true,
+    });
+    const posts = Object.entries(paths)
+        .map(([_, content]) => {
+        const frontmatter = matter(content);
+        if (frontmatter.data.draft) {
+            return null;
+        }
+        return {
+            title: frontmatter.data.title,
+            slug: frontmatter.data.slug,
+            content: stripMarkdown(content),
+        };
+    })
+        .filter(Boolean);
+    return json(posts);
+}
+
+=== 1316 src/routes/api/subscribe/+server.ts	js
+import { json } from '@sveltejs/kit';
+import { BUTTONDOWN_API_KEY } from '$env/static/private';
+export async function POST({ request }) {
+    const API_URL = 'https://api.buttondown.email/v1/subscribers';
+    const API_KEY = BUTTONDOWN_API_KEY;
+    const email = await request.json();
+    if (!email) {
+        return json({ error: 'You forget the email. 😊' }, {
+            status: 400,
+        });
+    }
+    try {
+        const response = await fetch(API_URL, {
+            method: 'post',
+            body: JSON.stringify({ email }),
+            headers: {
+                Authorization: `Token ${API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            const text = await response.text();
+            if (text.includes('already subscribed')) {
+                return json({ error: `You're already subscribed. 😊` }, {
+                    status: 400,
+                });
+            }
+            return json({ error: text }, { status: 400 });
+        }
+        return json({ success: 'Thank you for subscribing! 🥳' }, {
+            status: 201,
+            headers: { location: '/' },
+        });
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            return json({ error: error.message });
+        }
+    }
+}
+
+=== 360 src/routes/archive/+page.server.ts	js
+import { error } from '@sveltejs/kit';
+import { fetchJSON } from '$lib/utils';
+export async function load({ fetch }) {
+    try {
+        const posts = await fetchJSON('/api/posts', fetch);
+        const publishedPosts = posts.filter(({ draft }) => !draft);
+        return { posts: publishedPosts };
+    }
+    catch (e) {
+        error(404, e.message);
+    }
+}
+
+=== 476 src/routes/categories/[category]/+page.server.ts	js
+import { error } from '@sveltejs/kit';
+import { getPostsByCategory } from '$lib/site/posts';
+import * as config from '$lib/site/config';
+export async function load({ params }) {
+    const category = params.category;
+    if (!config.categories[category]) {
+        error(404, 'Category does not exist');
+    }
+    try {
+        return {
+            posts: await getPostsByCategory(category),
+        };
+    }
+    catch (e) {
+        error(404, `Failed to load posts`);
+    }
+}
+
+=== 470 src/routes/drafts/+page.server.ts	js
+import { error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+import { fetchJSON } from '$lib/utils';
+export async function load({ fetch }) {
+    if (!dev)
+        error(404, 'Not found');
+    try {
+        const posts = await fetchJSON('/api/posts', fetch);
+        const draftPosts = posts.filter(({ draft }) => draft);
+        return { posts: draftPosts };
+    }
+    catch (e) {
+        error(404, e.message);
+    }
+}
+export const prerender = false;
+
+=== 445 src/routes/drafts/[slug]/+page.ts	js
+import { error } from '@sveltejs/kit';
+import { dev } from '$app/environment';
+export async function load({ params: { slug } }) {
+    if (!dev)
+        error(404, 'Not found');
+    try {
+        const module = await import(`../../../../posts/${slug}/${slug}.md`);
+        return { component: module.default, frontmatter: module.metadata };
+    }
+    catch (e) {
+        error(404, `Post does not exist`);
+    }
+}
+export const prerender = false;
+
+=== 1063 src/routes/rss.xml/+server.ts	js
+import { getPosts } from '$lib/site/posts.js';
+import * as config from '$lib/site/config';
+export const prerender = true;
+export async function GET() {
+    const posts = await getPosts();
+    const headers = { 'Content-Type': 'application/xml' };
+    const xml = `
+		<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+			<channel>
+				<title>${config.siteName}</title>
+				<description>${config.siteDescription}</description>
+				<link>${config.siteUrl}</link>
+				<atom:link href="${config.siteUrl}rss.xml" rel="self" type="application/rss+xml"/>
+				${posts
+        .filter((post) => !post.draft)
+        .reverse()
+        .map((post) => `
+						<item>
+							<title>${post.title}</title>
+							<description>${post.description}</description>
+							<link>${config.siteUrl}${post.slug}</link>
+							<guid isPermaLink="true">${config.siteUrl}${post.slug}</guid>
+							<pubDate>${new Date(post.published).toUTCString()}</pubDate>
+						</item>
+					`)
+        .join('')}
+			</channel>
+		</rss>
+	`.trim();
+    return new Response(xml, { headers });
+}
+
+=== 1229 src/routes/sitemap.xml/+server.ts	js
+import * as config from '$lib/site/config';
+import { getPosts } from '$lib/site/posts';
+export const prerender = true;
+export async function GET() {
+    const posts = await getPosts();
+    const headers = { 'Content-Type': 'application/xml' };
+    const pages = [
+        'archive',
+        'newsletter',
+        'about',
+        ...Object.keys(config.categories).map((category) => `categories/${category}`),
+        ...posts.map((post) => post.slug),
+    ];
+    const sitemap = `
+	  <?xml version="1.0" encoding="UTF-8" ?>
+	  <urlset
+	    xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"
+	    xmlns:xhtml="https://www.w3.org/1999/xhtml"
+	    xmlns:mobile="https://www.google.com/schemas/sitemap-mobile/1.0"
+	    xmlns:news="https://www.google.com/schemas/sitemap-news/0.9"
+	    xmlns:image="https://www.google.com/schemas/sitemap-image/1.1"
+	    xmlns:video="https://www.google.com/schemas/sitemap-video/1.1"
+	  >
+	    ${pages
+        .map((page) => {
+        return `
+	          <url>
+	            <loc>${config.siteUrl}${page}</loc>
+	            <lastmod>${new Date().toISOString()}</lastmod>
+	          </url>
+	        `;
+    })
+        .join('')}
+	  </urlset>
+	`.trim();
+    return new Response(sitemap, { headers });
+}
+

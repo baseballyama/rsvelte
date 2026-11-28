@@ -1,0 +1,1339 @@
+# rsvelte pack 1
+=== 804 explorer-v2/src/lib/Header.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;AACrC,MAAM,GAAG,IAAI,QAAQ,aAAa,CAAC;AACnC,MAAM,GAAG,OAAO,QAAQ,YAAY,CAAC;;;sCAHtC,CAAC;;;EAKA,SAAS,QAAQ,CAAC,QAAQ,EAAE,IAAI,EAAE,CAAC;GAClC,KAAK,CAAC,kBAAkB,GAAG,QAAQ,CAAC,OAAO,CAAC,MAAM,EAAE,EAAE,CAAC,CAAC;GACxD,KAAK,CAAC,cAAc,GAAG,IAAI,CAAC,OAAO,CAAC,MAAM,EAAE,EAAE,CAAC,CAAC;;GAChD,MAAM,CACL,kBAAkB,KAAK,cAAc,IAAI,kBAAkB,KAAK,OAAO,CAAC,cAAc,IAAI,GAAG,CAAC,CAC7F;EACH,CAAC;;;aAK6B,QAAQ,CAAC,gDAAM,GAAG,CAAC,QAAQ,EAAE,GAAG,CAAC;sBAAQ,OAAO,CAAC,GAAG,CAAC;aAGpE,QAAQ,CAAC,gDAAM,GAAG,CAAC,QAAQ,EAAE,aAAa,CAAC;sBACnD,OAAO,CAAC,aAAa,CAAC;aAEC,QAAQ,CAAC,gDAAM,GAAG,CAAC,QAAQ,EAAE,QAAQ,CAAC;sBAAQ,OAAO,CAAC,QAAQ,CAAC;aAK9E,QAAQ,CAAC,gDAAM,GAAG,CAAC,QAAQ,EAAE,sBAAsB,CAAC;sBAC5D,OAAO,CAAC,sBAAsB,CAAC,4FAGhB,gDAAM,GAAG,CAAC,QAAQ;;;;;;CAnBjC,CAAC;"}
+
+=== 834 explorer-v2/src/lib/SnsBar.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,SAAS,GAAG,IAAI,CAAC;;;;;EAKrB,SAAS,KAAK,GAAG,CAAC;GACjB,EAAE,EAAE,SAAS,EAAE,CAAC;IACf,YAAY,CAAC,SAAS,CAAC,CAAC;GACzB,CAAC;;GACD,SAAS,GAAG,UAAU;IAAC,MAAM,CAAC;KAC7B,AAAC,CAAA,UAAU,CAAC,EAAE,CAAC,EAAE,EAAE,EAAE,CAAC;MACrB,KAAK,CAAC,CAAC,GAAG,CAAC,GAAG,CAAC,CAAC,oBAAoB,CAAC,CAAC,CAAC,CAAC;;MACxC,EAAE,EAAE,CAAC,CAAC,cAAc,CAAC,EAAE,CAAC,EAAE,CAAC;OAC1B,MAAM,CAAC;MACR,CAAC;;MACD,KAAK,CAAC,EAAE,GAAG,CAAC,CAAC,aAAa,CAAC,CAAC,CAAC,CAAC;;MAC9B,EAAE,CAAC,EAAE,GAAG,EAAE,CAAC;MACX,EAAE,CAAC,GAAG,GAAG,sCAAsC,CAAC;MAChD,GAAG,CAAC,UAAU,CAAC,YAAY,CAAC,EAAE,EAAE,GAAG,CAAC,CAAC;KACtC,CAAC,CAAA,CAAE,QAAQ,EAAE,QAAQ,EAAE,YAAY,CAAC,CAAC;IACtC,CAAC;IAAE,GAAG;IAAC,CAAC;EACT,CAAC;;EAED,OAAO,CAAC,MAAM,CAAC;GACd,KAAK,EAAE,CAAC;EACT,CAAC,CAAC,CAAC;;;CACI,CAAC;"}
+
+=== 241 explorer-v2/src/routes/+layout.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,oBAAoB,CAAC;AACxC,MAAM,CAAC,YAAY,CAAC;;qDAFrB,CAAC;CAGA,EAAE,EAAE,MAAM,CAAC,MAAM,KAAK,WAAW,EAAE,CAAC;EACnC,MAAM,CAAC,OAAO,GAAG,EAChB,GAAG,EAAE,MAAM,GAAG,EACd,CAAC;CACH,CAAC;;;;;;AACM,CAAC"}
+
+=== 97 explorer-v2/src/routes/+page.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,WAAW,MAAM,yBAAyB,CAAC;;0CADnD,CAAC;;;;;;;;;;AAEO,CAAC"}
+
+=== 97 explorer-v2/src/routes/playground/+page.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,gBAAgB,MAAM,8BAA8B,CAAC;;0CAD7D,CAAC;;;;;;;;AAEO,CAAC"}
+
+=== 95 explorer-v2/src/routes/scope/+page.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,aAAa,MAAM,2BAA2B,CAAC;;0CADvD,CAAC;;;;;;;;AAEO,CAAC"}
+
+=== 97 explorer-v2/src/routes/virtual-script-code/+page.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,iBAAiB,MAAM,+BAA+B,CAAC;;0CAD/D,CAAC;;;;;;;;AAEO,CAAC"}
+
+=== 87 tests/fixtures/integrations/prettier-plugin/x-input.svelte	js.map
+{"version":3,"mappings":";;4CAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAG,OAAO,CAAC;;;AACd,CAAC"}
+
+=== 337 tests/fixtures/integrations/snippet-scope/snippet-shadow-scope-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,GAAG,MAAM,cAAc,CAAC;;SA6BtB,GAAG,aAAC,GAAG;gCACZ,GAAG;;;+DA/BR,CAAC;UAMU,QAAQ;;;;;;;WAUR,QAAQ,aAAC,GAAG;kCACjB,GAAG;;;WAEE,CAAC;;aAGC,QAAQ,aAAC,GAAG;oCACjB,GAAG;;;sBADE,QAAQ;;;;oBANV,QAAQ,EAGR,CAAC;;;;;;WAeD,CAAC;YAEA,GAAG,aAAC,GAAG;mCACZ,GAAG;;;+BAEO,GAAG;;;8BANL,GAAG,EACP,CAAC;;;;AAhCJ,CAAC"}
+
+=== 109 tests/fixtures/integrations/snippet-scope/ts-snippet-hoist-scope-input.svelte	js.map
+{"version":3,"mappings":";;SAIU,GAAG;;;;iEAJb,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,GAAG,CAAC;;CAOR,GAAG;AANJ,CAAC"}
+
+=== 422 tests/fixtures/integrations/type-info-tests/$derived-input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAEG,GAAG,CAAC,CAAc,GAAG,EAAE,GAAG,EAAE,EAAE,EAAE,CAAC;CACjC,KAAK,CAAC,GAAG,GAAG,MAAM,OAAO,CAAC;;CAE1B,CAAC,GAAG,IAAI,CAAC;;CACT,KAAK,CAAC,CAAC,mBAAY,CAAC,EAAE;CACtB,KAAK,CAAC,CAAC,mBAAY,EAAE,CAAC,CAAC,GAAC,GAAG,CAAC,EAAE;CAC9B,KAAK,CAAC,GAAG,mBAAY,GAAG,EAAE;;CAE1B,SAAS,EAAE,CAAC,CAAS,EAAU,CAAC;EAC5B,MAAM,CAAC,CAAC,CAAC;CACb,CAAC;;0CAGS,CAAC,sBAAc,CAAC,gBAC7B,GAAG,IAAE;AAHE,CAAC"}
+
+=== 99 tests/fixtures/integrations/type-info-tests/$props-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACG,KAAK,CAAC,EAAE,CAAC,EAAgB,WAAY;;kCAGnC,CAAC;AAFC,CAAC"}
+
+=== 103 tests/fixtures/integrations/type-info-tests/await-input.svelte	js.map
+{"version":3,"mappings":";;gDAAA,CAAC;CACG,GAAG,CAAC,GAAsB,CAAA;;qBAGtB,GAAG,aAAM,GAAG;;;;;AAFZ,CAAC"}
+
+=== 544 tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;CACG,GAAG,CAAC,CAAyB,CAAA;CAC7B,GAAG,CAAC,CAAyB,CAAA;CAC7B,GAAG,CAAC,CAAyB,CAAA;CAC7B,GAAG,CAAC,CAAoB,CAAA;CACxB,GAAG,CAAC,CAAoB,CAAA;;;;EAGpB,CAAC;;;;GAEF,CAAC;oCACE,CAAC,CAAC,CAAC;;;;;;;;EAGL,CAAC;;;;GAEF,EAAE,CAAC,EAAE,CAAC,GAAG,EAAE,EAAE;oCACV,CAAC,CAAC,aAAa,EAAE;;;;;;;;EAGnB,CAAC;;;;GAEF,EAAC,GAAG,CAAC,EAAC;oCACH,CAAC,CAAC,CAAC;;;;;;;;EAGL,CAAC;;;;GAEF,CAAC,CAAC,CAAC;oCACA,CAAC,CAAC,aAAa,EAAE;;;;;;;;EAGnB,CAAC;;;;GAEF,CAAC,GAAG,CAAC,CAAC;oCACH,CAAC,CAAC,CAAC,CAAC,CAAC,aAAa,EAAE;;;;;AA7BtB,CAAC"}
+
+=== 116 tests/fixtures/integrations/type-info-tests/i18n-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,CAAC,QAAQ,eAAe,CAAC;;;sCADtC,CAAC;;;gDAKgB,0CAAG,MAAM,CAAC;;;CAHnB,CAAC;"}
+
+=== 265 tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,GAAG,CAAC,MAAM,GAAG,KAAK,CAAC;CAEnB,GAAG,CAAC,EAAsB,GAAG,SAAS,CAAC;;;;KAQnC,CAAC,MAAM;;;;;;;;KAIP,CAAC,MAAM,IAAI,EAAE;;;;;;;;KAIb,CAAC,MAAM,IAAI,CAAC,CAAC,EAAE;;;;;;;;KAIf,CAAC,MAAM,IAAI,EAAE,KAAK,SAAS;;;;;;;AAnBxB,CAAC"}
+
+=== 59 tests/fixtures/parser/ast/$$slots-input.svelte	js.map
+{"version":3,"mappings":";;;;;KAAK,OAAO,CAAC,SAAS;;;;;;;"}
+
+=== 110 tests/fixtures/parser/ast/$var-input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,GAAG,CAAC,QAAQ,UAAU,CAAA;;+CAD9B,CAAC;;;CAEC,eAAK,EAAE,EAAA;;;AACD,CAAC"}
+
+=== 161 tests/fixtures/parser/ast/at-const01-within-component-input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAA;;sEAD5C,CAAC;CAEC,KAAK,CAAC,CAAC,GAAG,EAAE,CAAA;;;;SAGJ,CAAC,GAAG,CAAC,GAAG,CAAC;;;;;;AAFX,CAAC"}
+
+=== 54 tests/fixtures/parser/ast/at-html01-input.svelte	js.map
+{"version":3,"mappings":";;;2BAAO,mBAAmB,EAAE,WAAW;"}
+
+=== 157 tests/fixtures/parser/ast/attr01-input.svelte	js.map
+{"version":3,"mappings":";;iDAAA,CAAC;CACD,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;CACZ,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;CACZ,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC;;;AACJ,CAAC"}
+
+=== 163 tests/fixtures/parser/ast/await01-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACD,GAAG,CAAC,UAAU,GAAG,GAAG,CAAC,OAAO,EAAE,CAAA;;sBAGtB,UAAU;;sBAKV,UAAU;;sBAIV,UAAU,aAAM,IAAI;;sBAGpB,UAAU;;CAdV,CAAC;"}
+
+=== 148 tests/fixtures/parser/ast/await02-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACD,GAAG,CAAC,UAAU,GAAG,GAAG,CAAC,OAAO,EAAE,CAAA;;sBAGtB,UAAU;;;sBAIV,UAAU;;;;;;sBAMV,UAAU;;;;;CAZV,CAAC;"}
+
+=== 140 tests/fixtures/parser/ast/await03-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACD,GAAG,CAAC,UAAU,GAAG,GAAG,CAAC,OAAO,EAAE,CAAA;;sBAGtB,UAAU;;sBAEV,UAAU;;sBAEV,UAAU;;CANV,CAAC;"}
+
+=== 124 tests/fixtures/parser/ast/await04-input.svelte	js.map
+{"version":3,"mappings":";;kDAAA,CAAC;CACC,KAAK,CAAC,CAAC,GAAG,OAAO,CAAC,OAAO,EAAE,CAAC;;qBAGtB,CAAC,aACF,CAAC;;AAHA,CAAC"}
+
+=== 188 tests/fixtures/parser/ast/blog/write-less-code01-input.svelte	js.map
+{"version":3,"mappings":";;4DAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;wDAGsB,CAAC,2CACD,CAAC,mBAE9B,CAAC,gBAAK,CAAC,gBAAK,CAAC,GAAG,CAAC;AALb,CAAC"}
+
+=== 133 tests/fixtures/parser/ast/class-directive01-input.svelte	js.map
+{"version":3,"mappings":";;4DAAA,CAAC;CACA,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;CAChB,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;;0DAED,GAAG;AADX,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/comments01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 89 tests/fixtures/parser/ast/components01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;;uDADhD,CAAC;;AAEO,CAAC"}
+
+=== 94 tests/fixtures/parser/ast/components02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;;uDADhD,CAAC;;;;;;;AAEO,CAAC"}
+
+=== 119 tests/fixtures/parser/ast/components03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,YAAY,MAAM,gBAAgB,CAAC;;uDADhD,CAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;AAEO,CAAC"}
+
+=== 101 tests/fixtures/parser/ast/components04-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,MAAM,iBAAiB,CAAC;;uDAD3C,CAAC;;;;;;;;;AAEO,CAAC"}
+
+=== 166 tests/fixtures/parser/ast/directive-on-with-expr-like-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAA;;sEADnC,CAAC;CAEA,KAAK,CAAC,GAAG,GAAG,EAAE,GAAG,EAAE,MAAM,KAAK,CAAC,SAAS,CAAC,EAAE,CAAA;;;AACpC,CAAC"}
+
+=== 168 tests/fixtures/parser/ast/directive-use-with-expr-input.svelte	js.map
+{"version":3,"mappings":";;kEAAA,CAAC;CACD,KAAK,CAAC,GAAG,GAAG;EACR,GAAG,EAAE,CAAC,IAAI,KAAK,CAAC;GACZ,IAAI,CAAC,WAAW,GAAG,SAAS,CAAA;EAChC,CAAC;EACJ,CAAA;;;AACO,CAAC"}
+
+=== 51 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/01-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;;AAEO,CAAC"}
+
+=== 79 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/05-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,SAAS,CAAC;;;;;AAKP,CAAC"}
+
+=== 160 tests/fixtures/parser/ast/docs/component-format/01-script/02-assignments-are-reactive/01-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;CAEd,SAAS,WAAW,GAAI,CAAC;;;EAGxB,KAAK,GAAG,KAAK,GAAG,CAAC,CAAC;CACnB,CAAC;AACM,CAAC"}
+
+=== 299 tests/fixtures/parser/ast/docs/component-format/01-script/04-prefix-stores-with-$-to-access-their-values/01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;;sCADzC,CAAC;;EAGA,KAAK,CAAC,KAAK,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAC;;EAC1B,OAAO,CAAC,GAAG,mDAAQ,CAAC;EAEpB,KAAK,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC;EACb,OAAO,CAAC,GAAG,mDAAQ,CAAC;EAEpB,mBAAS,CAAC,EAAC;EACX,OAAO,CAAC,GAAG,mDAAQ,CAAC;;;CACb,CAAC;"}
+
+=== 244 tests/fixtures/parser/ast/docs/component-format/02-script-context-module/01-input.svelte	js.map
+{"version":3,"mappings":";;AACC,GAAG,CAAC,eAAe,GAAG,CAAC,CAAC;;AAIxB,MAAM,CAAC,SAAS,UAAU,GAAG,CAAC;CAC7B,KAAK,CAAC,eAAe,CAAC,CAAC;AACxB,CAAC;;6CAGF,CAAC;CACA,eAAe,IAAI,CAAC,CAAC;CACrB,OAAO,CAAC,GAAG,CAAC,0DAA0D,eAAe,EAAE,CAAC,CAAC;AAClF,CAAC"}
+
+=== 30 tests/fixtures/parser/ast/docs/component-format/03-style/01-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 tests/fixtures/parser/ast/docs/component-format/03-style/02-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 tests/fixtures/parser/ast/docs/component-format/03-style/03-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 42 tests/fixtures/parser/ast/docs/component-format/03-style/04-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 53 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/03-input.svelte	js.map
+{"version":3,"mappings":";;;yDAAe,CAAC,sBAAS,CAAC;"}
+
+=== 48 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/04-input.svelte	js.map
+{"version":3,"mappings":";;;8CAAkB,CAAC,SAAS;"}
+
+=== 54 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/05-input.svelte	js.map
+{"version":3,"mappings":";;;6CAAiB,KAAK,gFACV,IAAI;"}
+
+=== 53 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/06-input.svelte	js.map
+{"version":3,"mappings":";;;8CAAmB,MAAM,KAAK,EAAE;"}
+
+=== 55 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/07-input.svelte	js.map
+{"version":3,"mappings":";;;8CACkB,QAAQ,kDACjB,QAAQ;"}
+
+=== 52 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/08-input.svelte	js.map
+{"version":3,"mappings":";;;2BAAa,GAAG,UAAU,EAAE;"}
+
+=== 42 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/09-input.svelte	js.map
+{"version":3,"mappings":";;;oCAAY,MAAM;"}
+
+=== 42 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/01-input.svelte	js.map
+{"version":3,"mappings":";;;oCAAC,UAAU;"}
+
+=== 85 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/02-input.svelte	js.map
+{"version":3,"mappings":";;;uCAAW,IAAI,uBACX,CAAC,gBAAK,CAAC,gBAAK,CAAC,GAAG,CAAC;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 93 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,UAAU;;;;;;;;KACV,UAAU;;YAAc,UAAU;;;;;;;;KAClC,UAAU;;;;;;;"}
+
+=== 57 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/02-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,MAAM,KAAK,EAAE;;;;;;;"}
+
+=== 187 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,UAAU;;;MAAI,IAAI;;;;;;;0CAClB,UAAU;;;MAAI,IAAI;;;;;;;0CAClB,UAAU;;;MAAI,IAAI;;;;;;;0CAClB,UAAU;;;MAAI,IAAI;;;;;;;0CAClB,UAAU;;;;;;OAAI,IAAI;;;;;;;;;"}
+
+=== 102 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAEQ,KAAK;;;MAAI,IAAI;;kCACd,IAAI,CAAC,IAAI,gBAAK,IAAI,CAAC,GAAG;;;;"}
+
+=== 122 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/03-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;kCACd,CAAC,GAAG,CAAC,eAAI,IAAI,CAAC,IAAI,gBAAK,IAAI,CAAC,GAAG;;;;"}
+
+=== 193 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/04-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,IAAI;;kCACd,IAAI,CAAC,IAAI,gBAAK,IAAI,CAAC,GAAG;;;;;0CAIrB,KAAK;;;MAAI,IAAI;;kCACd,CAAC,GAAG,CAAC,eAAI,IAAI,CAAC,IAAI,gBAAK,IAAI,CAAC,GAAG;;;;"}
+
+=== 291 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/05-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,KAAK;;;MAAI,EAAE,EAAE,EAAE,IAAI,EAAE,GAAG,EAAE;;kCAC3B,CAAC,GAAG,CAAC,eAAI,IAAI,gBAAK,GAAG;;;;;0CAGpB,OAAO;;;MAAI,EAAE,EAAE,EAAE,GAAG,IAAI,EAAE;;wCACrB,EAAE;0CAAyB,IAAI;;;;;;0CAGpC,KAAK;;;MAAI,CAAC,EAAE,EAAE,GAAG,IAAI,CAAC;;wCACjB,EAAE;oCAA6B,IAAI;;;;;"}
+
+=== 85 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/06-input.svelte	js.map
+{"version":3,"mappings":";;;wCAAO,KAAK;;;;;;OAAI,IAAI;;kCACf,IAAI,CAAC,IAAI;;;;;;;"}
+
+=== 133 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,UAAU;;;;GAAW,IAAI;;;;;;;;;EACzB,UAAU;;;;GAAW,IAAI;;;;;;;qBACzB,UAAU,aAAM,IAAI;;;;;qBACpB,UAAU;;"}
+
+=== 71 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,OAAO;;;;GAGR,KAAK;+CAEM,KAAK;;;;;"}
+
+=== 71 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/03-input.svelte	js.map
+{"version":3,"mappings":";;;;;EAAQ,OAAO;;;;GAGR,KAAK;+CAEK,KAAK;;;;;"}
+
+=== 66 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/04-input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,OAAO,aAAM,KAAK;8CACR,KAAK;;;;"}
+
+=== 43 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/05-input.svelte	js.map
+{"version":3,"mappings":";;;qBAAQ,OAAO;;"}
+
+=== 38 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;"}
+
+=== 49 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;mCACuB,KAAK;;;;"}
+
+=== 42 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/01-input.svelte	js.map
+{"version":3,"mappings":";;;2BAAO,UAAU;"}
+
+=== 73 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/02-input.svelte	js.map
+{"version":3,"mappings":";;;wDACM,IAAI,CAAC,KAAK,iBACR,IAAI,CAAC,OAAO;"}
+
+=== 77 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;eACQ,IAAI,EAAE,IAAI,EAAE,EAAE,EAAE,IAAI;;;"}
+
+=== 163 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/02-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,EACV,SAAS,EAAE,KAAK,EAChB,QAAQ,EAAE,UAAU,EACpB,CAAC;;eAGK,IAAI;;;;uCAED,IAAI,CAAC,SAAS;AAJjB,CAAC"}
+
+=== 76 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/03-input.svelte	js.map
+{"version":3,"mappings":";;;eACQ,IAAI;;;;eACJ,KAAK,EAAE,KAAK,EAAE,KAAK;;;"}
+
+=== 169 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;CAEd,SAAS,WAAW,CAAC,KAAK,EAAE,CAAC;EAC5B,KAAK,IAAI,CAAC,CAAC;CACZ,CAAC;;4CAIO,KAAK;AAHN,CAAC"}
+
+=== 42 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/03-input.svelte	js.map
+{"version":3,"mappings":";;;4CACS,KAAK;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/04-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/05-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 239 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/06-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC;;CAChB,SAAS,SAAS,GAAG,CAAC;EACrB,OAAO,GAAG,OAAO,GAAG,CAAC,CAAC;CACvB,CAAC;;CAED,SAAS,KAAK,CAAC,KAAK,EAAE,CAAC;EACtB,UAAU,CAAC,KAAK,CAAC,CAAA;CAClB,CAAC;;;AACM,CAAC"}
+
+=== 200 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,QAAQ,GAAG,OAAO,CAAC;CACvB,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAC;;yDAIa,QAAQ,4EACR,QAAQ,wFACR,QAAQ,mFAGL,QAAQ,mFACR,QAAQ,qFACR,QAAQ,uFACR,QAAQ;AAXnC,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 255 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,aAAa,CAAC;;EAElB,OAAO,CAAC,MAAM,CAAC;GACd,KAAK,CAAC,GAAG,GAAG,aAAa,CAAC,UAAU,CAAC,IAAI,CAAC,CAAC;;GAC3C,SAAS,CAAC,GAAG,CAAC,CAAC;EAChB,CAAC,CAAC,CAAC;;;CACI,CAAC;"}
+
+=== 43 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/01-input.svelte	js.map
+{"version":3,"mappings":";;;2DAAiB,KAAK;"}
+
+=== 90 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/02-input.svelte	js.map
+{"version":3,"mappings":";;;qCACa,MAAM,GAAG,QAAQ,GAAG,EAAE,wDAChB,MAAM,8IAMS,CAAC,MAAM;"}
+
+=== 43 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/01-input.svelte	js.map
+{"version":3,"mappings":";;;qDAAqB,KAAK;"}
+
+=== 78 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02-input.svelte	js.map
+{"version":3,"mappings":";;;yIAKkB,OAAO;;;sBAMoC,QAAQ,GAAG,OAAO,GAAG,OAAO;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02.1-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/03-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 200 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/01-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,KAAK,CAAC,MAAM,GAAG,CAAC,IAAI,EAAE,UAAU,KAAM,CAAA,EAC/B,MAAM,EAAE,CAAC,UAAU,KAAK,CAAC,CAAC,EAC1B,OAAO,EAAE,MAAM,CAAC,CAAC,EACpB,CAAA,AAAC,CAAA;;;AACE,CAAC"}
+
+=== 155 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/02-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,SAAS,GAAG,CAAC,IAAI,EAAE,CAAC;;EAGnB,MAAM,CAAC;GACN,OAAO,GAAG,CAAC;;GAEX,CAAC;GACD,CAAC;CACH,CAAC;;;AACM,CAAC"}
+
+=== 301 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/01-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACD,KAAK,CAAC,UAAU,GAAG,CAAC,IAAI,EAAE,MAAM,KAAM,CAAA;EACrC,KAAK,EAAE,EAAE;EACT,QAAQ,EAAE,EAAE;EACZ,MAAM,EAAE,CAAC,CAAC,KAAK,EAAE;EACjB,GAAG,EAAE,CAAC,CAAC,EAAE,CAAC,KAAK,EAAE;EACjB,IAAI,EAAE,CAAC,CAAC,EAAE,CAAC,KAAK,CAAC,CAAC;EAClB,CAAA,AAAC,CAAA;;;AACM,CAAC"}
+
+=== 47 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/02-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,OAAO;;;;;;;"}
+
+=== 47 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/03-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,OAAO;;;;;;;"}
+
+=== 47 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/06-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,OAAO;;;;;;;"}
+
+=== 64 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/07-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,CAAC;;;MACA,CAAC;;;;;;;;;;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 47 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/02-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,OAAO;;;;;;;"}
+
+=== 71 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCACO,IAAI;;;MAAI,IAAI;;kCACA,IAAI;;;;"}
+
+=== 72 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/03-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,IAAI;;;MAAI,IAAI;;kCACmB,IAAI;;;;"}
+
+=== 668 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/04-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;;6CAD1C,CAAC;CAGA,SAAS,KAAK,CAAC,IAAI,EAAE,EAAE,IAAI,EAAE,EAAE,EAAE,EAAE,MAAM,EAAE,CAAC;EAE3C,KAAK,CAAC,EAAE,GAAG,IAAI,CAAC,IAAI,GAAG,EAAE,CAAC,IAAI,CAAC;EAC/B,KAAK,CAAC,EAAE,GAAG,IAAI,CAAC,GAAG,GAAG,EAAE,CAAC,GAAG,CAAC;EAE7B,KAAK,CAAC,CAAC,GAAG,IAAI,CAAC,IAAI,CAAC,EAAE,GAAG,EAAE,GAAG,EAAE,GAAG,EAAE,CAAC,CAAC;;EAEvC,MAAM,CAAC;GACN,KAAK,EAAE,CAAC;GACR,QAAQ,EAAE,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC,GAAG,GAAG;GAC5B,MAAM,EAAE,QAAQ;GAChB,GAAG,EAAE,CAAC,CAAC,EAAE,CAAC,KACT,wBAAwB,CAAC,GAAG,EAAE,OAAO,CAAC,GAAG,EAAE,cAAc,CAAC,GAAC,GAAG,OAAO;GACtE,CAAC;CACH,CAAC;;;;wCAGK,IAAI;;;MAAI,IAAI;;mCACE,IAAI;;;;AAHjB,CAAC"}
+
+=== 702 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/05-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;;6CAD1C,CAAC;CAGA,SAAS,KAAK,CAAC,IAAI,EAAE,EAAE,IAAI,EAAE,EAAE,EAAE,EAAE,MAAM,EAAE,CAAC;EAE3C,KAAK,CAAC,EAAE,GAAG,IAAI,CAAC,IAAI,GAAG,EAAE,CAAC,IAAI,CAAC;EAC/B,KAAK,CAAC,EAAE,GAAG,IAAI,CAAC,GAAG,GAAG,EAAE,CAAC,GAAG,CAAC;EAE7B,KAAK,CAAC,CAAC,GAAG,IAAI,CAAC,IAAI,CAAC,EAAE,GAAG,EAAE,GAAG,EAAE,GAAG,EAAE,CAAC,CAAC;;EAEvC,MAAM,CAAC;GACP,KAAK,EAAE,CAAC;GACR,QAAQ,EAAE,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC,GAAG,GAAG;GAC5B,MAAM,EAAE,QAAQ;GAChB,IAAI,EAAE,CAAC,CAAC,EAAE,CAAC,KACV,MAAM,CAAC,MAAM,CAAC,IAAI,CAAC,KAAK,EAAE,EACzB,KAAK,EAAE,CAAC,GAAG,GAAG,GAAG,MAAM,GAAG,MAAM,EAChC,CAAC;GACH,CAAC;CACF,CAAC;;;;wCAGK,IAAI;;;MAAI,IAAI;;mCACE,IAAI;;;;AAHjB,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 34 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 33 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;"}
+
+=== 48 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;gDAEY,KAAK;;"}
+
+=== 49 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;;;;;;"}
+
+=== 54 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;"}
+
+=== 56 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;"}
+
+=== 75 tests/fixtures/parser/ast/docs/template-syntax/13-slot/02-$$slots/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;KAGM,OAAO,CAAC,WAAW;;;;;;;;;;;;;;;;;;;"}
+
+=== 125 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAEQ,KAAK;;;MAAI,IAAI;;;iDAEN,IAAI;;;;;;;EAMP,KAAK;;;iCAAY,KAAK;qCAC3B,KAAK,CAAC,IAAI;;;;;;"}
+
+=== 119 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAEQ,KAAK;;;MAAI,IAAI;;;wCAEC,IAAI;;;;;;;;;EAQd,KAAK;;;iDACW,IAAI,CAAC,IAAI;;;;;;;;;;"}
+
+=== 58 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/01-input.svelte	js.map
+{"version":3,"mappings":";;;KAAwB,UAAU;;EAAV,UAAU;;;;;;"}
+
+=== 94 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/02-input.svelte	js.map
+{"version":3,"mappings":";;;KAAwB,gBAAgB,CAAC,SAAS;;EAA1B,gBAAgB,CAAC,SAAS,oBAAO,GAAG;;;;;;"}
+
+=== 43 tests/fixtures/parser/ast/docs/template-syntax/15_2-svelte-element/01-input.svelte	js.map
+{"version":3,"mappings":";;;uBAAsB,UAAU;"}
+
+=== 30 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 147 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,SAAS,aAAa,CAAC,KAAK,EAAE,CAAC;EAC9B,KAAK,CAAC,eAAe,KAAK,CAAC,GAAG,MAAM,CAAC,CAAC;CACvC,CAAC;AACM,CAAC"}
+
+=== 30 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/02-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/01-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/02-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 34 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 34 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 30 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 56 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;;;;;;;;;;;;;"}
+
+=== 136 tests/fixtures/parser/ast/each-with-comment-input.svelte	js.map
+{"version":3,"mappings":";AACA,MAAM,CAAC,GAAG,MAAM,cAAc,CAAA;;4DAD9B,CAAC;;;wCAGM,KAAK,EAEX;;;MAAI,CAAC;;;;uCAAO,CAAC;;;;;;;AAHN,CAAC"}
+
+=== 51 tests/fixtures/parser/ast/empty-elements01-input.svelte	js.map
+{"version":3,"mappings":";;2DAEA,CAAC;;AAAe,CAAC"}
+
+=== 87 tests/fixtures/parser/ast/hello/hello-world01-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,OAAO,CAAC;;;AACZ,CAAC"}
+
+=== 91 tests/fixtures/parser/ast/hello/hello-world02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;wDADtC,CAAC;;;;AAEO,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/hello/hello-world03-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 200 tests/fixtures/parser/ast/hello/hello-world04-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;CAEd,SAAS,WAAW,GAAG,CAAC;EACvB,KAAK,IAAI,CAAC,CAAC;CACZ,CAAC;;6CAIQ,KAAK,cAAG,KAAK,KAAK,CAAC,GAAG,MAAM,GAAG,OAAO;AAHxC,CAAC"}
+
+=== 355 tests/fixtures/parser/ast/hello/hello-world05-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;AACzC,MAAM,GAAG,IAAI,EAAE,IAAI,EAAE,GAAG,QAAQ,mBAAmB,CAAC;AACpD,MAAM,GAAG,MAAM,QAAQ,yBAAyB,CAAC;AACjD,MAAM,GAAG,KAAK,EAAE,KAAK,QAAQ,YAAY,CAAC;;wDAJ3C,CAAC;CAMA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;KAqCf,OAAO;+MAML,KAAK,8FAKL,KAAK;;yCAMH,QAAQ;;;OAAI,IAAI;;4DAGpB,IAAI;;;;;;;;mGAM6B,OAAO;AA9DrC,CAAC"}
+
+=== 99 tests/fixtures/parser/ast/html-comments01-input.svelte	js.map
+{"version":3,"mappings":";;0DACA,CAAC;CACG,GAAG,CAAC,CAAC,GAAG,EAAE,CAAC;;wDAEkB,CAAC;AAD1B,CAAC"}
+
+=== 118 tests/fixtures/parser/ast/i18n-test-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,CAAC,QAAQ,yBAAyB,CAAC;;;sCADhD,CAAC;;;gDAKgB,0CAAG,MAAM,CAAC;;;CAHnB,CAAC;"}
+
+=== 121 tests/fixtures/parser/ast/i18n-test-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAG,CAAC,QAAQ,yBAAyB,CAAC;;;sCADhD,CAAC;;;;;;GAKgB,0CAAG,MAAM,CAAC;;;;CAHnB,CAAC;"}
+
+=== 58 tests/fixtures/parser/ast/if-block01-input.svelte	js.map
+{"version":3,"mappings":";;;KAAK,UAAU;;YAAW,UAAU;;;;;;;"}
+
+=== 76 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,CAAC,CAER,CAAC,CAAC;;;MAAI,CAAC;;;;;;"}
+
+=== 144 tests/fixtures/parser/ast/kit-demo-home-input.svelte	js.map
+{"version":3,"mappings":";AAKC,MAAM,CAAC,OAAO,MAAM,2BAA2B,CAAC;;AAJhD,MAAM,CAAC,KAAK,CAAC,SAAS,GAAG,IAAI,CAAC;;wDAG/B,CAAC;;;;;;;;;;AAEO,CAAC"}
+
+=== 174 tests/fixtures/parser/ast/let-directive01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,KAAK,CAAA;;0DAD5B,CAAC;;;;gCAGmB,IAAI;uCACtB,IAAI,cAIJ,IAAI;;;4CAH0C,GAAG;iDAChD,IAAI,CAAC,IAAI;;;;;qCAIX,IAAI;AARG,CAAC"}
+
+=== 118 tests/fixtures/parser/ast/let-directive02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAC;;0DAD5C,CAAC;;;;uCAI0B,GAAG,EAAC,MAAM;;;;;AAF7B,CAAC"}
+
+=== 162 tests/fixtures/parser/ast/let-directive03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,KAAK,CAAA;;0DAD5B,CAAC;;;;gCAGmB,IAAI;uCACtB,IAAI;;;;2DACsC,KAAK,CAAC,KAAK,eACpD,IAAI,CAAC,IAAI;;;;AAJJ,CAAC"}
+
+=== 47 tests/fixtures/parser/ast/mustache-with-comment-input.svelte	js.map
+{"version":3,"mappings":";;;oCAAC,GAAG,EAAM;"}
+
+=== 38 tests/fixtures/parser/ast/nesting-script-tag01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;"}
+
+=== 30 tests/fixtures/parser/ast/postcss-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 77 tests/fixtures/parser/ast/props03-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,IAAI,CAAA;;;AAED,CAAC"}
+
+=== 77 tests/fixtures/parser/ast/props04-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,IAAI,CAAA;;;AAED,CAAC"}
+
+=== 91 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	js.map
+{"version":3,"mappings":";;gEACA,CAAC;CACD,OAAO,CAAC,GAAG,CAAC,KAAK,CAAC,CAAA;;AACV,CAAC"}
+
+=== 30 tests/fixtures/parser/ast/script-in-style-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 36 tests/fixtures/parser/ast/script-tag-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 101 tests/fixtures/parser/ast/store-bindings-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,EAAE,QAAQ,QAAQ,aAAa,CAAC;;yDAD9C,CAAC;;;;;;AAEO,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/style-directive01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 86 tests/fixtures/parser/ast/style-directive02-input.svelte	js.map
+{"version":3,"mappings":";;;oEAAsB,QAAQ,iEACR,QAAQ,iEACT,QAAQ,+CACX,WAAW,OAAO,EAAE;"}
+
+=== 87 tests/fixtures/parser/ast/style-directive03-input.svelte	js.map
+{"version":3,"mappings":";;4DAAA,CAAC;CACG,KAAK,CAAC,KAAK,GAAG,KAAK,CAAA;;;AACf,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/style-global01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/style-global02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/style01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 153 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,EAAE,CAAC,SAAc,EAAE,WAAY;;EAEnC,SAAS,OAAO,GAAG,CAAC;GACnB,CAAC,EAAE,CAAC;EACL,CAAC;;;;CACM,CAAC;"}
+
+=== 81 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	js.map
+{"version":3,"mappings":";;sFAAA,CAAC;;CAEA,KAAK,2CAAkB;;mCAGjB,KAAK;AAFJ,CAAC"}
+
+=== 81 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-without-runes-input.svelte	js.map
+{"version":3,"mappings":";;8FAAA,CAAC;;CAEA,KAAK,2CAAkB;;mCAGjB,KAAK;AAFJ,CAAC"}
+
+=== 98 tests/fixtures/parser/ast/svelte5/$props-without-runes01-input.svelte	js.map
+{"version":3,"mappings":";;0EAAA,CAAC;CACA,KAAK,CAAC,EAAE,CAAC,EAAE,WAAY;;mCAGjB,CAAC;AAFA,CAAC"}
+
+=== 95 tests/fixtures/parser/ast/svelte5/async/boundaries-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;qDADpC,CAAC;;;;;;;;AAEO,CAAC"}
+
+=== 247 tests/fixtures/parser/ast/svelte5/attach-ts-01-input.svelte	js.map
+{"version":3,"mappings":";;uDAAA,CAAC;CAIA,KAAK,CAAC,YAAwB,GAAG,CAAC,OAAO,KAAK,CAAC;EAC9C,OAAO,CAAC,GAAG,CAAC,OAAO,CAAC,QAAQ,CAAC,CAAC;;EAE9B,MAAM,CAAC,MAAM,CAAC;GACb,OAAO,CAAC,GAAG,CAAC,aAAa,CAAC,CAAC;EAC5B,CAAC,CAAC;CACH,CAAC,CAAC;;;AACK,CAAC"}
+
+=== 344 tests/fixtures/parser/ast/svelte5/attach-ts-02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,UAAU,CAAC;;;sCAD9B,CAAC;EAIA,GAAG,CAAC,OAAO,GAAU,QAAQ,CAAE;;EAE/B,SAAS,OAAO,CAAC,OAAe,EAAc,CAAC;GAC9C,MAAM,CAAC,CAAC,OAAO,KAAK,CAAC;IACpB,KAAK,CAAC,OAAO,GAAG,KAAK,CAAC,OAAO,EAAE,EAAE,OAAO,EAAE,CAAC,CAAC;;IAC5C,MAAM,CAAC,OAAO,CAAC,OAAO,CAAC;GACxB,CAAC,CAAC;EACH,CAAC;;2CAGiB,OAAO;CAFlB,CAAC;"}
+
+=== 110 tests/fixtures/parser/ast/svelte5/attach-ts-03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,eAAe,CAAC;;;sCADvC,CAAC;4CAKO,EAAE,qBACD,EAAE;CAJH,CAAC;"}
+
+=== 232 tests/fixtures/parser/ast/svelte5/attach01-input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;;CAEA,SAAS,YAAY,CAAC,OAAO,EAAE,CAAC;EAC/B,OAAO,CAAC,GAAG,CAAC,OAAO,CAAC,QAAQ,CAAC,CAAC;;EAE9B,MAAM,CAAC,MAAM,CAAC;GACb,OAAO,CAAC,GAAG,CAAC,aAAa,CAAC,CAAC;EAC5B,CAAC,CAAC;CACH,CAAC;;;AACM,CAAC"}
+
+=== 348 tests/fixtures/parser/ast/svelte5/attach02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,UAAU,CAAC;;;sCAD9B,CAAC;EAGA,GAAG,CAAC,OAAO,GAAU,QAAQ,CAAE;;;;;;EAM/B,SAAS,OAAO,CAAC,OAAO,EAAE,CAAC;GAC1B,MAAM,CAAC,CAAC,OAAO,KAAK,CAAC;IACpB,KAAK,CAAC,OAAO,GAAG,KAAK,CAAC,OAAO,EAAE,EAAE,OAAO,EAAE,CAAC,CAAC;;IAC5C,MAAM,CAAC,OAAO,CAAC,OAAO,CAAC;GACxB,CAAC,CAAC;EACH,CAAC;;2CAGiB,OAAO;CAFlB,CAAC;"}
+
+=== 110 tests/fixtures/parser/ast/svelte5/attach03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,eAAe,CAAC;;;sCADvC,CAAC;4CAKO,EAAE,qBACD,EAAE;CAJH,CAAC;"}
+
+=== 395 tests/fixtures/parser/ast/svelte5/attach04-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,UAAU,CAAC;AAC7B,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;;sCAFtC,CAAC;EAIA,GAAG,CAAC,OAAO,GAAU,QAAQ,CAAE;;;;;;EAM/B,SAAS,OAAO,CAAC,OAAO,EAAE,CAAC;GAC1B,MAAM,CAAC,CAAC,OAAO,KAAK,CAAC;IACpB,KAAK,CAAC,OAAO,GAAG,KAAK,CAAC,OAAO,EAAE,EAAE,OAAO,EAAE,CAAC,CAAC;;IAC5C,MAAM,CAAC,OAAO,CAAC,OAAO,CAAC;GACxB,CAAC,CAAC;EACH,CAAC;;2CAGiB,OAAO;;;;;;;;;;CAFlB,CAAC;"}
+
+=== 391 tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,UAAU,CAAC;AAC7B,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;;sCAFtC,CAAC;EAKA,GAAG,CAAC,OAAO,GAAU,QAAQ,CAAE;;EAE/B,SAAS,OAAO,CAAC,OAAe,EAAc,CAAC;GAC9C,MAAM,CAAC,CAAC,OAAO,KAAK,CAAC;IACpB,KAAK,CAAC,OAAO,GAAG,KAAK,CAAC,OAAO,EAAE,EAAE,OAAO,EAAE,CAAC,CAAC;;IAC5C,MAAM,CAAC,OAAO,CAAC,OAAO,CAAC;GACxB,CAAC,CAAC;EACH,CAAC;;2CAGiB,OAAO;;;;;;;;;;CAFlB,CAAC;"}
+
+=== 32 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 454 tests/fixtures/parser/ast/svelte5/declaration-tag-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACC,KAAK,CAAC,KAAK,GAAG,CACZ,EAAE,KAAK,EAAE,EAAE,EAAE,MAAM,EAAE,EAAE,EAAE,EACzB,EAAE,KAAK,EAAE,CAAC,EAAE,MAAM,EAAE,CAAC,EAAE,CACxB,CAAC;;CACF,SAAS,MAAM,CAAC,KAAK,EAAE,CAAC;EACtB,MAAM,CAAC,GAAG,KAAK,gBAAgB,CAAC;CAClC,CAAC;;;;wCAEI,KAAK;;;MAAI,GAAG;EAChB,KAAK,CAAC,IAAI,GAAG,GAAG,CAAC,KAAK,GAAG,GAAG,CAAC,MAAM,CAAA;EACnC,GAAG,CAAC,KAAK,GAAG,GAAG,IAAI,gBAAgB,CAAA;;iCAEhC,MAAM,CAAC,IAAI,CAAC,eAAI,KAAK;;;;AALnB,CAAC"}
+
+=== 830 tests/fixtures/parser/ast/svelte5/docs/fine-grained-reactivity/example01-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,KAAK,GAAU,EAAE,CAAE;;EAEvB,SAAS,SAAS,CAAC,KAAK,EAAE,CAAC;GAC1B,OAAO,CAAC,GAAG,CAAC,eAAe,CAAC,CAAC;;GAC7B,MAAM,CAAC,KAAK,CAAC,MAAM,CAAC,CAAA,IAAI,KAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,MAAM,CAAC;EAChD,CAAC;;EAED,SAAS,OAAO,CAAC,KAAK,EAAE,CAAC;GACxB,EAAE,EAAE,KAAK,CAAC,GAAG,KAAK,OAAO,EAAE,MAAM,CAAC;;GAElC,GAAG,CAAC,IAAI,GAAU,KAAK,CAAE;GACzB,GAAG,CAAC,IAAI,GAAU,KAAK,CAAC,MAAM,CAAC,KAAK,CAAE;;GAEtC,KAAK,GAAG;IAAC,GAAG,KAAK;IAAE;KAClB,IAAI,IAAI,GAAG,CAAC;MAAC,MAAM,CAAC,IAAI,CAAA;KAAC,CAAC;;KAC1B,IAAI,IAAI,CAAC,KAAK,EAAE,CAAC;MAAC,IAAI,GAAG,KAAK,CAAA;KAAC,CAAC;;KAChC,IAAI,IAAI,GAAG,CAAC;MAAC,MAAM,CAAC,IAAI,CAAA;KAAC,CAAC;;KAC1B,IAAI,IAAI,CAAC,KAAK,EAAE,CAAC;MAAC,IAAI,GAAG,KAAK,CAAA;KAAC,CAAC;KAChC;IAAC,CAAC;;GAEH,KAAK,CAAC,MAAM,CAAC,KAAK,GAAG,EAAE,CAAC;EACzB,CAAC;CACM,CAAC;"}
+
+=== 134 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,WAAY;CAQjB,CAAC;"}
+
+=== 158 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/01-counter-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EAEA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EACtB,GAAG,CAAC,MAAM,mBAAY,KAAK,GAAG,CAAC,EAAE;;sCAShC,KAAK,gBAAK,MAAM;CAHV,CAAC;"}
+
+=== 263 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/02-tracking-dependencies-input.svelte	js.map
+{"version":3,"mappings":";;mEAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;CAClB,GAAG,CAAC,GAAG,aAAY,GAAG,EAAI;;CAE1B,SAAS,GAAG,GAAG,CAAC;EACf,MAAM,CAAC,CAAC,GAAG,CAAC,CAAC;CACd,CAAC;;0EAKE,CAAC,gBAAK,CAAC,gBAAK,GAAG;AAJX,CAAC"}
+
+=== 322 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/03-untracking-dependencies-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;EAClB,GAAG,CAAC,CAAC,GAAU,CAAC,CAAE;EAClB,GAAG,CAAC,GAAG,aAAY,GAAG,EAAI;;EAE1B,SAAS,GAAG,GAAG,CAAC;GACf,MAAM,CAAC,CAAC,GAAG,OAAO,CAAC,MAAM,CAAC,CAAC,CAAC;EAC7B,CAAC;;2EAKE,CAAC,gBAAK,CAAC,gBAAK,GAAG;CAJX,CAAC;"}
+
+=== 108 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/04-simple-component-props-input.svelte	js.map
+{"version":3,"mappings":";;6EAAA,CAAC;CACA,GAAG,CAAC,EAAE,KAAK,GAAG,CAAC,EAAE,WAAY;;oCAG7B,KAAK;AAFE,CAAC"}
+
+=== 162 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/05-advanced-component-props-input.svelte	js.map
+{"version":3,"mappings":";;+EAAA,CAAC;CACA,GAAG,CAAC,EAAE,KAAK,EAAE,SAAS,qBAAE,GAAG,MAAM,EAAE,WAAY;;4CAGpC,SAAS;YACnB,IAAI,CAAC,SAAS,CAAC,MAAM,CAAC;;AAHhB,CAAC"}
+
+=== 620 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/06-autoscroll-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,QAAQ,CAAC;;;sCAD/B,CAAC;EAGA,GAAG,CAAC,KAAK,GAAU,MAAM,CAAE;EAC3B,GAAG,CAAC,QAAQ,GAAU,EAAE,CAAE;EAE1B,GAAG,CAAC,GAAG,CAAC;;EAcR,SAAS,aAAa,CAAC,KAAK,EAAE,CAAC;GAC9B,EAAE,EAAE,KAAK,CAAC,GAAG,KAAK,OAAO,EAAE,CAAC;IAC3B,KAAK,CAAC,IAAI,GAAG,KAAK,CAAC,MAAM,CAAC,KAAK,CAAC;;IAChC,EAAE,EAAE,CAAC,IAAI,EAAE,MAAM,CAAC;;IAElB,QAAQ,GAAG,CAAC,GAAG,QAAQ,EAAE,IAAI,CAAC,CAAC;IAC/B,KAAK,CAAC,MAAM,CAAC,KAAK,GAAG,EAAE,CAAC;GACzB,CAAC;EACF,CAAC;;EAED,SAAS,MAAM,GAAG,CAAC;GAClB,WAAW,GAAG,CAAC,WAAW,CAAC;EAC5B,CAAC;;4DAGe,KAAK,KAAK,MAAM;;yCAExB,QAAQ;;;OAAI,OAAO;;kCACrB,OAAO;;;;CALN,CAAC;"}
+
+=== 97 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	js.map
+{"version":3,"mappings":";;oDAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;6CAIb,KAAK;AAHR,CAAC"}
+
+=== 168 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,GAAG,CAAC,MAAM,mBAAY,KAAK,GAAG,CAAC,EAAE;;qCAIhC,MAAM,4BAGJ,KAAK,yBAAc,MAAM;AANrB,CAAC"}
+
+=== 365 tests/fixtures/parser/ast/svelte5/docs/runes/02-2-$derived-by-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,OAAO,GAAU,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAE;;CAChC,GAAG,CAAC,KAAK,aAAe,MAAM,CAAC;EAC9B,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;EACd,GAAG,EAAE,KAAK,CAAC,CAAC,IAAI,OAAO,EAAE,CAAC;GACzB,KAAK,IAAI,CAAC,CAAC;EACZ,CAAC;;EACD,MAAM,CAAC,KAAK,CAAC;CACd,CAAC,EAAE;;qCAIF,OAAO,CAAC,IAAI,CAAC,KAAK,CAAC,gBAAK,KAAK;AAHvB,CAAC"}
+
+=== 171 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EACtB,GAAG,CAAC,MAAM,mBAAY,KAAK,GAAG,CAAC,EAAE;;sCAkBhC,MAAM,4BAGJ,KAAK,yBAAc,MAAM;CANrB,CAAC;"}
+
+=== 99 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,OAAO,CAAC,GAAG;GAAC,qBAAqB;;GAAqB,CAAC;;;CAKjD,CAAC;"}
+
+=== 193 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,QAAQ,CAAC;;;sCAD/B,CAAC;EAGA,GAAG,CAAC,GAAG,CAAC;EACR,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAC;;;;;;GAoBX,QAAQ;;;;OAAI,OAAO;;kCACrB,OAAO;;;;CAJL,CAAC;"}
+
+=== 106 tests/fixtures/parser/ast/svelte5/docs/runes/05-$props-input.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;CACG,GAAG,CAAC,EAAE,YAAY,GAAG,EAAE,EAAE,YAAY,EAAE,WAAY;AAC/C,CAAC"}
+
+=== 96 tests/fixtures/parser/ast/svelte5/docs/runes/06-$props-input.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;CACG,GAAG,CAAC,EAAE,KAAK,EAAE,QAAQ,EAAE,WAAY;AAC/B,CAAC"}
+
+=== 122 tests/fixtures/parser/ast/svelte5/docs/runes/07-$props-input.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;CACG,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,qBAAE,GAAG,cAAc,EAAE,WAAY;AAC1C,CAAC"}
+
+=== 105 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-input.svelte	js.map
+{"version":3,"mappings":";;uDAAA,CAAC;OACO,GAAG;;iDAII,GAAG,2DACJ,GAAG,sDAEF,GAAG,yDACJ,GAAG;AAPT,CAAC"}
+
+=== 105 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-ts-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;OACO,GAAW;;iDAIJ,GAAG,2DACJ,GAAG,sDAEF,GAAG,yDACJ,GAAG;AAPT,CAAC"}
+
+=== 122 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-ts-input.svelte	js.map
+{"version":3,"mappings":";;gEAAA,CAAC;CAEC,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,qBAAE,GAAG,cAAc,EAAW,WAAY;AACjD,CAAC"}
+
+=== 95 tests/fixtures/parser/ast/svelte5/docs/runes/08-2-$bindable-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,EAAE,YAAY,SAAc,EAAE,WAAY;;;CACvC,CAAC;"}
+
+=== 105 tests/fixtures/parser/ast/svelte5/docs/runes/08-3-$bindable-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,EAAE,YAAY,GAAa,UAAU,AAAC,EAAE,WAAY;;;CACjD,CAAC;"}
+
+=== 106 tests/fixtures/parser/ast/svelte5/docs/runes/08-4-$bindable-ts-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,EAAE,YAAY,GAAa,EAAE,AAAC,EAA4B,WAAY;;;CACnE,CAAC;"}
+
+=== 30 tests/fixtures/parser/ast/svelte5/docs/runes/09-how-to-opt-in-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 113 tests/fixtures/parser/ast/svelte5/docs/runes/10-$effect-root-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EAEtB,KAAK,CAAC,OAAO,YAQV;CACI,CAAC;"}
+
+=== 146 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,GAAG,CAAC,OAAO,GAAU,OAAO,CAAE;;CAE9B,EAAyB;qEAIP,OAAO;AAHnB,CAAC"}
+
+=== 146 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-ts-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,GAAG,CAAC,OAAO,GAAU,OAAO,CAAE;;CAE9B,EAAyB;qEAIP,OAAO;AAHnB,CAAC"}
+
+=== 101 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;EAEtB,EAIG;;;CACG,CAAC;"}
+
+=== 101 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-ts-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;EAEtB,EAIG;;;CACG,CAAC;"}
+
+=== 101 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;EAEtB,EAAoC;CAC9B,CAAC;"}
+
+=== 101 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-ts-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;EAEtB,EAAoC;CAC9B,CAAC;"}
+
+=== 99 tests/fixtures/parser/ast/svelte5/docs/runes/12-$inspect-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;CAEtB,EAIG;;;AACI,CAAC"}
+
+=== 124 tests/fixtures/parser/ast/svelte5/docs/runes/13-$inspect-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;CAEtB,EAA+B;CAE/B,KAAK,GAAG,CAAC,CAAC;AACH,CAAC"}
+
+=== 276 tests/fixtures/parser/ast/svelte5/docs/snippets/01-input.svelte	js.map
+{"version":3,"mappings":";;SAAU,MAAM,aAAC,KAAK;8CAGd,KAAK,CAAC,GAAG,kBACT,KAAK,CAAC,OAAO,oBACX,KAAK,CAAC,KAAK,qBACV,KAAK,CAAC,MAAM,4BAER,KAAK,CAAC,OAAO;;;;;;wCAIrB,MAAM;;;MAAI,KAAK;;MAChB,KAAK,CAAC,IAAI;gDACL,KAAK,CAAC,IAAI;GACT,MAAM,aAAC,KAAK;;;;GAGb,MAAM,aAAC,KAAK;;;;;;;"}
+
+=== 149 tests/fixtures/parser/ast/svelte5/docs/snippets/02-input.svelte	js.map
+{"version":3,"mappings":";;SAAU,MAAM,aAAC,EAAE,GAAG,EAAE,OAAO,EAAE,KAAK,EAAE,MAAM,EAAE;8CAEpC,OAAO,kBAAG,GAAG,oBAAG,KAAK,qBAAG,MAAM,4BAC3B,OAAO;;;"}
+
+=== 185 tests/fixtures/parser/ast/svelte5/docs/snippets/03-snippet-scope-input.svelte	js.map
+{"version":3,"mappings":";;oEAAA,CAAC;CACA,GAAG,CAAC,EAAE,OAAO,GAAG,wBAAwB,EAAE,WAAY;;UAG7C,KAAK,aAAC,IAAI;uCACT,IAAI,eAAI,OAAO;;;CAGjB,KAAK,aAAC,OAAO;;CACb,KAAK,aAAC,KAAK;;AAPZ,CAAC"}
+
+=== 89 tests/fixtures/parser/ast/svelte5/docs/snippets/04-snippet-scope-input.svelte	js.map
+{"version":3,"mappings":";;;UACW,CAAC;WACA,CAAC;;;;EAGF,CAAC;;;;CAIF,CAAC;;CAIF,CAAC;;"}
+
+=== 163 tests/fixtures/parser/ast/svelte5/docs/snippets/05-snippet-scope-input.svelte	js.map
+{"version":3,"mappings":";;SAAU,QAAQ;;;;SAIR,SAAS,aAAC,CAAC;KACf,CAAC,GAAG,CAAC;6CACF,CAAC;EACC,SAAS,aAAC,CAAC,GAAG,CAAC;;;;EAEf,QAAQ;;;;;;;CAIV,SAAS,aAAC,EAAE;"}
+
+=== 512 tests/fixtures/parser/ast/svelte5/docs/snippets/06-passing-snippets-to-components-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;SAS1B,MAAM;;;;SAON,GAAG,aAAC,CAAC;iCACT,CAAC,CAAC,IAAI,uBACN,CAAC,CAAC,GAAG,uBACL,CAAC,CAAC,KAAK,uBACP,CAAC,CAAC,GAAG,GAAG,CAAC,CAAC,KAAK;;;4EArBrB,CAAC;CAGA,KAAK,CAAC,MAAM,GAAG;EACd,EAAE,IAAI,EAAE,QAAQ,EAAE,GAAG,EAAE,CAAC,EAAE,KAAK,EAAE,CAAC,EAAE;EACpC,EAAE,IAAI,EAAE,SAAS,EAAE,GAAG,EAAE,EAAE,EAAE,KAAK,EAAE,CAAC,EAAE;EACtC,EAAE,IAAI,EAAE,UAAU,EAAE,GAAG,EAAE,EAAE,EAAE,KAAK,EAAE,GAAG,EAAE;EACzC,CAAC;;2BAiBU,MAAM,EAAG,MAAM,EAAG,GAAG;AAhB1B,CAAC"}
+
+=== 205 tests/fixtures/parser/ast/svelte5/docs/snippets/07-passing-snippets-to-components-input.svelte	js.map
+{"version":3,"mappings":";;;;WAEW,MAAM;;;;WAON,GAAG,aAAC,CAAC;mCACT,CAAC,CAAC,IAAI,uBACN,CAAC,CAAC,GAAG,uBACL,CAAC,CAAC,KAAK,uBACP,CAAC,CAAC,GAAG,GAAG,CAAC,CAAC,KAAK;;;;SAZT,MAAM;GACR,MAAM;GAON,GAAG;;;;"}
+
+=== 47 tests/fixtures/parser/ast/svelte5/docs/snippets/08-passing-snippets-to-components-input.svelte	js.map
+{"version":3,"mappings":";;;;QAAa,MAAM;;;;;;"}
+
+=== 137 tests/fixtures/parser/ast/svelte5/docs/snippets/09-passing-snippets-to-components-input.svelte	js.map
+{"version":3,"mappings":";;qFAAA,CAAC;CACA,GAAG,CAAC,EAAE,IAAI,EAAE,QAAQ,EAAE,GAAG,EAAE,WAAY;;;;KAIlC,QAAQ;;EAEE,QAAQ;;;;;;;AALhB,CAAC"}
+
+=== 186 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-input.svelte	js.map
+{"version":3,"mappings":";;sEAAA,CAAC;CAGA,GAAG,CAAC,EAAE,IAAI,EAAE,QAAQ,EAAE,GAAG,EAIxB,WAAY;;;;KAIR,QAAQ;;EAEE,QAAQ;;;;;;;;wCAIf,IAAI;;;MAAI,CAAC;;;EACF,GAAG,aAAC,CAAC;;;;;AAVb,CAAC"}
+
+=== 191 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-type-output.svelte	js.map
+{"version":3,"mappings":";;4EAAA,CAAC;;CAGA,GAAG,CAAC;EAAE,IAAI;EAAE,QAAQ;EAAE,GAAG;;;;;EAIxB,WAAY;;;;KAIR,QAAQ;;EAEE,QAAQ;;;;;;;;wCAIf,IAAI;;;MAAI,CAAC;;;EACF,GAAG,aAAC,CAAC;;;;;AAVb,CAAC"}
+
+=== 186 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-input.svelte	js.map
+{"version":3,"mappings":";;sEAAA,CAAC;CAGA,GAAG,CAAC,EAAE,IAAI,EAAE,QAAQ,EAAE,GAAG,EAIxB,WAAY;;;;KAIR,QAAQ;;EAEE,QAAQ;;;;;;;;wCAIf,IAAI;;;MAAI,CAAC;;;EACF,GAAG,aAAC,CAAC;;;;;AAVb,CAAC"}
+
+=== 192 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-type-output.svelte	js.map
+{"version":3,"mappings":";;4EAAA,CAAC;;;CAGA,GAAG,CAAC;EAAE,IAAI;EAAE,QAAQ;EAAE,GAAG;;;;;EAIxB,WAAY;;;;KAIR,QAAQ;;EAEE,QAAQ;;;;;;;;wCAIf,IAAI;;;MAAI,CAAC;;;EACF,GAAG,aAAC,CAAC;;;;;AAVb,CAAC"}
+
+=== 38 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/01-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;"}
+
+=== 86 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/02-input.svelte	js.map
+{"version":3,"mappings":";;;;WAGW,MAAM,aAAC,KAAK,EAAE,KAAK;;;;wBAAnB,MAAM;;;;;;;;;;"}
+
+=== 83 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/03-input.svelte	js.map
+{"version":3,"mappings":";;SAAU,MAAM,aAAC,KAAK,EAAE,KAAK;;;;;uBAIX,MAAM;;;;;;;;;"}
+
+=== 38 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/04-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;"}
+
+=== 265 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/05-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,IAAI,CAAE;CACzB,GAAG,CAAC,KAAK,GAAU,MAAM,CAAC,CAAC,CAAE;;CAE7B,SAAS,OAAO,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC;EACvB,KAAK,GAAG,CAAC,CAAC;EACV,KAAK,GAAG,CAAC,CAAC;CACX,CAAC;;;;;;;;;;;KAOG,KAAK;;;;;;;AANF,CAAC"}
+
+=== 50 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/01-each-blocks-without-an-item-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,UAAU;;;;;;;"}
+
+=== 50 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/02-each-blocks-without-an-item-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCAAO,UAAU;;;;;;;"}
+
+=== 163 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/03-each-blocks-without-an-item-input.svelte	js.map
+{"version":3,"mappings":";;;;;wCACQ,EAAE,MAAM,EAAE,CAAC,EAAE;;;;;2CACZ,EAAE,MAAM,EAAE,CAAC,EAAE;;;8DACD,AAAC,CAAA,IAAI,GAAG,IAAI,CAAA,GAAI,CAAC,KAAK,CAAC;;;;;;;"}
+
+=== 57 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	js.map
+{"version":3,"mappings":";;;0CACC,CAAA,MAAM,KAAK,CAAA;"}
+
+=== 32 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 160 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/01-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;CAEtB,SAAS,SAAS,GAAG,CAAC;EACrB,KAAK,IAAI,CAAC,CAAC;CACZ,CAAC;;6CAIQ,KAAK;AAHP,CAAC"}
+
+=== 345 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/02-input.svelte	js.map
+{"version":3,"mappings":";;6CAAA,CAAC;CACA,SAAS,aAAa,GAAG,CAAC;EACzB,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;EAEtB,SAAS,SAAS,GAAG,CAAC;GACrB,KAAK,IAAI,CAAC,CAAC;EACZ,CAAC;;EAED,MAAM,CAAC;GACN,IAAI,KAAK,GAAG,CAAC;IAAC,MAAM,CAAC,KAAK,CAAA;GAAC,CAAC;GAC5B,SAAS;GACT,CAAC;CACH,CAAC;;CAED,KAAK,CAAC,OAAO,GAAG,aAAa,EAAE,CAAC;;6CAIvB,OAAO,CAAC,KAAK;AAHf,CAAC"}
+
+=== 42 tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	js.map
+{"version":3,"mappings":";;;0CAEI,CAAC;"}
+
+=== 42 tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	js.map
+{"version":3,"mappings":";;;0CAEI,CAAC;"}
+
+=== 186 tests/fixtures/parser/ast/svelte5/generics01-snippets-input.svelte	js.map
+{"version":3,"mappings":";;uEAAA,CAAC;CAIA,GAAG,CAAC,EAAE,IAAI,EAAE,QAAQ,EAAE,GAAG,EAIxB,WAAY;;;;KAIR,QAAQ;;EAEE,QAAQ;;;;;;;;wCAIf,IAAI;;;MAAI,CAAC;;;EACF,GAAG,aAAC,CAAC;;;;;AAVb,CAAC"}
+
+=== 193 tests/fixtures/parser/ast/svelte5/generics01-snippets-type-output.svelte	js.map
+{"version":3,"mappings":";;6EAAA,CAAC;;;;CAIA,GAAG,CAAC;EAAE,IAAI;EAAE,QAAQ;EAAE,GAAG;;;;;EAIxB,WAAY;;;;KAIR,QAAQ;;EAEE,QAAQ;;;;;;;;wCAIf,IAAI;;;MAAI,CAAC;;;EACF,GAAG,aAAC,CAAC;;;;;AAVb,CAAC"}
+
+=== 43 tests/fixtures/parser/ast/svelte5/non-function-binding01-input.svelte	js.map
+{"version":3,"mappings":";;;0CAAmB,CAAC;"}
+
+=== 42 tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	js.map
+{"version":3,"mappings":";;;0CAEI,CAAC;"}
+
+=== 174 tests/fixtures/parser/ast/svelte5/render01-input.svelte	js.map
+{"version":3,"mappings":";;4DAAA,CAAC;CACA,KAAK,CAAC,EAAE,GAAG,EAAE,WAAY;;CAEzB,SAAS,GAAG,GAAG,CAAC;EACf,MAAM,CAAC,KAAK,CAAC;CACd,CAAC;;CAGO,GAAG,aAAC,GAAG,EAAE;;AAFV,CAAC"}
+
+=== 98 tests/fixtures/parser/ast/svelte5/render02-optional-input.svelte	js.map
+{"version":3,"mappings":";;qEAAA,CAAC;CACA,KAAK,CAAC,EAAE,GAAG,EAAE,WAAY;;CAGjB,GAAG;;AAFJ,CAAC"}
+
+=== 109 tests/fixtures/parser/ast/svelte5/snippet01-hoist-input.svelte	js.map
+{"version":3,"mappings":";;SAIU,GAAG;;;;0DAJb,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,GAAG,CAAC;;CAOR,GAAG;AANJ,CAAC"}
+
+=== 137 tests/fixtures/parser/ast/svelte5/snippet02-nesting-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,GAAG,MAAM,iBAAiB,CAAC;;SAGzB,GAAG;UACF,GAAG;;;;;CACA,GAAG;;;;4DANjB,CAAC;mBASK,GAAG;AAPD,CAAC"}
+
+=== 30 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options01-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 30 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	js.map
+{"version":3,"mappings":";;"}
+
+=== 365 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,KAAK,CAAC,OAAO,GAAU,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAE;;CAClC,KAAK,CAAC,KAAK,aAAe,MAAM,CAAC;EAChC,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;EACd,GAAG,EAAE,KAAK,CAAC,CAAC,IAAI,OAAO,EAAE,CAAC;GACzB,KAAK,IAAI,CAAC,CAAC;EACZ,CAAC;;EACD,MAAM,CAAC,KAAK,CAAC;CACd,CAAC,EAAE;;qCAIF,OAAO,CAAC,IAAI,CAAC,KAAK,CAAC,gBAAK,KAAK;AAHvB,CAAC"}
+
+=== 366 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-type-output.svelte	js.map
+{"version":3,"mappings":";;iEAAA,CAAC;CACA,KAAK,CAAC,OAAO,GAAU,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAE;;CAClC,KAAK,CAAC,KAAK,aAAe,MAAM,CAAC;;EAChC,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;EACd,GAAG,EAAE,KAAK,CAAC,CAAC,IAAI,OAAO,EAAE,CAAC;GACzB,KAAK,IAAI,CAAC,CAAC;EACZ,CAAC;;EACD,MAAM,CAAC,KAAK,CAAC;CACd,CAAC,EAAE;;qCAIF,OAAO,CAAC,IAAI,CAAC,KAAK,CAAC,gBAAK,KAAK;AAHvB,CAAC"}
+
+=== 168 tests/fixtures/parser/ast/svelte5/ts-$derived01-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,KAAK,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;qCAInC,OAAO,4BAGN,KAAK,yBAAc,OAAO;AANtB,CAAC"}
+
+=== 168 tests/fixtures/parser/ast/svelte5/ts-$derived01-type-output.svelte	js.map
+{"version":3,"mappings":";;8DAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,KAAK,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;qCAInC,OAAO,4BAGN,KAAK,yBAAc,OAAO;AANtB,CAAC"}
+
+=== 171 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EACtB,GAAG,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;sCAkBjC,OAAO,4BAGN,KAAK,yBAAc,OAAO;CANtB,CAAC;"}
+
+=== 171 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EACtB,GAAG,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;sCAkBjC,OAAO,4BAGN,KAAK,yBAAc,OAAO;CANtB,CAAC;"}
+
+=== 171 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EACtB,KAAK,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;sCAkBnC,OAAO,4BAGN,KAAK,yBAAc,OAAO;CANtB,CAAC;"}
+
+=== 171 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;EACtB,KAAK,CAAC,OAAO,mBAAY,KAAK,GAAG,CAAC,EAAE;;sCAkBnC,OAAO,4BAGN,KAAK,yBAAc,OAAO;CANtB,CAAC;"}
+
+=== 164 tests/fixtures/parser/ast/svelte5/ts-$props01-input.svelte	js.map
+{"version":3,"mappings":";;+DAAA,CAAC;CAOC,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,qBAAE,GAAG,cAAc,EAAW,WAAY;;oCAGxD,CAAC;WACD,CAAC;WACD,CAAC;WACD,cAAc;AALP,CAAC"}
+
+=== 170 tests/fixtures/parser/ast/svelte5/ts-$props01-type-output.svelte	js.map
+{"version":3,"mappings":";;qEAAA,CAAC;;;;;;CAOC,GAAG,CAAC;EAAE,CAAC;EAAE,CAAC;EAAE,CAAC;;;EAAE,GAAG,cAAc;EAAW,WAAY;;oCAGxD,CAAC,cACD,CAAC,cACD,CAAC,cACD,cAAc;AALP,CAAC"}
+
+=== 99 tests/fixtures/parser/ast/svelte5/ts-$props02-input.svelte	js.map
+{"version":3,"mappings":";;+DAAA,CAAC;CACC,GAAG,CAAC,EAAE,IAAI,EAAoB,WAAY;;oCAG3C,IAAI;AAFG,CAAC"}
+
+=== 99 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	js.map
+{"version":3,"mappings":";;qEAAA,CAAC;CACC,GAAG,CAAC,EAAE,IAAI,EAAoB,WAAY;;oCAG3C,IAAI;AAFG,CAAC"}
+
+=== 123 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,GAAG,CAAC,IAAI,UAAY;;6CAIX,KAAK;AAHR,CAAC"}
+
+=== 123 tests/fixtures/parser/ast/svelte5/ts-$state01-type-output.svelte	js.map
+{"version":3,"mappings":";;4DAAA,CAAC;CACC,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;CACtB,GAAG,CAAC,IAAI,UAAY;;6CAIX,KAAK;AAHR,CAAC"}
+
+=== 112 tests/fixtures/parser/ast/svelte5/ts-derived-in-snippet-declaration-tag-input.svelte	js.map
+{"version":3,"mappings":";;SAEU,YAAY;CACnB,KAAK,CAAC,CAAC,mBAAY,CAAC,EAAC;;;;;gFAHxB,CAAC;CAOQ,YAAY;AAPK,CAAC"}
+
+=== 121 tests/fixtures/parser/ast/svelte5/ts-event01-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,YAAY,CAAA;;qDADtC,CAAC;;kCAIoB,CAAA,CAAC,KAAE,CAAC,CAAC;;AAFlB,CAAC"}
+
+=== 121 tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,YAAY,CAAA;;qDADtC,CAAC;;kCAIoB,CAAA,CAAC,KAAE,CAAC,CAAC;;AAFlB,CAAC"}
+
+=== 125 tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,YAAY,CAAA;;2DADtC,CAAC;;;;;EAIoB,CAAA,CAAC,KAAE,CAAC,CAAC;;;;AAFlB,CAAC"}
+
+=== 139 tests/fixtures/parser/ast/svelte5/ts-event03-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,KAAK,CAAC,EAAC,KAAK,EAEX,WAAW;;EACZ,KAAK,CAAC,EAAC,MAAM,EAAE,CAAC,EAAC,CAAC,CAAA;;CACd,CAAC;"}
+
+=== 141 tests/fixtures/parser/ast/svelte5/ts-event03-type-output.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACG,KAAK,CAAC;GAAC,KAAK;;;GAEX,WAAW;;EACZ,KAAK,CAAC,EAAC,MAAM,EAAE,CAAC,EAAC,CAAC,CAAA;;CACd,CAAC;"}
+
+=== 51 tests/fixtures/parser/ast/svelte5/ts-event04-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;;AACO,CAAC"}
+
+=== 51 tests/fixtures/parser/ast/svelte5/ts-event04-type-output.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;;AACO,CAAC"}
+
+=== 156 tests/fixtures/parser/ast/svelte5/ts-event05-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;qDADtD,CAAC;;SAIkB,CAAA,CAAC,KAAE,CAAC;;;;;GAKnB,CAAC,CAAC,MAAM,CAAC;EACb,CAAC;;AARO,CAAC"}
+
+=== 158 tests/fixtures/parser/ast/svelte5/ts-event05-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;2DADtD,CAAC;;;EAIkB,CAAA,CAAC,KAAE,CAAC;;;;;;GAKnB,CAAC,CAAC,MAAM,CAAC;EACb,CAAC;;AARO,CAAC"}
+
+=== 153 tests/fixtures/parser/ast/svelte5/ts-event06-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;qDADtD,CAAC;;SAIkB,CAAA,CAAC,KAAE,CAAC;;GAEnB,CAAC,CAAC,MAAM,CAAC;EACb,CAAC;;AALO,CAAC"}
+
+=== 155 tests/fixtures/parser/ast/svelte5/ts-event06-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;2DADtD,CAAC;;;EAIkB,CAAA,CAAC,KAAE,CAAC;;;GAEnB,CAAC,CAAC,MAAM,CAAC;EACb,CAAC;;AALO,CAAC"}
+
+=== 101 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;;;;;EAQb,KAAK;;AAPP,CAAC"}
+
+=== 97 tests/fixtures/parser/ast/svelte5/ts-event08-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;6CAMb,KAAK;AALP,CAAC"}
+
+=== 100 tests/fixtures/parser/ast/svelte5/ts-event08-type-output.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAU,CAAC,CAAE;;;;;EAMb,KAAK;;AALP,CAAC"}
+
+=== 140 tests/fixtures/parser/ast/svelte5/ts-snippet01-input.svelte	js.map
+{"version":3,"mappings":";;SAIU,GAAG,aAAC,GAAW;gCACpB,GAAG;;;uDALR,CAAC;CACG,GAAG,CAAC,GAAG,GAAG,EAAE,CAAA;;CAOP,GAAG,aAAC,GAAG;AANR,CAAC"}
+
+=== 140 tests/fixtures/parser/ast/svelte5/ts-snippet01-type-output.svelte	js.map
+{"version":3,"mappings":";;SAIU,GAAG,aAAC,GAAW;gCACpB,GAAG;;;6DALR,CAAC;CACG,GAAG,CAAC,GAAG,GAAG,EAAE,CAAA;;CAOP,GAAG,aAAC,GAAG;AANR,CAAC"}
+
+=== 194 tests/fixtures/parser/ast/svelte5/ts-snippet03-input.svelte	js.map
+{"version":3,"mappings":";;SAQU,GAAG,aAAC,CAAwB;;;;uDARtC,CAAC;CACA,SAAS,KAAK,GAAG,CAAC;EACjB,OAAO,CAAC,GAAG,CAAC,OAAO,CAAC,CAAC;CACtB,CAAC;;CAGO,GAAG,aAAC,EAAE,OAAO,EAAE,KAAK,EAAE;AAFvB,CAAC"}
+
+=== 118 tests/fixtures/parser/ast/template-curly-spacing-test-input.svelte	js.map
+{"version":3,"mappings":";;sEAAA,CAAC;CACG,KAAK,CAAC,IAAI,GAAG,EAAE,CAAA;;oCAGR,cAAc,IAAI,CAAC,KAAK,EAAE;AAF7B,CAAC"}
+
+=== 332 tests/fixtures/parser/ast/this-attr01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,OAAO,CAAA;;sDAD9B,CAAC;CAEA,KAAK,CAAC,KAAK,GAAG,EAAE,KAAK,EAAE,KAAK,EAAE,CAAA;CAC9B,GAAG,CAAC,cAAc,CAAA;CAClB,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAA;;CACjB,SAAS,YAAY,GAAG,CAAC,CAAC;;;;;;;;;sBAKX,KAAK;;QADd,SAAS;;;KAAT,SAAS;;cAEH,cAAc;;;;OAAd,cAAc;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AALnB,CAAC"}
+
+=== 332 tests/fixtures/parser/ast/this-attr02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,OAAO,CAAA;;sDAD9B,CAAC;CAEA,KAAK,CAAC,KAAK,GAAG,EAAE,KAAK,EAAE,KAAK,EAAE,CAAA;CAC9B,GAAG,CAAC,cAAc,CAAA;CAClB,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAA;;CACjB,SAAS,YAAY,GAAG,CAAC,CAAC;;;;;;;;;sBAIX,KAAK;;QAEd,SAAS;;;KAAT,SAAS;;cADH,cAAc;;;;OAAd,cAAc;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAJnB,CAAC"}
+
+=== 332 tests/fixtures/parser/ast/this-attr03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,OAAO,CAAA;;sDAD9B,CAAC;CAEA,KAAK,CAAC,KAAK,GAAG,EAAE,KAAK,EAAE,KAAK,EAAE,CAAA;CAC9B,GAAG,CAAC,cAAc,CAAA;CAClB,GAAG,CAAC,QAAQ,GAAG,EAAE,CAAA;;CACjB,SAAS,YAAY,GAAG,CAAC,CAAC;;;;;;;;;sBAIX,KAAK;;QAId,SAAS;;;KAAT,SAAS;;cAHH,cAAc;;;;OAAd,cAAc;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAJnB,CAAC"}
+
+=== 51 tests/fixtures/parser/ast/this-attr04-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;uBACkC,OAAO;;;"}
+
+=== 61 tests/fixtures/parser/ast/this-attr05-input.svelte	js.map
+{"version":3,"mappings":";;;uBAAkC,OAAO;;;;;;uBACP,OAAO;;;"}
+
+=== 137 tests/fixtures/parser/ast/trailing-comment01-input.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,CAAC,GAAG,GAAG,CAAA;;;;;EAIoB,CAAC;;AAF1B,CAAC"}
+
+=== 70 tests/fixtures/parser/ast/ts-$$slots01-input.svelte	js.map
+{"version":3,"mappings":";;gEAAA,CAAC;;;CACG,OAAO,CAAA;;;;AACH,CAAC"}
+
+=== 70 tests/fixtures/parser/ast/ts-$$slots01-type-output.svelte	js.map
+{"version":3,"mappings":";;sEAAA,CAAC;;;CACG,OAAO,CAAA;;;;AACH,CAAC"}
+
+=== 67 tests/fixtures/parser/ast/ts-$$slots02-no-slot-input.svelte	js.map
+{"version":3,"mappings":";;wEAAA,CAAC;;;CACG,OAAO,CAAA;AACH,CAAC"}
+
+=== 67 tests/fixtures/parser/ast/ts-$$slots02-no-slot-type-output.svelte	js.map
+{"version":3,"mappings":";;8EAAA,CAAC;;;CACG,OAAO,CAAA;AACH,CAAC"}
+
+=== 70 tests/fixtures/parser/ast/ts-$$slots03-named-input.svelte	js.map
+{"version":3,"mappings":";;sEAAA,CAAC;;;CACG,OAAO,CAAA;;;;AACH,CAAC"}
+
+=== 70 tests/fixtures/parser/ast/ts-$$slots03-named-type-output.svelte	js.map
+{"version":3,"mappings":";;4EAAA,CAAC;;;CACG,OAAO,CAAA;;;;AACH,CAAC"}
+
+=== 72 tests/fixtures/parser/ast/ts-$$slots04-named-input.svelte	js.map
+{"version":3,"mappings":";;sEAAA,CAAC;;;CACG,OAAO,CAAA;;;;;;AACH,CAAC"}
+
+=== 72 tests/fixtures/parser/ast/ts-$$slots04-named-type-output.svelte	js.map
+{"version":3,"mappings":";;4EAAA,CAAC;;;CACG,OAAO,CAAA;;;;;;AACH,CAAC"}
+
+=== 220 tests/fixtures/parser/ast/ts-await-non-promise01-input.svelte	js.map
+{"version":3,"mappings":";;iEAAA,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,KAAK,CAAS;;qBAGnB,IAAI,aAAM,MAAM;+CACL,MAAM;;;;;qBAGjB,GAAG,aAAM,CAAC;+CACC,CAAC;;;;;qBAGZ,GAAG,CAAC,KAAK,CAAC,CAAC,CAAC,aAAM,CAAC;+CACR,CAAC;;;;AAXZ,CAAC"}
+
+=== 220 tests/fixtures/parser/ast/ts-await-non-promise01-type-output.svelte	js.map
+{"version":3,"mappings":";;uEAAA,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,KAAK,CAAS;;qBAGnB,IAAI,aAAM,MAAM;+CACL,MAAM;;;;;qBAGjB,GAAG,aAAM,CAAC;+CACC,CAAC;;;;;qBAGZ,GAAG,CAAC,KAAK,CAAC,CAAC,CAAC,aAAM,CAAC;+CACR,CAAC;;;;AAXZ,CAAC"}
+
+=== 223 tests/fixtures/parser/ast/ts-each01-input.svelte	js.map
+{"version":3,"mappings":";;oDAAA,CAAC;CACG,KAAK,CAAC,IAAc,GAAG,EAAE,CAAA;CACzB,KAAK,CAAC,KAAiC,GAAG,EAAE,CAAA;;;;wCAEzC,IAAI;;;MAAI,CAAC;;qCACX,CAAC;;;;;0CAEC,KAAK;;;MAAI,IAAI;;qCACf,KAAK,aAAE,IAAI,CAAC,IAAI;;;;AALb,CAAC"}
+
+=== 223 tests/fixtures/parser/ast/ts-each01-type-output.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACG,KAAK,CAAC,IAAc,GAAG,EAAE,CAAA;CACzB,KAAK,CAAC,KAAiC,GAAG,EAAE,CAAA;;;;wCAEzC,IAAI;;;MAAI,CAAC;;qCACX,CAAC;;;;;0CAEC,KAAK;;;MAAI,IAAI;;qCACf,KAAK,aAAE,IAAI,CAAC,IAAI;;;;AALb,CAAC"}
+
+=== 89 tests/fixtures/parser/ast/ts-event01-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,YAAY,CAAA;;qDADtC,CAAC;;;;AAEO,CAAC"}
+
+=== 89 tests/fixtures/parser/ast/ts-event02-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,YAAY,CAAA;;qDADtC,CAAC;;;;AAEO,CAAC"}
+
+=== 90 tests/fixtures/parser/ast/ts-event02-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,YAAY,CAAA;;2DADtC,CAAC;;;;;AAEO,CAAC"}
+
+=== 175 tests/fixtures/parser/ast/ts-event03-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAE,qBAAqB,QAAO,QAAQ,CAAA;;;sCADhD,CAAC;EAEG,KAAK,CAAC,IAAI,GAAG,qBAAqB,EAG9B,CAAA;;EACJ,IAAI,CAAC,KAAK,EAAE,CAAC,CAAC,CAAA;;CACV,CAAC;"}
+
+=== 178 tests/fixtures/parser/ast/ts-event03-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,GAAE,qBAAqB,QAAO,QAAQ,CAAA;;;sCADhD,CAAC;;EAEG,KAAK,CAAC,IAAI,GAAG,qBAAqB,EAG9B,CAAA;;;EACJ,IAAI,CAAC,KAAK,EAAE,CAAC,CAAC,CAAA;;;CACV,CAAC;"}
+
+=== 51 tests/fixtures/parser/ast/ts-event04-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;;AACO,CAAC"}
+
+=== 51 tests/fixtures/parser/ast/ts-event04-type-output.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;;AACO,CAAC"}
+
+=== 89 tests/fixtures/parser/ast/ts-event05-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;qDADtD,CAAC;;AAEO,CAAC"}
+
+=== 90 tests/fixtures/parser/ast/ts-event05-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;2DADtD,CAAC;;;AAEO,CAAC"}
+
+=== 89 tests/fixtures/parser/ast/ts-event06-input.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;qDADtD,CAAC;;AAEO,CAAC"}
+
+=== 90 tests/fixtures/parser/ast/ts-event06-sveltev4-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;oEADtD,CAAC;;;AAEO,CAAC"}
+
+=== 90 tests/fixtures/parser/ast/ts-event06-type-output.svelte	js.map
+{"version":3,"mappings":";AACI,MAAM,CAAC,SAAS,MAAM,2BAA2B,CAAC;;2DADtD,CAAC;;;AAEO,CAAC"}
+
+=== 409 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,IAAI,QAAQ,QAAQ,wBAAwB,CAAC;;mDAD/D,CAAC;CAGC,KAAK,CAAC,KAAiB,GAAG;EACxB,EACE,KAAK,EAAE,YAAY,EACnB,IAAI,EAAE,oBAAoB,EAC3B;EACD;GACE,KAAK,EAAE,mBAAmB;GAC1B,IAAI,EAAE,8BAA8B;GACrC;EACD,EACE,KAAK,EAAE,YAAY,EACnB,IAAI,EAAE,gCAAgC,EACvC;EACF,CAAC;;;;;EAIU,KAAK;;;;qCAEZ,IAAI,CAAC,KAAK;;;;;;;;EAGH,KAAK;;oCAEZ,IAAI,CAAC,KAAK;;;;;gCAEiB,GAAG;mDAC9B,GAAG;;;;;;AAbF,CAAC"}
+
+=== 413 tests/fixtures/parser/ast/ts-let/ts-let01-sveltev4-type-output.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,IAAI,QAAQ,QAAQ,wBAAwB,CAAC;;kEAD/D,CAAC;;CAGC,KAAK,CAAC,KAAiB,GAAG;;EACxB;GACE,KAAK,EAAE,YAAY;GACnB,IAAI,EAAE,oBAAoB;GAC3B;;EACD;GACE,KAAK,EAAE,mBAAmB;GAC1B,IAAI,EAAE,8BAA8B;GACrC;;EACD;GACE,KAAK,EAAE,YAAY;GACnB,IAAI,EAAE,gCAAgC;GACvC;EACF,CAAC;;;;;EAIU,KAAK;;;;qCAEZ,IAAI,CAAC,KAAK;;;;;;;;EAGH,KAAK;;oCAEZ,IAAI,CAAC,KAAK;;;;;gCAEiB,GAAG;mDAC9B,GAAG;;;;;;AAbF,CAAC"}
+
+=== 413 tests/fixtures/parser/ast/ts-let/ts-let01-type-output.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,IAAI,QAAQ,QAAQ,wBAAwB,CAAC;;yDAD/D,CAAC;;CAGC,KAAK,CAAC,KAAiB,GAAG;;EACxB;GACE,KAAK,EAAE,YAAY;GACnB,IAAI,EAAE,oBAAoB;GAC3B;;EACD;GACE,KAAK,EAAE,mBAAmB;GAC1B,IAAI,EAAE,8BAA8B;GACrC;;EACD;GACE,KAAK,EAAE,YAAY;GACnB,IAAI,EAAE,gCAAgC;GACvC;EACF,CAAC;;;;;EAIU,KAAK;;;;qCAEZ,IAAI,CAAC,KAAK;;;;;;;;EAGH,KAAK;;oCAEZ,IAAI,CAAC,KAAK;;;;;gCAEiB,GAAG;mDAC9B,GAAG;;;;;;AAbF,CAAC"}
+
+=== 216 tests/fixtures/parser/ast/ts-promise01-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,OAA2B,GAAG,GAAG,CAAC,OAAO,CAAC,CAAC,OAAO,KAAG,OAAO,CAAC,EAAC,CAAC,EAAC,EAAE,EAAC,CAAC,CAAC,CAAC;;;;GAGnE,OAAO;;;;IAER,MAAM;iDACM,MAAM,CAAC,CAAC;;;;;CALnB,CAAC;"}
+
+=== 216 tests/fixtures/parser/ast/ts-promise01-type-output.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,OAA2B,GAAG,GAAG,CAAC,OAAO,CAAC,CAAC,OAAO,KAAG,OAAO,CAAC,EAAC,CAAC,EAAC,EAAE,EAAC,CAAC,CAAC,CAAC;;;;GAGnE,OAAO;;;;IAER,MAAM;iDACM,MAAM,CAAC,CAAC;;;;;CALnB,CAAC;"}
+
+=== 590 tests/fixtures/parser/ast/ts-promise02-input.svelte	js.map
+{"version":3,"mappings":";;uDAAA,CAAC;;;EAGO,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAMjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;IACjB,OAAO,CAAC,OAAO,CAAC,KAAK,CAAC;;;;KAEvB,CAAC;kDACW,CAAC;;;;;;GAId,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC;;;;GAEtB,CAAC;iDACY,CAAC;;;;;;;;EAKb,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;AA5DjB,CAAC"}
+
+=== 590 tests/fixtures/parser/ast/ts-promise02-type-output.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;;;EAGO,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAMjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;IACjB,OAAO,CAAC,OAAO,CAAC,KAAK,CAAC;;;;KAEvB,CAAC;kDACW,CAAC;;;;;;GAId,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,IAAI,CAAC;;;;GAEtB,CAAC;iDACY,CAAC;;;;;;;;EAKb,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;;;;EAKjB,OAAO,CAAC,OAAO,CAAC,CAAC,CAAC;;;;GAEnB,MAAM;gDACM,MAAM;;;;;AA5DjB,CAAC"}
+
+=== 108 tests/fixtures/parser/ast/ts-shorthand-attr01-input.svelte	js.map
+{"version":3,"mappings":";;8DAAA,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,OAAO,CAAC;;sCAGX,GAAG,mCACP,GAAG;AAHD,CAAC"}
+
+=== 108 tests/fixtures/parser/ast/ts-shorthand-attr01-type-output.svelte	js.map
+{"version":3,"mappings":";;oEAAA,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,OAAO,CAAC;;sCAGX,GAAG,mCACP,GAAG;AAHD,CAAC"}
+
+=== 120 tests/fixtures/parser/ast/ts-slot-binding01-input-child.svelte	js.map
+{"version":3,"mappings":";;2EAAA,CAAC;CACC,GAAG,CAAC,GAAG,GAAG,EAAE,IAAI,EAAE,IAAI,EAAE,CAAC;;;0CAGpB,GAAG;;AAFF,CAAC"}
+
+=== 116 tests/fixtures/parser/ast/ts-slot-binding01-input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,MAAM,wCAAwC,CAAC;;4DADjE,CAAC;;;oCAKqB,GAAG,CAAC,IAAI;;;;AAHtB,CAAC"}
+
+=== 116 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-input.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,MAAM,iDAAiD,CAAC;;qEAD1E,CAAC;;;oCAKqB,GAAG,CAAC,IAAI;;;;AAHtB,CAAC"}
+
+=== 116 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-type-output.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,MAAM,iDAAiD,CAAC;;2EAD1E,CAAC;;;oCAKqB,GAAG,CAAC,IAAI;;;;AAHtB,CAAC"}
+
+=== 116 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	js.map
+{"version":3,"mappings":";AACE,MAAM,CAAC,SAAS,MAAM,wCAAwC,CAAC;;kEADjE,CAAC;;;oCAKqB,GAAG,CAAC,IAAI;;;;AAHtB,CAAC"}
+
+=== 196 tests/fixtures/parser/ast/ts-store02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;AACxC,KAAK,CAAC,CAAC,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAA;;;sCAGtB,CAAC;;EACA,KAAK,CAAC,CAAC,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAA;;;;;;CAEd,CAAC;"}
+
+=== 196 tests/fixtures/parser/ast/ts-store02-type-output.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,cAAc,CAAC;;AACxC,KAAK,CAAC,CAAC,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAA;;;sCAGtB,CAAC;;EACA,KAAK,CAAC,CAAC,GAAG,QAAQ,CAAC,CAAC,CAAC,CAAA;;;;;;CAEd,CAAC;"}
+
+=== 258 tests/fixtures/parser/ast/ts-store03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,EAAE,QAAQ,QAAQ,cAAc,CAAC;;8DADnD,CAAC;;CAEA,GAAG,CAAC,UAAwC,CAAA;CAC5C,GAAG,CAAC,SAAkC,CAAA;CACtC,GAAG,CAAC,eAAkD,CAAA;;CAE/C,SAAS,EAAE,GAAG,CAAC;EACrB,4DAAY;EACZ,0DAAW;EACX,sEAAiB;CAClB,CAAC;;;;;;;;;AACM,CAAC"}
+
+=== 261 tests/fixtures/parser/ast/ts-store03-type-output.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,EAAE,QAAQ,QAAQ,cAAc,CAAC;;oEADnD,CAAC;;;;CAEA,GAAG,CAAC,UAAwC,CAAA;;CAC5C,GAAG,CAAC,SAAkC,CAAA;CACtC,GAAG,CAAC,eAAkD,CAAA;;CAE/C,SAAS,EAAE,GAAG,CAAC;;EACrB,4DAAY;;EACZ,0DAAW;EACX,sEAAiB;CAClB,CAAC;;;;;;;AACM,CAAC"}
+
+=== 260 tests/fixtures/parser/ast/ts-use01-input.svelte	js.map
+{"version":3,"mappings":";;mDAAA,CAAC;CAEC,SAAS,QAAQ,CAAC,KAAkB,EAAE,MAAqB,EAAE,CAAC;EAC5D,KAAK,CAAC,MAAM,GAAG,MAAM,EAAE,CAAC;;EACxB,MAAM,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,CAAC,CAAC;;EACnB,MAAM,CAAC,EACL,OAAO,EAAE,MAAM,CAAC,CAAC,EAClB,CAAC;CACJ,CAAC;;;AACK,CAAC"}
+
+=== 262 tests/fixtures/parser/ast/ts-use01-type-output.svelte	js.map
+{"version":3,"mappings":";;yDAAA,CAAC;;CAEC,SAAS,QAAQ,CAAC,KAAkB,EAAE,MAAqB,EAAE,CAAC;;EAC5D,KAAK,CAAC,MAAM,GAAG,MAAM,EAAE,CAAC;;EACxB,MAAM,CAAC,EAAE,GAAG,EAAE,CAAC,EAAE,CAAC,CAAC;;EACnB,MAAM,CAAC,EACL,OAAO,EAAE,MAAM,CAAC,CAAC;IAClB,CAAC;CACJ,CAAC;;;AACK,CAAC"}
+
+=== 867 tests/fixtures/parser/ast/tutorial/actions-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;AACzC,MAAM,GAAG,MAAM,QAAQ,eAAe,CAAC;;;sCAFxC,CAAC;;EAIA,KAAK,CAAC,MAAM,GAAG,MAAM,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,EAAE,EACrC,SAAS,EAAE,GAAG,EACd,OAAO,EAAE,GAAG,EACZ,CAAC,CAAC;;EAEH,SAAS,cAAc,GAAG,CAAC;GAC1B,MAAM,CAAC,SAAS,GAAG,MAAM,CAAC,OAAO,GAAG,CAAC,CAAC;EACvC,CAAC;;EAED,SAAS,aAAa,CAAC,KAAK,EAAE,CAAC;GAC9B,MAAM,CAAC,MAAM,CAAC,CAAA,OAAO,KAAK,CAAA;IACzB,CAAC,EAAE,OAAO,CAAC,CAAC,GAAG,KAAK,CAAC,MAAM,CAAC,EAAE;IAC9B,CAAC,EAAE,OAAO,CAAC,CAAC,GAAG,KAAK,CAAC,MAAM,CAAC,EAAE;IAC9B,CAAA,AAAC,CAAC,CAAC;EACL,CAAC;;EAED,SAAS,YAAY,CAAC,KAAK,EAAE,CAAC;GAC7B,MAAM,CAAC,SAAS,GAAG,GAAG,CAAC;GACvB,MAAM,CAAC,OAAO,GAAG,GAAG,CAAC;GACrB,MAAM,CAAC,GAAG,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC;EAC5B,CAAC;;oGAwBW,oDAAQ,CAAC,mBAAK,oDAAQ,CAAC,2BAC1B,oDAAQ,CAAC,GAAG,GAAG;;;CAxBjB,CAAC;"}
+
+=== 234 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,SAAS,QAAQ,gBAAgB,CAAC;;uEAD5C,CAAC;CAGA,GAAG,CAAC,OAAO,GAAG,KAAK,CAAC;CACpB,GAAG,CAAC,QAAQ,GAAG,IAAI,CAAC;;8DAIU,QAAQ,kBAAO,IAAI,mBAAQ,GAAG,gBAC3D,QAAQ;;KAQL,OAAO;oFACmC,QAAQ;;;;;;AAb/C,CAAC"}
+
+=== 154 tests/fixtures/parser/ast/tutorial/adding-parameters-to-transitions-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,GAAG,QAAQ,mBAAmB,CAAC;;2EADzC,CAAC;CAEA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;mEAIkB,OAAO;;KAIxC,OAAO;;;;;;;AAPJ,CAAC"}
+
+=== 1916 tests/fixtures/parser/ast/tutorial/animate-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,gBAAgB,CAAC;AACtC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;AACzC,MAAM,GAAG,SAAS,QAAQ,mBAAmB,CAAC;;;sCAH/C,CAAC;EAKA,KAAK,CAAC,CAAC,IAAI,EAAE,OAAO,CAAC,GAAG,SAAS,CAAC;GACjC,QAAQ,EAAE,CAAA,CAAC,KAAI,IAAI,CAAC,IAAI,CAAC,CAAC,GAAG,GAAG,CAAC;GAEjC,QAAQ,CAAC,IAAI,EAAE,MAAM,EAAE,CAAC;IACvB,KAAK,CAAC,KAAK,GAAG,gBAAgB,CAAC,IAAI,CAAC,CAAC;IACrC,KAAK,CAAC,SAAS,GAAG,KAAK,CAAC,SAAS,KAAK,MAAM,GAAG,EAAE,GAAG,KAAK,CAAC,SAAS,CAAC;;IAEpE,MAAM,CAAC;KACN,QAAQ,EAAE,GAAG;KACb,MAAM,EAAE,QAAQ;KAChB,GAAG,EAAE,CAAA,CAAC,KAAI;kBACI,SAAS,UAAU,CAAC;gBACtB,CAAC;KACZ;KACD,CAAC;GACH,CAAC;GACD,CAAC,CAAC;;EAEH,GAAG,CAAC,GAAG,GAAG,CAAC,CAAC;;EAEZ,GAAG,CAAC,KAAK,GAAG;GACX,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,iBAAiB,EAAE;GAC1D;IAAE,EAAE,EAAE,GAAG,EAAE;IAAE,IAAI,EAAE,KAAK;IAAE,WAAW,EAAE,yBAAyB;IAAE;GAClE,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,IAAI,EAAG,WAAW,EAAE,eAAe,EAAE;GACxD,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,cAAc,EAAE;GACvD,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,iBAAiB,EAAE;GAC1D,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,eAAe,EAAE;GACxD,CAAC;;EAEF,SAAS,GAAG,CAAC,KAAK,EAAE,CAAC;GACpB,KAAK,CAAC,IAAI,GAAG,EACZ,EAAE,EAAE,GAAG,EAAE,EACT,IAAI,EAAE,KAAK,EACX,WAAW,EAAE,KAAK,CAAC,KAAK,EACxB,CAAC;;GAEF,KAAK,GAAG,CAAC,IAAI,EAAE,GAAG,KAAK,CAAC,CAAC;GACzB,KAAK,CAAC,KAAK,GAAG,EAAE,CAAC;EAClB,CAAC;;EAED,SAAS,MAAM,CAAC,IAAI,EAAE,CAAC;GACtB,KAAK,GAAG,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,KAAK,IAAI,CAAC,CAAC;EACvC,CAAC;;EAED,SAAS,IAAI,CAAC,IAAI,EAAE,IAAI,EAAE,CAAC;GAC1B,IAAI,CAAC,IAAI,GAAG,IAAI,CAAC;GACjB,MAAM,CAAC,IAAI,CAAC,CAAC;GACb,KAAK,GAAG,KAAK,CAAC,MAAM,CAAC,IAAI,CAAC,CAAC;EAC5B,CAAC;;;;yCAWO,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,CAAC,CAAC,IAAI,CAAC;;;OAAI,IAAI;;6GAOtC,IAAI,CAAC,WAAW;;;;;2CAQZ,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,CAAC,IAAI,CAAC;;;OAAI,IAAI;;6HAQrC,IAAI,CAAC,WAAW;;;;CAjCb,CAAC;"}
+
+=== 419 tests/fixtures/parser/ast/tutorial/auto-subscriptions01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,SAAS,QAAQ,QAAQ,CAAC;AACnC,MAAM,GAAG,KAAK,QAAQ,aAAa,CAAC;AACpC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;AAC/C,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;AAC/C,MAAM,CAAC,QAAQ,MAAM,mBAAmB,CAAC;;;sCAL1C,CAAC;;EAOA,GAAG,CAAC,WAAW,CAAC;;EAEhB,KAAK,CAAC,WAAW,GAAG,KAAK,CAAC,SAAS,CAAC,CAAA,KAAK,KAAI,CAAC;GAC7C,WAAW,GAAG,KAAK,CAAC;EACrB,CAAC,CAAC,CAAC;;EACH,SAAS,CAAC,WAAW,CAAC,CAAC;;;;;;;;;;CAChB,CAAC;"}
+
+=== 598 tests/fixtures/parser/ast/tutorial/await-blocks-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,eAAe,eAAe,GAAG,CAAC;GACjC,KAAK,CAAC,GAAG,GAAG,KAAK,CAAC,KAAK,CAAC,wBAAwB,CAAC,CAAC;GAClD,KAAK,CAAC,IAAI,GAAG,KAAK,CAAC,GAAG,CAAC,IAAI,EAAE,CAAC;;GAE9B,EAAE,EAAE,GAAG,CAAC,EAAE,EAAE,CAAC;IACZ,MAAM,CAAC,IAAI,CAAC;GACb,CAAC,MAAM,CAAC;IACP,KAAK,CAAC,GAAG,CAAC,KAAK,CAAC,IAAI,CAAC,CAAC;GACvB,CAAC;EACF,CAAC;;EAED,GAAG,CAAC,OAAO,GAAG,eAAe,EAAE,CAAC;;EAEhC,SAAS,WAAW,GAAG,CAAC;GACvB,OAAO,GAAG,eAAe,EAAE,CAAC;EAC7B,CAAC;;;;;;GAQM,OAAO;;;;IAER,MAAM;iDACM,MAAM;;;;;;sBAKjB,OAAO,aAAM,KAAK;+CACR,KAAK;;;;sBAGf,OAAO;;;sBAIP,OAAO,aAAM,KAAK;+CACR,KAAK;;;;CAxBf,CAAC;"}
+
+=== 1486 tests/fixtures/parser/ast/tutorial/bind-this-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,MAAM,CAAC;;EAEX,OAAO,CAAC,MAAM,CAAC;GACd,KAAK,CAAC,GAAG,GAAG,MAAM,CAAC,UAAU,CAAC,IAAI,CAAC,CAAC;GACpC,GAAG,CAAC,KAAK,GAAG,qBAAqB,CAAC,IAAI,CAAC,CAAC;;GAExC,SAAS,IAAI,CAAC,CAAC,EAAE,CAAC;IACjB,KAAK,GAAG,qBAAqB,CAAC,IAAI,CAAC,CAAC;;IAEpC,KAAK,CAAC,SAAS,GAAG,GAAG,CAAC,YAAY,CAAC,CAAC,EAAE,CAAC,EAAE,MAAM,CAAC,KAAK,EAAE,MAAM,CAAC,MAAM,CAAC,CAAC;;IAEtE,GAAG,EAAE,GAAG,CAAC,CAAC,GAAG,CAAC,EAAE,CAAC,GAAG,SAAS,CAAC,IAAI,CAAC,MAAM,EAAE,CAAC,IAAI,CAAC,EAAE,CAAC;KACnD,KAAK,CAAC,CAAC,GAAG,CAAC,GAAG,CAAC,CAAC;KAChB,KAAK,CAAC,CAAC,GAAG,CAAC,GAAG,MAAM,CAAC,KAAK,CAAC;KAC3B,KAAK,CAAC,CAAC,GAAG,CAAC,GAAG,MAAM,CAAC,MAAM,KAAK,CAAC,CAAC;KAElC,KAAK,CAAC,CAAC,GAAG,EAAE,GAAI,GAAG,GAAG,CAAC,GAAG,MAAM,CAAC,KAAK,AAAC,GAAI,EAAE,GAAG,IAAI,CAAC,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC,AAAC,CAAC;KACpE,KAAK,CAAC,CAAC,GAAG,EAAE,GAAI,GAAG,GAAG,CAAC,GAAG,MAAM,CAAC,MAAM,AAAC,GAAI,EAAE,GAAG,IAAI,CAAC,GAAG,CAAC,CAAC,GAAG,IAAI,CAAC,AAAC,CAAC;KACrE,KAAK,CAAC,CAAC,GAAG,GAAG,CAAC;;KAEd,SAAS,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;KAC1B,SAAS,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;KAC1B,SAAS,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;KAC1B,SAAS,CAAC,IAAI,CAAC,CAAC,GAAG,CAAC,CAAC,GAAG,GAAG,CAAC;IAC7B,CAAC;;IAED,GAAG,CAAC,YAAY,CAAC,SAAS,EAAE,CAAC,EAAE,CAAC,CAAC,CAAC;GACnC,CAAC;;GAED,MAAM,CAAC,MAAM,CAAC;IACb,oBAAoB,CAAC,KAAK,CAAC,CAAC;GAC7B,CAAC,CAAC;EACH,CAAC,CAAC,CAAC;;4CAeI,EAAE,qBACD,EAAE;CAfH,CAAC;"}
+
+=== 131 tests/fixtures/parser/ast/tutorial/checkbox-inputs-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;;mEAImB,GAAG;;KAIlC,GAAG;;;;;;uDAMU,CAAC,GAAG;AAbd,CAAC"}
+
+=== 131 tests/fixtures/parser/ast/tutorial/class-shorthand-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;;mEAUmB,GAAG,qGAKhC,GAAG,GAAG,KAAK,GAAG,OAAO;AAdpB,CAAC"}
+
+=== 173 tests/fixtures/parser/ast/tutorial/classes-input.svelte	js.map
+{"version":3,"mappings":";;kDAAA,CAAC;CACA,GAAG,CAAC,OAAO,GAAG,KAAK,CAAC;;gFAeH,OAAO,KAAK,KAAK,gFAKjB,OAAO,KAAK,KAAK,wCAK1B,OAAO,KAAK,KAAK,GAAG,UAAU,GAAG,EAAE;AAxBpC,CAAC"}
+
+=== 187 tests/fixtures/parser/ast/tutorial/component-events01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;6DADpC,CAAC;CAGA,SAAS,aAAa,CAAC,KAAK,EAAE,CAAC;EAC9B,KAAK,CAAC,KAAK,CAAC,MAAM,CAAC,IAAI,CAAC,CAAC;CAC1B,CAAC;;;AACM,CAAC"}
+
+=== 233 tests/fixtures/parser/ast/tutorial/component-events02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCADhD,CAAC;EAGA,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;EAEzC,SAAS,QAAQ,GAAG,CAAC;GACpB,QAAQ,CAAC,SAAS,EAAE,EACnB,IAAI,EAAE,QAAQ,EACd,CAAC,CAAC;EACJ,CAAC;;;CACM,CAAC;"}
+
+=== 1194 tests/fixtures/parser/ast/tutorial/congratulations-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,UAAU,GAAG,CAAC,IAAI,EAAE,IAAI,EAAE,GAAG,CAAC,CAAC;;EAEnC,GAAG,CAAC,QAAQ,GAAG,GAAG,CAAC,KAAK,CAAC,GAAG,CAAC,CAAC,IAAI,EAAE,CAClC,GAAG,CAAC,CAAC,CAAC,EAAE,CAAC,KAAK,CAAC;GACf,MAAM,CAAC;IACN,SAAS,EAAE,UAAU,CAAC,CAAC,GAAG,UAAU,CAAC,MAAM,CAAC;IAC5C,CAAC,EAAE,IAAI,CAAC,MAAM,EAAE,GAAG,GAAG;IACtB,CAAC,EAAE,CAAC,EAAE,GAAG,IAAI,CAAC,MAAM,EAAE,GAAG,GAAG;IAC5B,CAAC,EAAE,GAAG,GAAG,IAAI,CAAC,MAAM,EAAE,GAAG,CAAC;IAC1B,CAAC;EACH,CAAC,CAAC,CACD,IAAI,CAAC,CAAC,CAAC,EAAE,CAAC,KAAK,CAAC,CAAC,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC,CAAC;;EAE5B,OAAO,CAAC,MAAM,CAAC;GACd,GAAG,CAAC,KAAK,CAAC;;GAEV,SAAS,IAAI,GAAG,CAAC;IAChB,KAAK,GAAG,qBAAqB,CAAC,IAAI,CAAC,CAAC;;IAEpC,QAAQ,GAAG,QAAQ,CAAC,GAAG,CAAC,CAAA,KAAK,KAAI,CAAC;KACjC,KAAK,CAAC,CAAC,IAAI,GAAG,GAAG,KAAK,CAAC,CAAC,CAAC;;KACzB,EAAE,EAAE,KAAK,CAAC,CAAC,GAAG,GAAG,EAAE,KAAK,CAAC,CAAC,GAAG,CAAC,EAAE,CAAC;;KACjC,MAAM,CAAC,KAAK,CAAC;IACd,CAAC,CAAC,CAAC;GACJ,CAAC;;GAED,IAAI,EAAE,CAAC;;GAEP,MAAM,CAAC,MAAM,oBAAoB,CAAC,KAAK,CAAC,CAAC;EAC1C,CAAC,CAAC,CAAC;;;;yCAcG,QAAQ;;;OAAI,CAAC;;6DACC,CAAC,CAAC,CAAC,wBAAU,CAAC,CAAC,CAAC,oCAAsB,CAAC,CAAC,CAAC,wCAAK,CAAC,CAAC,SAAS;;;;CAdtE,CAAC;"}
+
+=== 125 tests/fixtures/parser/ast/tutorial/contenteditable-bindings-input.svelte	js.map
+{"version":3,"mappings":";;mEAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,yBAAyB,CAAC;;;;KAGM,IAAI;qBAAJ,IAAI;;;yCAE1C,IAAI;AAJF,CAAC"}
+
+=== 341 tests/fixtures/parser/ast/tutorial/context-api01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,GAAG,MAAM,cAAc,CAAC;AAC/B,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAC;;wDAF5C,CAAC;;OAKS,EAAE;OAAO,CAAC,EAAE;QAAQ,GAAG;;gCAChB,OAAO,OAAO,CAAC,QAAQ;;;;SACvB,OAAO;SAAO,CAAC,QAAQ;;;;;gCACvB,OAAO,OAAO,CAAC,OAAO;;;;SACtB,OAAO;SAAO,CAAC,OAAO;;;;;gCACtB,OAAO,OAAO,CAAC,OAAO;;gCACtB,OAAO,OAAO,CAAC,OAAO;;;;;AAR/B,CAAC"}
+
+=== 525 tests/fixtures/parser/ast/tutorial/custom-css-transitions01-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,SAAS,IAAI,CAAC,IAAI,EAAE,EACnB,KAAK,GAAG,CAAC,EACT,QAAQ,GAAG,GAAG,EACd,EAAE,CAAC;GACH,KAAK,CAAC,CAAC,GAAG,CAAC,gBAAgB,CAAC,IAAI,CAAC,CAAC,OAAO,CAAC;;GAE1C,MAAM,CAAC,EACN,KAAK,EACL,QAAQ,EACR,GAAG,EAAE,CAAA,CAAC,KAAI,YAAY,CAAC,GAAG,CAAC,EAAE,EAC7B,CAAC;EACH,CAAC;;EAED,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;EAEnB,SAAS,IAAI,CAAC,IAAI,EAAE,EAAE,QAAQ,EAAE,EAAE,CAAC;GAClC,MAAM,CAAC,EACN,QAAQ,EACR,GAAG,EAAE,CAAA,CAAC,KAAI,EAAE,EACZ,CAAC;EACH,CAAC;;oEAmBoC,OAAO;;MAIxC,OAAO;;;;;;;CAtBJ,CAAC;"}
+
+=== 634 tests/fixtures/parser/ast/tutorial/custom-css-transitions02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,mBAAmB,CAAC;AACzC,MAAM,GAAG,UAAU,QAAQ,eAAe,CAAC;;;sCAF5C,CAAC;EAIA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;EAEnB,SAAS,IAAI,CAAC,IAAI,EAAE,EAAE,QAAQ,EAAE,EAAE,CAAC;GAClC,MAAM,CAAC;IACN,QAAQ;IACR,GAAG,EAAE,CAAA,CAAC,KAAI,CAAC;KACV,KAAK,CAAC,KAAK,GAAG,UAAU,CAAC,CAAC,CAAC,CAAC;;KAE5B,MAAM,CAAC;wBACa,KAAK,YAAY,KAAK,GAAG,IAAI;;QAE7C,CAAC,CAAC,AAAC,CAAA,CAAC,GAAG,GAAG,CAAA,AAAC;QACX,IAAI,CAAC,GAAG,CAAC,GAAG,EAAE,IAAI,GAAG,IAAI,GAAG,CAAC,CAAC;QAC9B,IAAI,CAAC,GAAG,CAAC,EAAE,EAAE,GAAG,GAAG,GAAG,GAAG,CAAC,CAAC;QAC3B,CAAA;IACL,CAAC;IACD,CAAC;EACH,CAAC;;oEAmBoC,OAAO;;MAIxC,OAAO;;;;;;;CAtBJ,CAAC;"}
+
+=== 769 tests/fixtures/parser/ast/tutorial/custom-js-transitions-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,OAAO,GAAG,KAAK,CAAC;;EAEpB,SAAS,UAAU,CAAC,IAAI,EAAE,EAAE,KAAK,GAAG,EAAE,EAAE,EAAE,CAAC;GAC1C,KAAK,CAAC,KAAK,GACV,IAAI,CAAC,UAAU,CAAC,MAAM,KAAK,CAAC,IAC5B,IAAI,CAAC,UAAU,CAAC,CAAC,CAAC,CAAC,QAAQ,KAAK,IAAI,CAAC,SAAS,CAC7C;;GAEF,EAAE,EAAE,CAAC,KAAK,EAAE,CAAC;IACZ,KAAK,CAAC,GAAG,CAAC,KAAK,CAAC,sEAAsE,CAAC,CAAC;GACzF,CAAC;;GAED,KAAK,CAAC,IAAI,GAAG,IAAI,CAAC,WAAW,CAAC;GAC9B,KAAK,CAAC,QAAQ,GAAG,IAAI,CAAC,MAAM,GAAG,KAAK,CAAC;;GAErC,MAAM,CAAC;IACN,QAAQ;IACR,IAAI,EAAE,CAAA,CAAC,KAAI,CAAC;KACX,KAAK,CAAC,CAAC,GAAG,CAAC,CAAC,AAAC,CAAA,IAAI,CAAC,MAAM,GAAG,CAAC,CAAA,AAAC,CAAC;;KAC9B,IAAI,CAAC,WAAW,GAAG,IAAI,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC;IACrC,CAAC;IACD,CAAC;EACH,CAAC;;oEAIoC,OAAO;;MAIxC,OAAO;;;;;;;CAPJ,CAAC;"}
+
+=== 93 tests/fixtures/parser/ast/tutorial/custom-stores-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,aAAa,CAAC;;;sCADrC,CAAC;;;;;;CAEO,CAAC;"}
+
+=== 206 tests/fixtures/parser/ast/tutorial/debug01-input.svelte	js.map
+{"version":3,"mappings":";;kDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,EACV,SAAS,EAAE,KAAK,EAChB,QAAQ,EAAE,UAAU,EACpB,CAAC;;eAMK,IAAI;;;;0CAHO,IAAI,CAAC,SAAS,6BACd,IAAI,CAAC,QAAQ,0BAIrB,IAAI,CAAC,SAAS;AAPjB,CAAC"}
+
+=== 216 tests/fixtures/parser/ast/tutorial/debug02-input.svelte	js.map
+{"version":3,"mappings":";;kDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,EACV,SAAS,EAAE,KAAK,EAChB,QAAQ,EAAE,UAAU,EACpB,CAAC;;eAMK,IAAI,EAAE,GAAG;;;;0CAHE,IAAI,CAAC,SAAS,6BACd,IAAI,CAAC,QAAQ,0BAIrB,IAAI,CAAC,SAAS;AAPjB,CAAC"}
+
+=== 99 tests/fixtures/parser/ast/tutorial/declaring-props01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;4DADtC,CAAC;8BAIe,EAAE;AAFV,CAAC"}
+
+=== 89 tests/fixtures/parser/ast/tutorial/default-values01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;2DADtC,CAAC;;AAEO,CAAC"}
+
+=== 1878 tests/fixtures/parser/ast/tutorial/deferred-transitions-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;AACzC,MAAM,GAAG,SAAS,QAAQ,mBAAmB,CAAC;;;sCAF/C,CAAC;EAIA,KAAK,CAAC,CAAC,IAAI,EAAE,OAAO,CAAC,GAAG,SAAS,CAAC;GACjC,QAAQ,EAAE,CAAA,CAAC,KAAI,IAAI,CAAC,IAAI,CAAC,CAAC,GAAG,GAAG,CAAC;GAEjC,QAAQ,CAAC,IAAI,EAAE,MAAM,EAAE,CAAC;IACvB,KAAK,CAAC,KAAK,GAAG,gBAAgB,CAAC,IAAI,CAAC,CAAC;IACrC,KAAK,CAAC,SAAS,GAAG,KAAK,CAAC,SAAS,KAAK,MAAM,GAAG,EAAE,GAAG,KAAK,CAAC,SAAS,CAAC;;IAEpE,MAAM,CAAC;KACN,QAAQ,EAAE,GAAG;KACb,MAAM,EAAE,QAAQ;KAChB,GAAG,EAAE,CAAA,CAAC,KAAI;kBACI,SAAS,UAAU,CAAC;gBACtB,CAAC;KACZ;KACD,CAAC;GACH,CAAC;GACD,CAAC,CAAC;;EAEH,GAAG,CAAC,GAAG,GAAG,CAAC,CAAC;;EAEZ,GAAG,CAAC,KAAK,GAAG;GACX,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,iBAAiB,EAAE;GAC1D;IAAE,EAAE,EAAE,GAAG,EAAE;IAAE,IAAI,EAAE,KAAK;IAAE,WAAW,EAAE,yBAAyB;IAAE;GAClE,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,IAAI,EAAG,WAAW,EAAE,eAAe,EAAE;GACxD,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,cAAc,EAAE;GACvD,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,iBAAiB,EAAE;GAC1D,EAAE,EAAE,EAAE,GAAG,EAAE,EAAE,IAAI,EAAE,KAAK,EAAE,WAAW,EAAE,eAAe,EAAE;GACxD,CAAC;;EAEF,SAAS,GAAG,CAAC,KAAK,EAAE,CAAC;GACpB,KAAK,CAAC,IAAI,GAAG,EACZ,EAAE,EAAE,GAAG,EAAE,EACT,IAAI,EAAE,KAAK,EACX,WAAW,EAAE,KAAK,CAAC,KAAK,EACxB,CAAC;;GAEF,KAAK,GAAG,CAAC,IAAI,EAAE,GAAG,KAAK,CAAC,CAAC;GACzB,KAAK,CAAC,KAAK,GAAG,EAAE,CAAC;EAClB,CAAC;;EAED,SAAS,MAAM,CAAC,IAAI,EAAE,CAAC;GACtB,KAAK,GAAG,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,KAAK,IAAI,CAAC,CAAC;EACvC,CAAC;;EAED,SAAS,IAAI,CAAC,IAAI,EAAE,IAAI,EAAE,CAAC;GAC1B,IAAI,CAAC,IAAI,GAAG,IAAI,CAAC;GACjB,MAAM,CAAC,IAAI,CAAC,CAAC;GACb,KAAK,GAAG,KAAK,CAAC,MAAM,CAAC,IAAI,CAAC,CAAC;EAC5B,CAAC;;;;yCAWO,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,CAAC,CAAC,IAAI,CAAC;;;OAAI,IAAI;;2GAMtC,IAAI,CAAC,WAAW;;;;;2CAQZ,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,CAAC,IAAI,CAAC;;;OAAI,IAAI;;2HAKrC,IAAI,CAAC,WAAW;;;;CA7Bb,CAAC;"}
+
+=== 332 tests/fixtures/parser/ast/tutorial/derived-stores-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,EAAE,OAAO,QAAQ,aAAa,CAAC;;;sCAD7C,CAAC;;;EAGA,KAAK,CAAC,SAAS,GAAG,GAAG,CAAC,IAAI,CAAC,cAAc,CAAC,IAAI,EAAE;GAC/C,MAAM,EAAE,IAAI;GACZ,IAAI,EAAE,SAAS;GACf,MAAM,EAAE,SAAS;GACjB,MAAM,EAAE,SAAS;GACjB,CAAC,CAAC;;8CAGa,SAAS,CAAC,MAAM,iDAAO;+EAI3B,0DAAa,CAAC,GAAG,QAAQ,GAAG,SAAS;;;CAN1C,CAAC;"}
+
+=== 238 tests/fixtures/parser/ast/tutorial/dimensions-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;CACA,GAAG,CAAC,CAAC,CAAC;CACN,GAAG,CAAC,CAAC,CAAC;CACN,GAAG,CAAC,IAAI,GAAG,EAAE,CAAC;CACd,GAAG,CAAC,IAAI,GAAG,SAAS,CAAC;;uDASQ,IAAI,oDACf,IAAI,gDAEb,CAAC,kBAAO,CAAC,mFAGO,IAAI,0CAAM,IAAI;AAdhC,CAAC"}
+
+=== 157 tests/fixtures/parser/ast/tutorial/dom-event-forwarding01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,YAAY,MAAM,uBAAuB,CAAC;;iEADlD,CAAC;CAGA,SAAS,WAAW,GAAG,CAAC;EACvB,KAAK,CAAC,SAAS,CAAC,CAAC;CAClB,CAAC;;;AACM,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/tutorial/dom-event-forwarding02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 310 tests/fixtures/parser/ast/tutorial/dom-events-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC;;CAEvB,SAAS,eAAe,CAAC,KAAK,EAAE,CAAC;EAChC,CAAC,CAAC,CAAC,GAAG,KAAK,CAAC,OAAO,CAAC;EACpB,CAAC,CAAC,CAAC,GAAG,KAAK,CAAC,OAAO,CAAC;CACrB,CAAC;;8EAQsB,CAAC,CAAC,CAAC,gBAAK,CAAC,CAAC,CAAC;AAP3B,CAAC"}
+
+=== 122 tests/fixtures/parser/ast/tutorial/dynamic-attributes-input.svelte	js.map
+{"version":3,"mappings":";;6DAAA,CAAC;CACA,GAAG,CAAC,GAAG,GAAG,oBAAoB,CAAC;;6CAItB,GAAG,yBACH,GAAG,6CACP,GAAG;AALD,CAAC"}
+
+=== 314 tests/fixtures/parser/ast/tutorial/each-blocks01-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG;EACV,EAAE,EAAE,EAAE,aAAa,EAAE,IAAI,EAAE,cAAc,EAAE;EAC3C,EAAE,EAAE,EAAE,aAAa,EAAE,IAAI,EAAE,MAAM,EAAE;EACnC,EAAE,EAAE,EAAE,aAAa,EAAE,IAAI,EAAE,2BAA2B,EAAE;EACxD,CAAC;;;;wCAMK,IAAI;;;MAAI,GAAG;;yGAC6C,GAAG,CAAC,EAAE,iBAClE,GAAG,CAAC,IAAI;;;;AAPJ,CAAC"}
+
+=== 334 tests/fixtures/parser/ast/tutorial/each-blocks02-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG;EACV,EAAE,EAAE,EAAE,aAAa,EAAE,IAAI,EAAE,cAAc,EAAE;EAC3C,EAAE,EAAE,EAAE,aAAa,EAAE,IAAI,EAAE,MAAM,EAAE;EACnC,EAAE,EAAE,EAAE,aAAa,EAAE,IAAI,EAAE,2BAA2B,EAAE;EACxD,CAAC;;;;wCAMK,IAAI;;;MAAI,GAAG;;yGAC6C,GAAG,CAAC,EAAE,iBAClE,CAAC,GAAG,CAAC,eAAI,GAAG,CAAC,IAAI;;;;AAPb,CAAC"}
+
+=== 221 tests/fixtures/parser/ast/tutorial/else-blocks-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,EAAE,QAAQ,EAAE,KAAK,EAAE,CAAC;;CAE/B,SAAS,MAAM,GAAG,CAAC;EAClB,IAAI,CAAC,QAAQ,GAAG,CAAC,IAAI,CAAC,QAAQ,CAAC;CAChC,CAAC;;KAGG,IAAI,CAAC,QAAQ;;;;;;;AAFV,CAAC"}
+
+=== 139 tests/fixtures/parser/ast/tutorial/else-if-blocks01-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;KAGN,CAAC,GAAG,EAAE;;;;;MAGL,CAAC,GAAG,CAAC;;;;;;;;;;AALH,CAAC"}
+
+=== 133 tests/fixtures/parser/ast/tutorial/else-if-blocks02-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;KAGN,CAAC,GAAG,EAAE;;YAED,CAAC,GAAG,CAAC;;;;;;;AAJP,CAAC"}
+
+=== 187 tests/fixtures/parser/ast/tutorial/event-forwarding01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;6DADpC,CAAC;CAGA,SAAS,aAAa,CAAC,KAAK,EAAE,CAAC;EAC9B,KAAK,CAAC,KAAK,CAAC,MAAM,CAAC,IAAI,CAAC,CAAC;CAC1B,CAAC;;;AACM,CAAC"}
+
+=== 271 tests/fixtures/parser/ast/tutorial/event-forwarding03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;AACnC,MAAM,GAAG,qBAAqB,QAAQ,QAAQ,CAAC;;;sCAFhD,CAAC;EAIA,KAAK,CAAC,QAAQ,GAAG,qBAAqB,EAAE,CAAC;;EAEzC,SAAS,OAAO,CAAC,KAAK,EAAE,CAAC;GACxB,QAAQ,CAAC,SAAS,EAAE,KAAK,CAAC,MAAM,CAAC,CAAC;EACnC,CAAC;;;CACM,CAAC;"}
+
+=== 89 tests/fixtures/parser/ast/tutorial/event-forwarding04-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;6DADpC,CAAC;;AAEO,CAAC"}
+
+=== 121 tests/fixtures/parser/ast/tutorial/event-modifiers-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,SAAS,WAAW,GAAG,CAAC;EACvB,KAAK,CAAC,gBAAgB,CAAC,CAAA;CACxB,CAAC;;;AACM,CAAC"}
+
+=== 806 tests/fixtures/parser/ast/tutorial/group-inputs-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,MAAM,GAAG,CAAC,CAAC;EACf,GAAG,CAAC,QAAQ,GAAG,CAAC,gBAAgB,CAAC,CAAC;;EAElC,SAAS,IAAI,CAAC,QAAQ,EAAE,CAAC;GACxB,EAAE,EAAE,QAAQ,CAAC,MAAM,KAAK,CAAC,EAAE,MAAM,CAAC,QAAQ,CAAC,CAAC,CAAC,CAAC;;GAC9C,MAAM,CAAC,GAAG,QAAQ,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,IAAI,CAAC,IAAI,CAAC,QAAQ,QAAQ,CAAC,QAAQ,CAAC,MAAM,GAAG,CAAC,CAAC,EAAE,CAAC;EACnF,CAAC;;EACD,GAAG,CAAC,IAAI,GAAG,CACV,mBAAmB,EACnB,gBAAgB,EAChB,kBAAkB,CAClB,CAAC;;+EAM4B,MAAM,KAAS,CAAC,0BAAD,CAAC,qEAKhB,MAAM,KAAS,CAAC,0BAAD,CAAC,sEAKhB,MAAM,KAAS,CAAC,0BAAD,CAAC;;yCAMxC,IAAI;;;OAAI,OAAO;;qEAEa,QAAQ,UAAS,OAAO,2BAAP,OAAO,gBACxD,OAAO;;;;;MAIL,QAAQ,CAAC,MAAM,KAAK,CAAC;;aAEhB,QAAQ,CAAC,MAAM,GAAG,MAAM;;;wDAInB,MAAM,cAAG,MAAM,KAAK,CAAC,GAAG,OAAO,GAAG,QAAQ;gBACnD,IAAI,CAAC,QAAQ,CAAC;;;;CAnCZ,CAAC;"}
+
+=== 90 tests/fixtures/parser/ast/tutorial/html-tags01-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,MAAM,GAAG,oDAAoD,CAAC;;;AAC3D,CAAC"}
+
+=== 100 tests/fixtures/parser/ast/tutorial/html-tags02-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,MAAM,GAAG,oDAAoD,CAAC;;8BAGzD,MAAM;AAFR,CAAC"}
+
+=== 253 tests/fixtures/parser/ast/tutorial/if-blocks-input.svelte	js.map
+{"version":3,"mappings":";;oDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,EAAE,QAAQ,EAAE,KAAK,EAAE,CAAC;;CAE/B,SAAS,MAAM,GAAG,CAAC;EAClB,IAAI,CAAC,QAAQ,GAAG,CAAC,IAAI,CAAC,QAAQ,CAAC;CAChC,CAAC;;KAGG,IAAI,CAAC,QAAQ;;;;;;;;KAMb,CAAC,IAAI,CAAC,QAAQ;;;;;;;AARX,CAAC"}
+
+=== 164 tests/fixtures/parser/ast/tutorial/in-and-out-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,EAAE,GAAG,QAAQ,mBAAmB,CAAC;;qDAD/C,CAAC;CAEA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;mEAIkB,OAAO;;KAIxC,OAAO;;;;;;;AAPJ,CAAC"}
+
+=== 310 tests/fixtures/parser/ast/tutorial/inline-handlers-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC;;CAEvB,SAAS,eAAe,CAAC,KAAK,EAAE,CAAC;EAChC,CAAC,CAAC,CAAC,GAAG,KAAK,CAAC,OAAO,CAAC;EACpB,CAAC,CAAC,CAAC,GAAG,KAAK,CAAC,OAAO,CAAC;CACrB,CAAC;;+EAQsB,CAAC,CAAC,CAAC,gBAAK,CAAC,CAAC,CAAC;AAP3B,CAAC"}
+
+=== 518 tests/fixtures/parser/ast/tutorial/keyed-each-blocks-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,KAAK,MAAM,gBAAgB,CAAC;;4DADpC,CAAC;CAGA,GAAG,CAAC,MAAM,GAAG;EACZ,EAAE,EAAE,EAAE,CAAC,EAAE,KAAK,EAAE,UAAU,EAAE;EAC5B,EAAE,EAAE,EAAE,CAAC,EAAE,KAAK,EAAE,QAAQ,EAAE;EAC1B,EAAE,EAAE,EAAE,CAAC,EAAE,KAAK,EAAE,UAAU,EAAE;EAC5B,EAAE,EAAE,EAAE,CAAC,EAAE,KAAK,EAAE,QAAQ,EAAE;EAC1B,EAAE,EAAE,EAAE,CAAC,EAAE,KAAK,EAAE,MAAM,EAAE;EACxB,CAAC;;CAEF,SAAS,WAAW,GAAG,CAAC;EACvB,MAAM,GAAG,MAAM,CAAC,KAAK,CAAC,CAAC,CAAC,CAAC;CAC1B,CAAC;;;;wCAOK,MAAM;;;MAAI,KAAK;;+BACL,KAAK,CAAC,KAAK;;;;AAPpB,CAAC"}
+
+=== 413 tests/fixtures/parser/ast/tutorial/local-transitions-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,mBAAmB,CAAC;;4DAD3C,CAAC;CAGA,GAAG,CAAC,SAAS,GAAG,IAAI,CAAC;CACrB,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;CACV,GAAG,CAAC,KAAK,GAAG;EAAC,KAAK;EAAE,KAAK;EAAE,OAAO;EAAE,MAAM;EAAE,MAAM;EAAE,KAAK;EAAE,OAAO;EAAE,OAAO;EAAE,MAAM;EAAE,KAAK;EAAC,CAAC;;mEAWvD,SAAS,yEAKd,CAAC;;KAI7B,SAAS;;;yCACN,KAAK,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,CAAC;;;OAAI,IAAI;;0DAE7B,IAAI;;;;;;;;;AAtBA,CAAC"}
+
+=== 1632 tests/fixtures/parser/ast/tutorial/media-elements-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;;EAEA,GAAG,CAAC,IAAI,GAAG,CAAC,CAAC;;EACb,GAAG,CAAC,QAAQ,CAAC;EACb,GAAG,CAAC,MAAM,GAAG,IAAI,CAAC;EAElB,GAAG,CAAC,YAAY,GAAG,IAAI,CAAC;EACxB,GAAG,CAAC,mBAAmB,CAAC;;EAExB,SAAS,eAAe,CAAC,CAAC,EAAE,CAAC;;;GAG5B,YAAY,CAAC,mBAAmB,CAAC,CAAC;;GAClC,mBAAmB,GAAG,UAAU,CAAC,MAAM,YAAY,GAAG,KAAK,EAAE,IAAI,CAAC,CAAC;GACnE,YAAY,GAAG,IAAI,CAAC;;GAEpB,EAAE,EAAE,CAAC,AAAC,CAAA,CAAC,CAAC,OAAO,GAAG,CAAC,CAAA,AAAC,EAAE,MAAM,CAAC;GAC7B,EAAE,EAAE,CAAC,QAAQ,EAAE,MAAM,CAAC;;GAEtB,KAAK,CAAC,EAAE,IAAI,EAAE,KAAK,EAAE,GAAG,IAAI,CAAC,qBAAqB,EAAE,CAAC;;GACrD,IAAI,GAAG,QAAQ,GAAI,CAAA,CAAC,CAAC,OAAO,GAAG,IAAI,CAAA,AAAC,GAAI,CAAA,KAAK,GAAG,IAAI,CAAA,AAAC,CAAC;EACvD,CAAC;;EAED,SAAS,eAAe,CAAC,CAAC,EAAE,CAAC;;;GAI5B,SAAS,aAAa,GAAG,CAAC;IACzB,EAAE,EAAE,MAAM,EAAE,CAAC,CAAC,MAAM,CAAC,IAAI,EAAE,CAAC,MACvB,CAAC,CAAC,MAAM,CAAC,KAAK,EAAE,CAAC;;IACtB,MAAM,EAAE,CAAC;GACV,CAAC;;GAED,SAAS,MAAM,GAAG,CAAC;IAClB,CAAC,CAAC,MAAM,CAAC,mBAAmB,CAAC,SAAS,EAAE,aAAa,CAAC,CAAC;GACxD,CAAC;;GAED,CAAC,CAAC,MAAM,CAAC,gBAAgB,CAAC,SAAS,EAAE,aAAa,CAAC,CAAC;GAEpD,UAAU,CAAC,MAAM,EAAE,GAAG,CAAC,CAAC;EACzB,CAAC;;EAED,SAAS,MAAM,CAAC,OAAO,EAAE,CAAC;GACzB,EAAE,EAAE,KAAK,CAAC,OAAO,CAAC,EAAE,MAAM,CAAC,KAAK,CAAC;;GAEjC,KAAK,CAAC,OAAO,GAAG,IAAI,CAAC,KAAK,CAAC,OAAO,GAAG,EAAE,CAAC,CAAC;;GACzC,OAAO,GAAG,IAAI,CAAC,KAAK,CAAC,OAAO,GAAG,EAAE,CAAC,CAAC;;GACnC,EAAE,EAAE,OAAO,GAAG,EAAE,EAAE,OAAO,GAAG,GAAG,GAAG,OAAO,CAAC;;GAE1C,MAAM,CAAC,GAAG,OAAO,IAAI,OAAO,EAAE,CAAC;EAChC,CAAC;;ybAuEsC,QAAQ,IAAI,YAAY,GAAG,CAAC,GAAG,CAAC,iCACpD,AAAC,IAAI,GAAG,QAAQ,IAAK,CAAC,oHAGnB,MAAM,CAAC,IAAI,CAAC,oEACP,MAAM,GAAG,MAAM,GAAG,OAAO,sEAC9B,MAAM,CAAC,QAAQ,CAAC;CA5E/B,CAAC;"}
+
+=== 144 tests/fixtures/parser/ast/tutorial/module-exports01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,WAAW,IAAI,OAAO,QAAQ,sBAAsB,CAAC;;2DAD7D,CAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAEO,CAAC"}
+
+=== 802 tests/fixtures/parser/ast/tutorial/multiple-select-bindings-input.svelte	js.map
+{"version":3,"mappings":";;;sCAAA,CAAC;EACA,GAAG,CAAC,MAAM,GAAG,CAAC,CAAC;EACf,GAAG,CAAC,QAAQ,GAAG,CAAC,gBAAgB,CAAC,CAAC;EAElC,GAAG,CAAC,IAAI,GAAG,CACV,mBAAmB,EACnB,gBAAgB,EAChB,kBAAkB,CAClB,CAAC;;EAEF,SAAS,IAAI,CAAC,QAAQ,EAAE,CAAC;GACxB,EAAE,EAAE,QAAQ,CAAC,MAAM,KAAK,CAAC,EAAE,MAAM,CAAC,QAAQ,CAAC,CAAC,CAAC,CAAC;;GAC9C,MAAM,CAAC,GAAG,QAAQ,CAAC,KAAK,CAAC,CAAC,EAAE,CAAC,CAAC,CAAC,CAAC,IAAI,CAAC,IAAI,CAAC,QAAQ,QAAQ,CAAC,QAAQ,CAAC,MAAM,GAAG,CAAC,CAAC,EAAE,CAAC;EACnF,CAAC;;+EAM6B,MAAM,KAAS,CAAC,0BAAD,CAAC,qEAKhB,MAAM,KAAS,CAAC,0BAAD,CAAC,sEAKhB,MAAM,KAAS,CAAC,0BAAD,CAAC;;6CAMlB,QAAQ;;;0CAC7B,IAAI;;;QAAI,OAAO;;+BACN,OAAO;iCACpB,OAAO;;;;;;;;;MAKN,QAAQ,CAAC,MAAM,KAAK,CAAC;;aAEhB,QAAQ,CAAC,MAAM,GAAG,MAAM;;;wDAInB,MAAM,cAAG,MAAM,KAAK,CAAC,GAAG,OAAO,GAAG,QAAQ;gBACnD,IAAI,CAAC,QAAQ,CAAC;;;;CApCZ,CAAC;"}
+
+=== 99 tests/fixtures/parser/ast/tutorial/named-slots01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;;wDADhD,CAAC;;;;;;;;;;;;AAEO,CAAC"}
+
+=== 50 tests/fixtures/parser/ast/tutorial/named-slots02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;;;;;;;;;;;;;"}
+
+=== 91 tests/fixtures/parser/ast/tutorial/nested-components01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;8DADtC,CAAC;;;;AAEO,CAAC"}
+
+=== 32 tests/fixtures/parser/ast/tutorial/nested-components02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 167 tests/fixtures/parser/ast/tutorial/numeric-inputs01-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;+DAIgB,CAAC,2DACF,CAAC,2EAIA,CAAC,2DACF,CAAC;AATnB,CAAC"}
+
+=== 210 tests/fixtures/parser/ast/tutorial/numeric-inputs02-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACA,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;CACV,GAAG,CAAC,CAAC,GAAG,CAAC,CAAC;;+DAIqB,CAAC,2DACF,CAAC,2EAIA,CAAC,2DACF,CAAC,4CAG5B,CAAC,gBAAK,CAAC,gBAAK,CAAC,GAAG,CAAC;AAZb,CAAC"}
+
+=== 305 tests/fixtures/parser/ast/tutorial/ondestroy-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,SAAS,QAAQ,QAAQ,CAAC;;;sCADpC,CAAC;EAGA,GAAG,CAAC,OAAO,GAAG,CAAC,CAAC;EAChB,KAAK,CAAC,QAAQ,GAAG,WAAW,CAAC,MAAM,OAAO,IAAI,CAAC,EAAE,IAAI,CAAC,CAAC;;EAEvD,SAAS,CAAC,MAAM,aAAa,CAAC,QAAQ,CAAC,CAAC,CAAC;;;YAKxC,OAAO,cAAG,OAAO,KAAK,CAAC,GAAG,QAAQ,GAAG,SAAS;CAJxC,CAAC;"}
+
+=== 389 tests/fixtures/parser/ast/tutorial/onmount-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,QAAQ,CAAC;;;sCADlC,CAAC;EAGA,GAAG,CAAC,MAAM,GAAG,EAAE,CAAC;;EAEhB,OAAO,CAAC,YAAY,CAAC;GACpB,KAAK,CAAC,GAAG,GAAG,KAAK,CAAC,KAAK,CAAC,uDAAuD,CAAC,CAAC;;GACjF,MAAM,GAAG,KAAK,CAAC,GAAG,CAAC,IAAI,EAAE,CAAC;EAC3B,CAAC,CAAC,CAAC;;;;yCAoBI,MAAM;;;;;;QAAI,KAAK;;wEAEV,KAAK,CAAC,YAAY,kBAAO,KAAK,CAAC,KAAK,mDACjC,KAAK,CAAC,KAAK;;;;;;;CAtBnB,CAAC;"}
+
+=== 241 tests/fixtures/parser/ast/tutorial/optional-slots01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,OAAO,MAAM,kBAAkB,CAAA;AACtC,MAAM,CAAC,OAAO,MAAM,kBAAkB,CAAA;;;sCAFvC,CAAC;;;;;mBAuCkB,EAAE;eACN,EAAE;;;;;;;gBAGyB,GAAG,CAAC,IAAI,CAAC,qBAAqB,CAAC;;;;;;;;;;;;;;;;mBAStD,EAAE;eACN,EAAE;;;;CAlDT,CAAC;"}
+
+=== 202 tests/fixtures/parser/ast/tutorial/reactive-assignments-input.svelte	js.map
+{"version":3,"mappings":";;+DAAA,CAAC;CACA,GAAG,CAAC,KAAK,GAAG,CAAC,CAAC;;CAEd,SAAS,WAAW,GAAG,CAAC;;EAEjB,KAAK,IAAI,CAAC,CAAC;CAClB,CAAC;;6CAIQ,KAAK,cAAG,KAAK,KAAK,CAAC,GAAG,MAAM,GAAG,OAAO;AAHxC,CAAC"}
+
+=== 284 tests/fixtures/parser/ast/tutorial/readable-stores-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,aAAa,CAAC;;;sCADpC,CAAC;;;EAGA,KAAK,CAAC,SAAS,GAAG,GAAG,CAAC,IAAI,CAAC,cAAc,CAAC,IAAI,EAAE;GAC/C,MAAM,EAAE,IAAI;GACZ,IAAI,EAAE,SAAS;GACf,MAAM,EAAE,SAAS;GACjB,MAAM,EAAE,SAAS;GACjB,CAAC,CAAC;;8CAGa,SAAS,CAAC,MAAM,iDAAO;;;CAFhC,CAAC;"}
+
+=== 577 tests/fixtures/parser/ast/tutorial/select-bindings-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,GAAG,CAAC,SAAS,GAAG;EACf,EAAE,EAAE,EAAE,CAAC,EAAE,IAAI,EAAE,6BAA6B,EAAE;EAC9C,EAAE,EAAE,EAAE,CAAC,EAAE,IAAI,EAAE,6BAA6B,EAAE;EAC9C;GAAE,EAAE,EAAE,CAAC;GAAE,IAAI,EAAE,+EAA+E;GAAE;EAChG,CAAC;;CAEF,GAAG,CAAC,QAAQ,CAAC;CAEb,GAAG,CAAC,MAAM,GAAG,EAAE,CAAC;;CAEhB,SAAS,YAAY,GAAG,CAAC;EACxB,KAAK,CAAC,qBAAqB,QAAQ,CAAC,EAAE,KAAK,QAAQ,CAAC,IAAI,WAAW,MAAM,GAAG,CAAC,CAAC;CAC/E,CAAC;;;;4BAUmB,QAAQ;;;yCACpB,SAAS;;;OAAI,QAAQ;;8BACZ,QAAQ;gCACrB,QAAQ,CAAC,IAAI;;;;;;;2CAKE,MAAM,wDAEP,CAAC,MAAM,8EAKJ,QAAQ,GAAG,QAAQ,CAAC,EAAE,GAAG,cAAc;AAxBrD,CAAC"}
+
+=== 132 tests/fixtures/parser/ast/tutorial/sharing-code01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;;yDADhD,CAAC;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAEO,CAAC"}
+
+=== 96 tests/fixtures/parser/ast/tutorial/slot-fallbacks01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,GAAG,MAAM,cAAc,CAAC;;2DADhC,CAAC;;;;;;;;;;;AAEO,CAAC"}
+
+=== 38 tests/fixtures/parser/ast/tutorial/slot-fallbacks02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;;;"}
+
+=== 127 tests/fixtures/parser/ast/tutorial/slot-props01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAC;;uDAD5C,CAAC;;;;qCAiBwB,MAAM;;;QAExB,MAAM;;;;;;;;;;AAjBL,CAAC"}
+
+=== 216 tests/fixtures/parser/ast/tutorial/slot-props02-input.svelte	js.map
+{"version":3,"mappings":";;gEAAA,CAAC;CACA,GAAG,CAAC,QAAQ,CAAC;;CAEb,SAAS,KAAK,GAAG,CAAC;EACjB,QAAQ,GAAG,IAAI,CAAC;CACjB,CAAC;;CAED,SAAS,KAAK,GAAG,CAAC;EACjB,QAAQ,GAAG,KAAK,CAAC;CAClB,CAAC;;;0CAIe,QAAQ;;AAHjB,CAAC"}
+
+=== 137 tests/fixtures/parser/ast/tutorial/slot-props03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAC;;uDAD5C,CAAC;;;;2BAiBwB,QAAQ;8EACb,QAAQ;;QACrB,QAAQ;;;;;;;;;;AAjBP,CAAC"}
+
+=== 92 tests/fixtures/parser/ast/tutorial/slots01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,GAAG,MAAM,cAAc,CAAC;;kDADhC,CAAC;;;;;;;AAEO,CAAC"}
+
+=== 34 tests/fixtures/parser/ast/tutorial/slots02-input.svelte	js.map
+{"version":3,"mappings":";;;;;;"}
+
+=== 289 tests/fixtures/parser/ast/tutorial/spread-props01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;yDADlC,CAAC;CAGA,KAAK,CAAC,GAAG,GAAG;EACX,IAAI,EAAE,QAAQ;EACd,OAAO,EAAE,CAAC;EACV,KAAK,EAAE,SAAS;EAChB,OAAO,EAAE,oBAAoB;EAC7B,CAAC;;;QAGS,GAAG,CAAC,IAAI;WAAW,GAAG,CAAC,OAAO;SAAS,GAAG,CAAC,KAAK;WAAW,GAAG,CAAC,OAAO;;AAF1E,CAAC"}
+
+=== 217 tests/fixtures/parser/ast/tutorial/spread-props03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;yDADlC,CAAC;CAGA,KAAK,CAAC,GAAG,GAAG;EACX,IAAI,EAAE,QAAQ;EACd,OAAO,EAAE,CAAC;EACV,KAAK,EAAE,SAAS;EAChB,OAAO,EAAE,oBAAoB;EAC7B,CAAC;;kCAGO,GAAG;AAFL,CAAC"}
+
+=== 405 tests/fixtures/parser/ast/tutorial/spring-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,MAAM,QAAQ,eAAe,CAAC;;;sCADxC,CAAC;;EAGA,GAAG,CAAC,MAAM,GAAG,MAAM,CAAC,EAAE,CAAC,EAAE,EAAE,EAAE,CAAC,EAAE,EAAE,EAAE,EAAE,EACrC,SAAS,EAAE,GAAG,EACd,OAAO,EAAE,IAAI,EACb,CAAC,CAAC;EACH,GAAG,CAAC,IAAI,GAAG,MAAM,CAAC,EAAE,CAAC,CAAC;;iGAUL,MAAM,CAAC,SAAS,iCACb,MAAM,CAAC,SAAS,qFAIrB,MAAM,CAAC,OAAO,iCACT,MAAM,CAAC,OAAO,8GAStB,oDAAQ,CAAC,iBAAM,oDAAQ,CAAC;;;CAxB7B,CAAC;"}
+
+=== 32 tests/fixtures/parser/ast/tutorial/styling01-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/ast/tutorial/styling02-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 207 tests/fixtures/parser/ast/tutorial/svelte-body-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACA,GAAG,CAAC,SAAS,GAAG,KAAK,CAAC;CAEtB,KAAK,CAAC,gBAAgB,GAAG,MAAM,SAAS,GAAG,IAAI,CAAC;CAChD,KAAK,CAAC,gBAAgB,GAAG,MAAM,SAAS,GAAG,KAAK,CAAC;;gJA6BlC,SAAS;AA5BjB,CAAC"}
+
+=== 530 tests/fixtures/parser/ast/tutorial/svelte-component-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,QAAQ,MAAM,mBAAmB,CAAC;AACzC,MAAM,CAAC,UAAU,MAAM,qBAAqB,CAAC;AAC7C,MAAM,CAAC,SAAS,MAAM,oBAAoB,CAAC;;2DAH5C,CAAC;CAKA,KAAK,CAAC,OAAO,GAAG;EACf,EAAE,KAAK,EAAE,KAAK,EAAI,SAAS,EAAE,QAAQ,EAAI;EACzC,EAAE,KAAK,EAAE,OAAO,EAAE,SAAS,EAAE,UAAU,EAAE;EACzC,EAAE,KAAK,EAAE,MAAM,EAAG,SAAS,EAAE,SAAS,EAAG;EACzC,CAAC;;CAEF,GAAG,CAAC,QAAQ,GAAG,OAAO,CAAC,CAAC,CAAC,CAAC;;4BAGP,QAAQ;;;yCACpB,OAAO;;;OAAI,MAAM;;8BACR,MAAM;gCAAG,MAAM,CAAC,KAAK;;;;;;;;;KAId,QAAQ,CAAC,SAAS;;EAAlB,QAAQ,CAAC,SAAS;;;;;;AARlC,CAAC"}
+
+=== 177 tests/fixtures/parser/ast/tutorial/svelte-document-input.svelte	js.map
+{"version":3,"mappings":";;0DAAA,CAAC;CACA,GAAG,CAAC,SAAS,GAAG,EAAE,CAAC;CAEnB,KAAK,CAAC,qBAAqB,GAAG,CAAC,CAAC,KAAK,SAAS,GAAG,QAAQ,CAAC,YAAY,EAAE,CAAC;;kFAM3D,SAAS;AALhB,CAAC"}
+
+=== 259 tests/fixtures/parser/ast/tutorial/svelte-element-input.svelte	js.map
+{"version":3,"mappings":";;yDAAA,CAAC;CACA,KAAK,CAAC,OAAO,GAAG,CAAC,IAAI,EAAE,IAAI,EAAE,GAAG,CAAC,CAAC;CAClC,GAAG,CAAC,QAAQ,GAAG,OAAO,CAAC,CAAC,CAAC,CAAC;;4BAGP,QAAQ;;;yCACpB,OAAO;;;OAAI,MAAM;;8BACR,MAAM;gCAAG,MAAM;;;;;;;;;uBAIV,QAAQ;oCAAS,QAAQ;;AARvC,CAAC"}
+
+=== 95 tests/fixtures/parser/ast/tutorial/svelte-fragment-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,GAAG,MAAM,cAAc,CAAA;;0DAD/B,CAAC;;;;;;;;;;AAEO,CAAC"}
+
+=== 36 tests/fixtures/parser/ast/tutorial/svelte-head-input.svelte	js.map
+{"version":3,"mappings":";;;;;;;;"}
+
+=== 700 tests/fixtures/parser/ast/tutorial/svelte-options01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,IAAI,MAAM,eAAe,CAAC;;2DADlC,CAAC;CAGA,GAAG,CAAC,KAAK,GAAG;EACX,EAAE,EAAE,EAAE,CAAC,EAAE,IAAI,EAAE,IAAI,EAAE,IAAI,EAAE,cAAc,EAAE;EAC3C,EAAE,EAAE,EAAE,CAAC,EAAE,IAAI,EAAE,KAAK,EAAE,IAAI,EAAE,yBAAyB,EAAE;EACvD,EAAE,EAAE,EAAE,CAAC,EAAE,IAAI,EAAE,KAAK,EAAE,IAAI,EAAE,cAAc,EAAE;EAC5C,CAAC;;CAEF,SAAS,MAAM,CAAC,OAAO,EAAE,CAAC;EACzB,KAAK,GAAG,KAAK,CAAC,GAAG,CAAC,CAAA,IAAI,KAAI,CAAC;GAC1B,EAAE,EAAE,IAAI,KAAK,OAAO,EAAE,CAAC;;IAEtB,MAAM,CAAC,EACN,EAAE,EAAE,IAAI,CAAC,EAAE,EACX,IAAI,EAAE,IAAI,CAAC,IAAI,EACf,IAAI,EAAE,CAAC,IAAI,CAAC,IAAI,EAChB,CAAC;GACH,CAAC;;;GAGD,MAAM,CAAC,IAAI,CAAC;EACb,CAAC,CAAC,CAAC;CACJ,CAAC;;;;wCAIK,KAAK;;;MAAI,IAAI;;qBACZ,IAAI;;;;AAJJ,CAAC"}
+
+=== 892 tests/fixtures/parser/ast/tutorial/svelte-self01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,iBAAiB,CAAC;;wDADtC,CAAC;CAGA,GAAG,CAAC,IAAI,GAAG;EACV;GACC,IAAI,EAAE,QAAQ;GACd,IAAI,EAAE,sBAAsB;GAC5B,KAAK,EAAE,CACN,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,wBAAwB,EAAE,CAChD;GACD;;EACD;GACC,IAAI,EAAE,QAAQ;GACd,IAAI,EAAE,aAAa;GACnB,KAAK,EAAE;IACN;KACC,IAAI,EAAE,QAAQ;KACd,IAAI,EAAE,MAAM;KACZ,KAAK,EAAE;MACN,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,eAAe,EAAE;MACvC,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,kBAAkB,EAAE;MAC1C;KACD;;IACD;KACC,IAAI,EAAE,QAAQ;KACd,IAAI,EAAE,OAAO;KACb,KAAK,EAAE;MACN,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,aAAa,EAAE;MACrC,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,aAAa,EAAE;MACrC;KACD;IACD,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,gBAAgB,EAAE;IACxC,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,kBAAkB,EAAE;IAC1C,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,qBAAqB,EAAE;IAC7C;GACD;EACD,EAAE,IAAI,EAAE,MAAM,EAAE,IAAI,EAAE,SAAS,EAAE;EACjC,CAAC;;2CAGwB,IAAI;AAFvB,CAAC"}
+
+=== 403 tests/fixtures/parser/ast/tutorial/svelte-window-bindings-input.svelte	js.map
+{"version":3,"mappings":";;iEAAA,CAAC;CACA,KAAK,CAAC,MAAM,GAAG,CAAC,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,EAAE,CAAC,CAAC,CAAC;CAE3C,GAAG,CAAC,CAAC,CAAC;;;;wCAMC,MAAM;;;MAAI,KAAK;;4EAEW,CAAC,CAAC,GAAG,KAAK,GAAI,CAAA,MAAM,CAAC,MAAM,GAAG,CAAC,CAAA,AAAC,6FACH,KAAK,uDAC5C,KAAK;;;4GAML,CAAC,GAAG,IAAI,CAAC,GAAG,CAAC,CAAC,EAAE,CAAC,GAAG,EAAE,CAAC,oHAK1B,CAAC;AApBd,CAAC"}
+
+=== 292 tests/fixtures/parser/ast/tutorial/svelte-window-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,GAAG,CAAC;CACR,GAAG,CAAC,OAAO,CAAC;;CAEZ,SAAS,aAAa,CAAC,KAAK,EAAE,CAAC;EAC9B,GAAG,GAAG,KAAK,CAAC,GAAG,CAAC;EAChB,OAAO,GAAG,KAAK,CAAC,OAAO,CAAC;CACzB,CAAC;;;;KA4BI,GAAG;mEACD,GAAG,KAAK,GAAG,GAAG,OAAO,GAAG,GAAG,uBAC7B,OAAO;;;;;;AA7BL,CAAC"}
+
+=== 108 tests/fixtures/parser/ast/tutorial/text-inputs01-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,OAAO,CAAC;;0CAGD,IAAI,0BAEZ,IAAI;AAJP,CAAC"}
+
+=== 97 tests/fixtures/parser/ast/tutorial/text-inputs02-input.svelte	js.map
+{"version":3,"mappings":";;wDAAA,CAAC;CACA,GAAG,CAAC,IAAI,GAAG,OAAO,CAAC;;0CAGN,IAAI;AAFV,CAAC"}
+
+=== 161 tests/fixtures/parser/ast/tutorial/textarea-inputs-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,CAAC,MAAM,MAAM,QAAQ,CAAC;;;sCAD7B,CAAC;EAEA,GAAG,CAAC,KAAK,GAAG,4CAA4C,CAAC;;;;;;;;;;wCASnD,MAAM,CAAC,KAAK,CAAC;CARZ,CAAC;"}
+
+=== 760 tests/fixtures/parser/ast/tutorial/tick-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,QAAQ,CAAC;;;sCAD/B,CAAC;EAEA,GAAG,CAAC,IAAI,GAAG,0DAA0D,CAAC;;EAEtE,eAAe,aAAa,CAAC,KAAK,EAAE,CAAC;GACpC,EAAE,EAAE,KAAK,CAAC,GAAG,KAAK,KAAK,EAAE,MAAM,CAAC;;GAEhC,KAAK,CAAC,cAAc,EAAE,CAAC;;GAEvB,KAAK,CAAC,EAAE,cAAc,EAAE,YAAY,EAAE,KAAK,EAAE,GAAG,IAAI,CAAC;GACrD,KAAK,CAAC,SAAS,GAAG,KAAK,CAAC,KAAK,CAAC,cAAc,EAAE,YAAY,CAAC,CAAC;GAE5D,KAAK,CAAC,WAAW,GAAG,CAAA,OAAO,CAAA,CAAC,IAAI,CAAC,SAAS,CAAC,GACxC,SAAS,CAAC,WAAW,EAAE,GACvB,SAAS,CAAC,WAAW,EAAE,CAAC;;GAE3B,IAAI,GACH,KAAK,CAAC,KAAK,CAAC,CAAC,EAAE,cAAc,CAAC,GAC9B,WAAW,GACX,KAAK,CAAC,KAAK,CAAC,YAAY,CAAC,AACzB,CAAC;;;GAGF,KAAK,CAAC,IAAI,EAAE,CAAC;;GACb,IAAI,CAAC,cAAc,GAAG,cAAc,CAAC;GACrC,IAAI,CAAC,YAAY,GAAG,YAAY,CAAC;EAClC,CAAC;;;;0BAUe,IAAI;;;;;;;CATb,CAAC;"}
+
+=== 201 tests/fixtures/parser/ast/tutorial/transition-events-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,GAAG,QAAQ,mBAAmB,CAAC;;4DADzC,CAAC;CAGA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;CACnB,GAAG,CAAC,MAAM,GAAG,YAAY,CAAC;;wCAGf,MAAM,wDAGoB,OAAO;;KAIxC,OAAO;;;;;;;AATJ,CAAC"}
+
+=== 154 tests/fixtures/parser/ast/tutorial/transition-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,mBAAmB,CAAC;;qDAD1C,CAAC;CAEA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;mEAIkB,OAAO;;KAIxC,OAAO;;;;;;;AAPJ,CAAC"}
+
+=== 231 tests/fixtures/parser/ast/tutorial/tweened-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,OAAO,QAAQ,eAAe,CAAC;AACxC,MAAM,GAAG,QAAQ,QAAQ,eAAe,CAAC;;;sCAF1C,CAAC;;EAIA,KAAK,CAAC,QAAQ,GAAG,OAAO,CAAC,CAAC,EAAE,EAC3B,QAAQ,EAAE,GAAG,EACb,MAAM,EAAE,QAAQ,EAChB,CAAC,CAAC;;;;;CACI,CAAC;"}
+
+=== 360 tests/fixtures/parser/ast/tutorial/writable-stores01-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,aAAa,CAAC;AACpC,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;AAC/C,MAAM,CAAC,WAAW,MAAM,sBAAsB,CAAC;AAC/C,MAAM,CAAC,QAAQ,MAAM,mBAAmB,CAAC;;;sCAJ1C,CAAC;EAMA,GAAG,CAAC,WAAW,CAAC;;EAEhB,KAAK,CAAC,WAAW,GAAG,KAAK,CAAC,SAAS,CAAC,CAAA,KAAK,KAAI,CAAC;GAC7C,WAAW,GAAG,KAAK,CAAC;EACrB,CAAC,CAAC,CAAC;;+CAGc,WAAW;;;;;;;CAFrB,CAAC;"}
+
+=== 192 tests/fixtures/parser/ast/tutorial/writable-stores02-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,aAAa,CAAC;;;sCADrC,CAAC;EAGA,SAAS,SAAS,GAAG,CAAC;GACrB,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,GAAG,CAAC,CAAC,CAAC;EAC1B,CAAC;;;CACM,CAAC;"}
+
+=== 192 tests/fixtures/parser/ast/tutorial/writable-stores03-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,aAAa,CAAC;;;sCADrC,CAAC;EAGA,SAAS,SAAS,GAAG,CAAC;GACrB,KAAK,CAAC,MAAM,CAAC,CAAA,CAAC,KAAI,CAAC,GAAG,CAAC,CAAC,CAAC;EAC1B,CAAC;;;CACM,CAAC;"}
+
+=== 166 tests/fixtures/parser/ast/tutorial/writable-stores04-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,KAAK,QAAQ,aAAa,CAAC;;;sCADrC,CAAC;EAGA,SAAS,KAAK,GAAG,CAAC;GACjB,KAAK,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC;EACd,CAAC;;;CACM,CAAC;"}
+
+=== 133 tests/fixtures/parser/ast/unknown-directive01-input.svelte	js.map
+{"version":3,"mappings":";;8DAAA,CAAC;CACA,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;CAChB,GAAG,CAAC,GAAG,GAAG,KAAK,CAAC;;0CAEH,GAAG;AADT,CAAC"}
+
+=== 242 tests/fixtures/parser/ast/unused-write-only-store-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,QAAQ,EAAE,WAAW,QAAQ,YAAY,CAAC;;;sCADpD,CAAC;;EAEA,KAAK,CAAC,SAAS,GAAG,WAAW,EAAE,CAAC;;EAChC,uBAAa,EAAE,EAAC;;EAChB,KAAK,CAAC,QAAQ,GAAG,WAAW,EAAE,CAAC;;EAC/B,wDAAU;EACV,sBAAY,YAAY,EAAC;;;;CAClB,CAAC;"}
+
+=== 681 tests/fixtures/parser/error/directive-animate-with-expr-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,gBAAgB,CAAC;;sEADvC,CAAC;CAEA,KAAK,CAAC,GAAG,GAAG,EAAE,IAAI,EAAE,CAAA;CACpB,GAAG,CAAC,IAAI,GAAG,CAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,CAAC,EAAC,EAAE,CAAC,CAAA;;CACjC,SAAS,OAAO,GAAG,CAAC;EACnB,GAAG,CAAC,YAAY,GAAG,IAAI,CAAC,MAAM,CAAC;;EAC/B,KAAK,EAAE,YAAY,IAAI,CAAC,EAAE,CAAC;GAC1B,KAAK,CAAC,WAAW,GAAG,IAAI,CAAC,KAAK,CAAC,IAAI,CAAC,MAAM,EAAE,GAAG,YAAY,CAAC,CAAC;;GAC7D,YAAY,EAAE,CAAC;GACf,CAAC,IAAI,CAAC,YAAY,CAAC,EAAE,IAAI,CAAC,WAAW,CAAC,CAAC,GAAG,CACzC,IAAI,CAAC,WAAW,CAAC,EAAE,IAAI,CAAC,YAAY,CAAC,CAAC,CAAC;EACzC,CAAC;CACF,CAAC;;;;wCAGK,IAAI;;;MAAI,IAAI;;kCACI,IAAI;;;;AAHnB,CAAC"}
+
+=== 32 tests/fixtures/parser/error/directive-class-with-expr-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 219 tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,EAAE,GAAG,QAAQ,mBAAmB,CAAC;;kEAD/C,CAAC;CAEA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;CACnB,KAAK,CAAC,GAAG,GAAG,EAAE,IAAI,EAAE,GAAG,EAAE,CAAA;;mEAIY,OAAO;;KAIxC,OAAO;;;;;;;AAPJ,CAAC"}
+
+=== 219 tests/fixtures/parser/error/directive-out-with-expr-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,EAAE,GAAG,QAAQ,mBAAmB,CAAC;;kEAD/C,CAAC;CAEA,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;CACnB,KAAK,CAAC,GAAG,GAAG,EAAE,IAAI,EAAE,GAAG,EAAE,CAAA;;mEAIY,OAAO;;KAIxC,OAAO;;;;;;;AAPJ,CAAC"}
+
+=== 32 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 200 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	js.map
+{"version":3,"mappings":";AACC,MAAM,GAAG,IAAI,QAAQ,mBAAmB,CAAC;;yEAD1C,CAAC;CAEA,KAAK,CAAC,GAAG,GAAG,EAAE,IAAI,EAAE,CAAA;CACpB,GAAG,CAAC,OAAO,GAAG,IAAI,CAAC;;mEAIkB,OAAO;;KAIxC,OAAO;;;;;;;AAPJ,CAAC"}
+
+=== 129 tests/fixtures/parser/error/directive-use-with-expr01-input.svelte	js.map
+{"version":3,"mappings":";;AACC,SAAS,GAAG,GAAG,CAAC;CACb,MAAM,CAAC,CAAC,IAAI,KAAK,IAAI,CAAC,WAAW,GAAG,SAAS,CAAA;AAChD,CAAC;;;;"}
+
+=== 143 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	js.map
+{"version":3,"mappings":";;oEAAA,CAAC;CACA,KAAK,CAAC,GAAG,GAAG,EACX,KAAK,EAAE,CAAC,IAAI,KAAK,IAAI,CAAC,WAAW,GAAG,SAAS,EAC7C,CAAA;;;AACM,CAAC"}
+
+=== 158 tests/fixtures/parser/error/name01-input.svelte	js.map
+{"version":3,"mappings":";;iDAAA,CAAC;CACD,GAAG,CAAC,IAAI,GAAG,OAAO,CAAC;CACnB,KAAK,CAAC,GAAG,GAAG,CAAC,CAAA;CACb,KAAK,CAAC,KAAK,GAAG,CAAC,CAAA;;;AACP,CAAC"}
+
+=== 158 tests/fixtures/parser/error/shorthand02-input.svelte	js.map
+{"version":3,"mappings":";;sDAAA,CAAC;CACD,GAAG,CAAC,IAAI,GAAG,OAAO,CAAC;CACnB,KAAK,CAAC,GAAG,GAAG,CAAC,CAAA;CACb,KAAK,CAAC,KAAK,GAAG,CAAC,CAAA;;;AACP,CAAC"}
+
+=== 87 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,EAAE,CAAA;;;AACJ,CAAC"}
+
+=== 32 tests/fixtures/parser/selector-parsing/simple-postcss-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 87 tests/fixtures/parser/style-context/empty-style-element-input.svelte	js.map
+{"version":3,"mappings":";;8DAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,EAAE,CAAA;;;AACJ,CAAC"}
+
+=== 87 tests/fixtures/parser/style-context/no-style-element-input.svelte	js.map
+{"version":3,"mappings":";;2DAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,EAAE,CAAA;;;AACJ,CAAC"}
+
+=== 87 tests/fixtures/parser/style-context/one-line-css-input.svelte	js.map
+{"version":3,"mappings":";;uDAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,EAAE,CAAA;;;AACJ,CAAC"}
+
+=== 87 tests/fixtures/parser/style-context/simple-css-input.svelte	js.map
+{"version":3,"mappings":";;qDAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,EAAE,CAAA;;;AACJ,CAAC"}
+
+=== 32 tests/fixtures/parser/style-context/simple-postcss-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 32 tests/fixtures/parser/style-context/simple-scss-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+
+=== 87 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	js.map
+{"version":3,"mappings":";;+DAAA,CAAC;CACC,GAAG,CAAC,CAAC,GAAG,EAAE,CAAA;;;AACJ,CAAC"}
+
+=== 32 tests/fixtures/parser/style-location-converter/simple-postcss-input.svelte	js.map
+{"version":3,"mappings":";;;;"}
+

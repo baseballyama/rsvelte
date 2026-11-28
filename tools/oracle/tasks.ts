@@ -5,8 +5,11 @@ import { svueCompile, vuelteCompile } from './tasks/behaviour.ts';
 import svelteCheck from './tasks/svelte-check.ts';
 import svelteCompile from './tasks/svelte-compile.ts';
 import svelteCompileModule from './tasks/svelte-compile-module.ts';
+import svelteCompileSourcemap from './tasks/svelte-compile-sourcemap.ts';
 import svelteFormat from './tasks/svelte-format.ts';
 import svelteLint from './tasks/svelte-lint.ts';
+import svelteParse from './tasks/svelte-parse.ts';
+import tsCompile from './tasks/ts-compile.ts';
 import vueCheck from './tasks/vue-check.ts';
 import vueCompile from './tasks/vue-compile.ts';
 import vueFormat from './tasks/vue-format.ts';
@@ -19,9 +22,12 @@ export const TASKS: Task[] = [
 	svelteCheck,
 	svelteCompile,
 	svelteCompileModule,
+	svelteCompileSourcemap,
 	svelteFormat,
 	svelteLint,
+	svelteParse,
 	svueCompile,
+	tsCompile,
 	vueCheck,
 	vueCompile,
 	vueFormat,

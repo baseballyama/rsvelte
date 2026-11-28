@@ -73,7 +73,11 @@ fn imports<'t>(
             "customRef",
             "$$createState",
         ),
-        (uses.raw || uses.prop_cells, "shallowRef", "$$shallowRef"),
+        (
+            uses.raw || uses.prop_cells || helpers.contains(&Helper::Await),
+            "shallowRef",
+            "$$shallowRef",
+        ),
         (
             uses.derived || uses.prop_cells,
             "computed",
@@ -112,9 +116,6 @@ fn imports<'t>(
             "effectScope",
             "ReactiveEffect",
         ]);
-    }
-    if helpers.contains(&Helper::Await) && !uses.raw {
-        specs.push(("shallowRef", "$$shallowRef".to_owned()));
     }
     let scope_imports = helpers.contains(&Helper::Lifecycle)
         || helpers.contains(&Helper::Group)
@@ -273,7 +274,7 @@ pub(crate) fn emit<'t>(
     let (plan, custom_element) = (&checked.script, checked.options.custom_element.is_some());
     let mut body = Vec::new();
     head(rw, plan, custom_element, helpers, &mut body);
-    for s in instance.iter().flat_map(|p| &p.body) {
+    for s in instance.into_iter().flat_map(super::statements) {
         let s = match s {
             Statement::ExportDeclaration(e) => match &e.declaration {
                 Declaration::VariableDeclaration(d) => {
@@ -329,7 +330,7 @@ pub(crate) fn module<'t>(
 ) -> Vec<Statement<'t>> {
     let b = rw.b;
     let mut output = Vec::new();
-    for statement in &program.body {
+    for statement in super::statements(program) {
         let Statement::ExportDeclaration(e) = statement else {
             output.extend(rw.statement(statement));
             continue;

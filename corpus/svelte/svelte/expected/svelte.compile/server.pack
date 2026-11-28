@@ -37,6 +37,374 @@ export default function App($$renderer) {
 
 	$$renderer.push(`<!--]--></div>`);
 }
+=== 251 packages/svelte/tests/compiler-errors/samples/attribute-empty/main.svelte	error.json
+{
+	"code": "expected_attribute_value",
+	"message": "Expected attribute value\nhttps://svelte.dev/e/expected_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 373 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression-2/main.svelte	error.json
+{
+	"code": "attribute_invalid_sequence_expression",
+	"message": "Comma-separated expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression",
+	"start": {
+		"line": 9,
+		"column": 11,
+		"character": 124
+	},
+	"end": {
+		"line": 9,
+		"column": 18,
+		"character": 131
+	}
+}
+
+=== 375 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression/main.svelte	error.json
+{
+	"code": "attribute_invalid_sequence_expression",
+	"message": "Comma-separated expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression",
+	"start": {
+		"line": 10,
+		"column": 12,
+		"character": 163
+	},
+	"end": {
+		"line": 10,
+		"column": 19,
+		"character": 170
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-binding/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 25,
+		"character": 25
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-class/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 40,
+		"character": 40
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-shorthand/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-style/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 42,
+		"character": 42
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 28,
+		"character": 28
+	}
+}
+
+=== 227 packages/svelte/tests/compiler-errors/samples/catch-before-closing/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:else}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 35
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 35
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/catch-without-await/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 399 packages/svelte/tests/compiler-errors/samples/class-state-field-static/main.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 13,
+		"character": 33
+	},
+	"end": {
+		"line": 3,
+		"column": 21,
+		"character": 41
+	}
+}
+
+=== 225 packages/svelte/tests/compiler-errors/samples/comment-unclosed/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token -->\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 323 packages/svelte/tests/compiler-errors/samples/component-invalid-name/main.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 71
+	},
+	"end": {
+		"line": 7,
+		"column": 14,
+		"character": 84
+	}
+}
+
+=== 266 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-2/main.svelte	error.json
+{
+	"code": "slot_attribute_duplicate",
+	"message": "Duplicate slot name 'foo' in <Nested>\nhttps://svelte.dev/e/slot_attribute_duplicate",
+	"start": {
+		"line": 7,
+		"column": 18,
+		"character": 138
+	},
+	"end": {
+		"line": 7,
+		"column": 28,
+		"character": 148
+	}
+}
+
+=== 265 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-3/main.svelte	error.json
+{
+	"code": "slot_attribute_duplicate",
+	"message": "Duplicate slot name 'foo' in <Nested>\nhttps://svelte.dev/e/slot_attribute_duplicate",
+	"start": {
+		"line": 7,
+		"column": 4,
+		"character": 124
+	},
+	"end": {
+		"line": 7,
+		"column": 14,
+		"character": 134
+	}
+}
+
+=== 289 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-4/main.svelte	error.json
+{
+	"code": "slot_default_duplicate",
+	"message": "Found default slot content alongside an explicit slot=\"default\"\nhttps://svelte.dev/e/slot_default_duplicate",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 123
+	},
+	"end": {
+		"line": 7,
+		"column": 13,
+		"character": 135
+	}
+}
+
+=== 265 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-5/main.svelte	error.json
+{
+	"code": "slot_attribute_duplicate",
+	"message": "Duplicate slot name 'foo' in <Nested>\nhttps://svelte.dev/e/slot_attribute_duplicate",
+	"start": {
+		"line": 8,
+		"column": 8,
+		"character": 143
+	},
+	"end": {
+		"line": 8,
+		"column": 18,
+		"character": 153
+	}
+}
+
+=== 265 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-6/main.svelte	error.json
+{
+	"code": "slot_attribute_duplicate",
+	"message": "Duplicate slot name 'foo' in <Nested>\nhttps://svelte.dev/e/slot_attribute_duplicate",
+	"start": {
+		"line": 8,
+		"column": 8,
+		"character": 135
+	},
+	"end": {
+		"line": 8,
+		"column": 18,
+		"character": 145
+	}
+}
+
+=== 267 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error/main.svelte	error.json
+{
+	"code": "slot_attribute_duplicate",
+	"message": "Duplicate slot name 'foo' in <Nested>\nhttps://svelte.dev/e/slot_attribute_duplicate",
+	"start": {
+		"line": 13,
+		"column": 4,
+		"character": 228
+	},
+	"end": {
+		"line": 13,
+		"column": 14,
+		"character": 238
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-2/main.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 108
+	},
+	"end": {
+		"line": 8,
+		"column": 23,
+		"character": 120
+	}
+}
+
+=== 346 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-3/main.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 95
+	},
+	"end": {
+		"line": 8,
+		"column": 23,
+		"character": 107
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error/main.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 7,
+		"column": 7,
+		"character": 92
+	},
+	"end": {
+		"line": 7,
+		"column": 19,
+		"character": 104
+	}
+}
+
+=== 293 packages/svelte/tests/compiler-errors/samples/const-tag-sequence/main.svelte	error.json
+{
+	"code": "const_tag_invalid_expression",
+	"message": "{@const ...} must consist of a single variable declaration\nhttps://svelte.dev/e/const_tag_invalid_expression",
+	"start": {
+		"line": 6,
+		"column": 15,
+		"character": 75
+	},
+	"end": {
+		"line": 6,
+		"column": 33,
+		"character": 93
+	}
+}
+
 === 957 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -97,6 +465,1718 @@ export default function Main($$renderer) {
 		});
 	}
 }
+=== 234 packages/svelte/tests/compiler-errors/samples/const-tag-whitespace/main.svelte	error.json
+{
+	"code": "expected_whitespace",
+	"message": "Expected whitespace\nhttps://svelte.dev/e/expected_whitespace",
+	"start": {
+		"line": 2,
+		"column": 8,
+		"character": 19
+	},
+	"end": {
+		"line": 2,
+		"column": 8,
+		"character": 19
+	}
+}
+
+=== 299 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator-2/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_combinator",
+	"message": "A `:global` selector cannot follow a `>` combinator\nhttps://svelte.dev/e/css_global_block_invalid_combinator",
+	"start": {
+		"line": 9,
+		"column": 4,
+		"character": 79
+	},
+	"end": {
+		"line": 9,
+		"column": 13,
+		"character": 88
+	}
+}
+
+=== 299 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_combinator",
+	"message": "A `:global` selector cannot follow a `>` combinator\nhttps://svelte.dev/e/css_global_block_invalid_combinator",
+	"start": {
+		"line": 7,
+		"column": 4,
+		"character": 54
+	},
+	"end": {
+		"line": 7,
+		"column": 13,
+		"character": 63
+	}
+}
+
+=== 328 packages/svelte/tests/compiler-errors/samples/css-global-block-declaration/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_declaration",
+	"message": "A top-level `:global {...}` block can only contain rules, not declarations\nhttps://svelte.dev/e/css_global_block_invalid_declaration",
+	"start": {
+		"line": 13,
+		"column": 2,
+		"character": 109
+	},
+	"end": {
+		"line": 13,
+		"column": 12,
+		"character": 119
+	}
+}
+
+=== 297 packages/svelte/tests/compiler-errors/samples/css-global-block-in-pseudoclass/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_placement",
+	"message": "A `:global` selector cannot be inside a pseudoclass\nhttps://svelte.dev/e/css_global_block_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 5,
+		"character": 28
+	},
+	"end": {
+		"line": 3,
+		"column": 12,
+		"character": 35
+	}
+}
+
+=== 334 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-1/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_list",
+	"message": "A `:global` selector cannot be part of a selector list with entries that don't contain `:global`\nhttps://svelte.dev/e/css_global_block_invalid_list",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 232
+	},
+	"end": {
+		"line": 8,
+		"column": 15,
+		"character": 246
+	}
+}
+
+=== 332 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-2/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_list",
+	"message": "A `:global` selector cannot be part of a selector list with entries that don't contain `:global`\nhttps://svelte.dev/e/css_global_block_invalid_list",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 20,
+		"character": 43
+	}
+}
+
+=== 338 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-1/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_modifier_start",
+	"message": "A `:global` selector can only be modified if it is a descendant of other selectors\nhttps://svelte.dev/e/css_global_block_invalid_modifier_start",
+	"start": {
+		"line": 8,
+		"column": 8,
+		"character": 75
+	},
+	"end": {
+		"line": 8,
+		"column": 10,
+		"character": 77
+	}
+}
+
+=== 341 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_modifier_start",
+	"message": "A `:global` selector can only be modified if it is a descendant of other selectors\nhttps://svelte.dev/e/css_global_block_invalid_modifier_start",
+	"start": {
+		"line": 18,
+		"column": 2,
+		"character": 147
+	},
+	"end": {
+		"line": 18,
+		"column": 3,
+		"character": 148
+	}
+}
+
+=== 299 packages/svelte/tests/compiler-errors/samples/css-global-modifier/main.svelte	error.json
+{
+	"code": "css_global_block_invalid_modifier",
+	"message": "A `:global` selector cannot modify an existing selector\nhttps://svelte.dev/e/css_global_block_invalid_modifier",
+	"start": {
+		"line": 8,
+		"column": 3,
+		"character": 70
+	},
+	"end": {
+		"line": 8,
+		"column": 10,
+		"character": 77
+	}
+}
+
+=== 361 packages/svelte/tests/compiler-errors/samples/css-nesting-selector-root/main.svelte	error.json
+{
+	"code": "css_nesting_selector_invalid_placement",
+	"message": "Nesting selectors can only be used inside a rule or as the first selector inside a lone `:global(...)`\nhttps://svelte.dev/e/css_nesting_selector_invalid_placement",
+	"start": {
+		"line": 13,
+		"column": 13,
+		"character": 151
+	},
+	"end": {
+		"line": 13,
+		"column": 14,
+		"character": 152
+	}
+}
+
+=== 254 packages/svelte/tests/compiler-errors/samples/css/main.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 25
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 25
+	}
+}
+
+=== 230 packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 293 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-legacy/main.svelte	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 10,
+		"column": 5,
+		"character": 108
+	},
+	"end": {
+		"line": 10,
+		"column": 6,
+		"character": 109
+	}
+}
+
+=== 289 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes-2/main.svelte	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 6,
+		"column": 6,
+		"character": 80
+	},
+	"end": {
+		"line": 6,
+		"column": 7,
+		"character": 81
+	}
+}
+
+=== 289 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes/main.svelte	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 4,
+		"column": 5,
+		"character": 40
+	},
+	"end": {
+		"line": 4,
+		"column": 6,
+		"character": 41
+	}
+}
+
+=== 321 packages/svelte/tests/compiler-errors/samples/dollar-binding-global/main.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$` is an illegal variable name. To reference a global variable called `$`, use `globalThis.$`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 14,
+		"character": 23
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 10,
+		"character": 19
+	},
+	"end": {
+		"line": 2,
+		"column": 11,
+		"character": 20
+	}
+}
+
+=== 287 packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:value` can only be used with `<input>`, `<textarea>`, `<select>`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 6,
+		"column": 27,
+		"character": 81
+	},
+	"end": {
+		"line": 6,
+		"column": 37,
+		"character": 91
+	}
+}
+
+=== 280 packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte	error.json
+{
+	"code": "each_key_without_as",
+	"message": "An `{#each ...}` block without an `as` clause cannot have a key\nhttps://svelte.dev/e/each_key_without_as",
+	"start": {
+		"line": 5,
+		"column": 17,
+		"character": 85
+	},
+	"end": {
+		"line": 5,
+		"column": 28,
+		"character": 96
+	}
+}
+
+=== 320 packages/svelte/tests/compiler-errors/samples/element-invalid-name/main.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	}
+}
+
+=== 247 packages/svelte/tests/compiler-errors/samples/else-before-closing-2/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/else-before-closing-3/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 6
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 6
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/else-before-closing/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 18
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 18
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/else-if-before-closing-2/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 17
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 17
+	}
+}
+
+=== 247 packages/svelte/tests/compiler-errors/samples/else-if-before-closing/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 26
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 26
+	}
+}
+
+=== 247 packages/svelte/tests/compiler-errors/samples/else-if-without-if/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 27
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 27
+	}
+}
+
+=== 260 packages/svelte/tests/compiler-errors/samples/empty-attribute-shorthand/main.svelte	error.json
+{
+	"code": "attribute_empty_shorthand",
+	"message": "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
+=== 250 packages/svelte/tests/compiler-errors/samples/empty-classname-binding/main.svelte	error.json
+{
+	"code": "directive_missing_name",
+	"message": "`class:` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	}
+}
+
+=== 246 packages/svelte/tests/compiler-errors/samples/empty-directive-name/main.svelte	error.json
+{
+	"code": "directive_missing_name",
+	"message": "`use:` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	}
+}
+
+=== 232 packages/svelte/tests/compiler-errors/samples/export-not-defined-module/main.svelte	error.json
+{
+	"code": "export_undefined",
+	"message": "`blah` is not defined\nhttps://svelte.dev/e/export_undefined",
+	"start": {
+		"line": 2,
+		"column": 10,
+		"character": 26
+	},
+	"end": {
+		"line": 2,
+		"column": 14,
+		"character": 30
+	}
+}
+
+=== 368 packages/svelte/tests/compiler-errors/samples/export-state-module/main.svelte	error.json
+{
+	"code": "state_invalid_export",
+	"message": "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
+	"start": {
+		"line": 6,
+		"column": 1,
+		"character": 66
+	},
+	"end": {
+		"line": 6,
+		"column": 39,
+		"character": 104
+	}
+}
+
+=== 222 packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Assigning to rvalue\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 315 packages/svelte/tests/compiler-errors/samples/invalid-arguments-usage/main.svelte	error.json
+{
+	"code": "invalid_arguments_usage",
+	"message": "The arguments keyword cannot be used within the template or at the top level of a component\nhttps://svelte.dev/e/invalid_arguments_usage",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 10,
+		"character": 19
+	}
+}
+
+=== 278 packages/svelte/tests/compiler-errors/samples/invalid-snippet-binding/main.svelte	error.json
+{
+	"code": "snippet_parameter_assignment",
+	"message": "Cannot reassign or bind to snippet parameter\nhttps://svelte.dev/e/snippet_parameter_assignment",
+	"start": {
+		"line": 2,
+		"column": 8,
+		"character": 30
+	},
+	"end": {
+		"line": 2,
+		"column": 26,
+		"character": 48
+	}
+}
+
+=== 279 packages/svelte/tests/compiler-errors/samples/invalid-snippet-mutation/main.svelte	error.json
+{
+	"code": "snippet_parameter_assignment",
+	"message": "Cannot reassign or bind to snippet parameter\nhttps://svelte.dev/e/snippet_parameter_assignment",
+	"start": {
+		"line": 2,
+		"column": 24,
+		"character": 46
+	},
+	"end": {
+		"line": 2,
+		"column": 34,
+		"character": 56
+	}
+}
+
+=== 240 packages/svelte/tests/compiler-errors/samples/legacy-no-const-assignment/main.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 38
+	},
+	"end": {
+		"line": 3,
+		"column": 7,
+		"character": 44
+	}
+}
+
+=== 240 packages/svelte/tests/compiler-errors/samples/legacy-no-const-update/main.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 38
+	},
+	"end": {
+		"line": 3,
+		"column": 4,
+		"character": 41
+	}
+}
+
+=== 223 packages/svelte/tests/compiler-errors/samples/malformed-snippet-2/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token )\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	},
+	"end": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	}
+}
+
+=== 223 packages/svelte/tests/compiler-errors/samples/malformed-snippet/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	},
+	"end": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	}
+}
+
+=== 264 packages/svelte/tests/compiler-errors/samples/multiple-styles/main.svelte	error.json
+{
+	"code": "style_duplicate",
+	"message": "A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate",
+	"start": {
+		"line": 9,
+		"column": 0,
+		"character": 58
+	},
+	"end": {
+		"line": 9,
+		"column": 0,
+		"character": 58
+	}
+}
+
+=== 270 packages/svelte/tests/compiler-errors/samples/options-children/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_content",
+	"message": "<svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 232 packages/svelte/tests/compiler-errors/samples/raw-mustaches-whitespace/main.svelte	error.json
+{
+	"code": "expected_whitespace",
+	"message": "Expected whitespace\nhttps://svelte.dev/e/expected_whitespace",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
+=== 312 packages/svelte/tests/compiler-errors/samples/render-tag-invalid-call/main.svelte	error.json
+{
+	"code": "render_tag_invalid_call_expression",
+	"message": "Calling a snippet function using apply, bind or call is not allowed\nhttps://svelte.dev/e/render_tag_invalid_call_expression",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 40,
+		"character": 40
+	}
+}
+
+=== 270 packages/svelte/tests/compiler-errors/samples/runes-before-after-update/main.svelte	error.json
+{
+	"code": "runes_mode_invalid_import",
+	"message": "beforeUpdate cannot be used in runes mode\nhttps://svelte.dev/e/runes_mode_invalid_import",
+	"start": {
+		"line": 4,
+		"column": 10,
+		"character": 45
+	},
+	"end": {
+		"line": 4,
+		"column": 22,
+		"character": 57
+	}
+}
+
+=== 262 packages/svelte/tests/compiler-errors/samples/runes-bindable-not-called/main.svelte	error.json
+{
+	"code": "rune_missing_parentheses",
+	"message": "Cannot use rune without parentheses\nhttps://svelte.dev/e/rune_missing_parentheses",
+	"start": {
+		"line": 2,
+		"column": 11,
+		"character": 20
+	},
+	"end": {
+		"line": 2,
+		"column": 20,
+		"character": 29
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte	error.json
+{
+	"code": "props_duplicate",
+	"message": "Cannot use `$props()` more than once\nhttps://svelte.dev/e/props_duplicate",
+	"start": {
+		"line": 3,
+		"column": 17,
+		"character": 53
+	},
+	"end": {
+		"line": 3,
+		"column": 25,
+		"character": 61
+	}
+}
+
+=== 339 packages/svelte/tests/compiler-errors/samples/runes-export-let-derived/main.svelte	error.json
+{
+	"code": "derived_invalid_export",
+	"message": "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 41,
+		"character": 74
+	}
+}
+
+=== 286 packages/svelte/tests/compiler-errors/samples/runes-export-let/main.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 6,
+		"column": 4,
+		"character": 109
+	},
+	"end": {
+		"line": 6,
+		"column": 19,
+		"character": 124
+	}
+}
+
+=== 454 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding-this/main.svelte	error.json
+{
+	"code": "each_item_invalid_assignment",
+	"message": "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment",
+	"start": {
+		"line": 10,
+		"column": 8,
+		"character": 238
+	},
+	"end": {
+		"line": 10,
+		"column": 27,
+		"character": 257
+	}
+}
+
+=== 450 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding/main.svelte	error.json
+{
+	"code": "each_item_invalid_assignment",
+	"message": "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment",
+	"start": {
+		"line": 6,
+		"column": 8,
+		"character": 77
+	},
+	"end": {
+		"line": 6,
+		"column": 18,
+		"character": 87
+	}
+}
+
+=== 452 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-mutation/main.svelte	error.json
+{
+	"code": "each_item_invalid_assignment",
+	"message": "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment",
+	"start": {
+		"line": 6,
+		"column": 24,
+		"character": 93
+	},
+	"end": {
+		"line": 6,
+		"column": 34,
+		"character": 103
+	}
+}
+
+=== 240 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 7,
+		"character": 38
+	}
+}
+
+=== 240 packages/svelte/tests/compiler-errors/samples/runes-no-const-update/main.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 4,
+		"character": 35
+	}
+}
+
+=== 397 packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 46
+	},
+	"end": {
+		"line": 8,
+		"column": 7,
+		"character": 92
+	}
+}
+
+=== 314 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-1/main.svelte	error.json
+{
+	"code": "props_illegal_name",
+	"message": "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)\nhttps://svelte.dev/e/props_illegal_name",
+	"start": {
+		"line": 2,
+		"column": 7,
+		"character": 16
+	},
+	"end": {
+		"line": 2,
+		"column": 17,
+		"character": 26
+	}
+}
+
+=== 314 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-2/main.svelte	error.json
+{
+	"code": "props_illegal_name",
+	"message": "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)\nhttps://svelte.dev/e/props_illegal_name",
+	"start": {
+		"line": 3,
+		"column": 7,
+		"character": 39
+	},
+	"end": {
+		"line": 3,
+		"column": 14,
+		"character": 46
+	}
+}
+
+=== 262 packages/svelte/tests/compiler-errors/samples/runes-props-not-called/main.svelte	error.json
+{
+	"code": "rune_missing_parentheses",
+	"message": "Cannot use rune without parentheses\nhttps://svelte.dev/e/rune_missing_parentheses",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 28
+	}
+}
+
+=== 290 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$bindable` must be called with zero or one arguments\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 2,
+		"column": 15,
+		"character": 24
+	},
+	"end": {
+		"line": 2,
+		"column": 30,
+		"character": 39
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte	error.json
+{
+	"code": "bindable_invalid_location",
+	"message": "`$bindable()` can only be used inside a `$props()` declaration\nhttps://svelte.dev/e/bindable_invalid_location",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 33
+	}
+}
+
+=== 288 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$derived` must be called with exactly one argument\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 23,
+		"character": 32
+	}
+}
+
+=== 400 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 12,
+		"character": 21
+	}
+}
+
+=== 286 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$effect` must be called with exactly one argument\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 10,
+		"character": 19
+	}
+}
+
+=== 281 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte	error.json
+{
+	"code": "effect_invalid_placement",
+	"message": "`$effect()` can only be used as an expression statement\nhttps://svelte.dev/e/effect_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 9,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 26,
+		"character": 51
+	}
+}
+
+=== 289 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte	error.json
+{
+	"code": "host_invalid_placement",
+	"message": "`$host()` can only be used inside custom element component instances\nhttps://svelte.dev/e/host_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 8,
+		"character": 17
+	}
+}
+
+=== 263 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments",
+	"message": "`$props` cannot be called with arguments\nhttps://svelte.dev/e/rune_invalid_arguments",
+	"start": {
+		"line": 2,
+		"column": 17,
+		"character": 26
+	},
+	"end": {
+		"line": 2,
+		"column": 26,
+		"character": 35
+	}
+}
+
+=== 321 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-instance/main.svelte	error.json
+{
+	"code": "props_invalid_placement",
+	"message": "`$props()` can only be used at the top level of components as a variable declaration initializer\nhttps://svelte.dev/e/props_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 16,
+		"character": 41
+	},
+	"end": {
+		"line": 3,
+		"column": 24,
+		"character": 49
+	}
+}
+
+=== 287 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$state` must be called with zero or one arguments\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 28,
+		"character": 37
+	}
+}
+
+=== 398 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 3,
+		"character": 30
+	},
+	"end": {
+		"line": 3,
+		"column": 12,
+		"character": 39
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$state.raw` must be called with zero or one arguments\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 32,
+		"character": 41
+	}
+}
+
+=== 295 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-snapshot-args/main.svelte	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$state.snapshot` must be called with exactly one argument\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 30,
+		"character": 39
+	}
+}
+
+=== 228 packages/svelte/tests/compiler-errors/samples/script-unclosed-eof/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 3,
+		"column": 8,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 8,
+		"character": 32
+	}
+}
+
+=== 235 packages/svelte/tests/compiler-errors/samples/script-unclosed/main.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<script>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 3,
+		"column": 22,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 22,
+		"character": 32
+	}
+}
+
+=== 367 packages/svelte/tests/compiler-errors/samples/self-reference/main.svelte	error.json
+{
+	"code": "svelte_self_invalid_placement",
+	"message": "`<svelte:self>` components can only exist inside `{#if}` blocks, `{#each}` blocks, `{#snippet}` blocks or slots passed to components\nhttps://svelte.dev/e/svelte_self_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	}
+}
+
+=== 342 packages/svelte/tests/compiler-errors/samples/slot-conflicting-with-render-tag/main.svelte	error.json
+{
+	"code": "slot_snippet_conflict",
+	"message": "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely\nhttps://svelte.dev/e/slot_snippet_conflict",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 71
+	},
+	"end": {
+		"line": 6,
+		"column": 13,
+		"character": 84
+	}
+}
+
+=== 368 packages/svelte/tests/compiler-errors/samples/snippet-children-conflict/main.svelte	error.json
+{
+	"code": "snippet_conflict",
+	"message": "Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block\nhttps://svelte.dev/e/snippet_conflict",
+	"start": {
+		"line": 24,
+		"column": 1,
+		"character": 320
+	},
+	"end": {
+		"line": 24,
+		"column": 34,
+		"character": 353
+	}
+}
+
+=== 330 packages/svelte/tests/compiler-errors/samples/snippet-invalid-export/main.svelte	error.json
+{
+	"code": "snippet_invalid_export",
+	"message": "An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets\nhttps://svelte.dev/e/snippet_invalid_export",
+	"start": {
+		"line": 2,
+		"column": 10,
+		"character": 26
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 29
+	}
+}
+
+=== 300 packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte	error.json
+{
+	"code": "snippet_invalid_rest_parameter",
+	"message": "Snippets do not support rest parameters; use an array instead\nhttps://svelte.dev/e/snippet_invalid_rest_parameter",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	}
+}
+
+=== 286 packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	error.json
+{
+	"code": "store_invalid_subscription",
+	"message": "Cannot reference store value inside `<script module>`\nhttps://svelte.dev/e/store_invalid_subscription",
+	"start": {
+		"line": 6,
+		"column": 16,
+		"character": 154
+	},
+	"end": {
+		"line": 6,
+		"column": 20,
+		"character": 158
+	}
+}
+
+=== 327 packages/svelte/tests/compiler-errors/samples/store-contextual/main.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 8,
+		"column": 3,
+		"character": 175
+	},
+	"end": {
+		"line": 8,
+		"column": 8,
+		"character": 180
+	}
+}
+
+=== 328 packages/svelte/tests/compiler-errors/samples/store-global-disallowed/main.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 5,
+		"character": 14
+	}
+}
+
+=== 290 packages/svelte/tests/compiler-errors/samples/store-prevent-user-declarations/main.svelte	error.json
+{
+	"code": "dollar_prefix_invalid",
+	"message": "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid",
+	"start": {
+		"line": 3,
+		"column": 5,
+		"character": 33
+	},
+	"end": {
+		"line": 3,
+		"column": 11,
+		"character": 39
+	}
+}
+
+=== 329 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-2/main.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 5,
+		"column": 45,
+		"character": 142
+	},
+	"end": {
+		"line": 5,
+		"column": 50,
+		"character": 147
+	}
+}
+
+=== 329 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-3/main.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 7,
+		"column": 45,
+		"character": 167
+	},
+	"end": {
+		"line": 7,
+		"column": 50,
+		"character": 172
+	}
+}
+
+=== 327 packages/svelte/tests/compiler-errors/samples/store-shadow-scope/main.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 7,
+		"column": 2,
+		"character": 116
+	},
+	"end": {
+		"line": 7,
+		"column": 8,
+		"character": 122
+	}
+}
+
+=== 327 packages/svelte/tests/compiler-errors/samples/store-template-expression-scope/main.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 8,
+		"column": 2,
+		"character": 123
+	},
+	"end": {
+		"line": 8,
+		"column": 8,
+		"character": 129
+	}
+}
+
+=== 227 packages/svelte/tests/compiler-errors/samples/style-unclosed-eof/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token </style\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 7,
+		"character": 31
+	},
+	"end": {
+		"line": 3,
+		"column": 7,
+		"character": 31
+	}
+}
+
+=== 252 packages/svelte/tests/compiler-errors/samples/style-unclosed/main.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 9
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 9
+	}
+}
+
+=== 532 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte	error.json
+{
+	"code": "import_svelte_internal_forbidden",
+	"message": "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice. If you're importing from `svelte/internal/*` to work around a limitation of Svelte, please open an issue at https://github.com/sveltejs/svelte and explain your use case\nhttps://svelte.dev/e/import_svelte_internal_forbidden",
+	"start": {
+		"line": 4,
+		"column": 4,
+		"character": 46
+	},
+	"end": {
+		"line": 4,
+		"column": 55,
+		"character": 97
+	}
+}
+
+=== 414 packages/svelte/tests/compiler-errors/samples/svelte-selfdestructive/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_tag",
+	"message": "Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, svelte:fragment or svelte:boundary\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 32
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/then-before-closing/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 21
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 21
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/then-without-await/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 349 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	error.json
+{
+	"code": "attribute_unquoted_sequence",
+	"message": "Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression\nhttps://svelte.dev/e/attribute_unquoted_sequence",
+	"start": {
+		"line": 6,
+		"column": 11,
+		"character": 101
+	},
+	"end": {
+		"line": 6,
+		"column": 26,
+		"character": 116
+	}
+}
+
+=== 346 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	error.json
+{
+	"code": "attribute_unquoted_sequence",
+	"message": "Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression\nhttps://svelte.dev/e/attribute_unquoted_sequence",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 38,
+		"character": 71
+	}
+}
+
+=== 223 packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	}
+}
+
+=== 226 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-b/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	},
+	"end": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	}
+}
+
+=== 226 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-c/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 222 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-d/main.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 228 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input/main.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 285 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose-2/main.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</p>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 38
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 38
+	}
+}
+
+=== 370 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose/main.svelte	error.json
+{
+	"code": "element_invalid_closing_tag_autoclosed",
+	"message": "`</p>` attempted to close element that was already automatically closed by `<pre>` (cannot nest `<pre>` inside `<p>`)\nhttps://svelte.dev/e/element_invalid_closing_tag_autoclosed",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 24
+	}
+}
+
+=== 285 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag/main.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	}
+}
+
+=== 285 packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte	error.json
+{
+	"code": "void_element_invalid_content",
+	"message": "Void elements cannot have children or closing tags\nhttps://svelte.dev/e/void_element_invalid_content",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 269 packages/svelte/tests/compiler-errors/samples/window-children/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_content",
+	"message": "<svelte:window> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content",
+	"start": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 274 packages/svelte/tests/compiler-errors/samples/window-duplicate/main.svelte	error.json
+{
+	"code": "svelte_meta_duplicate",
+	"message": "A component can only have one `<svelte:window>` element\nhttps://svelte.dev/e/svelte_meta_duplicate",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 17
+	},
+	"end": {
+		"line": 2,
+		"column": 0,
+		"character": 17
+	}
+}
+
+=== 293 packages/svelte/tests/compiler-errors/samples/window-inside-block/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 11
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 11
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/window-inside-element/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	}
+}
+
 === 434 packages/svelte/tests/css/samples/animations/input.svelte	css
 
 	@keyframes svelte-b3j21w-a {
@@ -9269,6 +11349,38 @@ export default function Output($$renderer, $$props) {
 	}
 ]
 
+=== 254 packages/svelte/tests/migrate/samples/css-ignore/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 78
+	},
+	"end": {
+		"line": 8,
+		"column": 1,
+		"character": 78
+	}
+}
+
+=== 254 packages/svelte/tests/migrate/samples/css-ignore/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 86
+	},
+	"end": {
+		"line": 8,
+		"column": 1,
+		"character": 86
+	}
+}
+
 === 701 packages/svelte/tests/migrate/samples/derivations/output.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -11348,6 +13460,38 @@ export default function Output($$renderer, $$props) {
 		}
 	}
 ]
+
+=== 230 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/input.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 3,
+		"column": 21,
+		"character": 30
+	},
+	"end": {
+		"line": 3,
+		"column": 21,
+		"character": 30
+	}
+}
+
+=== 232 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/output.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 5,
+		"column": 21,
+		"character": 150
+	},
+	"end": {
+		"line": 5,
+		"column": 21,
+		"character": 150
+	}
+}
 
 === 1201 packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	css
 
@@ -14366,6 +16510,22 @@ export default function Output($$renderer, $$props) {
 	children?.($$renderer);
 	$$renderer.push(`<!----></button>`);
 }
+=== 345 packages/svelte/tests/migrate/samples/slots-with-$$props/output.svelte	error.json
+{
+	"code": "slot_snippet_conflict",
+	"message": "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely\nhttps://svelte.dev/e/slot_snippet_conflict",
+	"start": {
+		"line": 20,
+		"column": 2,
+		"character": 411
+	},
+	"end": {
+		"line": 20,
+		"column": 2,
+		"character": 411
+	}
+}
+
 === 1145 packages/svelte/tests/migrate/samples/slots/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -14473,6 +16633,22 @@ export default function Input($$renderer, $$props) {
 		}
 	}
 ]
+
+=== 345 packages/svelte/tests/migrate/samples/slots/output.svelte	error.json
+{
+	"code": "slot_snippet_conflict",
+	"message": "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely\nhttps://svelte.dev/e/slot_snippet_conflict",
+	"start": {
+		"line": 20,
+		"column": 2,
+		"character": 378
+	},
+	"end": {
+		"line": 20,
+		"column": 2,
+		"character": 378
+	}
+}
 
 === 667 packages/svelte/tests/migrate/samples/state-and-derivations-sequence/output.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -16151,6 +18327,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 249 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li-block/input.svelte	error.json
+{
+	"code": "block_unexpected_close",
+	"message": "Unexpected block closing tag\nhttps://svelte.dev/e/block_unexpected_close",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 34
+	},
+	"end": {
+		"line": 5,
+		"column": 2,
+		"character": 34
+	}
+}
+
 === 152 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -16261,6 +18453,86 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 219 packages/svelte/tests/parser-legacy/samples/loose-invalid-block/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	}
+}
+
+=== 260 packages/svelte/tests/parser-legacy/samples/loose-invalid-expression/input.svelte	error.json
+{
+	"code": "attribute_empty_shorthand",
+	"message": "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	}
+}
+
+=== 287 packages/svelte/tests/parser-legacy/samples/loose-unclosed-block/input.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 17
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 17
+	}
+}
+
+=== 221 packages/svelte/tests/parser-legacy/samples/loose-unclosed-open-tag/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 25
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 25
+	}
+}
+
+=== 287 packages/svelte/tests/parser-legacy/samples/loose-unclosed-tag/input.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	}
+}
 
 === 128 packages/svelte/tests/parser-legacy/samples/nbsp/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -16739,6 +19011,22 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 338 packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector_list",
+	"message": "`:global(...)` must not contain type or universal selectors when used in a compound selector\nhttps://svelte.dev/e/css_global_invalid_selector_list",
+	"start": {
+		"line": 29,
+		"column": 6,
+		"character": 532
+	},
+	"end": {
+		"line": 29,
+		"column": 18,
+		"character": 544
+	}
+}
+
 === 420 packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte	css
 
     /* test that all these are parsed correctly */
@@ -16929,6 +19217,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 234 packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "The keyword 'let' is reserved\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 2,
+		"character": 13
+	}
+}
+
 === 430 packages/svelte/tests/parser-modern/samples/loose-valid-each-as/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -17101,6 +19405,22 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 221 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 58
+	},
+	"end": {
+		"line": 2,
+		"column": 5,
+		"character": 58
+	}
+}
+
 === 91 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/output.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -17135,6 +19455,38 @@ export default function Input($$renderer) {}
 import * as $ from 'svelte/internal/server';
 
 export default function Output($$renderer) {}
+=== 254 packages/svelte/tests/preprocess/samples/comments/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 13
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 13
+	}
+}
+
+=== 254 packages/svelte/tests/preprocess/samples/comments/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 15
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 15
+	}
+}
+
 === 23 packages/svelte/tests/preprocess/samples/dependencies/input.svelte	css
 
 	@import './foo.css';
@@ -17326,6 +19678,54 @@ import * as $ from 'svelte/internal/server';
 export default function Output($$renderer) {
 	$$renderer.push(`<script-foo>foo</script-foo> <style-foo>foo</style-foo>`);
 }
+=== 254 packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	},
+	"end": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	}
+}
+
+=== 254 packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	},
+	"end": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	}
+}
+
+=== 223 packages/svelte/tests/preprocess/samples/script-self-closing/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
 === 112 packages/svelte/tests/preprocess/samples/script-self-closing/output.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -17386,6 +19786,118 @@ import * as $ from 'svelte/internal/server';
 export default function Output($$renderer) {
 	$$renderer.push(`<div class="brand-color svelte-hftq3d">$brand</div>`);
 }
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 25,
+		"character": 30
+	},
+	"end": {
+		"line": 3,
+		"column": 25,
+		"character": 30
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 51,
+		"character": 56
+	},
+	"end": {
+		"line": 3,
+		"column": 51,
+		"character": 56
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 45,
+		"character": 50
+	},
+	"end": {
+		"line": 3,
+		"column": 45,
+		"character": 50
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 27,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 27,
+		"character": 32
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	},
+	"end": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1,
+		"column": 53,
+		"character": 53
+	},
+	"end": {
+		"line": 1,
+		"column": 53,
+		"character": 53
+	}
+}
+
+=== 223 packages/svelte/tests/preprocess/samples/style-self-closing/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 18,
+		"character": 57
+	},
+	"end": {
+		"line": 3,
+		"column": 18,
+		"character": 57
+	}
+}
+
 === 34 packages/svelte/tests/preprocess/samples/style-self-closing/output.svelte	css
 div.svelte-1r2i9td { color: red; }
 === 166 packages/svelte/tests/preprocess/samples/style-self-closing/output.svelte	js
@@ -17394,6 +19906,22 @@ import * as $ from 'svelte/internal/server';
 export default function Output($$renderer) {
 	$$renderer.push(`<div class="brand-color svelte-1r2i9td">$brand</div>`);
 }
+=== 330 packages/svelte/tests/print/samples/animate-directive/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	}
+}
+
 === 256 packages/svelte/tests/print/samples/attach-tag/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -17465,6 +19993,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 246 packages/svelte/tests/print/samples/bind-directive/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
 === 2147 packages/svelte/tests/print/samples/block-element-separation/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -36659,6 +39203,38 @@ export default function Main($$renderer, $$props) {
 		$.bind_props($$props, { update_value });
 	});
 }
+=== 359 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-script/main.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$missingGlobal` is an illegal variable name. To reference a global variable called `$missingGlobal`, use `globalThis.$missingGlobal`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 18,
+		"character": 27
+	}
+}
+
+=== 358 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-template/main.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$missingGlobal` is an illegal variable name. To reference a global variable called `$missingGlobal`, use `globalThis.$missingGlobal`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
 === 805 packages/svelte/tests/runtime-legacy/samples/store-each-binding-deep/main.svelte	js
 import * as $ from 'svelte/internal/server';
 import { writable } from 'svelte/store';
@@ -75995,6 +78571,38 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 281 packages/svelte/tests/validator/samples/action-on-component/input.svelte	error.json
+{
+	"code": "component_invalid_directive",
+	"message": "This type of directive is not valid on components\nhttps://svelte.dev/e/component_invalid_directive",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 86
+	},
+	"end": {
+		"line": 7,
+		"column": 15,
+		"character": 93
+	}
+}
+
+=== 267 packages/svelte/tests/validator/samples/animation-duplicate/input.svelte	error.json
+{
+	"code": "animation_duplicate",
+	"message": "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate",
+	"start": {
+		"line": 7,
+		"column": 18,
+		"character": 108
+	},
+	"end": {
+		"line": 7,
+		"column": 29,
+		"character": 119
+	}
+}
+
 === 401 packages/svelte/tests/validator/samples/animation-each-with-const/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76051,12 +78659,140 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]--></div>`);
 }
+=== 331 packages/svelte/tests/validator/samples/animation-not-in-each/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 44
+	},
+	"end": {
+		"line": 5,
+		"column": 16,
+		"character": 55
+	}
+}
+
+=== 368 packages/svelte/tests/validator/samples/animation-not-in-keyed-each/input.svelte	error.json
+{
+	"code": "animation_missing_key",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?\nhttps://svelte.dev/e/animation_missing_key",
+	"start": {
+		"line": 6,
+		"column": 6,
+		"character": 69
+	},
+	"end": {
+		"line": 6,
+		"column": 17,
+		"character": 80
+	}
+}
+
+=== 281 packages/svelte/tests/validator/samples/animation-on-component/input.svelte	error.json
+{
+	"code": "component_invalid_directive",
+	"message": "This type of directive is not valid on components\nhttps://svelte.dev/e/component_invalid_directive",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 87
+	},
+	"end": {
+		"line": 7,
+		"column": 19,
+		"character": 98
+	}
+}
+
+=== 331 packages/svelte/tests/validator/samples/animation-siblings/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 6,
+		"column": 6,
+		"character": 77
+	},
+	"end": {
+		"line": 6,
+		"column": 17,
+		"character": 88
+	}
+}
+
 === 170 packages/svelte/tests/validator/samples/anonymous-declarations/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import func from './function.svelte.js';
 import klass from './class.svelte.js';
 
 export default function Input($$renderer) {}
+=== 246 packages/svelte/tests/validator/samples/assignment-to-const-2/input.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 13,
+		"column": 24,
+		"character": 282
+	},
+	"end": {
+		"line": 13,
+		"column": 35,
+		"character": 293
+	}
+}
+
+=== 245 packages/svelte/tests/validator/samples/assignment-to-const-3/input.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 14,
+		"column": 3,
+		"character": 172
+	},
+	"end": {
+		"line": 14,
+		"column": 10,
+		"character": 179
+	}
+}
+
+=== 244 packages/svelte/tests/validator/samples/assignment-to-const-4/input.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 17,
+		"column": 2,
+		"character": 189
+	},
+	"end": {
+		"line": 17,
+		"column": 9,
+		"character": 196
+	}
+}
+
+=== 241 packages/svelte/tests/validator/samples/assignment-to-const-5/input.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 31
+	},
+	"end": {
+		"line": 3,
+		"column": 33,
+		"character": 63
+	}
+}
+
 === 196 packages/svelte/tests/validator/samples/assignment-to-const-6/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76066,6 +78802,22 @@ export default function Input($$renderer) {
 	[arr[0], arr[1]] = [arr[1], arr[0]];
 	$$renderer.push(`<!---->${$.escape(arr)}`);
 }
+=== 241 packages/svelte/tests/validator/samples/assignment-to-const-7/input.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 43
+	},
+	"end": {
+		"line": 3,
+		"column": 42,
+		"character": 84
+	}
+}
+
 === 202 packages/svelte/tests/validator/samples/assignment-to-const-8/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76075,6 +78827,118 @@ export default function Input($$renderer) {
 	[arr[0], arr[1] = arr] = [arr[1], arr[0]];
 	$$renderer.push(`<!---->${$.escape(arr)}`);
 }
+=== 245 packages/svelte/tests/validator/samples/assignment-to-const/input.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 16,
+		"column": 2,
+		"character": 225
+	},
+	"end": {
+		"line": 16,
+		"column": 18,
+		"character": 241
+	}
+}
+
+=== 221 packages/svelte/tests/validator/samples/attribute-expected-equals/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 9,
+		"character": 50
+	},
+	"end": {
+		"line": 5,
+		"column": 9,
+		"character": 50
+	}
+}
+
+=== 256 packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'3aa' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 3,
+		"character": 3
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 254 packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'a*a' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 3,
+		"character": 3
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
+=== 253 packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'-a' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 3,
+		"character": 3
+	},
+	"end": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	}
+}
+
+=== 255 packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'a;' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 3,
+		"character": 3
+	},
+	"end": {
+		"line": 1,
+		"column": 11,
+		"character": 11
+	}
+}
+
+=== 252 packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'}' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 3,
+		"character": 3
+	},
+	"end": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	}
+}
+
 === 774 packages/svelte/tests/validator/samples/attribute-quoted/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76298,6 +79162,86 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 293 packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	error.json
+{
+	"code": "bind_group_invalid_snippet_parameter",
+	"message": "Cannot `bind:group` to a snippet parameter\nhttps://svelte.dev/e/bind_group_invalid_snippet_parameter",
+	"start": {
+		"line": 2,
+		"column": 21,
+		"character": 44
+	},
+	"end": {
+		"line": 2,
+		"column": 44,
+		"character": 67
+	}
+}
+
+=== 302 packages/svelte/tests/validator/samples/bind_group_invalid_expression/input.svelte	error.json
+{
+	"code": "bind_group_invalid_expression",
+	"message": "`bind:group` can only bind to an Identifier or MemberExpression\nhttps://svelte.dev/e/bind_group_invalid_expression",
+	"start": {
+		"line": 8,
+		"column": 38,
+		"character": 206
+	},
+	"end": {
+		"line": 8,
+		"column": 84,
+		"character": 252
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/binding-await-catch/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to constant\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 6,
+		"column": 9,
+		"character": 79
+	},
+	"end": {
+		"line": 6,
+		"column": 27,
+		"character": 97
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to constant\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 6,
+		"column": 9,
+		"character": 78
+	},
+	"end": {
+		"line": 6,
+		"column": 19,
+		"character": 88
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/binding-await-then/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to constant\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 5,
+		"column": 9,
+		"character": 75
+	},
+	"end": {
+		"line": 5,
+		"column": 19,
+		"character": 85
+	}
+}
+
 === 182 packages/svelte/tests/validator/samples/binding-const-field/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76306,6 +79250,230 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<input${$.attr('value', dummy.foo)}/>`);
 }
+=== 233 packages/svelte/tests/validator/samples/binding-const/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to constant\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 49
+	},
+	"end": {
+		"line": 5,
+		"column": 25,
+		"character": 67
+	}
+}
+
+=== 321 packages/svelte/tests/validator/samples/binding-dimensions-svg/input.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:offsetWidth` can only be used with non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 43
+	},
+	"end": {
+		"line": 5,
+		"column": 21,
+		"character": 59
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/binding-import-component/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to import\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 6,
+		"column": 7,
+		"character": 101
+	},
+	"end": {
+		"line": 6,
+		"column": 25,
+		"character": 119
+	}
+}
+
+=== 231 packages/svelte/tests/validator/samples/binding-import-element/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to import\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 64
+	},
+	"end": {
+		"line": 5,
+		"column": 25,
+		"character": 82
+	}
+}
+
+=== 280 packages/svelte/tests/validator/samples/binding-input-checked/input.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:checked` can only be used with `<input type=\"checkbox\">`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 37
+	},
+	"end": {
+		"line": 5,
+		"column": 25,
+		"character": 55
+	}
+}
+
+=== 297 packages/svelte/tests/validator/samples/binding-input-type-boolean/input.svelte	error.json
+{
+	"code": "attribute_invalid_type",
+	"message": "'type' attribute must be a static text value if input uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_type",
+	"start": {
+		"line": 5,
+		"column": 24,
+		"character": 54
+	},
+	"end": {
+		"line": 5,
+		"column": 28,
+		"character": 58
+	}
+}
+
+=== 261 packages/svelte/tests/validator/samples/binding-invalid-on-element-2/input.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:open` can only be used with `<details>`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 36
+	},
+	"end": {
+		"line": 5,
+		"column": 14,
+		"character": 45
+	}
+}
+
+=== 286 packages/svelte/tests/validator/samples/binding-invalid-on-element/input.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:value` can only be used with `<input>`, `<textarea>`, `<select>`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 37
+	},
+	"end": {
+		"line": 5,
+		"column": 15,
+		"character": 47
+	}
+}
+
+=== 246 packages/svelte/tests/validator/samples/binding-invalid-value-global/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 4,
+		"column": 19,
+		"character": 58
+	},
+	"end": {
+		"line": 4,
+		"column": 22,
+		"character": 61
+	}
+}
+
+=== 246 packages/svelte/tests/validator/samples/binding-invalid-value/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 37
+	},
+	"end": {
+		"line": 2,
+		"column": 22,
+		"character": 40
+	}
+}
+
+=== 250 packages/svelte/tests/validator/samples/binding-invalid/input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:whatever` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 40
+	},
+	"end": {
+		"line": 5,
+		"column": 18,
+		"character": 53
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/binding-let/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to constant\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 6,
+		"column": 8,
+		"character": 52
+	},
+	"end": {
+		"line": 6,
+		"column": 24,
+		"character": 68
+	}
+}
+
+=== 332 packages/svelte/tests/validator/samples/binding-radio-input-checked/input.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:checked` can only be used with `<input type=\"checkbox\">` — for `<input type=\"radio\">`, use `bind:group`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 5,
+		"column": 20,
+		"character": 50
+	},
+	"end": {
+		"line": 5,
+		"column": 38,
+		"character": 68
+	}
+}
+
+=== 301 packages/svelte/tests/validator/samples/binding-select-multiple-dynamic/input.svelte	error.json
+{
+	"code": "attribute_invalid_multiple",
+	"message": "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple",
+	"start": {
+		"line": 14,
+		"column": 19,
+		"character": 202
+	},
+	"end": {
+		"line": 14,
+		"column": 29,
+		"character": 212
+	}
+}
+
 === 176 packages/svelte/tests/validator/samples/binding-this-input-type-dynamic/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76356,6 +79524,38 @@ export default function Input($$renderer, $$props) {
 		}
 	}
 ]
+
+=== 325 packages/svelte/tests/validator/samples/component-event-modifiers-invalid/input.svelte	error.json
+{
+	"code": "event_handler_invalid_component_modifier",
+	"message": "Event modifiers other than 'once' can only be used on DOM elements\nhttps://svelte.dev/e/event_handler_invalid_component_modifier",
+	"start": {
+		"line": 6,
+		"column": 8,
+		"character": 93
+	},
+	"end": {
+		"line": 6,
+		"column": 40,
+		"character": 125
+	}
+}
+
+=== 283 packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte	error.json
+{
+	"code": "component_invalid_directive",
+	"message": "This type of directive is not valid on components\nhttps://svelte.dev/e/component_invalid_directive",
+	"start": {
+		"line": 7,
+		"column": 19,
+		"character": 97
+	},
+	"end": {
+		"line": 7,
+		"column": 36,
+		"character": 114
+	}
+}
 
 === 409 packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -76435,6 +79635,70 @@ export default function Input($$renderer) {
 		$$renderer.push('<!--]-->');
 	}
 }
+=== 308 packages/svelte/tests/validator/samples/component-slot-default-reserved/input.svelte	error.json
+{
+	"code": "slot_element_invalid_name_default",
+	"message": "`default` is a reserved word — it cannot be used as a slot name\nhttps://svelte.dev/e/slot_element_invalid_name_default",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	}
+}
+
+=== 259 packages/svelte/tests/validator/samples/component-slot-dynamic-attribute/input.svelte	error.json
+{
+	"code": "slot_attribute_invalid",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_attribute_invalid",
+	"start": {
+		"line": 6,
+		"column": 9,
+		"character": 77
+	},
+	"end": {
+		"line": 6,
+		"column": 19,
+		"character": 87
+	}
+}
+
+=== 264 packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte	error.json
+{
+	"code": "slot_element_invalid_name",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_element_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
+=== 348 packages/svelte/tests/validator/samples/component-slotted-custom-element-2/input.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 10,
+		"column": 9,
+		"character": 138
+	},
+	"end": {
+		"line": 10,
+		"column": 19,
+		"character": 148
+	}
+}
+
 === 490 packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import Nested from './Nested.svelte';
@@ -76457,6 +79721,70 @@ export default function Input($$renderer) {
 		$$slots: { default: true }
 	});
 }
+=== 346 packages/svelte/tests/validator/samples/component-slotted-each-block/input.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 7,
+		"column": 7,
+		"character": 100
+	},
+	"end": {
+		"line": 7,
+		"column": 17,
+		"character": 110
+	}
+}
+
+=== 344 packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 7,
+		"column": 7,
+		"character": 88
+	},
+	"end": {
+		"line": 7,
+		"column": 17,
+		"character": 98
+	}
+}
+
+=== 250 packages/svelte/tests/validator/samples/const-tag-conflict-1/input.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`a` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 7,
+		"column": 10,
+		"character": 92
+	},
+	"end": {
+		"line": 7,
+		"column": 11,
+		"character": 93
+	}
+}
+
+=== 253 packages/svelte/tests/validator/samples/const-tag-conflict-2/input.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`item` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 6,
+		"column": 10,
+		"character": 72
+	},
+	"end": {
+		"line": 6,
+		"column": 14,
+		"character": 76
+	}
+}
+
 === 178 packages/svelte/tests/validator/samples/const-tag-inside-key-block/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76469,6 +79797,54 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!---->`);
 }
+=== 401 packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 15,
+		"character": 33
+	},
+	"end": {
+		"line": 2,
+		"column": 26,
+		"character": 44
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/const-tag-placement-1/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 11
+	},
+	"end": {
+		"line": 2,
+		"column": 15,
+		"character": 24
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/const-tag-placement-2/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 11
+	},
+	"end": {
+		"line": 2,
+		"column": 15,
+		"character": 24
+	}
+}
+
 === 284 packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76487,6 +79863,374 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 284 packages/svelte/tests/validator/samples/const-tag-readonly-1/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 11
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 28
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/const-tag-readonly-2/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 11
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 28
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/contenteditable-dynamic/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 20,
+		"character": 29
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/contenteditable-missing/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 20,
+		"character": 29
+	}
+}
+
+=== 235 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-1/input.svelte	error.json
+{
+	"code": "css_selector_invalid",
+	"message": "Invalid selector\nhttps://svelte.dev/e/css_selector_invalid",
+	"start": {
+		"line": 10,
+		"column": 1,
+		"character": 88
+	},
+	"end": {
+		"line": 10,
+		"column": 2,
+		"character": 89
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-2/input.svelte	error.json
+{
+	"code": "css_selector_invalid",
+	"message": "Invalid selector\nhttps://svelte.dev/e/css_selector_invalid",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 68
+	},
+	"end": {
+		"line": 8,
+		"column": 2,
+		"character": 69
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-3/input.svelte	error.json
+{
+	"code": "css_selector_invalid",
+	"message": "Invalid selector\nhttps://svelte.dev/e/css_selector_invalid",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 44
+	},
+	"end": {
+		"line": 5,
+		"column": 3,
+		"character": 45
+	}
+}
+
+=== 233 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-4/input.svelte	error.json
+{
+	"code": "css_selector_invalid",
+	"message": "Invalid selector\nhttps://svelte.dev/e/css_selector_invalid",
+	"start": {
+		"line": 4,
+		"column": 5,
+		"character": 30
+	},
+	"end": {
+		"line": 4,
+		"column": 5,
+		"character": 30
+	}
+}
+
+=== 323 packages/svelte/tests/validator/samples/css-invalid-global-placement-2/input.svelte	error.json
+{
+	"code": "css_global_invalid_placement",
+	"message": "`:global(...)` can be at the start or end of a selector sequence, but not in the middle\nhttps://svelte.dev/e/css_global_invalid_placement",
+	"start": {
+		"line": 8,
+		"column": 6,
+		"character": 113
+	},
+	"end": {
+		"line": 8,
+		"column": 19,
+		"character": 126
+	}
+}
+
+=== 321 packages/svelte/tests/validator/samples/css-invalid-global-placement-3/input.svelte	error.json
+{
+	"code": "css_global_invalid_placement",
+	"message": "`:global(...)` can be at the start or end of a selector sequence, but not in the middle\nhttps://svelte.dev/e/css_global_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 6,
+		"character": 60
+	},
+	"end": {
+		"line": 5,
+		"column": 19,
+		"character": 73
+	}
+}
+
+=== 334 packages/svelte/tests/validator/samples/css-invalid-global-placement-4/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector_list",
+	"message": "`:global(...)` must not contain type or universal selectors when used in a compound selector\nhttps://svelte.dev/e/css_global_invalid_selector_list",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 17,
+		"character": 25
+	}
+}
+
+=== 334 packages/svelte/tests/validator/samples/css-invalid-global-placement-5/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector_list",
+	"message": "`:global(...)` must not contain type or universal selectors when used in a compound selector\nhttps://svelte.dev/e/css_global_invalid_selector_list",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 21,
+		"character": 29
+	}
+}
+
+=== 334 packages/svelte/tests/validator/samples/css-invalid-global-placement-6/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector_list",
+	"message": "`:global(...)` must not contain type or universal selectors when used in a compound selector\nhttps://svelte.dev/e/css_global_invalid_selector_list",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 58
+	},
+	"end": {
+		"line": 5,
+		"column": 17,
+		"character": 70
+	}
+}
+
+=== 321 packages/svelte/tests/validator/samples/css-invalid-global-placement/input.svelte	error.json
+{
+	"code": "css_global_invalid_placement",
+	"message": "`:global(...)` can be at the start or end of a selector sequence, but not in the middle\nhttps://svelte.dev/e/css_global_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 6,
+		"character": 14
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 27
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/css-invalid-global-selector-2/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector",
+	"message": "`:global(...)` must contain exactly one selector\nhttps://svelte.dev/e/css_global_invalid_selector",
+	"start": {
+		"line": 11,
+		"column": 5,
+		"character": 156
+	},
+	"end": {
+		"line": 11,
+		"column": 29,
+		"character": 180
+	}
+}
+
+=== 281 packages/svelte/tests/validator/samples/css-invalid-global-selector-3/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector",
+	"message": "`:global(...)` must contain exactly one selector\nhttps://svelte.dev/e/css_global_invalid_selector",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 77
+	},
+	"end": {
+		"line": 5,
+		"column": 44,
+		"character": 116
+	}
+}
+
+=== 280 packages/svelte/tests/validator/samples/css-invalid-global-selector-4/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector",
+	"message": "`:global(...)` must contain exactly one selector\nhttps://svelte.dev/e/css_global_invalid_selector",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 32
+	}
+}
+
+=== 280 packages/svelte/tests/validator/samples/css-invalid-global-selector-5/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector",
+	"message": "`:global(...)` must contain exactly one selector\nhttps://svelte.dev/e/css_global_invalid_selector",
+	"start": {
+		"line": 5,
+		"column": 1,
+		"character": 54
+	},
+	"end": {
+		"line": 5,
+		"column": 20,
+		"character": 73
+	}
+}
+
+=== 280 packages/svelte/tests/validator/samples/css-invalid-global-selector-6/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector",
+	"message": "`:global(...)` must contain exactly one selector\nhttps://svelte.dev/e/css_global_invalid_selector",
+	"start": {
+		"line": 5,
+		"column": 1,
+		"character": 55
+	},
+	"end": {
+		"line": 5,
+		"column": 20,
+		"character": 74
+	}
+}
+
+=== 338 packages/svelte/tests/validator/samples/css-invalid-global-selector-list/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector_list",
+	"message": "`:global(...)` must not contain type or universal selectors when used in a compound selector\nhttps://svelte.dev/e/css_global_invalid_selector_list",
+	"start": {
+		"line": 20,
+		"column": 6,
+		"character": 260
+	},
+	"end": {
+		"line": 20,
+		"column": 17,
+		"character": 271
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/css-invalid-global-selector/input.svelte	error.json
+{
+	"code": "css_global_invalid_selector",
+	"message": "`:global(...)` must contain exactly one selector\nhttps://svelte.dev/e/css_global_invalid_selector",
+	"start": {
+		"line": 11,
+		"column": 5,
+		"character": 143
+	},
+	"end": {
+		"line": 11,
+		"column": 24,
+		"character": 162
+	}
+}
+
+=== 307 packages/svelte/tests/validator/samples/css-invalid-type-selector-placement/input.svelte	error.json
+{
+	"code": "css_type_selector_invalid_placement",
+	"message": "`:global(...)` must not be followed by a type selector\nhttps://svelte.dev/e/css_type_selector_invalid_placement",
+	"start": {
+		"line": 17,
+		"column": 14,
+		"character": 213
+	},
+	"end": {
+		"line": 17,
+		"column": 16,
+		"character": 215
+	}
+}
+
+=== 228 packages/svelte/tests/validator/samples/css-mismatched-quotes/input.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 76
+	},
+	"end": {
+		"line": 7,
+		"column": 8,
+		"character": 76
+	}
+}
+
 === 148 packages/svelte/tests/validator/samples/custom-element-props-identifier-props-option/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76587,6 +80331,38 @@ export default function Input($$renderer, $$props) {
 	}
 ]
 
+=== 300 packages/svelte/tests/validator/samples/debug-invalid-args/input.svelte	error.json
+{
+	"code": "debug_tag_invalid_arguments",
+	"message": "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments",
+	"start": {
+		"line": 2,
+		"column": 9,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 9,
+		"character": 13
+	}
+}
+
+=== 250 packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`foo` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 43
+	},
+	"end": {
+		"line": 5,
+		"column": 8,
+		"character": 46
+	}
+}
+
 === 243 packages/svelte/tests/validator/samples/declaration-tag-invalid-function/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76599,6 +80375,54 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 292 packages/svelte/tests/validator/samples/declaration-tag-invalid-type-2/input.svelte	error.json
+{
+	"code": "declaration_tag_invalid_type",
+	"message": "Declaration tags must be `let` or `const` declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+	"start": {
+		"line": 28,
+		"column": 2,
+		"character": 486
+	},
+	"end": {
+		"line": 28,
+		"column": 20,
+		"character": 504
+	}
+}
+
+=== 287 packages/svelte/tests/validator/samples/declaration-tag-invalid-type/input.svelte	error.json
+{
+	"code": "declaration_tag_invalid_type",
+	"message": "Declaration tags must be `let` or `const` declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 5,
+		"character": 16
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/declaration-tag-legacy-mode/input.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 27,
+		"character": 36
+	}
+}
+
 === 215 packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76636,6 +80460,294 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 276 packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 30,
+		"character": 39
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 33
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 3,
+		"column": 4,
+		"character": 41
+	},
+	"end": {
+		"line": 3,
+		"column": 32,
+		"character": 69
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/default-export-module/input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 17
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 35
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/default-export/input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 28
+	}
+}
+
+=== 297 packages/svelte/tests/validator/samples/directive-non-expression/input.svelte	error.json
+{
+	"code": "directive_invalid_value",
+	"message": "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	},
+	"end": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	}
+}
+
+=== 384 packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:clientWidth` is not a valid binding. Possible bindings for <svelte:document> are activeElement, focused, fullscreenElement, pointerLockElement, this, visibilityState\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 17,
+		"character": 50
+	},
+	"end": {
+		"line": 5,
+		"column": 39,
+		"character": 72
+	}
+}
+
+=== 349 packages/svelte/tests/validator/samples/dollar-dollar-global-in-markup/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$$billsyall` is an illegal variable name. To reference a global variable called `$$billsyall`, use `globalThis.$$billsyall`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 350 packages/svelte/tests/validator/samples/dollar-dollar-global-in-script/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$$billsyall` is an illegal variable name. To reference a global variable called `$$billsyall`, use `globalThis.$$billsyall`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 12,
+		"character": 21
+	}
+}
+
+=== 317 packages/svelte/tests/validator/samples/dollar-global-in-markup/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$` is an illegal variable name. To reference a global variable called `$`, use `globalThis.$`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	}
+}
+
+=== 319 packages/svelte/tests/validator/samples/dollar-global-in-script/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$` is an illegal variable name. To reference a global variable called `$`, use `globalThis.$`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 2,
+		"character": 11
+	}
+}
+
+=== 293 packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	error.json
+{
+	"code": "svelte_element_missing_this",
+	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+	"start": {
+		"line": 2,
+		"column": 17,
+		"character": 23
+	},
+	"end": {
+		"line": 2,
+		"column": 21,
+		"character": 27
+	}
+}
+
+=== 289 packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	error.json
+{
+	"code": "svelte_element_missing_this",
+	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	}
+}
+
+=== 290 packages/svelte/tests/validator/samples/dynamic-element-this/input.svelte	error.json
+{
+	"code": "unexpected_reserved_word",
+	"message": "'this' is a reserved word in JavaScript and cannot be used here\nhttps://svelte.dev/e/unexpected_reserved_word",
+	"start": {
+		"line": 2,
+		"column": 18,
+		"character": 24
+	},
+	"end": {
+		"line": 2,
+		"column": 18,
+		"character": 24
+	}
+}
+
+=== 254 packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Comma is not permitted after the rest element\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 53,
+		"character": 100
+	},
+	"end": {
+		"line": 5,
+		"column": 53,
+		"character": 100
+	}
+}
+
+=== 232 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected keyword 'case'\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
+=== 223 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	}
+}
+
+=== 290 packages/svelte/tests/validator/samples/each-block-invalid-context/input.svelte	error.json
+{
+	"code": "unexpected_reserved_word",
+	"message": "'case' is a reserved word in JavaScript and cannot be used here\nhttps://svelte.dev/e/unexpected_reserved_word",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	}
+}
 
 === 1158 packages/svelte/tests/validator/samples/empty-block/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -76759,6 +80871,86 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 233 packages/svelte/tests/validator/samples/error-mode-warn/input.svelte	error.json
+{
+	"code": "constant_binding",
+	"message": "Cannot bind to constant\nhttps://svelte.dev/e/constant_binding",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 49
+	},
+	"end": {
+		"line": 5,
+		"column": 25,
+		"character": 67
+	}
+}
+
+=== 302 packages/svelte/tests/validator/samples/event-attribute/input.svelte	error.json
+{
+	"code": "attribute_invalid_event_handler",
+	"message": "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler",
+	"start": {
+		"line": 4,
+		"column": 8,
+		"character": 88
+	},
+	"end": {
+		"line": 4,
+		"column": 21,
+		"character": 101
+	}
+}
+
+=== 325 packages/svelte/tests/validator/samples/event-modifiers-invalid-nonpassive/input.svelte	error.json
+{
+	"code": "event_handler_invalid_modifier_combination",
+	"message": "The 'passive' and 'nonpassive' modifiers cannot be used together\nhttps://svelte.dev/e/event_handler_invalid_modifier_combination",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 51,
+		"character": 51
+	}
+}
+
+=== 329 packages/svelte/tests/validator/samples/event-modifiers-invalid-passive/input.svelte	error.json
+{
+	"code": "event_handler_invalid_modifier_combination",
+	"message": "The 'passive' and 'preventDefault' modifiers cannot be used together\nhttps://svelte.dev/e/event_handler_invalid_modifier_combination",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	}
+}
+
+=== 373 packages/svelte/tests/validator/samples/event-modifiers-invalid/input.svelte	error.json
+{
+	"code": "event_handler_invalid_modifier",
+	"message": "Valid event modifiers are preventDefault, stopPropagation, stopImmediatePropagation, capture, once, passive, nonpassive, self or trusted\nhttps://svelte.dev/e/event_handler_invalid_modifier",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	}
+}
 
 === 135 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -76902,6 +81094,38 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 265 packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	error.json
+{
+	"code": "tag_invalid_placement",
+	"message": "{@html ...} tag cannot be in attribute value\nhttps://svelte.dev/e/tag_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 262 packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	error.json
+{
+	"code": "tag_invalid_placement",
+	"message": "{@html ...} tag cannot be inside <textarea>\nhttps://svelte.dev/e/tag_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	}
+}
+
 === 256 packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -76916,6 +81140,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]--></div>`);
 }
+=== 299 packages/svelte/tests/validator/samples/if-block-whitespace-runes/input.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `#` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 10,
+		"column": 1,
+		"character": 160
+	},
+	"end": {
+		"line": 10,
+		"column": 6,
+		"character": 165
+	}
+}
+
 === 247 packages/svelte/tests/validator/samples/ignore-warning-compiler-option/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77306,6 +81546,54 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 331 packages/svelte/tests/validator/samples/illegal-variable-declaration/input.svelte	error.json
+{
+	"code": "declaration_duplicate_module_import",
+	"message": "Cannot declare a variable with the same name as an import from `<script module>`\nhttps://svelte.dev/e/declaration_duplicate_module_import",
+	"start": {
+		"line": 12,
+		"column": 5,
+		"character": 142
+	},
+	"end": {
+		"line": 12,
+		"column": 8,
+		"character": 145
+	}
+}
+
+=== 307 packages/svelte/tests/validator/samples/illegal_spread_element-document/input.svelte	error.json
+{
+	"code": "illegal_element_attribute",
+	"message": "`<svelte:document>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute",
+	"start": {
+		"line": 4,
+		"column": 17,
+		"character": 49
+	},
+	"end": {
+		"line": 4,
+		"column": 23,
+		"character": 55
+	}
+}
+
+=== 305 packages/svelte/tests/validator/samples/illegal_spread_element-window/input.svelte	error.json
+{
+	"code": "illegal_element_attribute",
+	"message": "`<svelte:window>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute",
+	"start": {
+		"line": 4,
+		"column": 15,
+		"character": 47
+	},
+	"end": {
+		"line": 4,
+		"column": 21,
+		"character": 53
+	}
+}
+
 === 202 packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77507,6 +81795,38 @@ export default function Input($$renderer, $$props) {
 	}
 ]
 
+=== 246 packages/svelte/tests/validator/samples/invalid-empty-css-declaration/input.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 47
+	},
+	"end": {
+		"line": 5,
+		"column": 8,
+		"character": 53
+	}
+}
+
+=== 416 packages/svelte/tests/validator/samples/invalid-node-placement-2/input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<div>` cannot be a descendant of `<p>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 4,
+		"column": 3,
+		"character": 23
+	},
+	"end": {
+		"line": 4,
+		"column": 17,
+		"character": 37
+	}
+}
+
 === 466 packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77531,6 +81851,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!></select>`);
 }
+=== 420 packages/svelte/tests/validator/samples/invalid-node-placement-4/input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<form>` cannot be a descendant of `<form>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 4,
+		"column": 3,
+		"character": 25
+	},
+	"end": {
+		"line": 6,
+		"column": 10,
+		"character": 56
+	}
+}
+
 === 280 packages/svelte/tests/validator/samples/invalid-node-placement-5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77563,12 +81899,76 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 420 packages/svelte/tests/validator/samples/invalid-node-placement-6/input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<dt>` cannot be a descendant of `<dd>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 16,
+		"column": 3,
+		"character": 262
+	},
+	"end": {
+		"line": 16,
+		"column": 19,
+		"character": 278
+	}
+}
+
+=== 435 packages/svelte/tests/validator/samples/invalid-node-placement-7/input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<tbody>` must be the child of a `<table>`, not a `<div>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 87
+	},
+	"end": {
+		"line": 8,
+		"column": 16,
+		"character": 102
+	}
+}
+
+=== 500 packages/svelte/tests/validator/samples/invalid-node-placement-8/input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<#text>` cannot be a child of `<tbody>`. `<tbody>` only allows these children: `<tr>`, `<style>`, `<script>`, `<template>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 8,
+		"character": 89
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
 === 161 packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Input($$renderer) {
 	$$renderer.push(`<template><tr><td></td><td></td></tr></template>`);
 }
+=== 414 packages/svelte/tests/validator/samples/invalid-node-placement/input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<a>` cannot be a descendant of `<a>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 4,
+		"column": 6,
+		"character": 37
+	},
+	"end": {
+		"line": 4,
+		"column": 34,
+		"character": 65
+	}
+}
+
 === 234 packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77629,6 +82029,54 @@ export default function Input($$renderer, $$props) {
 		test();
 	});
 }
+=== 279 packages/svelte/tests/validator/samples/let-directive/input.svelte	error.json
+{
+	"code": "let_directive_invalid_placement",
+	"message": "`let:` directive at invalid position\nhttps://svelte.dev/e/let_directive_invalid_placement",
+	"start": {
+		"line": 6,
+		"column": 15,
+		"character": 241
+	},
+	"end": {
+		"line": 6,
+		"column": 20,
+		"character": 246
+	}
+}
+
+=== 269 packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	error.json
+{
+	"code": "block_invalid_placement",
+	"message": "{#if ...} block cannot be in attribute value\nhttps://svelte.dev/e/block_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 268 packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	error.json
+{
+	"code": "block_invalid_placement",
+	"message": "{#each ...} block cannot be inside <textarea>\nhttps://svelte.dev/e/block_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	}
+}
+
 === 140 packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77638,6 +82086,38 @@ let square;
 $: square = num * num;
 
 export default function Input($$renderer) {}
+=== 319 packages/svelte/tests/validator/samples/multiple-script-default-context/input.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 30
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 30
+	}
+}
+
+=== 319 packages/svelte/tests/validator/samples/multiple-script-module-context/input.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 37
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 37
+	}
+}
+
 === 155 packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77661,6 +82141,38 @@ export default function Input($$renderer, $$props) {
 		}
 	});
 }
+=== 314 packages/svelte/tests/validator/samples/namespace-invalid/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_attribute_value",
+	"message": "Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 54,
+		"character": 54
+	}
+}
+
+=== 314 packages/svelte/tests/validator/samples/namespace-non-literal/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_attribute_value",
+	"message": "Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 30,
+		"character": 30
+	}
+}
+
 === 325 packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import Bla from './Bla.svelte';
@@ -77760,6 +82272,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]--></tr></tbody></table>`);
 }
+=== 314 packages/svelte/tests/validator/samples/reactive-declaration-cyclical/input.svelte	error.json
+{
+	"code": "legacy_reactive_statement_invalid",
+	"message": "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid",
+	"start": {
+		"line": 5,
+		"column": 1,
+		"character": 35
+	},
+	"end": {
+		"line": 5,
+		"column": 14,
+		"character": 48
+	}
+}
+
 === 405 packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -77899,6 +82427,86 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 270 packages/svelte/tests/validator/samples/rune-invalid-spread-derived-by/input.svelte	error.json
+{
+	"code": "rune_invalid_spread",
+	"message": "`$derived.by` cannot be called with a spread argument\nhttps://svelte.dev/e/rune_invalid_spread",
+	"start": {
+		"line": 3,
+		"column": 15,
+		"character": 43
+	},
+	"end": {
+		"line": 3,
+		"column": 35,
+		"character": 63
+	}
+}
+
+=== 267 packages/svelte/tests/validator/samples/rune-invalid-spread-derived/input.svelte	error.json
+{
+	"code": "rune_invalid_spread",
+	"message": "`$derived` cannot be called with a spread argument\nhttps://svelte.dev/e/rune_invalid_spread",
+	"start": {
+		"line": 3,
+		"column": 15,
+		"character": 43
+	},
+	"end": {
+		"line": 3,
+		"column": 32,
+		"character": 60
+	}
+}
+
+=== 269 packages/svelte/tests/validator/samples/rune-invalid-spread-state-raw/input.svelte	error.json
+{
+	"code": "rune_invalid_spread",
+	"message": "`$state.raw` cannot be called with a spread argument\nhttps://svelte.dev/e/rune_invalid_spread",
+	"start": {
+		"line": 3,
+		"column": 15,
+		"character": 43
+	},
+	"end": {
+		"line": 3,
+		"column": 34,
+		"character": 62
+	}
+}
+
+=== 265 packages/svelte/tests/validator/samples/rune-invalid-spread-state/input.svelte	error.json
+{
+	"code": "rune_invalid_spread",
+	"message": "`$state` cannot be called with a spread argument\nhttps://svelte.dev/e/rune_invalid_spread",
+	"start": {
+		"line": 3,
+		"column": 15,
+		"character": 43
+	},
+	"end": {
+		"line": 3,
+		"column": 30,
+		"character": 58
+	}
+}
+
+=== 339 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings-2/input.svelte	error.json
+{
+	"code": "mixed_event_handler_syntaxes",
+	"message": "Mixing old (on:click) and new syntaxes for event handling is not allowed. Use only the onclick syntax\nhttps://svelte.dev/e/mixed_event_handler_syntaxes",
+	"start": {
+		"line": 11,
+		"column": 8,
+		"character": 203
+	},
+	"end": {
+		"line": 11,
+		"column": 22,
+		"character": 217
+	}
+}
 
 === 649 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -78109,6 +82717,22 @@ export default function Input($$renderer) {}
 	}
 ]
 
+=== 287 packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	error.json
+{
+	"code": "script_invalid_context",
+	"message": "If the context attribute is supplied, its value must be \"module\"\nhttps://svelte.dev/e/script_invalid_context",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 22,
+		"character": 22
+	}
+}
+
 === 90 packages/svelte/tests/validator/samples/script-invalid-spread-attribute/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -78292,6 +82916,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!---->`);
 }
+=== 343 packages/svelte/tests/validator/samples/slot-attribute-invalid/input.svelte	error.json
+{
+	"code": "slot_attribute_invalid_placement",
+	"message": "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	}
+}
+
 === 263 packages/svelte/tests/validator/samples/slot-warning-ignore/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import Component from './Component.svelte';
@@ -78426,6 +83066,38 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 252 packages/svelte/tests/validator/samples/snippet-already-declared/input.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`foo` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 5,
+		"column": 10,
+		"character": 48
+	},
+	"end": {
+		"line": 5,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 284 packages/svelte/tests/validator/samples/snippet-shadowing-prop/input.svelte	error.json
+{
+	"code": "snippet_shadowing_prop",
+	"message": "This snippet is shadowing the prop `title` with the same name\nhttps://svelte.dev/e/snippet_shadowing_prop",
+	"start": {
+		"line": 6,
+		"column": 1,
+		"character": 87
+	},
+	"end": {
+		"line": 8,
+		"column": 11,
+		"character": 125
+	}
+}
 
 === 151 packages/svelte/tests/validator/samples/snippet-whitespace-ok/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -78676,6 +83348,22 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 297 packages/svelte/tests/validator/samples/style-directive-modifiers-invalid/input.svelte	error.json
+{
+	"code": "style_directive_invalid_modifier",
+	"message": "`style:` directive can only use the `important` modifier\nhttps://svelte.dev/e/style_directive_invalid_modifier",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	}
+}
+
 === 288 packages/svelte/tests/validator/samples/svelte-component-deprecated/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import A from './A.svelte';
@@ -78707,6 +83395,54 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 304 packages/svelte/tests/validator/samples/svelte-fragment-placement-2/input.svelte	error.json
+{
+	"code": "svelte_fragment_invalid_placement",
+	"message": "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 59
+	},
+	"end": {
+		"line": 7,
+		"column": 18,
+		"character": 112
+	}
+}
+
+=== 304 packages/svelte/tests/validator/samples/svelte-fragment-placement/input.svelte	error.json
+{
+	"code": "svelte_fragment_invalid_placement",
+	"message": "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement",
+	"start": {
+		"line": 7,
+		"column": 2,
+		"character": 77
+	},
+	"end": {
+		"line": 9,
+		"column": 20,
+		"character": 134
+	}
+}
+
+=== 290 packages/svelte/tests/validator/samples/svelte-head-attributes/input.svelte	error.json
+{
+	"code": "svelte_head_illegal_attribute",
+	"message": "`<svelte:head>` cannot have attributes nor directives\nhttps://svelte.dev/e/svelte_head_illegal_attribute",
+	"start": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	},
+	"end": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	}
+}
 
 === 202 packages/svelte/tests/validator/samples/svelte-ignore-non-reactive-update/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -78817,6 +83553,326 @@ export default function Input($$renderer) {}
 		}
 	}
 ]
+
+=== 280 packages/svelte/tests/validator/samples/tag-invalid/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_tagname",
+	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 39,
+		"character": 39
+	}
+}
+
+=== 501 packages/svelte/tests/validator/samples/tag-non-string/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_customelement",
+	"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	}
+}
+
+=== 261 packages/svelte/tests/validator/samples/tag-reserved/input.svelte	error.json
+{
+	"code": "svelte_options_reserved_tagname",
+	"message": "Tag name is reserved\nhttps://svelte.dev/e/svelte_options_reserved_tagname",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 41,
+		"character": 41
+	}
+}
+
+=== 319 packages/svelte/tests/validator/samples/textarea-value-children/input.svelte	error.json
+{
+	"code": "textarea_invalid_content",
+	"message": "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both\nhttps://svelte.dev/e/textarea_invalid_content",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 3,
+		"column": 11,
+		"character": 55
+	}
+}
+
+=== 271 packages/svelte/tests/validator/samples/title-no-attributes/input.svelte	error.json
+{
+	"code": "title_illegal_attribute",
+	"message": "`<title>` cannot have attributes nor directives\nhttps://svelte.dev/e/title_illegal_attribute",
+	"start": {
+		"line": 2,
+		"column": 8,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 25,
+		"character": 39
+	}
+}
+
+=== 263 packages/svelte/tests/validator/samples/title-no-children/input.svelte	error.json
+{
+	"code": "title_invalid_content",
+	"message": "`<title>` can only contain text and {tags}\nhttps://svelte.dev/e/title_invalid_content",
+	"start": {
+		"line": 2,
+		"column": 11,
+		"character": 25
+	},
+	"end": {
+		"line": 2,
+		"column": 35,
+		"character": 49
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/transition-duplicate-in-transition/input.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `in:` alongside existing `transition:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 6,
+		"column": 12,
+		"character": 70
+	},
+	"end": {
+		"line": 6,
+		"column": 26,
+		"character": 84
+	}
+}
+
+=== 275 packages/svelte/tests/validator/samples/transition-duplicate-in/input.svelte	error.json
+{
+	"code": "transition_duplicate",
+	"message": "Cannot use multiple `in:` directives on a single element\nhttps://svelte.dev/e/transition_duplicate",
+	"start": {
+		"line": 6,
+		"column": 12,
+		"character": 70
+	},
+	"end": {
+		"line": 6,
+		"column": 18,
+		"character": 76
+	}
+}
+
+=== 277 packages/svelte/tests/validator/samples/transition-duplicate-out-transition/input.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `out:` alongside existing `transition:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 6,
+		"column": 13,
+		"character": 71
+	},
+	"end": {
+		"line": 6,
+		"column": 27,
+		"character": 85
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/transition-duplicate-out/input.svelte	error.json
+{
+	"code": "transition_duplicate",
+	"message": "Cannot use multiple `out:` directives on a single element\nhttps://svelte.dev/e/transition_duplicate",
+	"start": {
+		"line": 6,
+		"column": 13,
+		"character": 71
+	},
+	"end": {
+		"line": 6,
+		"column": 20,
+		"character": 78
+	}
+}
+
+=== 276 packages/svelte/tests/validator/samples/transition-duplicate-transition-in/input.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `transition:` alongside existing `in:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 6,
+		"column": 20,
+		"character": 78
+	},
+	"end": {
+		"line": 6,
+		"column": 26,
+		"character": 84
+	}
+}
+
+=== 277 packages/svelte/tests/validator/samples/transition-duplicate-transition-out/input.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `transition:` alongside existing `out:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 6,
+		"column": 20,
+		"character": 78
+	},
+	"end": {
+		"line": 6,
+		"column": 27,
+		"character": 85
+	}
+}
+
+=== 283 packages/svelte/tests/validator/samples/transition-duplicate-transition/input.svelte	error.json
+{
+	"code": "transition_duplicate",
+	"message": "Cannot use multiple `transition:` directives on a single element\nhttps://svelte.dev/e/transition_duplicate",
+	"start": {
+		"line": 6,
+		"column": 20,
+		"character": 78
+	},
+	"end": {
+		"line": 6,
+		"column": 34,
+		"character": 92
+	}
+}
+
+=== 281 packages/svelte/tests/validator/samples/transition-on-component/input.svelte	error.json
+{
+	"code": "component_invalid_directive",
+	"message": "This type of directive is not valid on components\nhttps://svelte.dev/e/component_invalid_directive",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 87
+	},
+	"end": {
+		"line": 7,
+		"column": 14,
+		"character": 93
+	}
+}
+
+=== 724 packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like accessor fields (related TSC proposal is not stage 4 yet) are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 17,
+		"character": 49
+	}
+}
+
+=== 719 packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like decorators (related TSC proposal is not stage 4 yet) are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 23
+	},
+	"end": {
+		"line": 2,
+		"column": 10,
+		"character": 29
+	}
+}
+
+=== 671 packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 20
+	},
+	"end": {
+		"line": 4,
+		"column": 2,
+		"character": 43
+	}
+}
+
+=== 717 packages/svelte/tests/validator/samples/ts-unsupported-modifier-readonly/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like accessibility modifiers on constructor parameters are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 3,
+		"column": 14,
+		"character": 46
+	},
+	"end": {
+		"line": 3,
+		"column": 32,
+		"character": 64
+	}
+}
+
+=== 717 packages/svelte/tests/validator/samples/ts-unsupported-modifier/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like accessibility modifiers on constructor parameters are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 3,
+		"column": 14,
+		"character": 46
+	},
+	"end": {
+		"line": 3,
+		"column": 31,
+		"character": 63
+	}
+}
+
+=== 696 packages/svelte/tests/validator/samples/ts-unsupported-namespace/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 27
+	},
+	"end": {
+		"line": 4,
+		"column": 2,
+		"character": 82
+	}
+}
 
 === 257 packages/svelte/tests/validator/samples/unknown-code/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -78949,6 +84005,54 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 405 packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:clientWidth` is not a valid binding. Possible bindings for <svelte:window> are devicePixelRatio, focused, innerHeight, innerWidth, online, outerHeight, outerWidth, scrollX, scrollY, this\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 15,
+		"character": 48
+	},
+	"end": {
+		"line": 5,
+		"column": 37,
+		"character": 70
+	}
+}
+
+=== 281 packages/svelte/tests/validator/samples/window-binding-invalid-innerwidth/input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:innerwidth` is not a valid binding. Did you mean 'innerWidth'?\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 15,
+		"character": 46
+	},
+	"end": {
+		"line": 5,
+		"column": 34,
+		"character": 65
+	}
+}
+
+=== 249 packages/svelte/tests/validator/samples/window-binding-invalid/input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:potato` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 15,
+		"character": 48
+	},
+	"end": {
+		"line": 5,
+		"column": 32,
+		"character": 65
+	}
+}
 
 === 104 packages/svelte/tests/validator/samples/window-binding-online/input.svelte	js
 import * as $ from 'svelte/internal/server';

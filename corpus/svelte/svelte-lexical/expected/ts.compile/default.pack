@@ -1,0 +1,3856 @@
+# rsvelte pack 1
+=== 3119 demos/playground-lite/playwright.config.ts	js
+import { devices } from '@playwright/test';
+const { CI } = process.env;
+const IS_CI = CI === 'true';
+/**
+ * Read environment variables from file.
+ * https://github.com/motdotla/dotenv
+ */
+// require('dotenv').config();
+/**
+ * See https://playwright.dev/docs/test-configuration.
+ */
+const config = {
+    testDir: './src/__tests__',
+    /* Maximum time one test can run for. */
+    timeout: 150000,
+    expect: {
+        /**
+         * Maximum time expect() should wait for the condition to be met.
+         * For example in `await expect(locator).toHaveText();`
+         */
+        timeout: 5000,
+    },
+    /* Run tests in files in parallel */
+    fullyParallel: true,
+    /* Fail the build on CI if you accidentally left test.only in the source code. */
+    forbidOnly: !!process.env.CI,
+    /* Retry on CI only */
+    retries: IS_CI ? 4 : 1,
+    /* Opt out of parallel tests on CI. */
+    workers: process.env.CI ? 4 : undefined,
+    /* Reporter to use. See https://playwright.dev/docs/test-reporters */
+    reporter: 'html',
+    /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
+    use: {
+        /* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
+        actionTimeout: 0,
+        /* Base URL to use in actions like `await page.goto('/')`. */
+        // baseURL: 'http://localhost:3000',
+        /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+        trace: 'on-first-retry',
+    },
+    /* Configure projects for major browsers */
+    projects: [
+        {
+            name: 'chromium',
+            use: {
+                ...devices['Desktop Chrome'],
+            },
+        },
+        {
+            name: 'firefox',
+            use: {
+                ...devices['Desktop Firefox'],
+            },
+        },
+        {
+            name: 'webkit',
+            use: {
+                ...devices['Desktop Safari'],
+            },
+        },
+        /* Test against mobile viewports. */
+        // {
+        //   name: 'Mobile Chrome',
+        //   use: {
+        //     ...devices['Pixel 5'],
+        //   },
+        // },
+        // {
+        //   name: 'Mobile Safari',
+        //   use: {
+        //     ...devices['iPhone 12'],
+        //   },
+        // },
+        /* Test against branded browsers. */
+        // {
+        //   name: 'Microsoft Edge',
+        //   use: {
+        //     channel: 'msedge',
+        //   },
+        // },
+        // {
+        //   name: 'Google Chrome',
+        //   use: {
+        //     channel: 'chrome',
+        //   },
+        // },
+    ],
+    /* Folder for test artifacts such as screenshots, videos, traces, etc. */
+    // outputDir: 'test-results/',
+    /* Run your local dev server before starting the tests */
+    // webServer: {
+    //   command: 'npm run start',
+    //   port: 3000,
+    // },
+    webServer: IS_CI
+        ? {
+            command: 'pnpm run start-test-server',
+            port: 4000,
+            reuseExistingServer: true,
+            timeout: 120 * 1000,
+        }
+        : undefined,
+};
+export default config;
+
+=== 783 demos/playground-lite/src/collaboration.ts	js
+import { Doc } from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+// parent dom -> child doc
+export function createWebsocketProvider(id, yjsDocMap) {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+    const WEBSOCKET_ENDPOINT = params.get('collabEndpoint') || 'ws://localhost:1234';
+    const WEBSOCKET_SLUG = 'playground';
+    const WEBSOCKET_ID = params.get('collabId') || '0';
+    let doc = yjsDocMap.get(id);
+    if (doc === undefined) {
+        doc = new Doc();
+        yjsDocMap.set(id, doc);
+    }
+    else {
+        doc.load();
+    }
+    // @ts-expect-error from lexical
+    return new WebsocketProvider(WEBSOCKET_ENDPOINT, WEBSOCKET_SLUG + '/' + WEBSOCKET_ID + '/' + id, doc, {
+        connect: false,
+    });
+}
+
+=== 266 demos/playground-lite/src/main.ts	js
+//import './app.css' //default css from startup template
+import './index.css';
+import './settings/setupEnv';
+import App from './App.svelte';
+import { mount } from 'svelte';
+const app = mount(App, {
+    target: document.getElementById('app'),
+});
+export default app;
+
+=== 2903 demos/playground-lite/src/prepopulatedRichText.ts	js
+import { $createHeadingNode, $createLinkNode, $createListItemNode, $createListNode, $createParagraphNode, $createQuoteNode, $createTextNode, $getRoot, } from 'svelte-lexical';
+export function prepopulatedRichText() {
+    const root = $getRoot();
+    if (root.getFirstChild() === null) {
+        const heading = $createHeadingNode('h1');
+        heading.append($createTextNode('Welcome to the playground'));
+        root.append(heading);
+        const quote = $createQuoteNode();
+        quote.append($createTextNode(`In case you were wondering what the black box at the bottom is – it's the debug view, showing the current state of the editor. ` +
+            `You can disable it by pressing on the settings control in the bottom-left of your screen and toggling the debug view setting.`));
+        root.append(quote);
+        const paragraph = $createParagraphNode();
+        paragraph.append($createTextNode('The playground is a demo environment built with '), $createTextNode('@lexical/react').toggleFormat('code'), $createTextNode('.'), $createTextNode(' Try typing in '), $createTextNode('some text').toggleFormat('bold'), $createTextNode(' with '), $createTextNode('different').toggleFormat('italic'), $createTextNode(' formats.'));
+        root.append(paragraph);
+        const paragraph2 = $createParagraphNode();
+        paragraph2.append($createTextNode('Make sure to check out the various plugins in the toolbar. You can also use #hashtags or @-mentions too!'));
+        root.append(paragraph2);
+        const paragraph3 = $createParagraphNode();
+        paragraph3.append($createTextNode(`If you'd like to find out more about Lexical, you can:`));
+        root.append(paragraph3);
+        const list = $createListNode('bullet');
+        list.append($createListItemNode().append($createTextNode(`Visit the `), $createLinkNode('https://lexical.dev/').append($createTextNode('Lexical website')), $createTextNode(` for documentation and more information.`)), $createListItemNode().append($createTextNode(`Check out the code on our `), $createLinkNode('https://github.com/facebook/lexical').append($createTextNode('GitHub repository')), $createTextNode(`.`)), $createListItemNode().append($createTextNode(`Playground code can be found `), $createLinkNode('https://github.com/facebook/lexical/tree/main/packages/lexical-playground').append($createTextNode('here')), $createTextNode(`.`)), $createListItemNode().append($createTextNode(`Join our `), $createLinkNode('https://discord.com/invite/KmG4wQnnD9').append($createTextNode('Discord Server')), $createTextNode(` and chat with the team.`)));
+        root.append(list);
+        const paragraph4 = $createParagraphNode();
+        paragraph4.append($createTextNode(`Lastly, we're constantly adding cool new features to this playground. So make sure you check back here when you next get a chance :).`));
+        root.append(paragraph4);
+    }
+}
+
+=== 881 demos/playground-lite/src/settings/appSettings.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+const hostName = window.location.hostname;
+//TODO: change the condition for svelte-lexical
+export const isDevPlayground = hostName !== 'playground.lexical.dev' &&
+    hostName !== 'lexical-playground.vercel.app';
+export const DEFAULT_SETTINGS = {
+    disableBeforeInput: false,
+    emptyEditor: isDevPlayground,
+    isAutocomplete: false,
+    isCharLimit: false,
+    isCharLimitUtf8: false,
+    isCollab: false,
+    isMaxLength: false,
+    isRichText: true,
+    measureTypingPerf: false,
+    showNestedEditorTreeView: false,
+    showTableOfContents: false,
+    showTreeView: true,
+    tableCellMerge: true,
+    tableCellBackgroundColor: true,
+    tableHorizontalScroll: true,
+    isCodeHighlighted: true,
+};
+
+=== 1210 demos/playground-lite/src/settings/settingsStore.ts	js
+/**
+ * Ported from lexical/packages/lexical-playground/src/context/SettingsContext.tsx
+ */
+import { writable } from 'svelte/store';
+import { DEFAULT_SETTINGS } from './appSettings';
+export function createSettingsStore() {
+    const { subscribe, /*set,*/ update } = writable(DEFAULT_SETTINGS);
+    return {
+        subscribe,
+        setOption: (setting, value) => {
+            update((options) => ({
+                ...options,
+                [setting]: value,
+            }));
+            if (DEFAULT_SETTINGS[setting] === value) {
+                setURLParam(setting, null);
+            }
+            else {
+                setURLParam(setting, value);
+            }
+        },
+    };
+}
+function setURLParam(param, value) {
+    const url = new URL(window.location.href);
+    const params = new URLSearchParams(url.search);
+    if (value !== null) {
+        if (params.has(param)) {
+            params.set(param, String(value));
+        }
+        else {
+            params.append(param, String(value));
+        }
+    }
+    else {
+        if (params.has(param)) {
+            params.delete(param);
+        }
+    }
+    url.search = params.toString();
+    window.history.pushState(null, '', url.toString());
+}
+
+=== 924 demos/playground-lite/src/settings/setupEnv.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import { DEFAULT_SETTINGS } from './appSettings';
+// override default options with query parameters if any
+const urlSearchParams = new URLSearchParams(window.location.search);
+for (const param of Object.keys(DEFAULT_SETTINGS)) {
+    if (urlSearchParams.has(param)) {
+        try {
+            const value = JSON.parse(urlSearchParams.get(param) ?? 'true');
+            DEFAULT_SETTINGS[param] = Boolean(value);
+        }
+        catch (error) {
+            // eslint-disable-next-line no-console
+            console.warn(`Unable to parse query parameter "${param}". \nError: ${error}`);
+        }
+    }
+}
+if (DEFAULT_SETTINGS.disableBeforeInput) {
+    // @ts-expect-error enable legacy events
+    delete window.InputEvent.prototype.getTargetRanges;
+}
+
+=== 385 demos/playground-lite/src/themes/CommentEditorTheme.ts	js
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './CommentEditorTheme.css';
+import baseTheme from './PlaygroundEditorTheme';
+const theme = {
+    ...baseTheme,
+    paragraph: 'CommentEditorTheme__paragraph',
+};
+export default theme;
+
+=== 5915 demos/playground-lite/src/themes/PlaygroundEditorTheme.ts	js
+/**
+ * Copyright (c) Syed Umar Anis
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './PlaygroundEditorTheme.css';
+const theme = {
+    autocomplete: 'PlaygroundEditorTheme__autocomplete',
+    blockCursor: 'PlaygroundEditorTheme__blockCursor',
+    characterLimit: 'PlaygroundEditorTheme__characterLimit',
+    code: 'PlaygroundEditorTheme__code',
+    codeHighlight: {
+        atrule: 'PlaygroundEditorTheme__tokenAttr',
+        attr: 'PlaygroundEditorTheme__tokenAttr',
+        boolean: 'PlaygroundEditorTheme__tokenProperty',
+        builtin: 'PlaygroundEditorTheme__tokenSelector',
+        cdata: 'PlaygroundEditorTheme__tokenComment',
+        char: 'PlaygroundEditorTheme__tokenSelector',
+        class: 'PlaygroundEditorTheme__tokenFunction',
+        'class-name': 'PlaygroundEditorTheme__tokenFunction',
+        comment: 'PlaygroundEditorTheme__tokenComment',
+        constant: 'PlaygroundEditorTheme__tokenProperty',
+        deleted: 'PlaygroundEditorTheme__tokenDeleted',
+        doctype: 'PlaygroundEditorTheme__tokenComment',
+        entity: 'PlaygroundEditorTheme__tokenOperator',
+        function: 'PlaygroundEditorTheme__tokenFunction',
+        important: 'PlaygroundEditorTheme__tokenVariable',
+        inserted: 'PlaygroundEditorTheme__tokenInserted',
+        keyword: 'PlaygroundEditorTheme__tokenAttr',
+        namespace: 'PlaygroundEditorTheme__tokenVariable',
+        number: 'PlaygroundEditorTheme__tokenProperty',
+        operator: 'PlaygroundEditorTheme__tokenOperator',
+        prolog: 'PlaygroundEditorTheme__tokenComment',
+        property: 'PlaygroundEditorTheme__tokenProperty',
+        punctuation: 'PlaygroundEditorTheme__tokenPunctuation',
+        regex: 'PlaygroundEditorTheme__tokenVariable',
+        selector: 'PlaygroundEditorTheme__tokenSelector',
+        string: 'PlaygroundEditorTheme__tokenSelector',
+        symbol: 'PlaygroundEditorTheme__tokenProperty',
+        tag: 'PlaygroundEditorTheme__tokenProperty',
+        unchanged: 'PlaygroundEditorTheme__tokenUnchanged',
+        url: 'PlaygroundEditorTheme__tokenOperator',
+        variable: 'PlaygroundEditorTheme__tokenVariable',
+    },
+    embedBlock: {
+        base: 'PlaygroundEditorTheme__embedBlock',
+        focus: 'PlaygroundEditorTheme__embedBlockFocus',
+    },
+    hashtag: 'PlaygroundEditorTheme__hashtag',
+    heading: {
+        h1: 'PlaygroundEditorTheme__h1',
+        h2: 'PlaygroundEditorTheme__h2',
+        h3: 'PlaygroundEditorTheme__h3',
+        h4: 'PlaygroundEditorTheme__h4',
+        h5: 'PlaygroundEditorTheme__h5',
+        h6: 'PlaygroundEditorTheme__h6',
+    },
+    hr: 'PlaygroundEditorTheme__hr',
+    hrSelected: 'PlaygroundEditorTheme__hrSelected',
+    image: 'editor-image',
+    indent: 'PlaygroundEditorTheme__indent',
+    inlineImage: 'inline-editor-image',
+    layoutContainer: 'PlaygroundEditorTheme__layoutContainer',
+    layoutItem: 'PlaygroundEditorTheme__layoutItem',
+    link: 'PlaygroundEditorTheme__link',
+    list: {
+        checklist: 'PlaygroundEditorTheme__checklist',
+        listitem: 'PlaygroundEditorTheme__listItem',
+        listitemChecked: 'PlaygroundEditorTheme__listItemChecked',
+        listitemUnchecked: 'PlaygroundEditorTheme__listItemUnchecked',
+        nested: {
+            listitem: 'PlaygroundEditorTheme__nestedListItem',
+        },
+        olDepth: [
+            'PlaygroundEditorTheme__ol1',
+            'PlaygroundEditorTheme__ol2',
+            'PlaygroundEditorTheme__ol3',
+            'PlaygroundEditorTheme__ol4',
+            'PlaygroundEditorTheme__ol5',
+        ],
+        ul: 'PlaygroundEditorTheme__ul',
+    },
+    ltr: 'PlaygroundEditorTheme__ltr',
+    mark: 'PlaygroundEditorTheme__mark',
+    markOverlap: 'PlaygroundEditorTheme__markOverlap',
+    paragraph: 'PlaygroundEditorTheme__paragraph',
+    quote: 'PlaygroundEditorTheme__quote',
+    rtl: 'PlaygroundEditorTheme__rtl',
+    specialText: 'PlaygroundEditorTheme__specialText',
+    tab: 'PlaygroundEditorTheme__tabNode',
+    table: 'PlaygroundEditorTheme__table',
+    tableAddColumns: 'PlaygroundEditorTheme__tableAddColumns',
+    tableAddRows: 'PlaygroundEditorTheme__tableAddRows',
+    tableAlignment: {
+        center: 'PlaygroundEditorTheme__tableAlignmentCenter',
+        right: 'PlaygroundEditorTheme__tableAlignmentRight',
+    },
+    tableCell: 'PlaygroundEditorTheme__tableCell',
+    tableCellActionButton: 'PlaygroundEditorTheme__tableCellActionButton',
+    tableCellActionButtonContainer: 'PlaygroundEditorTheme__tableCellActionButtonContainer',
+    tableCellHeader: 'PlaygroundEditorTheme__tableCellHeader',
+    tableCellResizer: 'PlaygroundEditorTheme__tableCellResizer',
+    tableCellSelected: 'PlaygroundEditorTheme__tableCellSelected',
+    tableFrozenColumn: 'PlaygroundEditorTheme__tableFrozenColumn',
+    tableFrozenRow: 'PlaygroundEditorTheme__tableFrozenRow',
+    tableRowStriping: 'PlaygroundEditorTheme__tableRowStriping',
+    tableScrollableWrapper: 'PlaygroundEditorTheme__tableScrollableWrapper',
+    tableSelected: 'PlaygroundEditorTheme__tableSelected',
+    tableSelection: 'PlaygroundEditorTheme__tableSelection',
+    text: {
+        bold: 'PlaygroundEditorTheme__textBold',
+        capitalize: 'PlaygroundEditorTheme__textCapitalize',
+        code: 'PlaygroundEditorTheme__textCode',
+        highlight: 'PlaygroundEditorTheme__textHighlight',
+        italic: 'PlaygroundEditorTheme__textItalic',
+        lowercase: 'PlaygroundEditorTheme__textLowercase',
+        strikethrough: 'PlaygroundEditorTheme__textStrikethrough',
+        subscript: 'PlaygroundEditorTheme__textSubscript',
+        superscript: 'PlaygroundEditorTheme__textSuperscript',
+        underline: 'PlaygroundEditorTheme__textUnderline',
+        underlineStrikethrough: 'PlaygroundEditorTheme__textUnderlineStrikethrough',
+        uppercase: 'PlaygroundEditorTheme__textUppercase',
+    },
+};
+export default theme;
+
+=== 361 demos/playground-lite/src/themes/StickyEditorTheme.ts	js
+/**
+ * Copyright (c) Syed Umar Anis
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './StickyEditorTheme.css';
+import baseTheme from './PlaygroundEditorTheme';
+const theme = {
+    ...baseTheme,
+    paragraph: 'StickyEditorTheme__paragraph',
+};
+export default theme;
+
+=== 572 demos/playground-lite/vite.config.ts	js
+import { defineConfig } from 'vite';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import * as path from 'path';
+// https://vitejs.dev/config/
+export default defineConfig({
+    plugins: [svelte()],
+    resolve: {
+        alias: {
+            yjs: path.resolve('./node_modules/yjs/src/index.js'),
+        },
+    },
+    build: {
+        rollupOptions: {
+            input: {
+                main: new URL('./index.html', import.meta.url).pathname,
+                split: new URL('./split/index.html', import.meta.url).pathname,
+            },
+        },
+    },
+});
+
+=== 905 demos/playground/src/settings/appSettings.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+const hostName = window.location.hostname;
+//TODO: change the condition for svelte-lexical
+export const isDevPlayground = hostName !== 'playground.lexical.dev' &&
+    hostName !== 'lexical-playground.vercel.app';
+export const DEFAULT_SETTINGS = {
+    disableBeforeInput: false,
+    emptyEditor: isDevPlayground,
+    isAutocomplete: false,
+    isCharLimit: false,
+    isCharLimitUtf8: false,
+    isCollab: false,
+    isMaxLength: false,
+    isRichText: true,
+    measureTypingPerf: false,
+    showNestedEditorTreeView: false,
+    showTableOfContents: false,
+    showTreeView: true,
+    tableCellMerge: true,
+    tableCellBackgroundColor: true,
+    tableHorizontalScroll: true,
+    isCodeHighlighted: true,
+    isCodeShiki: false,
+};
+
+=== 3631 demos/qalam/src/lib/notesBackend.ts	js
+import { readDir, readTextFile, writeTextFile, exists, mkdir, remove as removeFile, } from '@tauri-apps/plugin-fs';
+import { appDataDir, join } from '@tauri-apps/api/path';
+import { isTauri } from '@tauri-apps/api/core';
+function createTauriBackend() {
+    let notesDir = '';
+    return {
+        async init() {
+            const appData = await appDataDir();
+            notesDir = await join(appData, 'qalam');
+            if (!(await exists(notesDir))) {
+                await mkdir(notesDir, { recursive: true });
+            }
+            return notesDir;
+        },
+        async list() {
+            const entries = await readDir(notesDir);
+            const noteEntries = entries.filter((e) => e.name?.endsWith('.json'));
+            const results = [];
+            for (const entry of noteEntries) {
+                try {
+                    const filePath = await join(notesDir, entry.name);
+                    const raw = await readTextFile(filePath);
+                    results.push({
+                        id: entry.name.replace('.json', ''),
+                        data: JSON.parse(raw),
+                    });
+                }
+                catch {
+                    // skip malformed files
+                }
+            }
+            return results;
+        },
+        async read(id) {
+            const filePath = await join(notesDir, `${id}.json`);
+            return JSON.parse(await readTextFile(filePath));
+        },
+        async write(id, data) {
+            const filePath = await join(notesDir, `${id}.json`);
+            await writeTextFile(filePath, JSON.stringify(data, null, 2));
+        },
+        async remove(id) {
+            const filePath = await join(notesDir, `${id}.json`);
+            await removeFile(filePath);
+        },
+    };
+}
+const DB_NAME = 'qalam';
+const STORE_NAME = 'notes';
+function openDb() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+            request.result.createObjectStore(STORE_NAME);
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+function runTransaction(db, mode, fn) {
+    return new Promise((resolve, reject) => {
+        const request = fn(db.transaction(STORE_NAME, mode).objectStore(STORE_NAME));
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+function createIndexedDbBackend() {
+    let db;
+    return {
+        async init() {
+            db = await openDb();
+            return 'Browser storage (IndexedDB) — notes are local to this browser';
+        },
+        async list() {
+            const [keys, values] = await Promise.all([
+                runTransaction(db, 'readonly', (store) => store.getAllKeys()),
+                runTransaction(db, 'readonly', (store) => store.getAll()),
+            ]);
+            return keys.map((id, i) => ({ id: String(id), data: values[i] }));
+        },
+        async read(id) {
+            const data = await runTransaction(db, 'readonly', (store) => store.get(id));
+            if (!data)
+                throw new Error(`Note ${id} not found`);
+            return data;
+        },
+        async write(id, data) {
+            await runTransaction(db, 'readwrite', (store) => store.put(data, id));
+        },
+        async remove(id) {
+            await runTransaction(db, 'readwrite', (store) => store.delete(id));
+        },
+    };
+}
+export function getNotesBackend() {
+    return isTauri() ? createTauriBackend() : createIndexedDbBackend();
+}
+
+=== 3987 demos/qalam/src/lib/notesStore.svelte.ts	js
+import { getNotesBackend } from './notesBackend';
+function createNotesStore() {
+    const backend = getNotesBackend();
+    let notes = $state([]);
+    let activeNoteId = $state(null);
+    let activeNoteContent = $state(null);
+    let notesLocation = $state('');
+    let isLoading = $state(false);
+    let isSaving = $state(false);
+    let isInitialized = $state(false);
+    async function init() {
+        if (isInitialized)
+            return;
+        notesLocation = await backend.init();
+        await loadNotes();
+        isInitialized = true;
+    }
+    async function loadNotes() {
+        isLoading = true;
+        try {
+            const entries = await backend.list();
+            notes = entries
+                .map(({ id, data }) => ({
+                id,
+                title: data.title || 'Untitled',
+                createdAt: data.createdAt,
+                updatedAt: data.updatedAt,
+            }))
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        }
+        finally {
+            isLoading = false;
+        }
+    }
+    async function createNote() {
+        const id = `note_${Date.now()}`;
+        const now = new Date().toISOString();
+        const noteData = {
+            title: 'Untitled',
+            content: '',
+            createdAt: now,
+            updatedAt: now,
+        };
+        await backend.write(id, noteData);
+        const newNote = {
+            id,
+            title: 'Untitled',
+            createdAt: now,
+            updatedAt: now,
+        };
+        notes = [newNote, ...notes];
+        await openNote(id);
+    }
+    async function openNote(id) {
+        try {
+            const data = await backend.read(id);
+            activeNoteId = id;
+            activeNoteContent = data.content || null;
+        }
+        catch (e) {
+            // eslint-disable-next-line no-console
+            console.error(`Failed to open note ${id}:`, e);
+        }
+    }
+    async function saveNoteContent(id, content) {
+        isSaving = true;
+        try {
+            const data = await backend.read(id);
+            const updated = {
+                ...data,
+                content,
+                updatedAt: new Date().toISOString(),
+            };
+            await backend.write(id, updated);
+            notes = notes
+                .map((n) => (n.id === id ? { ...n, updatedAt: updated.updatedAt } : n))
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        }
+        finally {
+            isSaving = false;
+        }
+    }
+    async function renameNote(id, newTitle) {
+        const data = await backend.read(id);
+        const updated = {
+            ...data,
+            title: newTitle,
+            updatedAt: new Date().toISOString(),
+        };
+        await backend.write(id, updated);
+        notes = notes.map((n) => n.id === id ? { ...n, title: newTitle, updatedAt: updated.updatedAt } : n);
+    }
+    async function deleteNote(id) {
+        await backend.remove(id);
+        notes = notes.filter((n) => n.id !== id);
+        if (activeNoteId === id) {
+            activeNoteId = null;
+            activeNoteContent = null;
+        }
+    }
+    return {
+        get notes() {
+            return notes;
+        },
+        get notesDir() {
+            return notesLocation;
+        },
+        get activeNoteId() {
+            return activeNoteId;
+        },
+        get activeNote() {
+            return notes.find((n) => n.id === activeNoteId) ?? null;
+        },
+        get activeNoteContent() {
+            return activeNoteContent;
+        },
+        get isLoading() {
+            return isLoading;
+        },
+        get isSaving() {
+            return isSaving;
+        },
+        get isInitialized() {
+            return isInitialized;
+        },
+        init,
+        createNote,
+        openNote,
+        saveNoteContent,
+        renameNote,
+        deleteNote,
+    };
+}
+export const notesStore = createNotesStore();
+
+=== 163 demos/qalam/src/main.ts	js
+import './global.css';
+import App from './App.svelte';
+import { mount } from 'svelte';
+const app = mount(App, {
+    target: document.body,
+});
+export default app;
+
+=== 2886 packages/svelte-lexical/src/lib/components/generic/colorpicker/helpers.ts	js
+import { writable } from 'svelte/store';
+export const basicColors = [
+    '#d0021b',
+    '#f5a623',
+    '#f8e71c',
+    '#8b572a',
+    '#7ed321',
+    '#417505',
+    '#bd10e0',
+    '#9013fe',
+    '#4a90e2',
+    '#50e3c2',
+    '#b8e986',
+    '#000000',
+    '#4a4a4a',
+    '#9b9b9b',
+    '#ffffff',
+];
+export function toHex(value) {
+    if (!value.startsWith('#')) {
+        const ctx = document.createElement('canvas').getContext('2d');
+        if (!ctx) {
+            throw new Error('2d context not supported or canvas already initialized');
+        }
+        ctx.fillStyle = value;
+        return ctx.fillStyle;
+    }
+    else if (value.length === 4 || value.length === 5) {
+        value = value
+            .split('')
+            .map((v, i) => (i ? v + v : '#'))
+            .join('');
+        return value;
+    }
+    else if (value.length === 7 || value.length === 9) {
+        return value;
+    }
+    return '#000000';
+}
+function hex2rgb(hex) {
+    const rbgArr = (hex
+        .replace(/^#?([a-f\d])([a-f\d])([a-f\d])$/i, (m, r, g, b) => '#' + r + r + g + g + b + b)
+        .substring(1)
+        .match(/.{2}/g) || []).map((x) => parseInt(x, 16));
+    return {
+        b: rbgArr[2],
+        g: rbgArr[1],
+        r: rbgArr[0],
+    };
+}
+function rgb2hsv({ r, g, b }) {
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b);
+    const d = max - Math.min(r, g, b);
+    const h = d
+        ? (max === r
+            ? (g - b) / d + (g < b ? 6 : 0)
+            : max === g
+                ? 2 + (b - r) / d
+                : 4 + (r - g) / d) * 60
+        : 0;
+    const s = max ? (d / max) * 100 : 0;
+    const v = max * 100;
+    return { h, s, v };
+}
+function hsv2rgb({ h, s, v }) {
+    s /= 100;
+    v /= 100;
+    const i = ~~(h / 60);
+    const f = h / 60 - i;
+    const p = v * (1 - s);
+    const q = v * (1 - s * f);
+    const t = v * (1 - s * (1 - f));
+    const index = i % 6;
+    const r = Math.round([v, q, p, p, t, v][index] * 255);
+    const g = Math.round([t, v, v, q, p, p][index] * 255);
+    const b = Math.round([p, p, t, v, v, q][index] * 255);
+    return { b, g, r };
+}
+function rgb2hex({ b, g, r }) {
+    return '#' + [r, g, b].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+export function transformColor(format, color) {
+    let hex = toHex('#121212');
+    let rgb = hex2rgb(hex);
+    let hsv = rgb2hsv(rgb);
+    if (format === 'hex') {
+        const value = color;
+        hex = toHex(value);
+        rgb = hex2rgb(hex);
+        hsv = rgb2hsv(rgb);
+    }
+    else if (format === 'rgb') {
+        const value = color;
+        rgb = value;
+        hex = rgb2hex(rgb);
+        hsv = rgb2hsv(rgb);
+    }
+    else if (format === 'hsv') {
+        const value = color;
+        hsv = value;
+        rgb = hsv2rgb(hsv);
+        hex = rgb2hex(rgb);
+    }
+    return { hex, hsv, rgb };
+}
+export const skipAddingToHistoryStack = writable(false);
+
+=== 2405 packages/svelte-lexical/src/lib/components/generic/contextmenu/contextMenuHelpers.ts	js
+import { $getSelection, $isRangeSelection, TextNode, } from 'lexical';
+export class MenuOption {
+    key;
+    ref;
+    constructor(key) {
+        this.key = key;
+        this.ref = null;
+    }
+}
+export const scrollIntoViewIfNeeded = (target) => {
+    const typeaheadContainerNode = document.getElementById('typeahead-menu');
+    if (!typeaheadContainerNode) {
+        return;
+    }
+    const typeaheadRect = typeaheadContainerNode.getBoundingClientRect();
+    if (typeaheadRect.top + typeaheadRect.height > window.innerHeight) {
+        typeaheadContainerNode.scrollIntoView({
+            block: 'center',
+        });
+    }
+    if (typeaheadRect.top < 0) {
+        typeaheadContainerNode.scrollIntoView({
+            block: 'center',
+        });
+    }
+    target.scrollIntoView({ block: 'nearest' });
+};
+/**
+ * Walk backwards along user input and forward through entity title to try
+ * and replace more of the user's text with entity.
+ */
+function getFullMatchOffset(documentText, entryText, offset) {
+    let triggerOffset = offset;
+    for (let i = triggerOffset; i <= entryText.length; i++) {
+        if (documentText.slice(-i) === entryText.substring(0, i)) {
+            triggerOffset = i;
+        }
+    }
+    return triggerOffset;
+}
+/**
+ * Split Lexical TextNode and return a new TextNode only containing matched text.
+ * Common use cases include: removing the node, replacing with a new node.
+ */
+export function $splitNodeContainingQuery(match) {
+    const selection = $getSelection();
+    if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+        return null;
+    }
+    const anchor = selection.anchor;
+    if (anchor.type !== 'text') {
+        return null;
+    }
+    const anchorNode = anchor.getNode();
+    if (!anchorNode.isSimpleText()) {
+        return null;
+    }
+    const selectionOffset = anchor.offset;
+    const textContent = anchorNode.getTextContent().slice(0, selectionOffset);
+    const characterOffset = match.replaceableString.length;
+    const queryOffset = getFullMatchOffset(textContent, match.matchingString, characterOffset);
+    const startOffset = selectionOffset - queryOffset;
+    if (startOffset < 0) {
+        return null;
+    }
+    let newNode;
+    if (startOffset === 0) {
+        [newNode] = anchorNode.splitText(selectionOffset);
+    }
+    else {
+        [, newNode] = anchorNode.splitText(startOffset, selectionOffset);
+    }
+    return newNode;
+}
+
+=== 4621 packages/svelte-lexical/src/lib/components/generic/contextmenu/typeAheadMenuHelpers.ts	js
+import { $getSelection, $isRangeSelection, $isTextNode, createCommand, getDOMSelection, TextNode, } from 'lexical';
+export const SCROLL_TYPEAHEAD_OPTION_INTO_VIEW_COMMAND = createCommand('SCROLL_TYPEAHEAD_OPTION_INTO_VIEW_COMMAND');
+function getTextUpToAnchor(selection) {
+    const anchor = selection.anchor;
+    if (anchor.type !== 'text') {
+        return null;
+    }
+    const anchorNode = anchor.getNode();
+    if (!anchorNode.isSimpleText()) {
+        return null;
+    }
+    const anchorOffset = anchor.offset;
+    return anchorNode.getTextContent().slice(0, anchorOffset);
+}
+export function getQueryTextForSearch(editor) {
+    let text = null;
+    editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection)) {
+            return;
+        }
+        text = getTextUpToAnchor(selection);
+    });
+    return text;
+}
+export function isSelectionOnEntityBoundary(editor, offset) {
+    if (offset !== 0) {
+        return false;
+    }
+    return editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+            const anchor = selection.anchor;
+            const anchorNode = anchor.getNode();
+            const prevSibling = anchorNode.getPreviousSibling();
+            return $isTextNode(prevSibling) && prevSibling.isTextEntity();
+        }
+        return false;
+    });
+}
+export function tryToPositionRange(leadOffset, range, editorWindow) {
+    const domSelection = getDOMSelection(editorWindow);
+    if (domSelection === null || !domSelection.isCollapsed) {
+        return false;
+    }
+    const anchorNode = domSelection.anchorNode;
+    const startOffset = leadOffset;
+    const endOffset = domSelection.anchorOffset;
+    if (anchorNode == null || endOffset == null) {
+        return false;
+    }
+    try {
+        range.setStart(anchorNode, startOffset);
+        range.setEnd(anchorNode, endOffset);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    }
+    catch (_error) {
+        return false;
+    }
+    return true;
+}
+export function setContainerDivAttributes(containerDiv, className) {
+    if (className != null) {
+        containerDiv.className = className;
+    }
+    containerDiv.setAttribute('aria-label', 'Typeahead menu');
+    containerDiv.setAttribute('role', 'listbox');
+    containerDiv.style.display = 'block';
+    containerDiv.style.position = 'absolute';
+}
+// Got from https://stackoverflow.com/a/42543908/2013580
+export function getScrollParent(element, includeHidden) {
+    let style = getComputedStyle(element);
+    const excludeStaticParent = style.position === 'absolute';
+    const overflowRegex = includeHidden
+        ? /(auto|scroll|hidden)/
+        : /(auto|scroll)/;
+    if (style.position === 'fixed') {
+        return document.body;
+    }
+    for (let parent = element; (parent = parent.parentElement);) {
+        style = getComputedStyle(parent);
+        if (excludeStaticParent && style.position === 'static') {
+            continue;
+        }
+        if (overflowRegex.test(style.overflow + style.overflowY + style.overflowX)) {
+            return parent;
+        }
+    }
+    return document.body;
+}
+export function isTriggerVisibleInNearestScrollContainer(targetElement, containerElement) {
+    const tRect = targetElement.getBoundingClientRect();
+    const cRect = containerElement.getBoundingClientRect();
+    return tRect.top > cRect.top && tRect.top < cRect.bottom;
+}
+export const PUNCTUATION = '\\.,\\+\\*\\?\\$\\@\\|#{}\\(\\)\\^\\-\\[\\]\\\\/!%\'"~=<>_:;';
+export function useBasicTypeaheadTriggerMatch(trigger, { minLength = 1, maxLength = 75, punctuation = PUNCTUATION, allowWhitespace = false, }) {
+    return (text) => {
+        const validCharsSuffix = allowWhitespace ? '' : '\\s';
+        const validChars = '[^' + trigger + punctuation + validCharsSuffix + ']';
+        const TypeaheadTriggerRegex = new RegExp('(^|\\s|\\()(' +
+            '[' +
+            trigger +
+            ']' +
+            '((?:' +
+            validChars +
+            '){0,' +
+            maxLength +
+            '})' +
+            ')$');
+        const match = TypeaheadTriggerRegex.exec(text);
+        if (match !== null) {
+            const maybeLeadingWhitespace = match[1];
+            const matchingString = match[3];
+            if (matchingString.length >= minLength) {
+                return {
+                    leadOffset: match.index + maybeLeadingWhitespace.length,
+                    matchingString,
+                    replaceableString: match[2],
+                };
+            }
+        }
+        return null;
+    };
+}
+
+=== 275 packages/svelte-lexical/src/lib/components/generic/dropdown/utils.ts	js
+import { getContext, setContext } from 'svelte';
+const registerItemSymbol = Symbol();
+export function getRegisterItemFunc() {
+    return getContext(registerItemSymbol);
+}
+export function setRegisterItemFunc(registerItem) {
+    setContext(registerItemSymbol, registerItem);
+}
+
+=== 1387 packages/svelte-lexical/src/lib/components/generic/theme/themeTracker.svelte.ts	js
+import { CAN_USE_DOM } from '@lexical/utils';
+class ThemeTracker {
+    darkModeMediaQuery = (CAN_USE_DOM &&
+        window.matchMedia('(prefers-color-scheme: dark)'));
+    themeMode = $state((CAN_USE_DOM && localStorage.getItem('app-theme')) ||
+        'system');
+    themeColor = $state('light');
+    constructor() {
+        if (!CAN_USE_DOM)
+            return;
+        this.updateTheme();
+        this.darkModeMediaQuery.addEventListener('change', () => this.updateTheme());
+    }
+    get mode() {
+        return this.themeMode;
+    }
+    set mode(mode) {
+        this.themeMode = mode;
+        this.updateTheme();
+        localStorage.setItem('app-theme', mode);
+    }
+    get color() {
+        return this.themeColor;
+    }
+    updateTheme() {
+        if (this.themeMode === 'system') {
+            const currentColor = this.darkModeMediaQuery.matches ? 'dark' : 'light';
+            if (currentColor !== this.themeColor) {
+                this.themeColor = currentColor;
+                this.setThemeInDom();
+            }
+        }
+        else if (this.themeColor !== this.themeMode) {
+            this.themeColor = this.themeMode;
+            this.setThemeInDom();
+        }
+    }
+    setThemeInDom() {
+        if (CAN_USE_DOM) {
+            document.documentElement.setAttribute('data-theme', this.themeColor);
+        }
+    }
+}
+export const themeTracker = new ThemeTracker();
+
+=== 442 packages/svelte-lexical/src/lib/components/richtext/RichTextComposer.svelte.test.ts	js
+import { expect, test } from 'vitest';
+import { render } from '@testing-library/svelte';
+import '@testing-library/jest-dom/vitest';
+//import userEvent from '@testing-library/user-event'
+import RichTextComposer from './RichTextComposer.svelte';
+test('have Bold button in toolbar', () => {
+    const { getByLabelText } = render(RichTextComposer, {});
+    expect(getByLabelText('Format text as bold. Shortcut: Ctrl+B')).toBeInTheDocument();
+});
+
+=== 1135 packages/svelte-lexical/src/lib/components/toolbar/ToolbarData.ts	js
+import { DEFAULT_FONT_SIZE } from '$lib/core/commands/updateFontSize.js';
+export const rootTypeToRootName = {
+    root: 'Root',
+    table: 'Table',
+};
+export const blockTypeToBlockName = {
+    bullet: 'Bulleted List',
+    check: 'Check List',
+    code: 'Code Block',
+    h1: 'Heading 1',
+    h2: 'Heading 2',
+    h3: 'Heading 3',
+    h4: 'Heading 4',
+    h5: 'Heading 5',
+    h6: 'Heading 6',
+    number: 'Numbered List',
+    paragraph: 'Normal',
+    quote: 'Quote',
+};
+export const INITIAL_TOOLBAR_STATE = {
+    bgColor: '#fff',
+    blockType: 'paragraph',
+    canRedo: false,
+    canUndo: false,
+    codeLanguage: '',
+    codeTheme: '',
+    elementFormat: 'left',
+    fontColor: '#000',
+    fontFamily: 'Arial',
+    // Current font size in px
+    fontSize: `${DEFAULT_FONT_SIZE}px`,
+    // Font size input value - for controlled input
+    fontSizeInputValue: `${DEFAULT_FONT_SIZE}`,
+    isBold: false,
+    isCode: false,
+    isImageCaption: false,
+    isItalic: false,
+    isLink: false,
+    isRTL: false,
+    isStrikethrough: false,
+    isSubscript: false,
+    isSuperscript: false,
+    isUnderline: false,
+    rootType: 'root',
+};
+
+=== 575 packages/svelte-lexical/src/lib/components/toolbar/getSelectionInfo.ts	js
+import { $isAtNodeEnd as isAtNodeEnd } from '@lexical/selection';
+export default function getSelectedNode(selection) {
+    const anchor = selection.anchor;
+    const focus = selection.focus;
+    const anchorNode = selection.anchor.getNode();
+    const focusNode = selection.focus.getNode();
+    if (anchorNode === focusNode) {
+        return anchorNode;
+    }
+    const isBackward = selection.isBackward();
+    if (isBackward) {
+        return isAtNodeEnd(focus) ? anchorNode : focusNode;
+    }
+    else {
+        return isAtNodeEnd(anchor) ? focusNode : anchorNode;
+    }
+}
+
+=== 6857 packages/svelte-lexical/src/lib/components/toolbar/shortcuts.ts	js
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import { IS_APPLE } from '@lexical/utils';
+import { isModifierMatch } from 'lexical';
+//disable eslint sorting rule for quick reference to shortcuts
+export const SHORTCUTS = Object.freeze({
+    // (Ctrl|⌘) + (Alt|Option) + <key> shortcuts
+    NORMAL: IS_APPLE ? '⌘+Opt+0' : 'Ctrl+Alt+0',
+    HEADING1: IS_APPLE ? '⌘+Opt+1' : 'Ctrl+Alt+1',
+    HEADING2: IS_APPLE ? '⌘+Opt+2' : 'Ctrl+Alt+2',
+    HEADING3: IS_APPLE ? '⌘+Opt+3' : 'Ctrl+Alt+3',
+    NUMBERED_LIST: IS_APPLE ? '⌘+Shift+7' : 'Ctrl+Shift+7',
+    BULLET_LIST: IS_APPLE ? '⌘+Shift+8' : 'Ctrl+Shift+8',
+    CHECK_LIST: IS_APPLE ? '⌘+Shift+9' : 'Ctrl+Shift+9',
+    CODE_BLOCK: IS_APPLE ? '⌘+Opt+C' : 'Ctrl+Alt+C',
+    QUOTE: IS_APPLE ? '⌃+Shift+Q' : 'Ctrl+Shift+Q',
+    ADD_COMMENT: IS_APPLE ? '⌘+Opt+M' : 'Ctrl+Alt+M',
+    // (Ctrl|⌘) + Shift + <key> shortcuts
+    INCREASE_FONT_SIZE: IS_APPLE ? '⌘+Shift+.' : 'Ctrl+Shift+.',
+    DECREASE_FONT_SIZE: IS_APPLE ? '⌘+Shift+,' : 'Ctrl+Shift+,',
+    INSERT_CODE_BLOCK: IS_APPLE ? '⌘+Shift+C' : 'Ctrl+Shift+C',
+    STRIKETHROUGH: IS_APPLE ? '⌘+Shift+X' : 'Ctrl+Shift+X',
+    LOWERCASE: IS_APPLE ? '⌃+Shift+1' : 'Ctrl+Shift+1',
+    UPPERCASE: IS_APPLE ? '⌃+Shift+2' : 'Ctrl+Shift+2',
+    CAPITALIZE: IS_APPLE ? '⌃+Shift+3' : 'Ctrl+Shift+3',
+    CENTER_ALIGN: IS_APPLE ? '⌘+Shift+E' : 'Ctrl+Shift+E',
+    JUSTIFY_ALIGN: IS_APPLE ? '⌘+Shift+J' : 'Ctrl+Shift+J',
+    LEFT_ALIGN: IS_APPLE ? '⌘+Shift+L' : 'Ctrl+Shift+L',
+    RIGHT_ALIGN: IS_APPLE ? '⌘+Shift+R' : 'Ctrl+Shift+R',
+    // (Ctrl|⌘) + <key> shortcuts
+    SUBSCRIPT: IS_APPLE ? '⌘+,' : 'Ctrl+,',
+    SUPERSCRIPT: IS_APPLE ? '⌘+.' : 'Ctrl+.',
+    INDENT: IS_APPLE ? '⌘+]' : 'Ctrl+]',
+    OUTDENT: IS_APPLE ? '⌘+[' : 'Ctrl+[',
+    CLEAR_FORMATTING: IS_APPLE ? '⌘+\\' : 'Ctrl+\\',
+    REDO: IS_APPLE ? '⌘+Shift+Z' : 'Ctrl+Y',
+    UNDO: IS_APPLE ? '⌘+Z' : 'Ctrl+Z',
+    BOLD: IS_APPLE ? '⌘+B' : 'Ctrl+B',
+    ITALIC: IS_APPLE ? '⌘+I' : 'Ctrl+I',
+    UNDERLINE: IS_APPLE ? '⌘+U' : 'Ctrl+U',
+    INSERT_LINK: IS_APPLE ? '⌘+K' : 'Ctrl+K',
+});
+const CONTROL_OR_META = { ctrlKey: !IS_APPLE, metaKey: IS_APPLE };
+export function isFormatParagraph(event) {
+    const { code } = event;
+    return ((code === 'Numpad0' || code === 'Digit0') &&
+        isModifierMatch(event, { ...CONTROL_OR_META, altKey: true }));
+}
+export function isFormatHeading(event) {
+    const { code } = event;
+    // Apple pencil keyboard events don't have a code property
+    if (!code) {
+        return false;
+    }
+    const keyNumber = code[code.length - 1];
+    return (['1', '2', '3'].includes(keyNumber) &&
+        isModifierMatch(event, { ...CONTROL_OR_META, altKey: true }));
+}
+export function isFormatNumberedList(event) {
+    const { code } = event;
+    return ((code === 'Numpad7' || code === 'Digit7') &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isFormatBulletList(event) {
+    const { code } = event;
+    return ((code === 'Numpad8' || code === 'Digit8') &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isFormatCheckList(event) {
+    const { code } = event;
+    return ((code === 'Numpad9' || code === 'Digit9') &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isFormatCode(event) {
+    const { code } = event;
+    return (code === 'KeyC' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, altKey: true }));
+}
+export function isFormatQuote(event) {
+    const { code } = event;
+    return (code === 'KeyQ' &&
+        isModifierMatch(event, {
+            ctrlKey: true,
+            shiftKey: true,
+        }));
+}
+export function isLowercase(event) {
+    const { code } = event;
+    return ((code === 'Numpad1' || code === 'Digit1') &&
+        isModifierMatch(event, { ctrlKey: true, shiftKey: true }));
+}
+export function isUppercase(event) {
+    const { code } = event;
+    return ((code === 'Numpad2' || code === 'Digit2') &&
+        isModifierMatch(event, { ctrlKey: true, shiftKey: true }));
+}
+export function isCapitalize(event) {
+    const { code } = event;
+    return ((code === 'Numpad3' || code === 'Digit3') &&
+        isModifierMatch(event, { ctrlKey: true, shiftKey: true }));
+}
+export function isStrikeThrough(event) {
+    const { code } = event;
+    return (code === 'KeyX' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isIndent(event) {
+    const { code } = event;
+    return code === 'BracketRight' && isModifierMatch(event, CONTROL_OR_META);
+}
+export function isOutdent(event) {
+    const { code } = event;
+    return code === 'BracketLeft' && isModifierMatch(event, CONTROL_OR_META);
+}
+export function isCenterAlign(event) {
+    const { code } = event;
+    return (code === 'KeyE' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isLeftAlign(event) {
+    const { code } = event;
+    return (code === 'KeyL' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isRightAlign(event) {
+    const { code } = event;
+    return (code === 'KeyR' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isJustifyAlign(event) {
+    const { code } = event;
+    return (code === 'KeyJ' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isSubscript(event) {
+    const { code } = event;
+    return code === 'Comma' && isModifierMatch(event, CONTROL_OR_META);
+}
+export function isSuperscript(event) {
+    const { code } = event;
+    return code === 'Period' && isModifierMatch(event, CONTROL_OR_META);
+}
+export function isInsertCodeBlock(event) {
+    const { code } = event;
+    return (code === 'KeyC' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isIncreaseFontSize(event) {
+    const { code } = event;
+    return (code === 'Period' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isDecreaseFontSize(event) {
+    const { code } = event;
+    return (code === 'Comma' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, shiftKey: true }));
+}
+export function isClearFormatting(event) {
+    const { code } = event;
+    return code === 'Backslash' && isModifierMatch(event, CONTROL_OR_META);
+}
+export function isInsertLink(event) {
+    const { code } = event;
+    return code === 'KeyK' && isModifierMatch(event, CONTROL_OR_META);
+}
+export function isAddComment(event) {
+    const { code } = event;
+    return (code === 'KeyM' &&
+        isModifierMatch(event, { ...CONTROL_OR_META, altKey: true }));
+}
+
+=== 8846 packages/svelte-lexical/src/lib/core/commands/commands.ts	js
+import { INSERT_IMAGE_COMMAND } from '../plugins/Image/ImagePlugin.svelte';
+import { $createCodeNode } from '@lexical/code';
+import { INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, } from '@lexical/list';
+import { $isDecoratorBlockNode } from '../plugins/DecoratorBlockNode.js';
+import { $createHeadingNode, $createQuoteNode, $isHeadingNode, $isQuoteNode, } from '@lexical/rich-text';
+import { $setBlocksType } from '@lexical/selection';
+import { $isTableSelection, INSERT_TABLE_COMMAND } from '@lexical/table';
+import { $getNearestBlockElementAncestorOrThrow } from '@lexical/utils';
+import { $createParagraphNode, $getSelection, $isRangeSelection, $isTextNode, FORMAT_TEXT_COMMAND, REDO_COMMAND, UNDO_COMMAND, } from 'lexical';
+import { TOGGLE_LINK_COMMAND } from '@lexical/link';
+import { sanitizeUrl } from '../plugins/link/url.js';
+import { INSERT_BLUESKY_COMMAND, } from '../plugins/bluesky/BlueskyPlugin.svelte';
+import { INSERT_LAYOUT_COMMAND } from '../plugins/ColumnsLayout/LayoutItemNode.js';
+import { INSERT_TWEET_COMMAND } from '../plugins/twitter/TwitterPlugin.svelte';
+import { INSERT_YOUTUBE_COMMAND } from '../plugins/youtube/YoutubePlugin.svelte';
+export const formatParagraph = (editor) => {
+    editor.update(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection)) {
+            $setBlocksType(selection, () => $createParagraphNode());
+        }
+    });
+};
+export const formatHeading = (editor, blockType, headingSize) => {
+    if (blockType !== headingSize) {
+        editor.update(() => {
+            const selection = $getSelection();
+            $setBlocksType(selection, () => $createHeadingNode(headingSize));
+        });
+    }
+};
+export const formatBulletList = (editor, blockType) => {
+    if (blockType !== 'bullet') {
+        editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined);
+    }
+    else {
+        formatParagraph(editor);
+    }
+};
+export const formatCheckList = (editor, blockType) => {
+    if (blockType !== 'check') {
+        editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined);
+    }
+    else {
+        formatParagraph(editor);
+    }
+};
+export const formatNumberedList = (editor, blockType) => {
+    if (blockType !== 'number') {
+        editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined);
+    }
+    else {
+        formatParagraph(editor);
+    }
+};
+export const formatQuote = (editor, blockType) => {
+    if (blockType !== 'quote') {
+        editor.update(() => {
+            const selection = $getSelection();
+            $setBlocksType(selection, () => $createQuoteNode());
+        });
+    }
+};
+export const formatCode = (editor, blockType) => {
+    if (blockType !== 'code') {
+        editor.update(() => {
+            let selection = $getSelection();
+            if (!selection) {
+                return;
+            }
+            if (!$isRangeSelection(selection) || selection.isCollapsed()) {
+                $setBlocksType(selection, () => $createCodeNode());
+            }
+            else {
+                const textContent = selection.getTextContent();
+                const codeNode = $createCodeNode();
+                selection.insertNodes([codeNode]);
+                selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    selection.insertRawText(textContent);
+                }
+            }
+        });
+    }
+};
+export function toggleBold(editor) {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
+}
+export function toggleItalic(editor) {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
+}
+export function toggleStrikethrough(editor) {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
+}
+export function toggleUnderline(editor) {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
+}
+export function toggleSubscript(editor) {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'subscript');
+}
+export function toggleSuperscript(editor) {
+    editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'superscript');
+}
+export function undo(editor) {
+    editor.dispatchCommand(UNDO_COMMAND, undefined);
+}
+export function redo(editor) {
+    editor.dispatchCommand(REDO_COMMAND, undefined);
+}
+export const clearFormatting = (editor) => {
+    editor.update(() => {
+        const selection = $getSelection();
+        if ($isRangeSelection(selection) || $isTableSelection(selection)) {
+            const anchor = selection.anchor;
+            const focus = selection.focus;
+            const nodes = selection.getNodes();
+            const extractedNodes = selection.extract();
+            if (anchor.key === focus.key && anchor.offset === focus.offset) {
+                return;
+            }
+            nodes.forEach((node, idx) => {
+                // We split the first and last node by the selection
+                // So that we don't format unselected text inside those nodes
+                if ($isTextNode(node)) {
+                    // Use a separate variable to ensure TS does not lose the refinement
+                    let textNode = node;
+                    if (idx === 0 && anchor.offset !== 0) {
+                        textNode = textNode.splitText(anchor.offset)[1] || textNode;
+                    }
+                    if (idx === nodes.length - 1) {
+                        textNode = textNode.splitText(focus.offset)[0] || textNode;
+                    }
+                    /**
+                     * If the selected text has one format applied
+                     * selecting a portion of the text, could
+                     * clear the format to the wrong portion of the text.
+                     *
+                     * The cleared text is based on the length of the selected text.
+                     */
+                    // We need this in case the selected text only has one format
+                    const extractedTextNode = extractedNodes[0];
+                    if (nodes.length === 1 && $isTextNode(extractedTextNode)) {
+                        textNode = extractedTextNode;
+                    }
+                    if (textNode.__style !== '') {
+                        textNode.setStyle('');
+                    }
+                    if (textNode.__format !== 0) {
+                        textNode.setFormat(0);
+                    }
+                    const nearestBlockElement = $getNearestBlockElementAncestorOrThrow(textNode);
+                    if (nearestBlockElement.__format !== 0) {
+                        nearestBlockElement.setFormat('');
+                    }
+                    if (nearestBlockElement.__indent !== 0) {
+                        nearestBlockElement.setIndent(0);
+                    }
+                    node = textNode;
+                }
+                else if ($isHeadingNode(node) || $isQuoteNode(node)) {
+                    node.replace($createParagraphNode(), true);
+                }
+                else if ($isDecoratorBlockNode(node)) {
+                    node.setFormat('');
+                }
+            });
+        }
+    });
+};
+export function InsertLink(editor, isLink) {
+    if (!isLink) {
+        return editor.dispatchCommand(TOGGLE_LINK_COMMAND, sanitizeUrl('https://'));
+    }
+    else {
+        return editor.dispatchCommand(TOGGLE_LINK_COMMAND, null);
+    }
+}
+export function InsertImage(editor, payload) {
+    editor.dispatchCommand(INSERT_IMAGE_COMMAND, payload);
+}
+export function FocusEditor(editor, defaultSelection = undefined) {
+    editor.focus(() => {
+        // If we try and move selection to the same point with setBaseAndExtent, it won't
+        // trigger a re-focus on the element. So in the case this occurs, we'll need to correct it.
+        // Normally this is fine, Selection API !== Focus API, but fore the intents of the naming
+        // of this plugin, which should preserve focus too.
+        const activeElement = document.activeElement;
+        const rootElement = editor.getRootElement();
+        if (rootElement !== null &&
+            (activeElement === null || !rootElement.contains(activeElement))) {
+            // Note: preventScroll won't work in Webkit.
+            rootElement.focus({ preventScroll: true });
+        }
+    }, { defaultSelection });
+}
+export function insertBlueskyPost(editor, post) {
+    editor.dispatchCommand(INSERT_BLUESKY_COMMAND, post);
+}
+export function insertColumnsLayout(editor, template) {
+    editor.dispatchCommand(INSERT_LAYOUT_COMMAND, template);
+}
+export function insertTable(editor, columns, rows, includeHeaders = true) {
+    editor.dispatchCommand(INSERT_TABLE_COMMAND, {
+        columns,
+        rows,
+        includeHeaders,
+    });
+}
+export function insertTweet(editor, id) {
+    editor.dispatchCommand(INSERT_TWEET_COMMAND, id);
+}
+export function insertYoutube(editor, id) {
+    editor.dispatchCommand(INSERT_YOUTUBE_COMMAND, id);
+}
+
+=== 2289 packages/svelte-lexical/src/lib/core/commands/updateFontSize.ts	js
+import { $getSelection } from 'lexical';
+import { $patchStyleText } from '@lexical/selection';
+export const MIN_ALLOWED_FONT_SIZE = 8;
+export const MAX_ALLOWED_FONT_SIZE = 72;
+export const DEFAULT_FONT_SIZE = 15;
+export function increaseFontSize(editor, currentFontSize) {
+    const nextFontSize = calculateFontSizeIncrement(currentFontSize);
+    updateFontSize(editor, nextFontSize);
+}
+export function decreaseFontSize(editor, currentFontSize) {
+    const nextFontSize = calculateFontSizeDecrement(currentFontSize);
+    updateFontSize(editor, nextFontSize);
+}
+export function updateFontSize(editor, newFontSize) {
+    if (newFontSize > MAX_ALLOWED_FONT_SIZE) {
+        newFontSize = MAX_ALLOWED_FONT_SIZE;
+    }
+    else if (newFontSize < MIN_ALLOWED_FONT_SIZE) {
+        newFontSize = MIN_ALLOWED_FONT_SIZE;
+    }
+    const newFontSizeString = `${newFontSize}px`;
+    editor.update(() => {
+        if (editor.isEditable()) {
+            const selection = $getSelection();
+            if (selection !== null) {
+                $patchStyleText(selection, {
+                    'font-size': newFontSizeString,
+                });
+            }
+        }
+    });
+}
+function calculateFontSizeDecrement(currentFontSize) {
+    switch (true) {
+        case currentFontSize > MAX_ALLOWED_FONT_SIZE:
+            return MAX_ALLOWED_FONT_SIZE;
+        case currentFontSize >= 48:
+            return (currentFontSize -= 12);
+        case currentFontSize >= 24:
+            return (currentFontSize -= 4);
+        case currentFontSize >= 14:
+            return (currentFontSize -= 2);
+        case currentFontSize >= 9:
+            return (currentFontSize -= 1);
+        default:
+            return (currentFontSize = MIN_ALLOWED_FONT_SIZE);
+    }
+}
+function calculateFontSizeIncrement(currentFontSize) {
+    switch (true) {
+        case currentFontSize < MIN_ALLOWED_FONT_SIZE:
+            return MIN_ALLOWED_FONT_SIZE;
+        case currentFontSize < 12:
+            return (currentFontSize += 1);
+        case currentFontSize < 20:
+            return (currentFontSize += 2);
+        case currentFontSize < 36:
+            return (currentFontSize += 4);
+        case currentFontSize <= 60:
+            return (currentFontSize += 12);
+        default:
+            return MAX_ALLOWED_FONT_SIZE;
+    }
+}
+
+=== 1634 packages/svelte-lexical/src/lib/core/composerContext.ts	js
+import { getContext, setContext } from 'svelte';
+export function getEditor() {
+    return getContext('editor');
+}
+/**
+ * Save `editor` in the svelte component context
+ */
+export function setEditor(editor) {
+    setContext('editor', editor);
+}
+export function getIsEditable() {
+    return getContext('isEditable');
+}
+export function getActiveEditor() {
+    return getContext('activeEditor');
+}
+export function getHistoryStateContext() {
+    return getContext('historyState');
+}
+/**
+ * Save `historyState` in the svelte component context
+ */
+export function setHistoryStateContext(historyState) {
+    setContext('historyState', historyState);
+}
+export function getBlockType() {
+    return getContext('blockType');
+}
+export function getIsLink() {
+    return getContext('isLink');
+}
+/**
+ *
+ * @returns font size in px, example 15px
+ */
+export function getFontSize() {
+    return getContext('fontSize');
+}
+export function getBold() {
+    return getContext('isBold');
+}
+/**
+ * Editor plugins and decorator nodes don't fall under the same component hierarchy under the composer. They can't share context.
+ * This shared context at editor level allows sharing between plugins and decorator nodes.
+ */
+export function createSharedEditorContext() {
+    setContext('editorSharedContext', {});
+}
+export function getSharedEditorContext() {
+    return getContext('editorSharedContext');
+}
+export function setImageHistoryPluginType(componentTypeRef) {
+    getSharedEditorContext().ImageHistoryComponentType = componentTypeRef;
+}
+export function getImageHistoryPluginType() {
+    return getSharedEditorContext()
+        .ImageHistoryComponentType;
+}
+
+=== 145 packages/svelte-lexical/src/lib/core/editorExtensions.ts	js
+// Attributes stored in the Lexical Editor object by svelte-lexical
+export function initializeExtensions(editor) {
+    editor.extensions = {};
+}
+
+=== 1705 packages/svelte-lexical/src/lib/core/initializeEditor.ts	js
+import { $createParagraphNode, $getRoot, $getSelection, HISTORY_MERGE_TAG, } from 'lexical';
+import { CAN_USE_DOM } from '@lexical/utils';
+const HISTORY_MERGE_OPTIONS = { tag: HISTORY_MERGE_TAG };
+export function initializeEditor(editor, initialEditorState) {
+    if (initialEditorState === null) {
+        return;
+    }
+    else if (initialEditorState === undefined) {
+        editor.update(() => {
+            const root = $getRoot();
+            if (root.isEmpty()) {
+                const paragraph = $createParagraphNode();
+                root.append(paragraph);
+                const activeElement = CAN_USE_DOM ? document.activeElement : null;
+                if ($getSelection() !== null ||
+                    (activeElement !== null && activeElement === editor.getRootElement())) {
+                    paragraph.select();
+                }
+            }
+        }, HISTORY_MERGE_OPTIONS);
+    }
+    else if (initialEditorState !== null) {
+        switch (typeof initialEditorState) {
+            case 'string': {
+                const parsedEditorState = editor.parseEditorState(initialEditorState);
+                editor.setEditorState(parsedEditorState, HISTORY_MERGE_OPTIONS);
+                break;
+            }
+            case 'object': {
+                editor.setEditorState(initialEditorState, HISTORY_MERGE_OPTIONS);
+                break;
+            }
+            case 'function': {
+                editor.update(() => {
+                    const root = $getRoot();
+                    if (root.isEmpty()) {
+                        initialEditorState(editor);
+                    }
+                }, HISTORY_MERGE_OPTIONS);
+                break;
+            }
+        }
+    }
+}
+
+=== 1758 packages/svelte-lexical/src/lib/core/nodeSelectionStore.ts	js
+/**
+ * Ported from lexical/packages/lexical-react/src/useLexicalNodeSelection.ts
+ */
+import { $createNodeSelection, $getNodeByKey, $getSelection, $isNodeSelection, $setSelection, } from 'lexical';
+import { writable } from 'svelte/store';
+export function isNodeSelected(editor, key) {
+    return editor.getEditorState().read(() => {
+        const node = $getNodeByKey(key);
+        if (node === null) {
+            return false;
+        }
+        return node.isSelected();
+    });
+}
+/**
+ * Clear editor selection
+ */
+export function clearSelection(editor) {
+    editor.update(() => {
+        const selection = $getSelection();
+        if ($isNodeSelection(selection)) {
+            selection.clear();
+        }
+    });
+}
+/**
+ * Stores `isSelected` state for a SvelteComponent node.
+ * Rather than updating the component state directly, it updates the editor node selection and receives updates from the editor.
+ */
+export function createNodeSelectionStore(editor, nodeKey) {
+    const { subscribe, set /*, update*/ } = writable(false);
+    editor.registerUpdateListener(() => {
+        set(isNodeSelected(editor, nodeKey));
+    });
+    return {
+        subscribe,
+        set: (selected) => {
+            editor.update(() => {
+                let selection = $getSelection();
+                if (!$isNodeSelection(selection)) {
+                    selection = $createNodeSelection();
+                    $setSelection(selection);
+                }
+                if ($isNodeSelection(selection)) {
+                    if (selected) {
+                        selection.add(nodeKey);
+                    }
+                    else {
+                        selection.delete(nodeKey);
+                    }
+                }
+            });
+        },
+    };
+}
+
+=== 1207 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierLangOptions.ts	js
+const PRETTIER_PARSER_MODULES = {
+    css: async () => [await import('prettier/parser-postcss')],
+    html: async () => [await import('prettier/parser-html')],
+    js: async () => [
+        await import('prettier/parser-babel'),
+        (await import('prettier/plugins/estree')),
+    ],
+    markdown: async () => [await import('prettier/parser-markdown')],
+    typescript: async () => [
+        await import('prettier/parser-typescript'),
+        (await import('prettier/plugins/estree')),
+    ],
+};
+export async function loadPrettierParserByLang(lang) {
+    const dynamicImport = PRETTIER_PARSER_MODULES[lang];
+    return await dynamicImport();
+}
+export async function loadPrettierFormat() {
+    const { format } = await import('prettier/standalone');
+    return format;
+}
+export const PRETTIER_OPTIONS_BY_LANG = {
+    css: {
+        parser: 'css',
+    },
+    html: {
+        parser: 'html',
+    },
+    js: {
+        parser: 'babel',
+    },
+    markdown: {
+        parser: 'markdown',
+    },
+    typescript: {
+        parser: 'typescript',
+    },
+};
+const LANG_CAN_BE_PRETTIER = Object.keys(PRETTIER_OPTIONS_BY_LANG);
+export function canBePrettier(lang) {
+    return LANG_CAN_BE_PRETTIER.includes(lang);
+}
+
+=== 234 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/utils.ts	js
+import { debounce } from 'lodash-es';
+export function useDebounce(fn, ms, maxWait) {
+    const funcRef = fn;
+    return debounce((...args) => {
+        if (funcRef) {
+            funcRef(...args);
+        }
+    }, ms, { maxWait });
+}
+
+=== 2918 packages/svelte-lexical/src/lib/core/plugins/ColumnsLayout/LayoutContainerNode.ts	js
+import { addClassNamesToElement } from '@lexical/utils';
+import { ElementNode } from 'lexical';
+function $convertLayoutContainerElement(domNode) {
+    const styleAttributes = window.getComputedStyle(domNode);
+    const templateColumns = styleAttributes.getPropertyValue('grid-template-columns');
+    if (templateColumns) {
+        const node = $createLayoutContainerNode(templateColumns);
+        return { node };
+    }
+    return null;
+}
+export class LayoutContainerNode extends ElementNode {
+    __templateColumns;
+    constructor(templateColumns, key) {
+        super(key);
+        this.__templateColumns = templateColumns;
+    }
+    static getType() {
+        return 'layout-container';
+    }
+    static clone(node) {
+        return new LayoutContainerNode(node.__templateColumns, node.__key);
+    }
+    createDOM(config) {
+        const dom = document.createElement('div');
+        dom.style.gridTemplateColumns = this.__templateColumns;
+        if (typeof config.theme.layoutContainer === 'string') {
+            addClassNamesToElement(dom, config.theme.layoutContainer);
+        }
+        return dom;
+    }
+    exportDOM() {
+        const element = document.createElement('div');
+        element.style.gridTemplateColumns = this.__templateColumns;
+        element.setAttribute('data-lexical-layout-container', 'true');
+        return { element };
+    }
+    updateDOM(prevNode, dom) {
+        if (prevNode.__templateColumns !== this.__templateColumns) {
+            dom.style.gridTemplateColumns = this.__templateColumns;
+        }
+        return false;
+    }
+    static importDOM() {
+        return {
+            div: (domNode) => {
+                if (!domNode.hasAttribute('data-lexical-layout-container')) {
+                    return null;
+                }
+                return {
+                    conversion: $convertLayoutContainerElement,
+                    priority: 2,
+                };
+            },
+        };
+    }
+    static importJSON(json) {
+        return $createLayoutContainerNode().updateFromJSON(json);
+    }
+    updateFromJSON(serializedNode) {
+        return super
+            .updateFromJSON(serializedNode)
+            .setTemplateColumns(serializedNode.templateColumns);
+    }
+    isShadowRoot() {
+        return true;
+    }
+    canBeEmpty() {
+        return false;
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            templateColumns: this.__templateColumns,
+        };
+    }
+    getTemplateColumns() {
+        return this.getLatest().__templateColumns;
+    }
+    setTemplateColumns(templateColumns) {
+        const self = this.getWritable();
+        self.__templateColumns = templateColumns;
+        return self;
+    }
+}
+export function $createLayoutContainerNode(templateColumns = '') {
+    return new LayoutContainerNode(templateColumns);
+}
+export function $isLayoutContainerNode(node) {
+    return node instanceof LayoutContainerNode;
+}
+
+=== 2133 packages/svelte-lexical/src/lib/core/plugins/ColumnsLayout/LayoutItemNode.ts	js
+import { $isParagraphNode, ElementNode } from 'lexical';
+import { createCommand } from 'lexical';
+import { addClassNamesToElement } from '@lexical/utils';
+function $convertLayoutItemElement() {
+    return { node: $createLayoutItemNode() };
+}
+export function $isEmptyLayoutItemNode(node) {
+    if (!$isLayoutItemNode(node) || node.getChildrenSize() !== 1) {
+        return false;
+    }
+    const firstChild = node.getFirstChild();
+    return $isParagraphNode(firstChild) && firstChild.isEmpty();
+}
+export const INSERT_LAYOUT_COMMAND = createCommand('INSERT_LAYOUT_COMMAND');
+export const UPDATE_LAYOUT_COMMAND = createCommand();
+export class LayoutItemNode extends ElementNode {
+    static getType() {
+        return 'layout-item';
+    }
+    static clone(node) {
+        return new LayoutItemNode(node.__key);
+    }
+    createDOM(config) {
+        const dom = document.createElement('div');
+        dom.setAttribute('data-lexical-layout-item', 'true');
+        if (typeof config.theme.layoutItem === 'string') {
+            addClassNamesToElement(dom, config.theme.layoutItem);
+        }
+        return dom;
+    }
+    updateDOM() {
+        return false;
+    }
+    collapseAtStart() {
+        const parent = this.getParentOrThrow();
+        if (this.is(parent.getFirstChild()) &&
+            parent.getChildren().every($isEmptyLayoutItemNode)) {
+            parent.remove();
+            return true;
+        }
+        return false;
+    }
+    static importDOM() {
+        return {
+            div: (domNode) => {
+                if (!domNode.hasAttribute('data-lexical-layout-item')) {
+                    return null;
+                }
+                return {
+                    conversion: $convertLayoutItemElement,
+                    priority: 2,
+                };
+            },
+        };
+    }
+    static importJSON(serializedNode) {
+        return $createLayoutItemNode().updateFromJSON(serializedNode);
+    }
+    isShadowRoot() {
+        return true;
+    }
+}
+export function $createLayoutItemNode() {
+    return new LayoutItemNode();
+}
+export function $isLayoutItemNode(node) {
+    return node instanceof LayoutItemNode;
+}
+
+=== 647 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerOption.ts	js
+import { MenuOption } from '$lib/components/generic/contextmenu/contextMenuHelpers.js';
+export class ComponentPickerOption extends MenuOption {
+    // What shows up in the editor
+    title;
+    // Icon for display
+    icon;
+    // For extra searching.
+    keywords;
+    // TBD
+    keyboardShortcut;
+    // What happens when you select this option?
+    onSelect;
+    constructor(title, options) {
+        super(title);
+        this.title = title;
+        this.keywords = options.keywords || [];
+        this.icon = options.icon;
+        this.keyboardShortcut = options.keyboardShortcut;
+        this.onSelect = options.onSelect.bind(this);
+    }
+}
+
+=== 9447 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/getOptions.ts	js
+import { $createParagraphNode, $getSelection, $isRangeSelection, FORMAT_ELEMENT_COMMAND, } from 'lexical';
+import { ComponentPickerOption } from './ComponentPickerOption.js';
+import { $setBlocksType } from '@lexical/selection';
+import { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+import { INSERT_CHECK_LIST_COMMAND, INSERT_ORDERED_LIST_COMMAND, INSERT_UNORDERED_LIST_COMMAND, } from '@lexical/list';
+import { $createCodeNode } from '@lexical/code';
+import { INSERT_HORIZONTAL_RULE_COMMAND } from '../HorizontalRuleNode.js';
+import { INSERT_TABLE_COMMAND } from '@lexical/table';
+export function getBaseOptions(editor /*, showModal: ShowModal */) {
+    return [
+        new ComponentPickerOption('Paragraph', {
+            icon: 'icon paragraph',
+            keywords: ['normal', 'paragraph', 'p', 'text'],
+            onSelect: () => editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    $setBlocksType(selection, () => $createParagraphNode());
+                }
+            }),
+        }),
+        ...[1, 2, 3].map((n) => new ComponentPickerOption(`Heading ${n}`, {
+            icon: `icon h${n}`,
+            keywords: ['heading', 'header', `h${n}`],
+            onSelect: () => editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    $setBlocksType(selection, () => $createHeadingNode(`h${n}`));
+                }
+            }),
+        })),
+        new ComponentPickerOption('Table', {
+            icon: 'icon table',
+            keywords: ['table', 'grid', 'spreadsheet', 'rows', 'columns'],
+            onSelect: () => editor.extensions.openInsertTableDialog(),
+        }),
+        new ComponentPickerOption('Numbered List', {
+            icon: 'icon number',
+            keywords: ['numbered list', 'ordered list', 'ol'],
+            onSelect: () => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
+        }),
+        new ComponentPickerOption('Bulleted List', {
+            icon: 'icon bullet',
+            keywords: ['bulleted list', 'unordered list', 'ul'],
+            onSelect: () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
+        }),
+        new ComponentPickerOption('Check List', {
+            icon: 'icon check',
+            keywords: ['check list', 'todo list'],
+            onSelect: () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined),
+        }),
+        new ComponentPickerOption('Quote', {
+            icon: 'icon quote',
+            keywords: ['block quote'],
+            onSelect: () => editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    $setBlocksType(selection, () => $createQuoteNode());
+                }
+            }),
+        }),
+        new ComponentPickerOption('Code', {
+            icon: 'icon code',
+            keywords: ['javascript', 'python', 'js', 'codeblock'],
+            onSelect: () => editor.update(() => {
+                const selection = $getSelection();
+                if ($isRangeSelection(selection)) {
+                    if (selection.isCollapsed()) {
+                        $setBlocksType(selection, () => $createCodeNode());
+                    }
+                    else {
+                        // Will this ever happen?
+                        const textContent = selection.getTextContent();
+                        const codeNode = $createCodeNode();
+                        selection.insertNodes([codeNode]);
+                        selection.insertRawText(textContent);
+                    }
+                }
+            }),
+        }),
+        new ComponentPickerOption('Divider', {
+            icon: 'icon horizontal-rule',
+            keywords: ['horizontal rule', 'divider', 'hr'],
+            onSelect: () => editor.dispatchCommand(INSERT_HORIZONTAL_RULE_COMMAND, undefined),
+        }),
+        // new ComponentPickerOption('Page Break', {
+        //   icon: "icon page-break",
+        //   keywords: ['page break', 'divider'],
+        //   onSelect: () => editor.dispatchCommand(INSERT_PAGE_BREAK, undefined),
+        // }),
+        // new ComponentPickerOption('Excalidraw', {
+        //   icon: "icon diagram-2",
+        //   keywords: ['excalidraw', 'diagram', 'drawing'],
+        //   onSelect: () =>
+        //     editor.dispatchCommand(INSERT_EXCALIDRAW_COMMAND, undefined),
+        // }),
+        // new ComponentPickerOption('Poll', {
+        //   icon: "icon poll",
+        //   keywords: ['poll', 'vote'],
+        //   onSelect: () =>
+        //     showModal('Insert Poll', (onClose) => (
+        //       <InsertPollDialog activeEditor={editor} onClose={onClose} />
+        //     )),
+        // }),
+        // ...EmbedConfigs.map(
+        //   (embedConfig) =>
+        //     new ComponentPickerOption(`Embed ${embedConfig.contentName}`, {
+        //       icon: embedConfig.icon,
+        //       keywords: [...embedConfig.keywords, 'embed'],
+        //       onSelect: () =>
+        //         editor.dispatchCommand(INSERT_EMBED_COMMAND, embedConfig.type),
+        //     }),
+        // ),
+        // // new ComponentPickerOption('Date', {
+        // //   icon: "icon calendar",
+        // //   keywords: ['date', 'calendar', 'time'],
+        // //   onSelect: () => {
+        // //     const dateTime = new Date();
+        // //     dateTime.setHours(0, 0, 0, 0); // Set time to midnight
+        // //     editor.dispatchCommand(INSERT_DATETIME_COMMAND, {dateTime});
+        // //   },
+        // // }),
+        // new ComponentPickerOption('Today', {
+        //   icon: "icon calendar",
+        //   keywords: ['date', 'calendar', 'time', 'today'],
+        //   onSelect: () => {
+        //     const dateTime = new Date();
+        //     dateTime.setHours(0, 0, 0, 0); // Set time to midnight
+        //     editor.dispatchCommand(INSERT_DATETIME_COMMAND, {dateTime});
+        //   },
+        // }),
+        // new ComponentPickerOption('Tomorrow', {
+        //   icon: "icon calendar",
+        //   keywords: ['date', 'calendar', 'time', 'tomorrow'],
+        //   onSelect: () => {
+        //     const dateTime = new Date();
+        //     dateTime.setDate(dateTime.getDate() + 1);
+        //     dateTime.setHours(0, 0, 0, 0); // Set time to midnight
+        //     editor.dispatchCommand(INSERT_DATETIME_COMMAND, {dateTime});
+        //   },
+        // }),
+        // new ComponentPickerOption('Yesterday', {
+        //   icon: "icon calendar",
+        //   keywords: ['date', 'calendar', 'time', 'yesterday'],
+        //   onSelect: () => {
+        //     const dateTime = new Date();
+        //     dateTime.setDate(dateTime.getDate() - 1);
+        //     dateTime.setHours(0, 0, 0, 0); // Set time to midnight
+        //     editor.dispatchCommand(INSERT_DATETIME_COMMAND, {dateTime});
+        //   },
+        // }),
+        // new ComponentPickerOption('Equation', {
+        //   icon: "icon equation",
+        //   keywords: ['equation', 'latex', 'math'],
+        //   onSelect: () =>
+        //     showModal('Insert Equation', (onClose) => (
+        //       <InsertEquationDialog activeEditor={editor} onClose={onClose} />
+        //     )),
+        // }),
+        // new ComponentPickerOption('GIF', {
+        //   icon: "icon gif",
+        //   keywords: ['gif', 'animate', 'image', 'file'],
+        //   onSelect: () =>
+        //     editor.dispatchCommand(INSERT_IMAGE_COMMAND, {
+        //       altText: 'Cat typing on a laptop',
+        //       src: catTypingGif,
+        //     }),
+        // }),
+        new ComponentPickerOption('Image', {
+            icon: 'icon image',
+            keywords: ['image', 'photo', 'picture', 'file'],
+            onSelect: () => editor.extensions.openInsertImageDialog(),
+        }),
+        // new ComponentPickerOption('Collapsible', {
+        //   icon: "icon caret-right",
+        //   keywords: ['collapse', 'collapsible', 'toggle'],
+        //   onSelect: () =>
+        //     editor.dispatchCommand(INSERT_COLLAPSIBLE_COMMAND, undefined),
+        // }),
+        new ComponentPickerOption('Columns Layout', {
+            icon: 'icon columns',
+            keywords: ['columns', 'layout', 'grid'],
+            onSelect: () => editor.extensions.openInsertColumnsDialog(),
+        }),
+        ...['left', 'center', 'right', 'justify'].map((alignment) => new ComponentPickerOption(`Align ${alignment}`, {
+            icon: 'icon ' + alignment + '-align',
+            keywords: ['align', 'justify', alignment],
+            onSelect: () => editor.dispatchCommand(FORMAT_ELEMENT_COMMAND, alignment),
+        })),
+    ];
+}
+export function getDynamicOptions(editor, queryString) {
+    const options = [];
+    if (queryString == null) {
+        return options;
+    }
+    const tableMatch = queryString.match(/^([1-9]\d?)(?:x([1-9]\d?)?)?$/);
+    if (tableMatch !== null) {
+        const rows = tableMatch[1];
+        const colOptions = tableMatch[2]
+            ? [tableMatch[2]]
+            : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(String);
+        options.push(...colOptions.map((columns) => new ComponentPickerOption(`${rows}x${columns} Table`, {
+            icon: 'icon table',
+            keywords: ['table'],
+            onSelect: () => editor.dispatchCommand(INSERT_TABLE_COMMAND, { columns, rows }),
+        })));
+    }
+    return options;
+}
+
+=== 1118 packages/svelte-lexical/src/lib/core/plugins/DecoratorBlockNode.ts	js
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import { DecoratorNode } from 'lexical';
+export class DecoratorBlockNode extends DecoratorNode {
+    __format;
+    constructor(format, key) {
+        super(key);
+        this.__format = format || '';
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            format: this.__format || '',
+        };
+    }
+    updateFromJSON(serializedNode) {
+        return super
+            .updateFromJSON(serializedNode)
+            .setFormat(serializedNode.format || '');
+    }
+    canIndent() {
+        return false;
+    }
+    createDOM() {
+        return document.createElement('div');
+    }
+    updateDOM() {
+        return false;
+    }
+    setFormat(format) {
+        const self = this.getWritable();
+        self.__format = format;
+        return self;
+    }
+    isInline() {
+        return false;
+    }
+}
+export function $isDecoratorBlockNode(node) {
+    return node instanceof DecoratorBlockNode;
+}
+
+=== 1318 packages/svelte-lexical/src/lib/core/plugins/HashtagNode.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import { TextNode } from 'lexical';
+export class HashtagNode extends TextNode {
+    static getType() {
+        return 'hashtag';
+    }
+    static clone(node) {
+        return new HashtagNode(node.__text, node.__key);
+    }
+    static importJSON(serializedNode) {
+        const node = $createHashtagNode(serializedNode.text);
+        node.setFormat(serializedNode.format);
+        node.setDetail(serializedNode.detail);
+        node.setMode(serializedNode.mode);
+        node.setStyle(serializedNode.style);
+        return node;
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            type: 'hashtag',
+            version: 1,
+        };
+    }
+    createDOM(config) {
+        const dom = super.createDOM(config);
+        dom.classList.add(config.theme.hashtag);
+        return dom;
+    }
+    canInsertTextBefore() {
+        return false;
+    }
+    canInsertTextAfter() {
+        return true;
+    }
+    isTextEntity() {
+        return true;
+    }
+}
+export function $createHashtagNode(hashtag) {
+    return new HashtagNode(hashtag);
+}
+export function $isHashtagNode(node) {
+    return node instanceof HashtagNode;
+}
+
+=== 2147 packages/svelte-lexical/src/lib/core/plugins/HorizontalRuleNode.ts	js
+import { createCommand, DecoratorNode, $applyNodeReplacement } from 'lexical';
+import HorizontalRuleComponent from './HorizontalRuleComponent.svelte';
+import { addClassNamesToElement } from '@lexical/utils';
+import { mount } from 'svelte';
+export const INSERT_HORIZONTAL_RULE_COMMAND = createCommand('INSERT_HORIZONTAL_RULE_COMMAND');
+export class HorizontalRuleNode extends DecoratorNode {
+    static getType() {
+        return 'horizontalrule';
+    }
+    static clone(node) {
+        return new HorizontalRuleNode(node.__key);
+    }
+    static importJSON(serializedNode) {
+        return $createHorizontalRuleNode().updateFromJSON(serializedNode);
+    }
+    static importDOM() {
+        return {
+            hr: () => ({
+                conversion: convertHorizontalRuleElement,
+                priority: 0,
+            }),
+        };
+    }
+    /**
+     * It tells `Decorater.svelte` that this component doesn't need rendering during decorator listener call.
+     * `this.decorate` should also return null when skipDecorateRender is true
+     */
+    static skipDecorateRender = true;
+    exportDOM() {
+        return { element: document.createElement('hr') };
+    }
+    createDOM(config, editor) {
+        const hr = document.createElement('hr');
+        addClassNamesToElement(hr, config.theme.hr);
+        mount(HorizontalRuleComponent, {
+            target: hr,
+            props: {
+                nodeKey: this.__key,
+                editor,
+                self: hr,
+            },
+        });
+        return hr;
+    }
+    getTextContent() {
+        return '\n';
+    }
+    isInline() {
+        return false;
+    }
+    updateDOM() {
+        return false;
+    }
+    /**
+     * @returns should return null if not participating in decorator rendering (skipDecorateRender should also be true)
+     */
+    decorate() {
+        return null;
+    }
+}
+function convertHorizontalRuleElement() {
+    return { node: $createHorizontalRuleNode() };
+}
+export function $createHorizontalRuleNode() {
+    return $applyNodeReplacement(new HorizontalRuleNode());
+}
+export function $isHorizontalRuleNode(node) {
+    return node instanceof HorizontalRuleNode;
+}
+
+=== 5685 packages/svelte-lexical/src/lib/core/plugins/Image/ImageNode.ts	js
+import { $applyNodeReplacement, createEditor, DecoratorNode, LineBreakNode, ParagraphNode, RootNode, TextNode, } from 'lexical';
+import ImageComponent from './ImageComponent.svelte';
+import { LinkNode } from '@lexical/link';
+import { HashtagNode } from '@lexical/hashtag';
+import { KeywordNode } from '../KeywordNode.js';
+function isGoogleDocCheckboxImg(img) {
+    return (img.parentElement != null &&
+        img.parentElement.tagName === 'LI' &&
+        img.previousSibling === null &&
+        img.getAttribute('aria-roledescription') === 'checkbox');
+}
+function convertImageElement(domNode) {
+    const img = domNode;
+    if (img.src.startsWith('file:///') || isGoogleDocCheckboxImg(img)) {
+        return null;
+    }
+    const { alt: altText, src, width, height } = img;
+    const node = $createImageNode({ altText, height, src, width });
+    return { node };
+}
+export class ImageNode extends DecoratorNode {
+    __src;
+    __altText;
+    __width;
+    __height;
+    __maxWidth;
+    __showCaption;
+    __caption;
+    // Captions cannot yet be used within editor cells
+    __captionsEnabled;
+    static getType() {
+        return 'image';
+    }
+    static clone(node) {
+        return new ImageNode(node.__src, node.__altText, node.__maxWidth, node.__width, node.__height, node.__showCaption, node.__caption, node.__captionsEnabled, node.__key);
+    }
+    static importJSON(serializedNode) {
+        const { altText, height, width, maxWidth, src, showCaption } = serializedNode;
+        return $createImageNode({
+            altText,
+            height,
+            maxWidth,
+            showCaption,
+            src,
+            width,
+        }).updateFromJSON(serializedNode);
+    }
+    updateFromJSON(serializedNode) {
+        const node = super.updateFromJSON(serializedNode);
+        const { caption } = serializedNode;
+        const nestedEditor = node.__caption;
+        const editorState = nestedEditor.parseEditorState(caption.editorState);
+        if (!editorState.isEmpty()) {
+            nestedEditor.setEditorState(editorState);
+        }
+        return node;
+    }
+    exportDOM() {
+        const element = document.createElement('img');
+        element.setAttribute('src', this.__src);
+        element.setAttribute('alt', this.__altText);
+        element.setAttribute('width', this.__width.toString());
+        element.setAttribute('height', this.__height.toString());
+        return { element };
+    }
+    static importDOM() {
+        return {
+            img: (node) => ({
+                conversion: convertImageElement,
+                priority: 0,
+            }),
+        };
+    }
+    constructor(src, altText, maxWidth, width, height, showCaption, caption, captionsEnabled, key) {
+        super(key);
+        this.__src = src;
+        this.__altText = altText;
+        this.__maxWidth = maxWidth;
+        this.__width = width || 'inherit';
+        this.__height = height || 'inherit';
+        this.__showCaption = showCaption || false;
+        this.__caption =
+            caption ||
+                createEditor({
+                    namespace: 'Playground/ImageNodeCaption',
+                    nodes: [
+                        RootNode,
+                        TextNode,
+                        LineBreakNode,
+                        ParagraphNode,
+                        LinkNode,
+                        HashtagNode,
+                        KeywordNode,
+                    ],
+                });
+        this.__captionsEnabled = captionsEnabled || captionsEnabled === undefined;
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            altText: this.getAltText(),
+            caption: this.__caption.toJSON(),
+            height: this.__height === 'inherit' ? 0 : this.__height,
+            maxWidth: this.__maxWidth,
+            showCaption: this.__showCaption,
+            src: this.getSrc(),
+            width: this.__width === 'inherit' ? 0 : this.__width,
+        };
+    }
+    setWidthAndHeight(width, height) {
+        const writable = this.getWritable();
+        writable.__width = width;
+        writable.__height = height;
+    }
+    setShowCaption(showCaption) {
+        const writable = this.getWritable();
+        writable.__showCaption = showCaption;
+    }
+    // View
+    createDOM(config) {
+        const span = document.createElement('span');
+        const theme = config.theme;
+        const className = theme.image;
+        if (className !== undefined) {
+            span.className = className;
+        }
+        return span;
+    }
+    updateDOM() {
+        return false;
+    }
+    getSrc() {
+        return this.__src;
+    }
+    getAltText() {
+        return this.__altText;
+    }
+    decorate(editor, config) {
+        return {
+            componentClass: ImageComponent,
+            updateProps: (props) => {
+                props.src = this.__src;
+                props.altText = this.__altText;
+                props.width = this.__width;
+                props.height = this.__height;
+                props.maxWidth = this.__maxWidth;
+                props.nodeKey = this.__key;
+                props.showCaption = this.__showCaption;
+                props.caption = this.__caption;
+                props.captionsEnabled = this.__captionsEnabled;
+                props.resizable = true;
+                props.editor = editor;
+            },
+        };
+    }
+}
+export function $createImageNode({ altText, height, maxWidth = 500, captionsEnabled, src, width, showCaption, caption, key, }) {
+    return $applyNodeReplacement(new ImageNode(src, altText, maxWidth, width, height, showCaption, caption, captionsEnabled, key));
+}
+export function $isImageNode(node) {
+    return node instanceof ImageNode;
+}
+
+=== 1056 packages/svelte-lexical/src/lib/core/plugins/KeywordNode.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import { $applyNodeReplacement, TextNode } from 'lexical';
+export class KeywordNode extends TextNode {
+    static getType() {
+        return 'keyword';
+    }
+    static clone(node) {
+        return new KeywordNode(node.__text, node.__key);
+    }
+    static importJSON(serializedNode) {
+        return $createKeywordNode().updateFromJSON(serializedNode);
+    }
+    createDOM(config) {
+        const dom = super.createDOM(config);
+        dom.style.cursor = 'default';
+        dom.className = 'keyword';
+        return dom;
+    }
+    canInsertTextBefore() {
+        return false;
+    }
+    canInsertTextAfter() {
+        return false;
+    }
+    isTextEntity() {
+        return true;
+    }
+}
+export function $createKeywordNode(keyword = '') {
+    return $applyNodeReplacement(new KeywordNode(keyword));
+}
+export function $isKeywordNode(node) {
+    return node instanceof KeywordNode;
+}
+
+=== 7228 packages/svelte-lexical/src/lib/core/plugins/MarkdownShortcut/transformers.ts	js
+import { $convertFromMarkdownString, $convertToMarkdownString, CHECK_LIST, CODE, HEADING, LINK, ORDERED_LIST, QUOTE, TEXT_FORMAT_TRANSFORMERS, UNORDERED_LIST, } from '@lexical/markdown';
+import { $isHorizontalRuleNode as isHorizontalRuleNode, HorizontalRuleNode, $createHorizontalRuleNode as createHorizontalRuleNode, } from '../HorizontalRuleNode.js';
+import { $isParagraphNode, $isTextNode } from 'lexical';
+import { ImageNode, $createImageNode as createImageNode, $isImageNode as isImageNode, } from '../Image/ImageNode.js';
+import { $createTweetNode, $isTweetNode, TweetNode, } from '../twitter/TweetNode.js';
+import { $createTableCellNode, $createTableNode, $createTableRowNode, $isTableCellNode, $isTableNode, $isTableRowNode, TableCellHeaderStates, TableCellNode, TableNode, TableRowNode, } from '@lexical/table';
+export const HR = {
+    dependencies: [HorizontalRuleNode],
+    export: (node) => {
+        return isHorizontalRuleNode(node) ? '***' : null;
+    },
+    regExp: /^(---|\*\*\*|___)\s?$/,
+    replace: (parentNode, _1, _2, isImport) => {
+        const line = createHorizontalRuleNode();
+        // TODO: Get rid of isImport flag
+        if (isImport || parentNode.getNextSibling() != null) {
+            parentNode.replace(line);
+        }
+        else {
+            parentNode.insertBefore(line);
+        }
+        line.selectNext();
+    },
+    type: 'element',
+};
+export const IMAGE = {
+    dependencies: [ImageNode],
+    export: (node) => {
+        if (!isImageNode(node)) {
+            return null;
+        }
+        return `![${node.getAltText()}](${node.getSrc()})`;
+    },
+    importRegExp: /!(?:\[([^[]*)\])(?:\(([^(]+)\))/,
+    regExp: /!(?:\[([^[]*)\])(?:\(([^(]+)\))$/,
+    replace: (textNode, match) => {
+        const [, altText, src] = match;
+        const imageNode = createImageNode({
+            altText,
+            maxWidth: 800,
+            src,
+        });
+        textNode.replace(imageNode);
+    },
+    trigger: ')',
+    type: 'text-match',
+};
+export const TWEET = {
+    dependencies: [TweetNode],
+    export: (node) => {
+        if (!$isTweetNode(node)) {
+            return null;
+        }
+        return `<tweet id="${node.getId()}" />`;
+    },
+    regExp: /<tweet id="([^"]+?)"\s?\/>\s?$/,
+    replace: (textNode, _1, match) => {
+        const [, id] = match;
+        const tweetNode = $createTweetNode(id);
+        textNode.replace(tweetNode);
+    },
+    type: 'element',
+};
+// Very primitive table setup
+const TABLE_ROW_REG_EXP = /^(?:\|)(.+)(?:\|)\s?$/;
+const TABLE_ROW_DIVIDER_REG_EXP = /^(\| ?:?-*:? ?)+\|\s?$/;
+export const TABLE = {
+    dependencies: [TableNode, TableRowNode, TableCellNode],
+    export: (node) => {
+        if (!$isTableNode(node)) {
+            return null;
+        }
+        const output = [];
+        for (const row of node.getChildren()) {
+            const rowOutput = [];
+            if (!$isTableRowNode(row)) {
+                continue;
+            }
+            let isHeaderRow = false;
+            for (const cell of row.getChildren()) {
+                // It's TableCellNode so it's just to make flow happy
+                if ($isTableCellNode(cell)) {
+                    rowOutput.push($convertToMarkdownString(ALL_TRANSFORMERS, cell)
+                        .replace(/\n/g, '\\n')
+                        .trim());
+                    if (cell.__headerState === TableCellHeaderStates.ROW) {
+                        isHeaderRow = true;
+                    }
+                }
+            }
+            output.push(`| ${rowOutput.join(' | ')} |`);
+            if (isHeaderRow) {
+                output.push(`| ${rowOutput.map((_) => '---').join(' | ')} |`);
+            }
+        }
+        return output.join('\n');
+    },
+    regExp: TABLE_ROW_REG_EXP,
+    replace: (parentNode, _1, match) => {
+        // Header row
+        if (TABLE_ROW_DIVIDER_REG_EXP.test(match[0])) {
+            const table = parentNode.getPreviousSibling();
+            if (!table || !$isTableNode(table)) {
+                return;
+            }
+            const rows = table.getChildren();
+            const lastRow = rows[rows.length - 1];
+            if (!lastRow || !$isTableRowNode(lastRow)) {
+                return;
+            }
+            // Add header state to row cells
+            lastRow.getChildren().forEach((cell) => {
+                if (!$isTableCellNode(cell)) {
+                    return;
+                }
+                cell.setHeaderStyles(TableCellHeaderStates.ROW, TableCellHeaderStates.ROW);
+            });
+            // Remove line
+            parentNode.remove();
+            return;
+        }
+        const matchCells = mapToTableCells(match[0]);
+        if (matchCells == null) {
+            return;
+        }
+        const rows = [matchCells];
+        let sibling = parentNode.getPreviousSibling();
+        let maxCells = matchCells.length;
+        while (sibling) {
+            if (!$isParagraphNode(sibling)) {
+                break;
+            }
+            if (sibling.getChildrenSize() !== 1) {
+                break;
+            }
+            const firstChild = sibling.getFirstChild();
+            if (!$isTextNode(firstChild)) {
+                break;
+            }
+            const cells = mapToTableCells(firstChild.getTextContent());
+            if (cells == null) {
+                break;
+            }
+            maxCells = Math.max(maxCells, cells.length);
+            rows.unshift(cells);
+            const previousSibling = sibling.getPreviousSibling();
+            sibling.remove();
+            sibling = previousSibling;
+        }
+        const table = $createTableNode();
+        for (const cells of rows) {
+            const tableRow = $createTableRowNode();
+            table.append(tableRow);
+            for (let i = 0; i < maxCells; i++) {
+                tableRow.append(i < cells.length ? cells[i] : $createTableCell(''));
+            }
+        }
+        const previousSibling = parentNode.getPreviousSibling();
+        if ($isTableNode(previousSibling) &&
+            getTableColumnsSize(previousSibling) === maxCells) {
+            previousSibling.append(...table.getChildren());
+            parentNode.remove();
+        }
+        else {
+            parentNode.replace(table);
+        }
+        table.selectEnd();
+    },
+    type: 'element',
+};
+function getTableColumnsSize(table) {
+    const row = table.getFirstChild();
+    return $isTableRowNode(row) ? row.getChildrenSize() : 0;
+}
+const $createTableCell = (textContent) => {
+    textContent = textContent.replace(/\\n/g, '\n');
+    const cell = $createTableCellNode(TableCellHeaderStates.NO_STATUS);
+    $convertFromMarkdownString(textContent, ALL_TRANSFORMERS, cell);
+    return cell;
+};
+const mapToTableCells = (textContent) => {
+    const match = textContent.match(TABLE_ROW_REG_EXP);
+    if (!match || !match[1]) {
+        return null;
+    }
+    return match[1].split('|').map((text) => $createTableCell(text));
+};
+export const ELEMENT_TRANSFORMERS = [
+    HEADING,
+    QUOTE,
+    UNORDERED_LIST,
+    ORDERED_LIST,
+];
+export const ALL_TRANSFORMERS = [
+    TABLE,
+    HR,
+    IMAGE,
+    CHECK_LIST,
+    LINK,
+    CODE,
+    ...ELEMENT_TRANSFORMERS,
+    ...TEXT_FORMAT_TRANSFORMERS,
+];
+export { TEXT_FORMAT_TRANSFORMERS } from '@lexical/markdown';
+
+=== 2936 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyNode.ts	js
+import { DecoratorBlockNode, } from '../DecoratorBlockNode.js';
+import BlueskyPostComponent from './BlueskyPostComponent.svelte';
+function $convertBlueskyElement(domNode) {
+    const profile = domNode.getAttribute('data-lexical-profile-id');
+    const postKey = domNode.getAttribute('data-lexical-post-key');
+    if (profile && postKey) {
+        const node = $createBlueskyNode(profile, postKey);
+        return { node };
+    }
+    return null;
+}
+export class BlueskyNode extends DecoratorBlockNode {
+    __profile;
+    __postKey;
+    static getType() {
+        return 'bluesky';
+    }
+    static clone(node) {
+        return new BlueskyNode(node.__profile, node.__postKey, node.__format, node.__key);
+    }
+    static importJSON(serializedNode) {
+        return $createBlueskyNode(serializedNode.profile, serializedNode.postKey).updateFromJSON(serializedNode);
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            profile: this.__profile,
+            postKey: this.__postKey,
+        };
+    }
+    static importDOM() {
+        return {
+            div: (domNode) => {
+                if (!domNode.hasAttribute('data-lexical-profile-id')) {
+                    return null;
+                }
+                return {
+                    conversion: $convertBlueskyElement,
+                    priority: 2,
+                };
+            },
+        };
+    }
+    exportDOM() {
+        const element = document.createElement('div');
+        element.setAttribute('data-lexical-profile-id', this.__profile);
+        element.setAttribute('data-lexical-post-key', this.__postKey);
+        const text = document.createTextNode(this.getTextContent());
+        element.append(text);
+        return { element };
+    }
+    constructor(profile, postKey, format, key) {
+        super(format, key);
+        this.__profile = profile;
+        this.__postKey = postKey;
+    }
+    getProfile() {
+        return this.__profile;
+    }
+    getPostKey() {
+        return this.__postKey;
+    }
+    getTextContent(_includeInert, _includeDirectionless) {
+        return `https://bsky.app/profile/${this.__profile}/post/${this.__postKey}`;
+    }
+    decorate(editor, config) {
+        const embedBlockTheme = config.theme.embedBlock || {};
+        const className = {
+            base: embedBlockTheme.base || '',
+            focus: embedBlockTheme.focus || '',
+        };
+        return {
+            componentClass: BlueskyPostComponent,
+            updateProps: (props) => {
+                props.className = className;
+                props.format = this.__format;
+                props.nodeKey = this.__key;
+                props.profile = this.__profile;
+                props.postKey = this.__postKey;
+            },
+        };
+    }
+}
+export function $createBlueskyNode(profile, postKey) {
+    return new BlueskyNode(profile, postKey);
+}
+export function $isBlueskyNode(node) {
+    return node instanceof BlueskyNode;
+}
+
+=== 1356 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationContext.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+const entries = [
+    ['Cat', 'rgb(125, 50, 0)'],
+    ['Dog', 'rgb(100, 0, 0)'],
+    ['Rabbit', 'rgb(150, 0, 0)'],
+    ['Frog', 'rgb(200, 0, 0)'],
+    ['Fox', 'rgb(200, 75, 0)'],
+    ['Hedgehog', 'rgb(0, 75, 0)'],
+    ['Pigeon', 'rgb(0, 125, 0)'],
+    ['Squirrel', 'rgb(75, 100, 0)'],
+    ['Bear', 'rgb(125, 100, 0)'],
+    ['Tiger', 'rgb(0, 0, 150)'],
+    ['Leopard', 'rgb(0, 0, 200)'],
+    ['Zebra', 'rgb(0, 0, 250)'],
+    ['Wolf', 'rgb(0, 100, 150)'],
+    ['Owl', 'rgb(0, 100, 100)'],
+    ['Gull', 'rgb(100, 0, 100)'],
+    ['Squid', 'rgb(150, 0, 150)'],
+];
+const randomEntry = entries[Math.floor(Math.random() * entries.length)];
+const CollaborationContext = {
+    clientID: 0,
+    color: randomEntry[1],
+    isCollabActive: false,
+    name: randomEntry[0],
+    yjsDocMap: new Map(),
+};
+export function useCollaborationContext(username, color) {
+    // TODO: should be stored in the svelte component context to avoid conflict with mutliple instances of the editor
+    const collabContext = CollaborationContext;
+    if (username != null) {
+        collabContext.name = username;
+    }
+    if (color != null) {
+        collabContext.color = color;
+    }
+    return collabContext;
+}
+
+=== 1401 packages/svelte-lexical/src/lib/core/plugins/link/setFloatingElemPositionForLinkEditor.ts	js
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+const VERTICAL_GAP = 10;
+const HORIZONTAL_OFFSET = 5;
+export function setFloatingElemPositionForLinkEditor(targetRect, floatingElem, anchorElem, verticalGap = VERTICAL_GAP, horizontalOffset = HORIZONTAL_OFFSET) {
+    const scrollerElem = anchorElem.parentElement;
+    if (targetRect === null || !scrollerElem) {
+        floatingElem.style.opacity = '0';
+        floatingElem.style.transform = 'translate(-10000px, -10000px)';
+        return;
+    }
+    const floatingElemRect = floatingElem.getBoundingClientRect();
+    const anchorElementRect = anchorElem.getBoundingClientRect();
+    const editorScrollerRect = scrollerElem.getBoundingClientRect();
+    let top = targetRect.top - verticalGap;
+    let left = targetRect.left - horizontalOffset;
+    if (top < editorScrollerRect.top) {
+        top += floatingElemRect.height + targetRect.height + verticalGap * 2;
+    }
+    if (left + floatingElemRect.width > editorScrollerRect.right) {
+        left = editorScrollerRect.right - floatingElemRect.width - horizontalOffset;
+    }
+    top -= anchorElementRect.top;
+    left -= anchorElementRect.left;
+    floatingElem.style.opacity = '1';
+    floatingElem.style.transform = `translate(${left}px, ${top}px)`;
+}
+
+=== 1075 packages/svelte-lexical/src/lib/core/plugins/link/url.ts	js
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+const SUPPORTED_URL_PROTOCOLS = new Set([
+    'http:',
+    'https:',
+    'mailto:',
+    'sms:',
+    'tel:',
+]);
+export function sanitizeUrl(url) {
+    try {
+        const parsedUrl = new URL(url);
+        if (!SUPPORTED_URL_PROTOCOLS.has(parsedUrl.protocol)) {
+            return 'about:blank';
+        }
+    }
+    catch {
+        return url;
+    }
+    return url;
+}
+// Source: https://stackoverflow.com/a/8234912/2013580
+const urlRegExp = new RegExp(/((([A-Za-z]{3,9}:(?:\/\/)?)(?:[-;:&=+$,\w]+@)?[A-Za-z0-9.-]+|(?:www.|[-;:&=+$,\w]+@)[A-Za-z0-9.-]+)((?:\/[+~%/.\w-_]*)?\??(?:[-+=&;%@.\w_]*)#?(?:[\w]*))?)/);
+export function validateUrl(url) {
+    // TODO Fix UI for link insertion; it should never default to an invalid URL such as https://.
+    // Maybe show a dialog where they user can type the URL before inserting it.
+    return url === 'https://' || urlRegExp.test(url);
+}
+
+=== 2432 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetNode.ts	js
+import { DecoratorBlockNode, } from '../DecoratorBlockNode.js';
+import TweetComponent from './TweetComponent.svelte';
+function $convertTweetElement(domNode) {
+    const id = domNode.getAttribute('data-lexical-tweet-id');
+    if (id) {
+        const node = $createTweetNode(id);
+        return { node };
+    }
+    return null;
+}
+export class TweetNode extends DecoratorBlockNode {
+    __id;
+    static getType() {
+        return 'tweet';
+    }
+    static clone(node) {
+        return new TweetNode(node.__id, node.__format, node.__key);
+    }
+    static importJSON(serializedNode) {
+        return $createTweetNode(serializedNode.id).updateFromJSON(serializedNode);
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            id: this.getId(),
+        };
+    }
+    static importDOM() {
+        return {
+            div: (domNode) => {
+                if (!domNode.hasAttribute('data-lexical-tweet-id')) {
+                    return null;
+                }
+                return {
+                    conversion: $convertTweetElement,
+                    priority: 2,
+                };
+            },
+        };
+    }
+    exportDOM() {
+        const element = document.createElement('div');
+        element.setAttribute('data-lexical-tweet-id', this.__id);
+        const text = document.createTextNode(this.getTextContent());
+        element.append(text);
+        return { element };
+    }
+    constructor(id, format, key) {
+        super(format, key);
+        this.__id = id;
+    }
+    getId() {
+        return this.__id;
+    }
+    getTextContent(_includeInert, _includeDirectionless) {
+        return `https://x.com/i/web/status/${this.__id}`;
+    }
+    decorate(editor, config) {
+        const embedBlockTheme = config.theme.embedBlock || {};
+        const className = {
+            base: embedBlockTheme.base || '',
+            focus: embedBlockTheme.focus || '',
+        };
+        return {
+            componentClass: TweetComponent,
+            updateProps: (props) => {
+                props.className = className;
+                props.format = this.__format;
+                props.loadingComponent = 'Loading...';
+                props.nodeKey = this.__key;
+                props.tweetID = this.__id;
+            },
+        };
+    }
+}
+export function $createTweetNode(tweetID) {
+    return new TweetNode(tweetID);
+}
+export function $isTweetNode(node) {
+    return node instanceof TweetNode;
+}
+
+=== 138 packages/svelte-lexical/src/lib/core/plugins/util/cssStylesUtil.ts	js
+export function cssStylesToString(styles) {
+    return Object.entries(styles)
+        .map(([k, v]) => `${k}:${v}`)
+        .join(';');
+}
+
+=== 343 packages/svelte-lexical/src/lib/core/plugins/util/getThemeSelector.ts	js
+export function getThemeSelector(selector) {
+    if (!selector) {
+        return '';
+    }
+    // invariant(
+    //   typeof className === 'string',
+    //   'getThemeClass: required theme property %s not defined',
+    //   String(name),
+    // );
+    return selector
+        .split(/\s+/g)
+        .map((cls) => `.${cls}`)
+        .join();
+}
+
+=== 2434 packages/svelte-lexical/src/lib/core/plugins/util/setFloatingElemPosition.ts	js
+/**
+ * Copyright (c) Syed Umar Anis.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+const VERTICAL_GAP = 10;
+const HORIZONTAL_OFFSET = 5;
+export function setFloatingElemPosition(targetRect, floatingElem, anchorElem, isLink = false, verticalGap = VERTICAL_GAP, horizontalOffset = HORIZONTAL_OFFSET) {
+    const scrollerElem = anchorElem.parentElement;
+    if (targetRect === null || !scrollerElem) {
+        floatingElem.style.opacity = '0';
+        floatingElem.style.transform = 'translate(-10000px, -10000px)';
+        return;
+    }
+    const floatingElemRect = floatingElem.getBoundingClientRect();
+    const anchorElementRect = anchorElem.getBoundingClientRect();
+    const editorScrollerRect = scrollerElem.getBoundingClientRect();
+    let top = targetRect.top - floatingElemRect.height - verticalGap;
+    let left = targetRect.left - horizontalOffset;
+    // Check if text is end-aligned
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const textNode = range.startContainer;
+        if (textNode.nodeType === Node.ELEMENT_NODE || textNode.parentElement) {
+            const textElement = textNode.nodeType === Node.ELEMENT_NODE
+                ? textNode
+                : textNode.parentElement;
+            const textAlign = window.getComputedStyle(textElement).textAlign;
+            if (textAlign === 'right' || textAlign === 'end') {
+                // For end-aligned text, position the toolbar relative to the text end
+                left = targetRect.right - floatingElemRect.width + horizontalOffset;
+            }
+        }
+    }
+    if (top < editorScrollerRect.top) {
+        // adjusted height for link element if the element is at top
+        top +=
+            floatingElemRect.height +
+                targetRect.height +
+                verticalGap * (isLink ? 9 : 2);
+    }
+    if (left + floatingElemRect.width > editorScrollerRect.right) {
+        left = editorScrollerRect.right - floatingElemRect.width - horizontalOffset;
+    }
+    if (left < editorScrollerRect.left) {
+        left = editorScrollerRect.left + horizontalOffset;
+    }
+    top -= anchorElementRect.top;
+    left -= anchorElementRect.left;
+    floatingElem.style.opacity = '1';
+    floatingElem.style.transform = `translate(${left}px, ${top}px)`;
+}
+
+=== 2862 packages/svelte-lexical/src/lib/core/plugins/youtube/YouTubeNode.ts	js
+import { DecoratorBlockNode, } from '../DecoratorBlockNode.js';
+import YouTubeComponent from './YouTubeComponent.svelte';
+function $convertYoutubeElement(domNode) {
+    const videoID = domNode.getAttribute('data-lexical-youtube');
+    if (videoID) {
+        const node = $createYouTubeNode(videoID);
+        return { node };
+    }
+    return null;
+}
+export class YouTubeNode extends DecoratorBlockNode {
+    __id;
+    static getType() {
+        return 'youtube';
+    }
+    static clone(node) {
+        return new YouTubeNode(node.__id, node.__format, node.__key);
+    }
+    static importJSON(serializedNode) {
+        return $createYouTubeNode(serializedNode.videoID).updateFromJSON(serializedNode);
+    }
+    exportJSON() {
+        return {
+            ...super.exportJSON(),
+            videoID: this.__id,
+        };
+    }
+    constructor(id, format, key) {
+        super(format, key);
+        this.__id = id;
+    }
+    exportDOM() {
+        const element = document.createElement('iframe');
+        element.setAttribute('data-lexical-youtube', this.__id);
+        element.setAttribute('width', '560');
+        element.setAttribute('height', '315');
+        element.setAttribute('src', `https://www.youtube-nocookie.com/embed/${this.__id}`);
+        element.setAttribute('frameborder', '0');
+        element.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+        element.setAttribute('allowfullscreen', 'true');
+        element.setAttribute('title', 'YouTube video');
+        return { element };
+    }
+    static importDOM() {
+        return {
+            iframe: (domNode) => {
+                if (!domNode.hasAttribute('data-lexical-youtube')) {
+                    return null;
+                }
+                return {
+                    conversion: $convertYoutubeElement,
+                    priority: 1,
+                };
+            },
+        };
+    }
+    updateDOM() {
+        return false;
+    }
+    getId() {
+        return this.__id;
+    }
+    getTextContent(_includeInert, _includeDirectionless) {
+        return `https://www.youtube.com/watch?v=${this.__id}`;
+    }
+    decorate(_editor, config) {
+        const embedBlockTheme = config.theme.embedBlock || {};
+        const className = {
+            base: embedBlockTheme.base || '',
+            focus: embedBlockTheme.focus || '',
+        };
+        return {
+            componentClass: YouTubeComponent,
+            updateProps: (props) => {
+                props.className = className;
+                props.format = this.__format;
+                props.nodeKey = this.__key;
+                props.videoID = this.__id;
+            },
+        };
+    }
+}
+export function $createYouTubeNode(videoID) {
+    return new YouTubeNode(videoID);
+}
+export function $isYouTubeNode(node) {
+    return node instanceof YouTubeNode;
+}
+
+=== 13207 packages/svelte-lexical/src/lib/index.ts	js
+export { default as PlainTextPlugin } from './core/plugins/PlainTextPlugin.svelte';
+export { default as RichTextPlugin } from './core/plugins/RichTextPlugin.svelte';
+export { default as HistoryPlugin } from './core/plugins/HistoryPlugin.svelte';
+export { default as SharedHistoryPlugin } from './core/plugins/SharedHistoryPlugin.svelte';
+export { default as ListPlugin } from './core/plugins/ListPlugin.svelte';
+export { default as CheckListPlugin } from './core/plugins/CheckListPlugin.svelte';
+export { default as HorizontalRulePlugin } from './core/plugins/HorizontalRulePlugin.svelte';
+export { default as ImagePlugin } from './core/plugins/Image/ImagePlugin.svelte';
+export { default as CaptionEditorHistoryPlugin } from './core/plugins/Image/CaptionEditorHistoryPlugin.svelte';
+export { default as CaptionEditorCollaborationPlugin } from './core/plugins/Image/CaptionEditorCollaborationPlugin.svelte';
+export { default as PlaceHolder } from './core/plugins/PlaceHolder.svelte';
+export { default as AutoFocusPlugin } from './core/plugins/AutoFocusPlugin.svelte';
+export { default as KeywordPlugin } from './core/plugins/KeywordPlugin.svelte';
+export { default as HashtagPlugin } from './core/plugins/HashtagPlugin.svelte';
+export { default as CollaborationPlugin } from './core/plugins/collaboration/CollaborationPlugin.svelte';
+//export {createWebsocketProvider} from './core/plugins/collaboration/collaboration';
+export { default as AutoLinkPluginCore } from './core/plugins/AutoLink/AutoLinkPluginCore.svelte';
+export { default as AutoLinkPlugin } from './core/plugins/AutoLink/AutoLinkPlugin.svelte';
+export { default as LinkPlugin } from './core/plugins/link/LinkPlugin.svelte';
+export { sanitizeUrl, validateUrl } from './core/plugins/link/url.js';
+export { default as FloatingLinkEditorPlugin } from './core/plugins/link/FloatingLinkEditorPlugin.svelte';
+/** @deprecated use CodeHighlightPrismPlugin instead */
+export { default as CodeHighlightPlugin } from './core/plugins/CodeBlock/CodeHighlightPrismPlugin.svelte';
+export { default as CodeHighlightPrismPlugin } from './core/plugins/CodeBlock/CodeHighlightPrismPlugin.svelte';
+export { default as CodeActionMenuPlugin } from './core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte';
+export { default as ColumnLayoutPlugin } from './core/plugins/ColumnsLayout/ColumnLayoutPlugin.svelte';
+export { default as TablePlugin } from './core/plugins/Table/TablePlugin.svelte';
+export { default as TableActionMenuPlugin } from './core/plugins/Table/TableActionMenuPlugin.svelte';
+export { default as TableHoverActionPlugin } from './core/plugins/Table/TableHoverActionPlugin.svelte';
+export { default as TableCellResizerPlugin } from './core/plugins/Table/TableCellResizerPlugin.svelte';
+export { default as ShortcutsPlugin } from './components/toolbar/ShortcutsPlugin.svelte';
+export { default as YoutubePlugin } from './core/plugins/youtube/YoutubePlugin.svelte';
+export { default as TwitterPlugin } from './core/plugins/twitter/TwitterPlugin.svelte';
+export { default as BlueskyPlugin } from './core/plugins/bluesky/BlueskyPlugin.svelte';
+export { default as OnChangePlugin } from './core/plugins/OnChangePlugin.svelte';
+export {} from 'lexical';
+export { default as TabIndentationPlugin } from './core/plugins/TabIndentationPlugin.svelte';
+export { default as ComponentPickerMenuPlugin } from './core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte';
+export { default as MarkdownShortcutPlugin } from './core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte';
+export { INLINE_CODE, BOLD_ITALIC_STAR, BOLD_ITALIC_UNDERSCORE, BOLD_STAR, BOLD_UNDERSCORE, HIGHLIGHT, ITALIC_STAR, ITALIC_UNDERSCORE, STRIKETHROUGH, HEADING, QUOTE, CODE, UNORDERED_LIST, ORDERED_LIST, CHECK_LIST, LINK, } from '@lexical/markdown';
+export { HR, IMAGE } from './core/plugins/MarkdownShortcut/transformers.js';
+// markdown transformer groups
+export { TEXT_FORMAT_TRANSFORMERS, ELEMENT_TRANSFORMERS, ALL_TRANSFORMERS, } from './core/plugins/MarkdownShortcut/transformers.js';
+export { HeadingNode, QuoteNode } from '@lexical/rich-text';
+export { ListNode, ListItemNode } from '@lexical/list';
+export { HorizontalRuleNode } from './core/plugins/HorizontalRuleNode.js';
+export { ImageNode } from './core/plugins/Image/ImageNode.js';
+export { KeywordNode } from './core/plugins/KeywordNode.js';
+export { HashtagNode } from './core/plugins/HashtagNode.js';
+export { AutoLinkNode, LinkNode } from '@lexical/link';
+export { CodeNode, CodeHighlightNode } from '@lexical/code';
+export { LayoutContainerNode } from './core/plugins/ColumnsLayout/LayoutContainerNode.js';
+export { LayoutItemNode } from './core/plugins/ColumnsLayout/LayoutItemNode.js';
+export { TableNode, TableRowNode, TableCellNode } from '@lexical/table';
+export { YouTubeNode } from './core/plugins/youtube/YouTubeNode.js';
+export { TweetNode } from './core/plugins/twitter/TweetNode.js';
+export { BlueskyNode } from './core/plugins/bluesky/BlueskyNode.js';
+// toolbar
+export { default as ToolbarRichText } from './components/richtext/ToolbarRichText.svelte';
+export { default as Toolbar } from './components/toolbar/Toolbar.svelte';
+export { default as BlockFormatDropDown } from './components/toolbar/BlockFormatDropDown/BlockFormatDropDown.svelte';
+export { default as ParagraphDropDownItem } from './components/toolbar/BlockFormatDropDown/ParagraphDropDownItem.svelte';
+export { default as HeadingDropDownItem } from './components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte';
+export { default as BulletDropDrownItem } from './components/toolbar/BlockFormatDropDown/BulletDropDrownItem.svelte';
+export { default as NumberDropDrownItem } from './components/toolbar/BlockFormatDropDown/NumberDropDrownItem.svelte';
+export { default as CheckDropDrownItem } from './components/toolbar/BlockFormatDropDown/CheckDropDrownItem.svelte';
+export { default as QuoteDropDrownItem } from './components/toolbar/BlockFormatDropDown/QuoteDropDrownItem.svelte';
+export { default as CodeDropDrownItem } from './components/toolbar/BlockFormatDropDown/CodeDropDrownItem.svelte';
+export { default as BoldButton } from './components/toolbar/BoldButton.svelte';
+export { default as Divider } from './components/toolbar/Divider.svelte';
+export { default as RedoButton } from './components/toolbar/RedoButton.svelte';
+export { default as UndoButton } from './components/toolbar/UndoButton.svelte';
+export { default as ItalicButton } from './components/toolbar/ItalicButton.svelte';
+export { default as UnderlineButton } from './components/toolbar/UnderlineButton.svelte';
+export { default as StrikethroughButton } from './components/toolbar/StrikethroughButton.svelte';
+export { default as FormatCodeButton } from './components/toolbar/FormatCodeButton.svelte';
+export { default as StateStoreRichTextUpdator } from './components/toolbar/StateStoreRichTextUpdator.svelte';
+export { default as DropDownAlign } from './components/toolbar/DropDownAlign.svelte';
+export { default as DropDownTextColorPicker } from './components/toolbar/DropDownTextColorPicker.svelte';
+export { default as DropDownBackColorPicker } from './components/toolbar/DropDownBackColorPicker.svelte';
+export { default as InsertDropDown } from './components/toolbar/InsertDropDown/InsertDropDown.svelte';
+export { default as InsertHRDropDownItem } from './components/toolbar/InsertDropDown/InsertHRDropDownItem.svelte';
+export { default as InsertImageDropDownItem } from './components/toolbar/InsertDropDown/InsertImageDropDownItem.svelte';
+export { default as FontFamilyDropDown } from './components/toolbar/FontFamilyDropDown.svelte';
+export { default as FontSizeDropDown } from './components/toolbar/FontSizeDropDown.svelte';
+export { default as FontSizeEntry } from './components/toolbar/FontSizeEntry.svelte';
+export { default as InsertLink } from './components/toolbar/InsertLink.svelte';
+export { default as CodeLanguageDropDown } from './components/toolbar/CodeLanguageDropDown.svelte';
+export { default as MoreStylesDropDown } from './components/toolbar/MoreStylesDropDown/MoreStylesDropDown.svelte';
+export { default as StrikethroughDropDownItem } from './components/toolbar/MoreStylesDropDown/StrikethroughDropDownItem.svelte';
+export { default as SubscriptDropDownItem } from './components/toolbar/MoreStylesDropDown/SubscriptDropDownItem.svelte';
+export { default as SuperscriptDropDownItem } from './components/toolbar/MoreStylesDropDown/SuperscriptDropDownItem.svelte';
+export { default as ClearFormattingDropDownItem } from './components/toolbar/MoreStylesDropDown/ClearFormattingDropDownItem.svelte';
+export { default as InsertColumnLayoutDropDownItem } from './components/toolbar/InsertDropDown/InsertColumnLayoutDropDownItem.svelte';
+export { default as InsertTableDropDownItem } from './components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte';
+export { default as InsertYoutubeDropDownItem } from './components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte';
+export { default as InsertTweetDropDownItem } from './components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte';
+export { default as InsertBlueskyDropDownItem } from './components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte';
+// dialogs
+export { default as InsertImageDialog } from './components/toolbar/dialogs/InsertImageDialog.svelte';
+export { default as InsertImageUploadedDialogBody } from './components/toolbar/dialogs/InsertImageUploadedDialogBody.svelte';
+export { default as InsertImageUriDialogBody } from './components/toolbar/dialogs/InsertImageUriDialogBody.svelte';
+export { default as InsertColumnsDialog } from './components/toolbar/dialogs/InsertColumnsDialog.svelte';
+export { default as InsertTableDialog } from './components/toolbar/dialogs/InsertTableDialog.svelte';
+export { default as InsertYoutubeDialog } from './components/toolbar/dialogs/InsertYoutubeDialog.svelte';
+export { default as InsertTweetDialog } from './components/toolbar/dialogs/InsertTweetDialog.svelte';
+export { default as InsertBlueskyDialog } from './components/toolbar/dialogs/InsertBlueskyDialog.svelte';
+export { getEditor, getActiveEditor } from './core/composerContext.js';
+export { formatParagraph, formatHeading, formatBulletList, formatCheckList, formatNumberedList, formatQuote, formatCode, clearFormatting, InsertImage, FocusEditor, toggleBold, toggleItalic, insertBlueskyPost, insertColumnsLayout, insertTable, insertTweet, insertYoutube, toggleStrikethrough, toggleUnderline, toggleSubscript, toggleSuperscript, undo, redo, } from './core/commands/commands.js';
+export { increaseFontSize, decreaseFontSize, updateFontSize, MIN_ALLOWED_FONT_SIZE, MAX_ALLOWED_FONT_SIZE, DEFAULT_FONT_SIZE, } from './core/commands/updateFontSize.js';
+export { default as ActionBar } from './components/actionbar/ActionBar.svelte';
+export { default as TreeViewPlugin } from './core/plugins/TreeView/TreeViewPlugin.svelte';
+export { default as ContentEditable } from './core/ContentEditable.svelte';
+export { default as Composer } from './core/Composer.svelte';
+export { default as RichTextComposer } from './components/richtext/RichTextComposer.svelte';
+export { $createParagraphNode, $createTextNode, $getRoot } from 'lexical';
+export { CAN_UNDO_COMMAND, CAN_REDO_COMMAND, HISTORY_MERGE_TAG } from 'lexical';
+export { createEmptyHistoryState, } from '@lexical/history';
+export { $createHeadingNode, $createQuoteNode } from '@lexical/rich-text';
+export { $createLinkNode } from '@lexical/link';
+export { $createListItemNode, $createListNode } from '@lexical/list';
+export { $createCodeNode, $createCodeHighlightNode } from '@lexical/code';
+export { $createLayoutContainerNode } from './core/plugins/ColumnsLayout/LayoutContainerNode.js';
+export { $createHashtagNode } from './core/plugins/HashtagNode.js';
+export { $createKeywordNode } from './core/plugins/KeywordNode.js';
+export { $createImageNode } from './core/plugins/Image/ImageNode.js';
+export { $createYouTubeNode } from './core/plugins/youtube/YouTubeNode.js';
+export { $createTweetNode } from './core/plugins/twitter/TweetNode.js';
+export { $createBlueskyNode } from './core/plugins/bluesky/BlueskyNode.js';
+// ui components
+export { default as DropDown } from './components/generic/dropdown/DropDown.svelte';
+export { default as DropDownItem } from './components/generic/dropdown/DropDownItem.svelte';
+export { default as ModalDialog } from './components/generic/dialog/ModalDialog.svelte';
+export { default as CloseCircleButton } from './components/generic/button/CloseCircleButton.svelte';
+// util
+export { CAN_USE_DOM } from '@lexical/utils';
+export { isNodeSelected, clearSelection, createNodeSelectionStore, } from './core/nodeSelectionStore.js';
+export { $getSelection } from 'lexical';
+// commands
+export { $generateHtmlFromNodes as generateHtmlFromNodes } from '@lexical/html';
+export { $generateNodesFromDOM as generateNodesFromDOM } from '@lexical/html';
+export { $convertToMarkdownString as convertToMarkdownString } from '@lexical/markdown';
+export { $convertFromMarkdownString as convertFromMarkdownString } from '@lexical/markdown';
+// required for editor extensions types
+export { initializeExtensions } from './core/editorExtensions.js';
+
+=== 218 packages/svelte-lexical/src/lib/shiki/index.ts	js
+export { default as CodeHighlightShikiPlugin } from '../core/plugins/CodeBlock/CodeHighlightShikiPlugin.svelte';
+export { default as CodeThemeShikiDropDown } from '../components/toolbar/CodeThemeShikiDropDown.svelte';
+
+=== 398 packages/svelte-lexical/src/lib/themes/default/editor/CommentEditorTheme.ts	js
+/**
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './CommentEditorTheme.css';
+import { theme as baseTheme } from './DefaultEditorTheme.js';
+const theme = {
+    ...baseTheme,
+    paragraph: 'CommentEditorTheme__paragraph',
+};
+export default theme;
+
+=== 4663 packages/svelte-lexical/src/lib/themes/default/editor/DefaultEditorTheme.ts	js
+/**
+ * Copyright (c) Syed Umar Anis
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './DefaultEditorTheme.css';
+import '../shell/DefaultShellTheme.js';
+export const theme = {
+    autocomplete: 'SL_Theme__autocomplete',
+    blockCursor: 'SL_Theme__blockCursor',
+    characterLimit: 'SL_Theme__characterLimit',
+    code: 'SL_Theme__code',
+    codeHighlight: {
+        atrule: 'SL_Theme__tokenAttr',
+        attr: 'SL_Theme__tokenAttr',
+        boolean: 'SL_Theme__tokenProperty',
+        builtin: 'SL_Theme__tokenSelector',
+        cdata: 'SL_Theme__tokenComment',
+        char: 'SL_Theme__tokenSelector',
+        class: 'SL_Theme__tokenFunction',
+        'class-name': 'SL_Theme__tokenFunction',
+        comment: 'SL_Theme__tokenComment',
+        constant: 'SL_Theme__tokenProperty',
+        deleted: 'SL_Theme__tokenDeleted',
+        doctype: 'SL_Theme__tokenComment',
+        entity: 'SL_Theme__tokenOperator',
+        function: 'SL_Theme__tokenFunction',
+        important: 'SL_Theme__tokenVariable',
+        inserted: 'SL_Theme__tokenInserted',
+        keyword: 'SL_Theme__tokenAttr',
+        namespace: 'SL_Theme__tokenVariable',
+        number: 'SL_Theme__tokenProperty',
+        operator: 'SL_Theme__tokenOperator',
+        prolog: 'SL_Theme__tokenComment',
+        property: 'SL_Theme__tokenProperty',
+        punctuation: 'SL_Theme__tokenPunctuation',
+        regex: 'SL_Theme__tokenVariable',
+        selector: 'SL_Theme__tokenSelector',
+        string: 'SL_Theme__tokenSelector',
+        symbol: 'SL_Theme__tokenProperty',
+        tag: 'SL_Theme__tokenProperty',
+        unchanged: 'SL_Theme__tokenUnchanged',
+        url: 'SL_Theme__tokenOperator',
+        variable: 'SL_Theme__tokenVariable',
+    },
+    embedBlock: {
+        base: 'SL_Theme__embedBlock',
+        focus: 'SL_Theme__embedBlockFocus',
+    },
+    hashtag: 'SL_Theme__hashtag',
+    heading: {
+        h1: 'SL_Theme__h1',
+        h2: 'SL_Theme__h2',
+        h3: 'SL_Theme__h3',
+        h4: 'SL_Theme__h4',
+        h5: 'SL_Theme__h5',
+        h6: 'SL_Theme__h6',
+    },
+    hr: 'SL_Theme__hr',
+    hrSelected: 'SL_Theme__hrSelected',
+    image: 'editor-image',
+    indent: 'SL_Theme__indent',
+    inlineImage: 'inline-editor-image',
+    layoutContainer: 'SL_Theme__layoutContainer',
+    layoutItem: 'SL_Theme__layoutItem',
+    link: 'SL_Theme__link',
+    list: {
+        checklist: 'SL_Theme__checklist',
+        listitem: 'SL_Theme__listItem',
+        listitemChecked: 'SL_Theme__listItemChecked',
+        listitemUnchecked: 'SL_Theme__listItemUnchecked',
+        nested: {
+            listitem: 'SL_Theme__nestedListItem',
+        },
+        olDepth: [
+            'SL_Theme__ol1',
+            'SL_Theme__ol2',
+            'SL_Theme__ol3',
+            'SL_Theme__ol4',
+            'SL_Theme__ol5',
+        ],
+        ul: 'SL_Theme__ul',
+    },
+    ltr: 'SL_Theme__ltr',
+    mark: 'SL_Theme__mark',
+    markOverlap: 'SL_Theme__markOverlap',
+    paragraph: 'SL_Theme__paragraph',
+    quote: 'SL_Theme__quote',
+    rtl: 'SL_Theme__rtl',
+    specialText: 'SL_Theme__specialText',
+    tab: 'SL_Theme__tabNode',
+    table: 'SL_Theme__table',
+    tableAddColumns: 'SL_Theme__tableAddColumns',
+    tableAddRows: 'SL_Theme__tableAddRows',
+    tableAlignment: {
+        center: 'SL_Theme__tableAlignmentCenter',
+        right: 'SL_Theme__tableAlignmentRight',
+    },
+    tableCell: 'SL_Theme__tableCell',
+    tableCellActionButton: 'SL_Theme__tableCellActionButton',
+    tableCellActionButtonContainer: 'SL_Theme__tableCellActionButtonContainer',
+    tableCellHeader: 'SL_Theme__tableCellHeader',
+    tableCellResizer: 'SL_Theme__tableCellResizer',
+    tableCellSelected: 'SL_Theme__tableCellSelected',
+    tableFrozenColumn: 'SL_Theme__tableFrozenColumn',
+    tableFrozenRow: 'SL_Theme__tableFrozenRow',
+    tableRowStriping: 'SL_Theme__tableRowStriping',
+    tableScrollableWrapper: 'SL_Theme__tableScrollableWrapper',
+    tableSelected: 'SL_Theme__tableSelected',
+    tableSelection: 'SL_Theme__tableSelection',
+    text: {
+        bold: 'SL_Theme__textBold',
+        capitalize: 'SL_Theme__textCapitalize',
+        code: 'SL_Theme__textCode',
+        highlight: 'SL_Theme__textHighlight',
+        italic: 'SL_Theme__textItalic',
+        lowercase: 'SL_Theme__textLowercase',
+        strikethrough: 'SL_Theme__textStrikethrough',
+        subscript: 'SL_Theme__textSubscript',
+        superscript: 'SL_Theme__textSuperscript',
+        underline: 'SL_Theme__textUnderline',
+        underlineStrikethrough: 'SL_Theme__textUnderlineStrikethrough',
+        uppercase: 'SL_Theme__textUppercase',
+    },
+};
+
+=== 374 packages/svelte-lexical/src/lib/themes/default/editor/StickyEditorTheme.ts	js
+/**
+ * Copyright (c) Syed Umar Anis
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './StickyEditorTheme.css';
+import { theme as baseTheme } from './DefaultEditorTheme.js';
+const theme = {
+    ...baseTheme,
+    paragraph: 'StickyEditorTheme__paragraph',
+};
+export default theme;
+
+=== 56 packages/svelte-lexical/src/lib/themes/default/index.ts	js
+export { theme } from './editor/DefaultEditorTheme.js';
+
+=== 353 packages/svelte-lexical/src/lib/themes/default/shell/DefaultShellTheme.ts	js
+import './EditorContainer.css';
+import './ImageComponent.css';
+import './ImageResizer.css';
+import './ImageCaption.css';
+import './LinkEditor.css';
+import './Toolbar.css';
+import './Icons.css';
+import './DropDown.css';
+import './Table.css';
+import './ActionBar.css';
+import './Dialog.css';
+import './ToolbarFontEntry.css';
+import './TypeAheadMenu.css';
+
+=== 4667 packages/svelte-lexical/src/lib/themes/light-dark/editor/LightDarkEditorTheme.ts	js
+/**
+ * Copyright (c) Syed Umar Anis
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import './LightDarkEditorTheme.css';
+import '../shell/LightDarkShellTheme.js';
+export const theme = {
+    autocomplete: 'SL_Theme__autocomplete',
+    blockCursor: 'SL_Theme__blockCursor',
+    characterLimit: 'SL_Theme__characterLimit',
+    code: 'SL_Theme__code',
+    codeHighlight: {
+        atrule: 'SL_Theme__tokenAttr',
+        attr: 'SL_Theme__tokenAttr',
+        boolean: 'SL_Theme__tokenProperty',
+        builtin: 'SL_Theme__tokenSelector',
+        cdata: 'SL_Theme__tokenComment',
+        char: 'SL_Theme__tokenSelector',
+        class: 'SL_Theme__tokenFunction',
+        'class-name': 'SL_Theme__tokenFunction',
+        comment: 'SL_Theme__tokenComment',
+        constant: 'SL_Theme__tokenProperty',
+        deleted: 'SL_Theme__tokenDeleted',
+        doctype: 'SL_Theme__tokenComment',
+        entity: 'SL_Theme__tokenOperator',
+        function: 'SL_Theme__tokenFunction',
+        important: 'SL_Theme__tokenVariable',
+        inserted: 'SL_Theme__tokenInserted',
+        keyword: 'SL_Theme__tokenAttr',
+        namespace: 'SL_Theme__tokenVariable',
+        number: 'SL_Theme__tokenProperty',
+        operator: 'SL_Theme__tokenOperator',
+        prolog: 'SL_Theme__tokenComment',
+        property: 'SL_Theme__tokenProperty',
+        punctuation: 'SL_Theme__tokenPunctuation',
+        regex: 'SL_Theme__tokenVariable',
+        selector: 'SL_Theme__tokenSelector',
+        string: 'SL_Theme__tokenSelector',
+        symbol: 'SL_Theme__tokenProperty',
+        tag: 'SL_Theme__tokenProperty',
+        unchanged: 'SL_Theme__tokenUnchanged',
+        url: 'SL_Theme__tokenOperator',
+        variable: 'SL_Theme__tokenVariable',
+    },
+    embedBlock: {
+        base: 'SL_Theme__embedBlock',
+        focus: 'SL_Theme__embedBlockFocus',
+    },
+    hashtag: 'SL_Theme__hashtag',
+    heading: {
+        h1: 'SL_Theme__h1',
+        h2: 'SL_Theme__h2',
+        h3: 'SL_Theme__h3',
+        h4: 'SL_Theme__h4',
+        h5: 'SL_Theme__h5',
+        h6: 'SL_Theme__h6',
+    },
+    hr: 'SL_Theme__hr',
+    hrSelected: 'SL_Theme__hrSelected',
+    image: 'editor-image',
+    indent: 'SL_Theme__indent',
+    inlineImage: 'inline-editor-image',
+    layoutContainer: 'SL_Theme__layoutContainer',
+    layoutItem: 'SL_Theme__layoutItem',
+    link: 'SL_Theme__link',
+    list: {
+        checklist: 'SL_Theme__checklist',
+        listitem: 'SL_Theme__listItem',
+        listitemChecked: 'SL_Theme__listItemChecked',
+        listitemUnchecked: 'SL_Theme__listItemUnchecked',
+        nested: {
+            listitem: 'SL_Theme__nestedListItem',
+        },
+        olDepth: [
+            'SL_Theme__ol1',
+            'SL_Theme__ol2',
+            'SL_Theme__ol3',
+            'SL_Theme__ol4',
+            'SL_Theme__ol5',
+        ],
+        ul: 'SL_Theme__ul',
+    },
+    ltr: 'SL_Theme__ltr',
+    mark: 'SL_Theme__mark',
+    markOverlap: 'SL_Theme__markOverlap',
+    paragraph: 'SL_Theme__paragraph',
+    quote: 'SL_Theme__quote',
+    rtl: 'SL_Theme__rtl',
+    specialText: 'SL_Theme__specialText',
+    tab: 'SL_Theme__tabNode',
+    table: 'SL_Theme__table',
+    tableAddColumns: 'SL_Theme__tableAddColumns',
+    tableAddRows: 'SL_Theme__tableAddRows',
+    tableAlignment: {
+        center: 'SL_Theme__tableAlignmentCenter',
+        right: 'SL_Theme__tableAlignmentRight',
+    },
+    tableCell: 'SL_Theme__tableCell',
+    tableCellActionButton: 'SL_Theme__tableCellActionButton',
+    tableCellActionButtonContainer: 'SL_Theme__tableCellActionButtonContainer',
+    tableCellHeader: 'SL_Theme__tableCellHeader',
+    tableCellResizer: 'SL_Theme__tableCellResizer',
+    tableCellSelected: 'SL_Theme__tableCellSelected',
+    tableFrozenColumn: 'SL_Theme__tableFrozenColumn',
+    tableFrozenRow: 'SL_Theme__tableFrozenRow',
+    tableRowStriping: 'SL_Theme__tableRowStriping',
+    tableScrollableWrapper: 'SL_Theme__tableScrollableWrapper',
+    tableSelected: 'SL_Theme__tableSelected',
+    tableSelection: 'SL_Theme__tableSelection',
+    text: {
+        bold: 'SL_Theme__textBold',
+        capitalize: 'SL_Theme__textCapitalize',
+        code: 'SL_Theme__textCode',
+        highlight: 'SL_Theme__textHighlight',
+        italic: 'SL_Theme__textItalic',
+        lowercase: 'SL_Theme__textLowercase',
+        strikethrough: 'SL_Theme__textStrikethrough',
+        subscript: 'SL_Theme__textSubscript',
+        superscript: 'SL_Theme__textSuperscript',
+        underline: 'SL_Theme__textUnderline',
+        underlineStrikethrough: 'SL_Theme__textUnderlineStrikethrough',
+        uppercase: 'SL_Theme__textUppercase',
+    },
+};
+
+=== 85 packages/svelte-lexical/src/lib/themes/light-dark/index.ts	js
+import '../variables.css';
+export { theme } from './editor/LightDarkEditorTheme.js';
+
+=== 62 packages/svelte-lexical/src/lib/themes/system-light-dark/index.ts	js
+import './variables.css';
+export { theme } from './theme.js';
+
+=== 351 packages/svelte-lexical/src/lib/themes/system-light-dark/theme.ts	js
+/**
+ * Copyright (c) Syed Umar Anis
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ *
+ */
+import '../light-dark/editor/LightDarkEditorTheme.css';
+import '../light-dark/shell/LightDarkShellTheme.js';
+export { theme } from '../light-dark/editor/LightDarkEditorTheme.js';
+
+=== 278 packages/svelte-lexical/src/lib/themes/system-light-dark/ui/index.ts	js
+export { default as ThemeSelector } from '../../../components/generic/theme/ThemeSelector.svelte';
+export { default as ThemeImage } from '../../../components/generic/theme/ThemeImage.svelte';
+export { themeTracker } from '../../../components/generic/theme/themeTracker.svelte';
+
+=== 1118 packages/svelte-lexical/vite.config.ts	js
+import devtoolsJson from 'vite-plugin-devtools-json';
+import { svelteTesting } from '@testing-library/svelte/vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+export default defineConfig({
+    plugins: [sveltekit(), devtoolsJson()],
+    test: {
+        workspace: [
+            {
+                extends: './vite.config.ts',
+                plugins: [svelteTesting()],
+                test: {
+                    name: 'client',
+                    environment: 'jsdom',
+                    clearMocks: true,
+                    include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+                    exclude: ['src/lib/server/**'],
+                    setupFiles: ['./vitest-setup-client.ts'],
+                },
+            },
+            {
+                extends: './vite.config.ts',
+                test: {
+                    name: 'server',
+                    environment: 'node',
+                    include: ['src/**/*.{test,spec}.{js,ts}'],
+                    exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+                },
+            },
+        ],
+    },
+});
+
+=== 782 packages/svelte-lexical/vitest-setup-client.ts	js
+import '@testing-library/jest-dom/vitest';
+import { beforeAll, vi } from 'vitest';
+// required for svelte5 + jsdom as jsdom does not support matchMedia
+Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    enumerable: true,
+    value: vi.fn().mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+    })),
+});
+// add more mocks here if you need them
+beforeAll(() => {
+    // jsdom doens't support html dialog yet - https://github.com/jsdom/jsdom/issues/3294
+    HTMLDialogElement.prototype.show = vi.fn();
+    HTMLDialogElement.prototype.showModal = vi.fn();
+    HTMLDialogElement.prototype.close = vi.fn();
+});
+
+=== 271 packages/website/src/content.config.ts	js
+import { defineCollection } from 'astro:content';
+import { docsLoader } from '@astrojs/starlight/loaders';
+import { docsSchema } from '@astrojs/starlight/schema';
+export const collections = {
+    docs: defineCollection({ loader: docsLoader(), schema: docsSchema() }),
+};
+

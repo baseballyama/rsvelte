@@ -21,6 +21,7 @@ rsvelte_svelte_syntax.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_typescript_tree.workspace = true
 rsvelte_typescript_semantic.workspace = true
+oxc_allocator.workspace = true
 oxc_ast.workspace = true
 oxc_ast_visit.workspace = true
 oxc_parser.workspace = true
@@ -29,7 +30,6 @@ oxc_syntax.workspace = true
 rsvelte_typescript_content_mapper.workspace = true
 
 [dev-dependencies]
-oxc_allocator.workspace = true
 rsvelte_test_harness.workspace = true
 
 [[test]]

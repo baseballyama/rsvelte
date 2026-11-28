@@ -51,8 +51,14 @@ pub(crate) fn read_as(
     file: PathBuf,
     tasks: &[&str],
 ) -> Result<Document, String> {
-    let text = (reg.read(&file, tasks)).map_err(|e| format!("{}: {e}", file.display()))?;
-    named(name, file, text)
+    let read = (reg.read_file(&file, tasks)).map_err(|e| format!("{}: {e}", file.display()))?;
+    let document =
+        Document::new(name, read.text).map_err(|e| format!("{}: {e:?}", file.display()))?;
+    Ok(if read.on_disk {
+        document.read_from_disk(file)
+    } else {
+        document.read_from(file)
+    })
 }
 
 /// The documents of the files at `paths`, in their order, with the text `tasks` read them with.
@@ -107,15 +113,16 @@ pub(crate) fn run(
     documents: &[Document],
     tasks: &[&str],
 ) -> Result<Vec<DocumentResult>, ExitCode> {
-    run_per_document(reg, documents, tasks, &|_| tasks)
+    run_per_document(reg, documents, tasks, &|_| None)
 }
 
-/// [`run`], where document `i` runs only the tasks among `tasks` that `tasks_of(i)` names.
+/// [`run`], where document `i` runs only the tasks among `tasks` that `tasks_of(i)` names, or all
+/// of them when it is `None`.
 pub(crate) fn run_per_document<'t>(
     reg: &Registry,
     documents: &[Document],
     tasks: &[&str],
-    tasks_of: &(dyn Fn(usize) -> &'t [&'t str] + Sync),
+    tasks_of: &(dyn Fn(usize) -> Option<&'t [&'t str]> + Sync),
 ) -> Result<Vec<DocumentResult>, ExitCode> {
     let options = RunOptions {
         tasks,

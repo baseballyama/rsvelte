@@ -1,4 +1,3781 @@
 # rsvelte pack 1
+=== 1265 packages/protocol/src/ai.ts	ts	module	-
+import { z } from 'zod/v4';
+
+export const AiAskStreamPayloadSchema = z.object({
+	requestId: z.string(),
+	prompt: z.string(),
+	options: z
+		.object({
+			model: z.string().optional(),
+			creativity: z.string().optional()
+		})
+		.optional()
+});
+
+export const AiAskStreamMessageSchema = z.object({
+	type: z.literal('ai-ask-stream'),
+	payload: AiAskStreamPayloadSchema
+});
+
+export const AiStreamChunkPayloadSchema = z.object({
+	requestId: z.string(),
+	text: z.string()
+});
+
+export const AiStreamChunkMessageSchema = z.object({
+	type: z.literal('ai-stream-chunk'),
+	payload: AiStreamChunkPayloadSchema
+});
+
+export const AiStreamEndPayloadSchema = z.object({
+	requestId: z.string(),
+	fullText: z.string()
+});
+
+export const AiStreamEndMessageSchema = z.object({
+	type: z.literal('ai-stream-end'),
+	payload: AiStreamEndPayloadSchema
+});
+
+export const AiStreamErrorPayloadSchema = z.object({
+	requestId: z.string(),
+	error: z.string()
+});
+
+export const AiStreamErrorMessageSchema = z.object({
+	type: z.literal('ai-stream-error'),
+	payload: AiStreamErrorPayloadSchema
+});
+
+export const AiCanAccessPayloadSchema = z.object({
+	requestId: z.string()
+});
+export const AiCanAccessMessageSchema = z.object({
+	type: z.literal('ai-can-access'),
+	payload: AiCanAccessPayloadSchema
+});
+
+=== 1958 packages/protocol/src/api.ts	ts	module	-
+import { z } from 'zod/v4';
+import { ImageLikeSchema } from './image';
+
+export const InvokeCommandPayloadSchema = z.object({
+	requestId: z.string(),
+	command: z.string(),
+	params: z.record(z.string(), z.unknown()).optional()
+});
+
+export const InvokeCommandMessageSchema = z.object({
+	type: z.literal('invoke_command'),
+	payload: InvokeCommandPayloadSchema
+});
+
+export const OpenPayloadSchema = z.object({
+	target: z.string(),
+	application: z.string().optional()
+});
+export const OpenMessageSchema = z.object({
+	type: z.literal('open'),
+	payload: OpenPayloadSchema
+});
+
+export const BrowserExtensionRequestPayloadSchema = z.object({
+	requestId: z.string(),
+	method: z.string(),
+	params: z.unknown()
+});
+export const BrowserExtensionRequestMessageSchema = z.object({
+	type: z.literal('browser-extension-request'),
+	payload: BrowserExtensionRequestPayloadSchema
+});
+
+export const OauthAuthorizePayloadSchema = z.object({
+	url: z.string(),
+	providerName: z.string(),
+	providerIcon: ImageLikeSchema.optional(),
+	description: z.string().optional()
+});
+export const OauthAuthorizeMessageSchema = z.object({
+	type: z.literal('oauth-authorize'),
+	payload: OauthAuthorizePayloadSchema
+});
+
+export const OauthGetTokensPayloadSchema = z.object({
+	requestId: z.string(),
+	providerId: z.string()
+});
+export const OauthGetTokensMessageSchema = z.object({
+	type: z.literal('oauth-get-tokens'),
+	payload: OauthGetTokensPayloadSchema
+});
+
+export const OauthSetTokensPayloadSchema = z.object({
+	requestId: z.string(),
+	providerId: z.string(),
+	tokens: z.record(z.string(), z.unknown())
+});
+export const OauthSetTokensMessageSchema = z.object({
+	type: z.literal('oauth-set-tokens'),
+	payload: OauthSetTokensPayloadSchema
+});
+
+export const OauthRemoveTokensPayloadSchema = z.object({
+	requestId: z.string(),
+	providerId: z.string()
+});
+export const OauthRemoveTokensMessageSchema = z.object({
+	type: z.literal('oauth-remove-tokens'),
+	payload: OauthRemoveTokensPayloadSchema
+});
+
+=== 2847 packages/protocol/src/command.ts	ts	module	-
+import { z } from 'zod/v4';
+import { ShowToastPayloadSchema, UpdateToastPayloadSchema, HideToastPayloadSchema } from './toast';
+
+const CreateInstancePayloadSchema = z.object({
+	id: z.number(),
+	type: z.string(),
+	props: z.record(z.string(), z.unknown()),
+	children: z.array(z.number()).optional(),
+	namedChildren: z.record(z.string(), z.number()).optional()
+});
+
+const CreateTextInstancePayloadSchema = z.object({
+	id: z.number(),
+	type: z.literal('TEXT'),
+	text: z.string()
+});
+
+const ParentChildPayloadSchema = z.object({
+	parentId: z.union([z.literal('root'), z.number()]),
+	childId: z.number()
+});
+
+const InsertBeforePayloadSchema = z.object({
+	parentId: z.union([z.literal('root'), z.number()]),
+	childId: z.number(),
+	beforeId: z.number()
+});
+
+const UpdatePropsPayloadSchema = z.object({
+	id: z.number(),
+	props: z.record(z.string(), z.unknown()),
+	namedChildren: z.record(z.string(), z.number()).optional()
+});
+
+const UpdateTextPayloadSchema = z.object({
+	id: z.number(),
+	text: z.string()
+});
+
+const ReplaceChildrenPayloadSchema = z.object({
+	parentId: z.union([z.string(), z.number()]),
+	childrenIds: z.array(z.number())
+});
+
+const ClearContainerPayloadSchema = z.object({
+	containerId: z.string()
+});
+
+const DefinePropsTemplatePayloadSchema = z.object({
+	templateId: z.number(),
+	props: z.record(z.string(), z.unknown()),
+	namedChildren: z.record(z.string(), z.number()).optional()
+});
+
+const ApplyPropsTemplatePayloadSchema = z.object({
+	templateId: z.number(),
+	targetIds: z.array(z.number())
+});
+
+export const CommandSchema = z.discriminatedUnion('type', [
+	z.object({ type: z.literal('CREATE_INSTANCE'), payload: CreateInstancePayloadSchema }),
+	z.object({ type: z.literal('CREATE_TEXT_INSTANCE'), payload: CreateTextInstancePayloadSchema }),
+	z.object({ type: z.literal('APPEND_CHILD'), payload: ParentChildPayloadSchema }),
+	z.object({ type: z.literal('INSERT_BEFORE'), payload: InsertBeforePayloadSchema }),
+	z.object({ type: z.literal('REMOVE_CHILD'), payload: ParentChildPayloadSchema }),
+	z.object({ type: z.literal('UPDATE_PROPS'), payload: UpdatePropsPayloadSchema }),
+	z.object({ type: z.literal('UPDATE_TEXT'), payload: UpdateTextPayloadSchema }),
+	z.object({ type: z.literal('REPLACE_CHILDREN'), payload: ReplaceChildrenPayloadSchema }),
+	z.object({ type: z.literal('CLEAR_CONTAINER'), payload: ClearContainerPayloadSchema }),
+	z.object({ type: z.literal('SHOW_TOAST'), payload: ShowToastPayloadSchema }),
+	z.object({ type: z.literal('UPDATE_TOAST'), payload: UpdateToastPayloadSchema }),
+	z.object({ type: z.literal('HIDE_TOAST'), payload: HideToastPayloadSchema }),
+	z.object({ type: z.literal('DEFINE_PROPS_TEMPLATE'), payload: DefinePropsTemplatePayloadSchema }),
+	z.object({ type: z.literal('APPLY_PROPS_TEMPLATE'), payload: ApplyPropsTemplatePayloadSchema })
+]);
+export type Command = z.infer<typeof CommandSchema>;
+
+=== 161 packages/protocol/src/common.ts	ts	module	-
+import { z } from 'zod/v4';
+
+export const KeyboardShortcutSchema = z.object({
+	modifiers: z.array(z.enum(['cmd', 'ctrl', 'opt', 'shift'])),
+	key: z.string()
+});
+
+=== 212 packages/protocol/src/hud.ts	ts	module	-
+import { z } from 'zod/v4';
+
+export const ShowHudPayloadSchema = z.object({
+	title: z.string()
+});
+
+export const ShowHudMessageSchema = z.object({
+	type: z.literal('SHOW_HUD'),
+	payload: ShowHudPayloadSchema
+});
+
+=== 638 packages/protocol/src/image.ts	ts	module	-
+import { z } from 'zod/v4';
+
+const Themeable = z.object({
+	light: z.string(),
+	dark: z.string()
+});
+
+const ColorLike = z.union([z.string(), Themeable]);
+
+const ImageSource = z.union([z.string(), Themeable]);
+
+const ImageFallback = ImageSource;
+
+const ImageMask = z.enum(['circle', 'roundedRectangle']);
+
+const Image = z.object({
+	source: ImageSource,
+	mask: ImageMask.optional(),
+	tintColor: ColorLike.optional(),
+	fallback: ImageFallback.optional()
+});
+
+const FileIcon = z.object({
+	fileIcon: z.string()
+});
+
+export const ImageLikeSchema = z.union([z.string(), Image, FileIcon]);
+export type ImageLike = z.infer<typeof ImageLikeSchema>;
+
+=== 252 packages/protocol/src/index.ts	ts	module	-
+export * from './ai';
+export * from './api';
+export * from './command';
+export * from './common';
+export * from './hud';
+export * from './main';
+export * from './plugin';
+export * from './preferences';
+export * from './toast';
+export * from './image';
+
+=== 2075 packages/protocol/src/main.ts	ts	module	-
+import { z } from 'zod/v4';
+import {
+	BrowserExtensionRequestMessageSchema,
+	InvokeCommandMessageSchema,
+	OauthAuthorizeMessageSchema,
+	OauthGetTokensMessageSchema,
+	OauthRemoveTokensMessageSchema,
+	OauthSetTokensMessageSchema,
+	OpenMessageSchema
+} from './api';
+import {
+	AiAskStreamMessageSchema,
+	AiCanAccessMessageSchema,
+	AiStreamChunkMessageSchema,
+	AiStreamEndMessageSchema,
+	AiStreamErrorMessageSchema
+} from './ai';
+import { CommandSchema } from './command';
+import { ShowHudMessageSchema } from './hud';
+import { GoBackToPluginListSchema, PluginListSchema, PreferenceValuesSchema } from './plugin';
+
+export const BatchUpdateSchema = z.object({
+	type: z.literal('BATCH_UPDATE'),
+	payload: z.array(CommandSchema)
+});
+export type BatchUpdate = z.infer<typeof BatchUpdateSchema>;
+
+const LogMessageSchema = z.object({
+	type: z.literal('log'),
+	payload: z.unknown()
+});
+
+const FocusElementMessageSchema = z.object({
+	type: z.literal('FOCUS_ELEMENT'),
+	payload: z.object({ elementId: z.number() })
+});
+
+const ResetElementMessageSchema = z.object({
+	type: z.literal('RESET_ELEMENT'),
+	payload: z.object({ elementId: z.number() })
+});
+
+export const SidecarMessageSchema = z.union([BatchUpdateSchema, CommandSchema, LogMessageSchema]);
+export type SidecarMessage = z.infer<typeof SidecarMessageSchema>;
+
+export const SidecarMessageWithPluginsSchema = z
+	.union([
+		BatchUpdateSchema,
+		CommandSchema,
+		ShowHudMessageSchema,
+		LogMessageSchema,
+		PluginListSchema,
+		PreferenceValuesSchema,
+		GoBackToPluginListSchema,
+		OpenMessageSchema,
+		InvokeCommandMessageSchema,
+		BrowserExtensionRequestMessageSchema,
+		OauthAuthorizeMessageSchema,
+		OauthGetTokensMessageSchema,
+		OauthSetTokensMessageSchema,
+		OauthRemoveTokensMessageSchema,
+		AiAskStreamMessageSchema,
+		AiStreamChunkMessageSchema,
+		AiStreamEndMessageSchema,
+		AiStreamErrorMessageSchema,
+		AiCanAccessMessageSchema,
+		FocusElementMessageSchema,
+		ResetElementMessageSchema
+	])
+	.and(z.object({ timestamp: z.number() }));
+export type SidecarMessageWithPlugins = z.infer<typeof SidecarMessageWithPluginsSchema>;
+
+=== 1282 packages/protocol/src/plugin.ts	ts	module	-
+import { z } from 'zod/v4';
+import { PreferenceSchema } from './preferences';
+
+export const PluginInfoSchema = z.object({
+	title: z.string(),
+	description: z.string().optional(),
+	pluginTitle: z.string(),
+	pluginName: z.string(),
+	commandName: z.string(),
+	pluginPath: z.string(),
+	icon: z.string().optional(),
+	preferences: z.array(PreferenceSchema).optional(),
+	commandPreferences: z.array(PreferenceSchema).optional(),
+	mode: z.enum(['view', 'no-view', 'menu-bar']).optional(),
+	author: z.union([z.string(), z.object({ name: z.string() })]).optional(),
+	owner: z.string().optional()
+});
+export type PluginInfo = z.infer<typeof PluginInfoSchema>;
+
+export const PluginListSchema = z.object({
+	type: z.literal('plugin-list'),
+	payload: z.array(PluginInfoSchema)
+});
+export type PluginList = z.infer<typeof PluginListSchema>;
+
+export const PreferenceValuesSchema = z.object({
+	type: z.literal('preference-values'),
+	payload: z.object({
+		pluginName: z.string(),
+		values: z.record(z.string(), z.unknown())
+	})
+});
+export type PreferenceValues = z.infer<typeof PreferenceValuesSchema>;
+
+export const GoBackToPluginListSchema = z.object({
+	type: z.literal('go-back-to-plugin-list'),
+	payload: z.object({})
+});
+export type GoBackToPluginList = z.infer<typeof GoBackToPluginListSchema>;
+
+=== 691 packages/protocol/src/preferences.ts	ts	module	-
+import { z } from 'zod/v4';
+
+const BasePreferenceSchema = z.object({
+	name: z.string(),
+	title: z.string().optional(),
+	description: z.string().optional(),
+	required: z.boolean().optional(),
+	default: z.union([z.string(), z.boolean()]).optional(),
+	data: z
+		.array(
+			z.object({
+				title: z.string(),
+				value: z.string()
+			})
+		)
+		.optional()
+});
+
+export const PreferenceSchema = z.discriminatedUnion('type', [
+	BasePreferenceSchema.extend({
+		type: z.literal('checkbox'),
+		label: z.string()
+	}),
+	BasePreferenceSchema.extend({
+		type: z.enum(['textfield', 'password', 'dropdown', 'appPicker', 'file', 'directory'])
+	})
+]);
+export type Preference = z.infer<typeof PreferenceSchema>;
+
+=== 812 packages/protocol/src/toast.ts	ts	module	-
+import { z } from 'zod/v4';
+import { KeyboardShortcutSchema } from './common';
+
+export const ToastActionOptionsSchema = z.object({
+	title: z.string(),
+	onAction: z.boolean(),
+	shortcut: KeyboardShortcutSchema.optional()
+});
+
+export const ToastStyleSchema = z.enum(['SUCCESS', 'FAILURE', 'ANIMATED']);
+
+export const ShowToastPayloadSchema = z.object({
+	id: z.number(),
+	title: z.string(),
+	message: z.string().optional(),
+	style: ToastStyleSchema.optional(),
+	primaryAction: ToastActionOptionsSchema.optional(),
+	secondaryAction: ToastActionOptionsSchema.optional()
+});
+
+export const UpdateToastPayloadSchema = z.object({
+	id: z.number(),
+	title: z.string().optional(),
+	message: z.string().optional(),
+	style: ToastStyleSchema.optional()
+});
+
+export const HideToastPayloadSchema = z.object({
+	id: z.number()
+});
+
+=== 4620 sidecar/src/api/ai.ts	ts	module	-
+import { EventEmitter } from 'events';
+import { writeOutput } from '../io';
+
+export type Creativity = 'none' | 'low' | 'medium' | 'high' | 'maximum' | number;
+
+export enum Model {
+	'OpenAI_GPT4.1' = 'OpenAI_GPT4.1',
+	'OpenAI_GPT4.1-mini' = 'OpenAI_GPT4.1-mini',
+	'OpenAI_GPT4.1-nano' = 'OpenAI_GPT4.1-nano',
+	OpenAI_GPT4 = 'OpenAI_GPT4',
+	'OpenAI_GPT4-turbo' = 'OpenAI_GPT4-turbo',
+	OpenAI_GPT4o = 'OpenAI_GPT4o',
+	'OpenAI_GPT4o-mini' = 'OpenAI_GPT4o-mini',
+	OpenAI_o3 = 'OpenAI_o3',
+	'OpenAI_o4-mini' = 'OpenAI_o4-mini',
+	OpenAI_o1 = 'OpenAI_o1',
+	'OpenAI_o3-mini' = 'OpenAI_o3-mini',
+	Anthropic_Claude_Haiku = 'Anthropic_Claude_Haiku',
+	Anthropic_Claude_Sonnet = 'Anthropic_Claude_Sonnet',
+	'Anthropic_Claude_Sonnet_3.7' = 'Anthropic_Claude_Sonnet_3.7',
+	Anthropic_Claude_Opus = 'Anthropic_Claude_Opus',
+	Anthropic_Claude_4_Sonnet = 'Anthropic_Claude_4_Sonnet',
+	Anthropic_Claude_4_Opus = 'Anthropic_Claude_4_Opus',
+	Perplexity_Sonar = 'Perplexity_Sonar',
+	Perplexity_Sonar_Pro = 'Perplexity_Sonar_Pro',
+	Perplexity_Sonar_Reasoning = 'Perplexity_Sonar_Reasoning',
+	Perplexity_Sonar_Reasoning_Pro = 'Perplexity_Sonar_Reasoning_Pro',
+	Llama4_Scout = 'Llama4_Scout',
+	'Llama3.3_70B' = 'Llama3.3_70B',
+	'Llama3.1_8B' = 'Llama3.1_8B',
+	'Llama3.1_405B' = 'Llama3.1_405B',
+	Mistral_Nemo = 'Mistral_Nemo',
+	Mistral_Large = 'Mistral_Large',
+	Mistral_Medium = 'Mistral_Medium',
+	Mistral_Small = 'Mistral_Small',
+	Mistral_Codestral = 'Mistral_Codestral',
+	'DeepSeek_R1_Distill_Llama_3.3_70B' = 'DeepSeek_R1_Distill_Llama_3.3_70B',
+	DeepSeek_R1 = 'DeepSeek_R1',
+	DeepSeek_V3 = 'DeepSeek_V3',
+	'Google_Gemini_2.5_Pro' = 'Google_Gemini_2.5_Pro',
+	'Google_Gemini_2.5_Flash' = 'Google_Gemini_2.5_Flash',
+	'Google_Gemini_2.0_Flash' = 'Google_Gemini_2.0_Flash',
+	xAI_Grok_3 = 'xAI_Grok_3',
+	xAI_Grok_3_Mini = 'xAI_Grok_3_Mini',
+	xAI_Grok_2 = 'xAI_Grok_2'
+}
+
+export interface AskOptions {
+	creativity?: Creativity;
+	model?: string;
+	signal?: AbortSignal;
+}
+
+interface AskResult extends Promise<string> {
+	on(event: 'data', listener: (chunk: string) => void): this;
+	on(event: 'end', listener: (fullText: string) => void): this;
+	on(event: 'error', listener: (error: Error) => void): this;
+	off(event: 'data', listener: (chunk: string) => void): this;
+	off(event: 'end', listener: (fullText: string) => void): this;
+	off(event: 'error', listener: (error: Error) => void): this;
+}
+
+const pendingRequests = new Map<string, EventEmitter>();
+
+export function handleAiStreamChunk(data: { requestId: string; text: string }) {
+	const emitter = pendingRequests.get(data.requestId);
+	if (emitter) {
+		emitter.emit('data', data.text);
+	}
+}
+
+export function handleAiStreamEnd(data: { requestId: string; full_text: string }) {
+	const emitter = pendingRequests.get(data.requestId);
+	if (emitter) {
+		emitter.emit('end', data.full_text);
+		pendingRequests.delete(data.requestId);
+	}
+}
+
+export function handleAiStreamError(data: { requestId: string; error: string }) {
+	const emitter = pendingRequests.get(data.requestId);
+	if (emitter) {
+		emitter.emit('error', new Error(data.error));
+		pendingRequests.delete(data.requestId);
+	}
+}
+
+export function ask(prompt: string, options: AskOptions = {}): AskResult {
+	const emitter = new EventEmitter();
+	const requestId = crypto.randomUUID();
+
+	let fullText = '';
+	let isResolved = false;
+
+	pendingRequests.set(requestId, emitter);
+
+	const promise = new Promise<string>((resolve, reject) => {
+		const handleChunk = (chunk: string) => {
+			fullText += chunk;
+		};
+
+		const handleEnd = (finalText: string) => {
+			if (!isResolved) {
+				isResolved = true;
+				fullText = finalText;
+				resolve(fullText);
+			}
+		};
+
+		const handleError = (error: Error) => {
+			if (!isResolved) {
+				isResolved = true;
+				reject(error);
+			}
+		};
+
+		emitter.on('data', handleChunk);
+		emitter.on('end', handleEnd);
+		emitter.on('error', handleError);
+
+		if (options.signal) {
+			options.signal.addEventListener('abort', () => {
+				if (!isResolved) {
+					isResolved = true;
+					const error = new Error('Request aborted');
+					emitter.emit('error', error);
+					pendingRequests.delete(requestId);
+				}
+			});
+		}
+
+		writeOutput({
+			type: 'ai-ask-stream',
+			payload: {
+				requestId,
+				prompt,
+				options: {
+					model: options.model,
+					creativity: options.creativity
+				}
+			}
+		});
+	});
+
+	const result = promise as AskResult;
+	result.on = emitter.on.bind(emitter);
+	result.off = emitter.off.bind(emitter);
+
+	return result;
+}
+
+export const AI = {
+	ask,
+	Model,
+	Creativity: {
+		none: 'none' as const,
+		low: 'low' as const,
+		medium: 'medium' as const,
+		high: 'high' as const,
+		maximum: 'maximum' as const
+	}
+};
+
+=== 1370 sidecar/src/api/browserExtension.ts	ts	module	-
+import { sendRequest } from './rpc';
+
+type Tab = {
+	active: boolean;
+	id: number;
+	url: string;
+	favicon?: string;
+	title?: string;
+};
+
+type RawTab = {
+	tabId: number;
+	url: string;
+	title?: string;
+	favicon?: string;
+	active: boolean;
+};
+
+const sendBrowserRequest = <T>(method: string, params: unknown) => {
+	return sendRequest<T>('browser-extension-request', { method, params });
+};
+
+export const BrowserExtensionAPI = {
+	async getTabs(): Promise<Tab[]> {
+		const result = await sendBrowserRequest<{ value: RawTab[] }>('getTabs', {});
+		return result.value.map((tab) => ({
+			id: tab.tabId,
+			url: tab.url,
+			title: tab.title,
+			favicon: tab.favicon,
+			active: tab.active
+		}));
+	},
+	async getContent(options?: {
+		cssSelector?: string;
+		tabId?: number;
+		format?: 'html' | 'text' | 'markdown';
+	}): Promise<string> {
+		const format = options?.format ?? 'markdown';
+		if (options?.cssSelector && format === 'markdown') {
+			throw new Error('When using a CSS selector, the `format` option can not be `markdown`.');
+		}
+
+		const params: { field: string; selector?: string; tabId?: number } = {
+			field: format
+		};
+
+		if (options?.cssSelector) {
+			params.selector = options.cssSelector;
+		}
+
+		if (options?.tabId) {
+			params.tabId = options.tabId;
+		}
+
+		const result = await sendBrowserRequest<{ value: string }>('getTab', params);
+		return result.value;
+	}
+};
+
+=== 6042 sidecar/src/api/cache.ts	ts	module	-
+import type * as api from '@raycast/api';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
+import { config } from '../config';
+import { currentPluginName } from '../state';
+
+type IndexEntry = {
+	filePath: string;
+	size: number;
+	lastAccessed: number;
+};
+
+type PersistedIndex = [string, IndexEntry][];
+
+export class Cache {
+	private readonly options: Required<api.Cache.Options>;
+	private readonly cachePath: string;
+	private readonly indexPath: string;
+
+	private index: Map<string, IndexEntry> = new Map();
+	private subscribers: Set<api.Cache.Subscriber> = new Set();
+	private totalSize: number = 0;
+
+	constructor(options: api.Cache.Options = {}) {
+		const cacheRoot = config.cacheDir;
+		fs.mkdirSync(cacheRoot, { recursive: true });
+		this.options = {
+			capacity: options.capacity ?? 10 * 1024 * 1024,
+			namespace: options.namespace ?? currentPluginName ?? 'default',
+			directory: options.directory ?? cacheRoot
+		};
+
+		this.cachePath = path.join(cacheRoot, this.options.namespace);
+		this.indexPath = path.join(this.cachePath, 'index.json');
+
+		// no idea what this does but it fixes the bug of "cannot read property subscribe of undefined"
+		this.subscribe = this.subscribe.bind(this);
+
+		this._initialize();
+	}
+
+	public get isEmpty(): boolean {
+		return this.index.size === 0;
+	}
+
+	public get(key: string): string | undefined {
+		const entry = this.index.get(key);
+		if (!entry) {
+			return undefined;
+		}
+
+		try {
+			const data = fs.readFileSync(entry.filePath, 'utf-8');
+
+			entry.lastAccessed = Date.now();
+			this.index.set(key, entry);
+			this._saveIndex();
+
+			return data;
+		} catch (error) {
+			console.error(`Failed to read cache file for key "${key}", removing from index:`, error);
+			this.remove(key);
+			return undefined;
+		}
+	}
+
+	public has(key: string): boolean {
+		return this.index.has(key);
+	}
+
+	public set(key: string, data: string): void {
+		const filename = this._keyToFilename(key);
+		const filePath = path.join(this.cachePath, filename);
+
+		try {
+			fs.writeFileSync(filePath, data, 'utf-8');
+		} catch (error) {
+			console.error(`Failed to write cache file for key "${key}":`, error);
+			throw new Error(`Cache#set failed to write to disk for key "${key}"`);
+		}
+
+		const previousEntry = this.index.get(key);
+		const previousSize = previousEntry ? previousEntry.size : 0;
+
+		const newSize = Buffer.byteLength(data, 'utf8');
+
+		const newEntry: IndexEntry = {
+			filePath: filePath,
+			size: newSize,
+			lastAccessed: Date.now()
+		};
+
+		this.index.set(key, newEntry);
+		this.totalSize = this.totalSize - previousSize + newSize;
+
+		this._enforceCapacity();
+		this._saveIndex();
+		this._notifySubscribers(key, data);
+	}
+
+	public remove(key: string): boolean {
+		const entry = this.index.get(key);
+		if (!entry) {
+			return false;
+		}
+
+		try {
+			if (fs.existsSync(entry.filePath)) {
+				fs.unlinkSync(entry.filePath);
+			}
+		} catch (error) {
+			console.error(`Failed to delete cache file for key "${key}":`, error);
+		}
+
+		this.index.delete(key);
+		this.totalSize -= entry.size;
+
+		this._saveIndex();
+		this._notifySubscribers(key, undefined);
+
+		return true;
+	}
+
+	public clear(options: { notifySubscribers?: boolean } = { notifySubscribers: true }): void {
+		const filePaths = Array.from(this.index.values()).map((entry) => entry.filePath);
+
+		for (const filePath of filePaths) {
+			try {
+				if (fs.existsSync(filePath)) {
+					fs.unlinkSync(filePath);
+				}
+			} catch (error) {
+				console.error(`Failed to delete cache file during clear: ${filePath}`, error);
+			}
+		}
+
+		this.index.clear();
+		this.totalSize = 0;
+
+		this._saveIndex();
+
+		if (options.notifySubscribers) {
+			this._notifySubscribers(undefined, undefined);
+		}
+	}
+
+	public subscribe(subscriber: api.Cache.Subscriber): api.Cache.Subscription {
+		this.subscribers.add(subscriber);
+
+		return () => {
+			this.subscribers.delete(subscriber);
+		};
+	}
+
+	private _initialize(): void {
+		try {
+			fs.mkdirSync(this.cachePath, { recursive: true });
+			this._loadIndex();
+		} catch (error) {
+			console.error('Failed to initialize cache directory. Cache will be non-operational.', error);
+		}
+	}
+
+	private _loadIndex(): void {
+		try {
+			if (fs.existsSync(this.indexPath)) {
+				const rawData = fs.readFileSync(this.indexPath, 'utf-8');
+				const persistedIndex: PersistedIndex = JSON.parse(rawData);
+				this.index = new Map(persistedIndex);
+				this.totalSize = 0;
+				for (const entry of this.index.values()) {
+					this.totalSize += entry.size;
+				}
+			}
+		} catch (error) {
+			console.error('Failed to load or parse cache index. Starting with a fresh cache.', error);
+			this.index.clear();
+			this.totalSize = 0;
+		}
+	}
+
+	private _saveIndex(): void {
+		try {
+			const persistedIndex: PersistedIndex = Array.from(this.index.entries());
+			const data = JSON.stringify(persistedIndex);
+			const tempIndexPath = this.indexPath + '.tmp';
+			fs.writeFileSync(tempIndexPath, data, 'utf-8');
+			fs.renameSync(tempIndexPath, this.indexPath);
+		} catch (error) {
+			console.error('Failed to save cache index:', error);
+		}
+	}
+
+	private _keyToFilename(key: string): string {
+		return crypto.createHash('sha256').update(key).digest('hex');
+	}
+
+	private _enforceCapacity(): void {
+		if (this.totalSize <= this.options.capacity) {
+			return;
+		}
+
+		const sortedEntries = Array.from(this.index.entries()).sort(
+			(a, b) => a[1].lastAccessed - b[1].lastAccessed
+		);
+
+		for (const [key, entry] of sortedEntries) {
+			if (this.totalSize <= this.options.capacity) {
+				break;
+			}
+
+			try {
+				if (fs.existsSync(entry.filePath)) {
+					fs.unlinkSync(entry.filePath);
+				}
+			} catch (error) {
+				console.error(`Failed to delete cache file on eviction for key "${key}":`, error);
+			}
+
+			this.index.delete(key);
+			this.totalSize -= entry.size;
+		}
+	}
+
+	private _notifySubscribers(key: string | undefined, data: string | undefined): void {
+		for (const subscriber of this.subscribers) {
+			try {
+				subscriber(key, data);
+			} catch (error) {
+				console.error('Cache subscriber threw an error:', error);
+			}
+		}
+	}
+}
+
+=== 1165 sidecar/src/api/clipboard.ts	ts	module	-
+import { invokeCommand } from './rpc';
+import type * as api from '@raycast/api';
+
+type ClipboardContent = {
+	text?: string;
+	html?: string;
+	file?: string;
+};
+
+type ReadResult = {
+	text?: string;
+	html?: string;
+	file?: string;
+};
+
+function normalizeContent(content: string | number | api.Clipboard.Content): ClipboardContent {
+	if (typeof content === 'string' || typeof content === 'number') {
+		return { text: String(content) };
+	}
+	return content;
+}
+
+export const Clipboard: typeof api.Clipboard = {
+	async copy(content, options) {
+		const normalized = normalizeContent(content);
+		return invokeCommand<void>('clipboard_copy', { content: normalized, options });
+	},
+	async paste(content) {
+		const normalized = normalizeContent(content);
+		return invokeCommand<void>('clipboard_paste', { content: normalized });
+	},
+	async clear() {
+		return invokeCommand<void>('clipboard_clear', {});
+	},
+	async read(options) {
+		return invokeCommand<ReadResult>('clipboard_read', { offset: options?.offset });
+	},
+	async readText(options) {
+		const result = await invokeCommand<ReadResult>('clipboard_read_text', {
+			offset: options?.offset
+		});
+		return result.text;
+	}
+};
+
+=== 289 sidecar/src/api/colors.ts	ts	module	-
+export enum Color {
+	Blue = 'raycast-blue',
+	Green = 'raycast-green',
+	Magenta = 'raycast-magenta',
+	Orange = 'raycast-orange',
+	Purple = 'raycast-purple',
+	Red = 'raycast-red',
+	Yellow = 'raycast-yellow',
+	PrimaryText = 'raycast-primary-text',
+	SecondaryText = 'raycast-secondary-text'
+}
+
+=== 1483 sidecar/src/api/components/actions.ts	ts	module	-
+import React from 'react';
+import { jsx } from 'react/jsx-runtime';
+import { createWrapperComponent } from '../utils';
+import { currentRootElement, navigationStack } from '../../state';
+import { updateContainer } from '../../reconciler';
+
+const Action = createWrapperComponent('Action');
+const ActionPanel = createWrapperComponent('ActionPanel');
+const ActionPanelSection = createWrapperComponent('ActionPanel.Section');
+const ActionPanelSubmenu = createWrapperComponent('ActionPanel.Submenu');
+const ActionPaste = createWrapperComponent('Action.Paste');
+const ActionCopy = createWrapperComponent('Action.CopyToClipboard');
+const ActionOpenInBrowser = createWrapperComponent('Action.OpenInBrowser');
+const ActionSubmitForm = createWrapperComponent('Action.SubmitForm');
+
+const ActionPush = ({
+	onPush,
+	target,
+	...props
+}: {
+	onPush?: () => void;
+	target: React.ReactElement;
+}) => {
+	const handleAction = () => {
+		if (currentRootElement) {
+			navigationStack.push(currentRootElement);
+		}
+		updateContainer(target);
+		onPush?.();
+	};
+	return jsx('Action.Push', { ...props, onAction: handleAction });
+};
+
+const Style = {
+	Regular: 'regular',
+	Destructive: 'destructive'
+} as const;
+
+Object.assign(Action, {
+	Paste: ActionPaste,
+	CopyToClipboard: ActionCopy,
+	OpenInBrowser: ActionOpenInBrowser,
+	Push: ActionPush,
+	SubmitForm: ActionSubmitForm,
+	Style
+});
+Object.assign(ActionPanel, {
+	Section: ActionPanelSection,
+	Submenu: ActionPanelSubmenu
+});
+
+export { Action, ActionPanel };
+
+=== 937 sidecar/src/api/components/detail.ts	ts	module	-
+import { createWrapperComponent, createSlottedComponent } from '../utils';
+
+const Detail = createSlottedComponent('Detail', ['metadata', 'actions']);
+
+const DetailMetadata = createWrapperComponent('Detail.Metadata');
+const DetailMetadataLabel = createWrapperComponent('Detail.Metadata.Label');
+const DetailMetadataLink = createWrapperComponent('Detail.Metadata.Link');
+const DetailMetadataTagList = createWrapperComponent('Detail.Metadata.TagList');
+const DetailMetadataTagListItem = createWrapperComponent('Detail.Metadata.TagList.Item');
+const DetailMetadataSeparator = createWrapperComponent('Detail.Metadata.Separator');
+
+Object.assign(Detail, {
+	Metadata: DetailMetadata
+});
+Object.assign(DetailMetadata, {
+	Label: DetailMetadataLabel,
+	Link: DetailMetadataLink,
+	TagList: DetailMetadataTagList,
+	Separator: DetailMetadataSeparator
+});
+Object.assign(DetailMetadataTagList, {
+	Item: DetailMetadataTagListItem
+});
+
+export { Detail };
+
+=== 913 sidecar/src/api/components/form.ts	ts	module	-
+import { createWrapperComponent, createSlottedComponent } from '../utils';
+
+const Form = createSlottedComponent('Form', ['searchBarAccessory', 'actions']);
+
+const FormTextField = createWrapperComponent('Form.TextField');
+const FormTextArea = createWrapperComponent('Form.TextArea');
+
+const FormDropdown = createWrapperComponent('Form.Dropdown');
+const FormDropdownItem = createWrapperComponent('Form.Dropdown.Item');
+const FormDropdownSection = createWrapperComponent('Form.Dropdown.Section');
+
+const FormLinkAccessory = createWrapperComponent('Form.LinkAccessory');
+
+Object.assign(FormDropdown, {
+	Item: FormDropdownItem,
+	Section: FormDropdownSection
+});
+
+const FormDescription = createWrapperComponent('Form.Description');
+
+Object.assign(Form, {
+	Dropdown: FormDropdown,
+	TextField: FormTextField,
+	TextArea: FormTextArea,
+	Description: FormDescription,
+	LinkAccessory: FormLinkAccessory
+});
+
+export { Form };
+
+=== 952 sidecar/src/api/components/grid.ts	ts	module	-
+import { createWrapperComponent, createSlottedComponent } from '../utils';
+
+const Grid = createSlottedComponent('Grid', ['searchBarAccessory']);
+const GridItem = createSlottedComponent('Grid.Item', ['detail', 'actions']);
+
+const GridSection = createWrapperComponent('Grid.Section');
+const GridDropdown = createWrapperComponent('Grid.Dropdown');
+const GridDropdownItem = createWrapperComponent('Grid.Dropdown.Item');
+const GridDropdownSection = createWrapperComponent('Grid.Dropdown.Section');
+const GridEmptyView = createSlottedComponent('Grid.EmptyView', ['actions']);
+
+const Inset = {
+	Small: 'small',
+	Medium: 'medium',
+	Large: 'large'
+} as const;
+
+const Fit = {
+	Contain: 'contain',
+	Fill: 'fill'
+} as const;
+
+Object.assign(Grid, {
+	Section: GridSection,
+	Item: GridItem,
+	Dropdown: GridDropdown,
+	EmptyView: GridEmptyView,
+	Inset,
+	Fit
+});
+Object.assign(GridDropdown, {
+	Item: GridDropdownItem,
+	Section: GridDropdownSection
+});
+
+export { Grid };
+
+=== 1854 sidecar/src/api/components/list.ts	ts	module	-
+import { createWrapperComponent, createSlottedComponent } from '../utils';
+
+const List = createSlottedComponent('List', ['searchBarAccessory']);
+const ListItem = createSlottedComponent('List.Item', ['detail', 'actions']);
+
+const ListSection = createWrapperComponent('List.Section');
+const ListEmptyView = createWrapperComponent('List.EmptyView');
+const ListDropdown = createWrapperComponent('List.Dropdown');
+const ListDropdownItem = createWrapperComponent('List.Dropdown.Item');
+const ListDropdownSection = createWrapperComponent('List.Dropdown.Section');
+const ListItemDetail = createWrapperComponent('List.Item.Detail');
+const ListItemDetailMetadata = createWrapperComponent('List.Item.Detail.Metadata');
+const ListItemDetailMetadataLabel = createWrapperComponent('List.Item.Detail.Metadata.Label');
+const ListItemDetailMetadataLink = createWrapperComponent('List.Item.Detail.Metadata.Link');
+const ListItemDetailMetadataTagList = createWrapperComponent('List.Item.Detail.Metadata.TagList');
+const ListItemDetailMetadataTagListItem = createWrapperComponent(
+	'List.Item.Detail.Metadata.TagList.Item'
+);
+const ListItemDetailMetadataSeparator = createWrapperComponent(
+	'List.Item.Detail.Metadata.Separator'
+);
+
+Object.assign(List, {
+	Item: ListItem,
+	Section: ListSection,
+	Dropdown: ListDropdown,
+	EmptyView: ListEmptyView
+});
+Object.assign(ListDropdown, {
+	Item: ListDropdownItem,
+	Section: ListDropdownSection
+});
+Object.assign(ListItem, {
+	Detail: ListItemDetail
+});
+Object.assign(ListItemDetail, {
+	Metadata: ListItemDetailMetadata
+});
+Object.assign(ListItemDetailMetadata, {
+	Label: ListItemDetailMetadataLabel,
+	Link: ListItemDetailMetadataLink,
+	TagList: ListItemDetailMetadataTagList,
+	Separator: ListItemDetailMetadataSeparator
+});
+Object.assign(ListItemDetailMetadataTagList, {
+	Item: ListItemDetailMetadataTagListItem
+});
+
+export { List };
+
+=== 2757 sidecar/src/api/environment.ts	ts	module	-
+import { LaunchType } from './types';
+import * as fs from 'fs';
+import { writeOutput } from '../io';
+import type { Application } from './types';
+import { config } from '../config';
+import { browserExtensionState, aiContext } from '../state';
+import { invokeCommand } from './rpc';
+
+const supportPath = config.supportDir;
+try {
+	if (!fs.existsSync(supportPath)) {
+		fs.mkdirSync(supportPath, { recursive: true });
+	}
+} catch (e) {
+	console.error('Could not create support path', e);
+}
+
+export interface FileSystemItem {
+	path: string;
+}
+
+export const BrowserExtension = { name: 'BrowserExtension' };
+export const AI = { name: 'AI' };
+
+export const environment = {
+	appearance: 'dark' as const,
+	assetsPath: config.assetsDir,
+	commandMode: 'view' as const,
+	commandName: 'index',
+	extensionName: 'my-extension',
+	isDevelopment: true,
+	launchType: LaunchType.UserInitiated,
+	ownerOrAuthorName: 'Flare',
+	raycastVersion: '1.0.0',
+	supportPath: supportPath,
+	textSize: 'medium' as const,
+	canAccess: (feature: { name: string }): boolean => {
+		if (feature && feature.name === 'BrowserExtension') {
+			return browserExtensionState.isConnected;
+		}
+		if (feature && feature.name === 'AI') {
+			return aiContext.hasAccess;
+		}
+		return true;
+	}
+};
+
+export async function getSelectedFinderItems(): Promise<FileSystemItem[]> {
+	return invokeCommand<FileSystemItem[]>('get_selected_finder_items');
+}
+
+export async function getSelectedText(): Promise<string> {
+	return invokeCommand<string>('get_selected_text');
+}
+
+export async function open(target: string, application?: Application | string): Promise<void> {
+	let openWith: string | undefined;
+
+	if (typeof application === 'string') {
+		openWith = application;
+	} else if (application) {
+		openWith = application.path;
+	}
+
+	writeOutput({
+		type: 'open',
+		payload: {
+			target,
+			application: openWith
+		}
+	});
+}
+
+export async function getApplications(path?: fs.PathLike): Promise<Application[]> {
+	const pathString = path ? path.toString() : undefined;
+	return invokeCommand<Application[]>('get_applications', { path: pathString });
+}
+
+export async function getDefaultApplication(path: fs.PathLike): Promise<Application> {
+	return invokeCommand<Application>('get_default_application', { path: path.toString() });
+}
+
+export async function getFrontmostApplication(): Promise<Application> {
+	return invokeCommand<Application>('get_frontmost_application');
+}
+
+export async function showInFinder(path: fs.PathLike): Promise<void> {
+	return invokeCommand<void>('show_in_finder', { path: path.toString() });
+}
+
+export async function trash(path: fs.PathLike | fs.PathLike[]): Promise<void> {
+	const paths = (Array.isArray(path) ? path : [path]).map((p) => p.toString());
+	return invokeCommand<void>('trash', { paths });
+}
+
+=== 163 sidecar/src/api/hud.ts	ts	module	-
+import { writeOutput } from '../io';
+
+export async function showHUD(title: string): Promise<void> {
+	writeOutput({
+		type: 'SHOW_HUD',
+		payload: { title }
+	});
+}
+
+=== 14159 sidecar/src/api/icon.ts	ts	module	-
+export const Icon = {
+	AddPerson: 'add-person-16',
+	Airplane: 'airplane-16',
+	AirplaneFilled: 'airplane-filled-16',
+	AirplaneLanding: 'airplane-landing-16',
+	AirplaneTakeoff: 'airplane-takeoff-16',
+	Airpods: 'airpods-16',
+	Alarm: 'alarm-16',
+	AlarmRinging: 'alarm-ringing-16',
+	AlignCentre: 'align-centre-16',
+	AlignLeft: 'align-left-16',
+	AlignRight: 'align-right-16',
+	AmericanFootball: 'american-football-16',
+	Anchor: 'anchor-16',
+	AppWindow: 'app-window-16',
+	AppWindowGrid2x2: 'app-window-grid-2x2-16',
+	AppWindowGrid3x3: 'app-window-grid-3x3-16',
+	AppWindowList: 'app-window-list-16',
+	AppWindowSidebarLeft: 'app-window-sidebar-left-16',
+	AppWindowSidebarRight: 'app-window-sidebar-right-16',
+	ArrowClockwise: 'arrow-clockwise-16',
+	ArrowCounterClockwise: 'arrow-counter-clockwise-16',
+	ArrowDown: 'arrow-down-16',
+	ArrowDownCircle: 'arrow-down-circle-16',
+	ArrowDownCircleFilled: 'arrow-down-circle-filled-16',
+	ArrowLeft: 'arrow-left-16',
+	ArrowLeftCircle: 'arrow-left-circle-16',
+	ArrowLeftCircleFilled: 'arrow-left-circle-filled-16',
+	ArrowNe: 'arrow-ne-16',
+	ArrowRight: 'arrow-right-16',
+	ArrowRightCircle: 'arrow-right-circle-16',
+	ArrowRightCircleFilled: 'arrow-right-circle-filled-16',
+	ArrowUp: 'arrow-up-16',
+	ArrowUpCircle: 'arrow-up-circle-16',
+	ArrowUpCircleFilled: 'arrow-up-circle-filled-16',
+	ArrowsContract: 'arrows-contract-16',
+	ArrowsExpand: 'arrows-expand-16',
+	AtSymbol: 'at-symbol-16',
+	BandAid: 'band-aid-16',
+	BankNote: 'bank-note-16',
+	BarChart: 'bar-chart-16',
+	BarCode: 'bar-code-16',
+	BathTub: 'bath-tub-16',
+	Battery: 'battery-16',
+	BatteryCharging: 'battery-charging-16',
+	BatteryDisabled: 'battery-disabled-16',
+	Bell: 'bell-16',
+	BellDisabled: 'bell-disabled-16',
+	Bike: 'bike-16',
+	Binoculars: 'binoculars-16',
+	Bird: 'bird-16',
+	BlankDocument: 'blank-document-16',
+	Bluetooth: 'bluetooth-16',
+	Boat: 'boat-16',
+	Bold: 'bold-16',
+	Bolt: 'bolt-16',
+	BoltDisabled: 'bolt-disabled-16',
+	Book: 'book-16',
+	Bookmark: 'bookmark-16',
+	Box: 'box-16',
+	Brush: 'brush-16',
+	Bubble: 'speech-bubble-16',
+	Bug: 'bug-16',
+	Building: 'building-16',
+	BulletPoints: 'bullet-points-16',
+	BullsEye: 'bulls-eye-16',
+	BullsEyeMissed: 'bulls-eye-missed-16',
+	Buoy: 'buoy-16',
+	Calculator: 'calculator-16',
+	Calendar: 'calendar-16',
+	Camera: 'camera-16',
+	Car: 'car-16',
+	Cart: 'cart-16',
+	Cd: 'cd-16',
+	Center: 'center-16',
+	Check: 'check-16',
+	CheckCircle: 'check-circle-16',
+	CheckList: 'check-list-16',
+	CheckRosette: 'check-rosette-16',
+	Checkmark: 'checkmark-16',
+	ChessPiece: 'chess-piece-16',
+	ChevronDown: 'chevron-down-16',
+	ChevronDownSmall: 'chevron-down-small-16',
+	ChevronLeft: 'chevron-left-16',
+	ChevronLeftSmall: 'chevron-left-small-16',
+	ChevronRight: 'chevron-right-16',
+	ChevronRightSmall: 'chevron-right-small-16',
+	ChevronUp: 'chevron-up-16',
+	ChevronUpDown: 'chevron-up-down-16',
+	ChevronUpSmall: 'chevron-up-small-16',
+	Circle: 'circle-16',
+	CircleDisabled: 'circle-disabled-16',
+	CircleEllipsis: 'circle-ellipsis-16',
+	CircleFilled: 'circle-filled-16',
+	CircleProgress: 'circle-progress-16',
+	CircleProgress100: 'circle-progress-100-16',
+	CircleProgress25: 'circle-progress-25-16',
+	CircleProgress50: 'circle-progress-50-16',
+	CircleProgress75: 'circle-progress-75-16',
+	ClearFormatting: 'clear-formatting-16',
+	Clipboard: 'copy-clipboard-16',
+	Clock: 'clock-16',
+	Cloud: 'cloud-16',
+	CloudLightning: 'cloud-lightning-16',
+	CloudRain: 'cloud-rain-16',
+	CloudSnow: 'cloud-snow-16',
+	CloudSun: 'cloud-sun-16',
+	Code: 'code-16',
+	CodeBlock: 'code-block-16',
+	Cog: 'cog-16',
+	Coin: 'coin-16',
+	Coins: 'coins-16',
+	CommandSymbol: 'command-symbol-16',
+	Compass: 'compass-16',
+	ComputerChip: 'computer-chip-16',
+	Contrast: 'contrast-16',
+	CopyClipboard: 'copy-clipboard-16',
+	CreditCard: 'credit-card-16',
+	CricketBall: 'cricket-ball-16',
+	Crop: 'crop-16',
+	Crown: 'crown-16',
+	Crypto: 'crypto-16',
+	DeleteDocument: 'delete-document-16',
+	Desktop: 'desktop-16',
+	Devices: 'devices-16',
+	Dna: 'dna-16',
+	Document: 'blank-document-16',
+	Dot: 'dot-16',
+	Download: 'download-16',
+	Droplets: 'droplets-16',
+	Duplicate: 'duplicate-16',
+	EditShape: 'edit-shape-16',
+	Eject: 'eject-16',
+	Ellipsis: 'ellipsis-16',
+	EllipsisVertical: 'ellipsis-vertical-16',
+	Emoji: 'emoji-16',
+	EmojiSad: 'emoji-sad-16',
+	Envelope: 'envelope-16',
+	Eraser: 'eraser-16',
+	ExclamationMark: 'important-01-16',
+	Exclamationmark: 'exclamationmark-16',
+	Exclamationmark2: 'exclamationmark-2-16',
+	Exclamationmark3: 'exclamationmark-3-16',
+	Eye: 'eye-16',
+	EyeDisabled: 'eye-disabled-16',
+	EyeDropper: 'eye-dropper-16',
+	Female: 'female-16',
+	FilmStrip: 'film-strip-16',
+	Filter: 'filter-16',
+	Finder: 'finder-16',
+	Fingerprint: 'fingerprint-16',
+	Flag: 'flag-16',
+	Folder: 'folder-16',
+	Footprints: 'footprints-16',
+	Forward: 'forward-16',
+	ForwardFilled: 'forward-filled-16',
+	FountainTip: 'fountain-tip-16',
+	FullSignal: 'full-signal-16',
+	GameController: 'game-controller-16',
+	Gauge: 'gauge-16',
+	Gear: 'cog-16',
+	Geopin: 'geopin-16',
+	Germ: 'germ-16',
+	Gift: 'gift-16',
+	Glasses: 'glasses-16',
+	Globe: 'globe-01-16',
+	Goal: 'goal-16',
+	Hammer: 'hammer-16',
+	HardDrive: 'hard-drive-16',
+	Hashtag: 'hashtag-16',
+	Heading: 'heading-16',
+	Headphones: 'headphones-16',
+	Heart: 'heart-16',
+	HeartDisabled: 'heart-disabled-16',
+	Heartbeat: 'heartbeat-16',
+	Highlight: 'highlight-16',
+	Hourglass: 'hourglass-16',
+	House: 'house-16',
+	Humidity: 'humidity-16',
+	Image: 'image-16',
+	Important: 'important-01-16',
+	Info: 'info-01-16',
+	Italics: 'italics-16',
+	Key: 'key-16',
+	Keyboard: 'keyboard-16',
+	Layers: 'layers-16',
+	Leaderboard: 'leaderboard-16',
+	Leaf: 'leaf-16',
+	LevelMeter: 'signal-2-16',
+	LightBulb: 'light-bulb-16',
+	LightBulbOff: 'light-bulb-off-16',
+	LineChart: 'line-chart-16',
+	Link: 'link-16',
+	List: 'app-window-list-16',
+	Livestream: 'livestream-01-16',
+	LivestreamDisabled: 'livestream-disabled-01-16',
+	Lock: 'lock-16',
+	LockDisabled: 'lock-disabled-16',
+	LockUnlocked: 'lock-unlocked-16',
+	Logout: 'logout-16',
+	Lorry: 'lorry-16',
+	Lowercase: 'lowercase-16',
+	MagnifyingGlass: 'magnifying-glass-16',
+	Male: 'male-16',
+	Map: 'map-16',
+	Mask: 'mask-16',
+	Maximize: 'maximize-16',
+	MedicalSupport: 'medical-support-16',
+	Megaphone: 'megaphone-16',
+	MemoryChip: 'computer-chip-16',
+	MemoryStick: 'memory-stick-16',
+	Message: 'speech-bubble-16',
+	Microphone: 'microphone-16',
+	MicrophoneDisabled: 'microphone-disabled-16',
+	Minimize: 'minimize-16',
+	Minus: 'minus-16',
+	MinusCircle: 'minus-circle-16',
+	MinusCircleFilled: 'minus-circle-filled-16',
+	Mobile: 'mobile-16',
+	Monitor: 'monitor-16',
+	Moon: 'moon-16',
+	MoonDown: 'moon-down-16',
+	MoonUp: 'moon-up-16',
+	Moonrise: 'moonrise-16',
+	Mountain: 'mountain-16',
+	Mouse: 'mouse-16',
+	Move: 'move-16',
+	Mug: 'mug-16',
+	MugSteam: 'mug-steam-16',
+	Multiply: 'multiply-16',
+	Music: 'music-16',
+	Network: 'network-16',
+	NewDocument: 'new-document-16',
+	NewFolder: 'new-folder-16',
+	Number00: 'number-00-16',
+	Number01: 'number-01-16',
+	Number02: 'number-02-16',
+	Number03: 'number-03-16',
+	Number04: 'number-04-16',
+	Number05: 'number-05-16',
+	Number06: 'number-06-16',
+	Number07: 'number-07-16',
+	Number08: 'number-08-16',
+	Number09: 'number-09-16',
+	Number10: 'number-10-16',
+	Number11: 'number-11-16',
+	Number12: 'number-12-16',
+	Number13: 'number-13-16',
+	Number14: 'number-14-16',
+	Number15: 'number-15-16',
+	Number16: 'number-16-16',
+	Number17: 'number-17-16',
+	Number18: 'number-18-16',
+	Number19: 'number-19-16',
+	Number20: 'number-20-16',
+	Number21: 'number-21-16',
+	Number22: 'number-22-16',
+	Number23: 'number-23-16',
+	Number24: 'number-24-16',
+	Number25: 'number-25-16',
+	Number26: 'number-26-16',
+	Number27: 'number-27-16',
+	Number28: 'number-28-16',
+	Number29: 'number-29-16',
+	Number30: 'number-30-16',
+	Number31: 'number-31-16',
+	Number32: 'number-32-16',
+	Number33: 'number-33-16',
+	Number34: 'number-34-16',
+	Number35: 'number-35-16',
+	Number36: 'number-36-16',
+	Number37: 'number-37-16',
+	Number38: 'number-38-16',
+	Number39: 'number-39-16',
+	Number40: 'number-40-16',
+	Number41: 'number-41-16',
+	Number42: 'number-42-16',
+	Number43: 'number-43-16',
+	Number44: 'number-44-16',
+	Number45: 'number-45-16',
+	Number46: 'number-46-16',
+	Number47: 'number-47-16',
+	Number48: 'number-48-16',
+	Number49: 'number-49-16',
+	Number50: 'number-50-16',
+	Number51: 'number-51-16',
+	Number52: 'number-52-16',
+	Number53: 'number-53-16',
+	Number54: 'number-54-16',
+	Number55: 'number-55-16',
+	Number56: 'number-56-16',
+	Number57: 'number-57-16',
+	Number58: 'number-58-16',
+	Number59: 'number-59-16',
+	Number60: 'number-60-16',
+	Number61: 'number-61-16',
+	Number62: 'number-62-16',
+	Number63: 'number-63-16',
+	Number64: 'number-64-16',
+	Number65: 'number-65-16',
+	Number66: 'number-66-16',
+	Number67: 'number-67-16',
+	Number68: 'number-68-16',
+	Number69: 'number-69-16',
+	Number70: 'number-70-16',
+	Number71: 'number-71-16',
+	Number72: 'number-72-16',
+	Number73: 'number-73-16',
+	Number74: 'number-74-16',
+	Number75: 'number-75-16',
+	Number76: 'number-76-16',
+	Number77: 'number-77-16',
+	Number78: 'number-78-16',
+	Number79: 'number-79-16',
+	Number80: 'number-80-16',
+	Number81: 'number-81-16',
+	Number82: 'number-82-16',
+	Number83: 'number-83-16',
+	Number84: 'number-84-16',
+	Number85: 'number-85-16',
+	Number86: 'number-86-16',
+	Number87: 'number-87-16',
+	Number88: 'number-88-16',
+	Number89: 'number-89-16',
+	Number90: 'number-90-16',
+	Number91: 'number-91-16',
+	Number92: 'number-92-16',
+	Number93: 'number-93-16',
+	Number94: 'number-94-16',
+	Number95: 'number-95-16',
+	Number96: 'number-96-16',
+	Number97: 'number-97-16',
+	Number98: 'number-98-16',
+	Number99: 'number-99-16',
+	NumberList: 'number-list-16',
+	Paperclip: 'paperclip-16',
+	Paragraph: 'paragraph-16',
+	Patch: 'patch-16',
+	Pause: 'pause-16',
+	PauseFilled: 'pause-filled-16',
+	Pencil: 'pencil-16',
+	Person: 'person-16',
+	PersonCircle: 'person-circle-16',
+	PersonLines: 'person-lines-16',
+	Phone: 'phone-16',
+	PhoneRinging: 'phone-ringing-16',
+	PieChart: 'pie-chart-16',
+	Pill: 'pill-16',
+	Pin: 'pin-16',
+	PinDisabled: 'pin-disabled-16',
+	Play: 'play-16',
+	PlayFilled: 'play-filled-16',
+	Plug: 'plug-16',
+	Plus: 'plus-16',
+	PlusCircle: 'plus-circle-16',
+	PlusCircleFilled: 'plus-circle-filled-16',
+	PlusMinusDivideMultiply: 'plus-minus-divide-multiply-16',
+	PlusSquare: 'plus-square-16',
+	PlusTopRightSquare: 'plus-top-right-square-16',
+	Power: 'power-16',
+	Print: 'print-16',
+	QuestionMark: 'question-mark-circle-16',
+	QuestionMarkCircle: 'question-mark-circle-16',
+	QuotationMarks: 'quotation-marks-16',
+	QuoteBlock: 'quote-block-16',
+	Racket: 'racket-16',
+	Raindrop: 'raindrop-16',
+	RaycastLogoNeg: 'raycast-logo-neg-16',
+	RaycastLogoPos: 'raycast-logo-pos-16',
+	Receipt: 'receipt-16',
+	Redo: 'redo-16',
+	RemovePerson: 'remove-person-16',
+	Repeat: 'repeat-16',
+	Replace: 'replace-16',
+	ReplaceOne: 'replace-one-16',
+	Reply: 'reply-16',
+	Rewind: 'rewind-16',
+	RewindFilled: 'rewind-filled-16',
+	Rocket: 'rocket-16',
+	Rosette: 'rosette-16',
+	RotateAntiClockwise: 'rotate-anti-clockwise-16',
+	RotateClockwise: 'rotate-clockwise-16',
+	Rss: 'rss-16',
+	Ruler: 'ruler-16',
+	SaveDocument: 'save-document-16',
+	Shield: 'shield-01-16',
+	ShortParagraph: 'short-paragraph-16',
+	Shuffle: 'shuffle-16',
+	Sidebar: 'app-window-sidebar-right-16',
+	Signal0: 'signal-0-16',
+	Signal1: 'signal-1-16',
+	Signal2: 'signal-2-16',
+	Signal3: 'signal-3-16',
+	Snippets: 'snippets-16',
+	Snowflake: 'snowflake-16',
+	SoccerBall: 'soccer-ball-16',
+	Speaker: 'speaker-16',
+	SpeakerDown: 'speaker-down-16',
+	SpeakerHigh: 'speaker-high-16',
+	SpeakerLow: 'speaker-low-16',
+	SpeakerOff: 'speaker-off-16',
+	SpeakerOn: 'speaker-on-16',
+	SpeakerUp: 'speaker-up-16',
+	SpeechBubble: 'speech-bubble-16',
+	SpeechBubbleActive: 'speech-bubble-active-16',
+	SpeechBubbleImportant: 'speech-bubble-important-16',
+	SquareEllipsis: 'square-ellipsis-16',
+	StackedBars1: 'stacked-bars-1-16',
+	StackedBars2: 'stacked-bars-2-16',
+	StackedBars3: 'stacked-bars-3-16',
+	StackedBars4: 'stacked-bars-4-16',
+	Star: 'star-16',
+	StarCircle: 'star-circle-16',
+	StarDisabled: 'star-disabled-16',
+	Stars: 'stars-16',
+	Stop: 'stop-16',
+	StopFilled: 'stop-filled-16',
+	Stopwatch: 'stopwatch-16',
+	Store: 'store-16',
+	StrikeThrough: 'strike-through-16',
+	Sun: 'sun-16',
+	Sunrise: 'sunrise-16',
+	Swatch: 'swatch-16',
+	Switch: 'switch-16',
+	Syringe: 'syringe-16',
+	Tack: 'tack-16',
+	TackDisabled: 'tack-disabled-16',
+	Tag: 'tag-16',
+	Temperature: 'temperature-16',
+	TennisBall: 'tennis-ball-16',
+	Terminal: 'terminal-16',
+	Text: 'text-16',
+	TextCursor: 'text-cursor-16',
+	TextInput: 'text-input-16',
+	TextSelection: 'text-selection-16',
+	ThumbsDown: 'thumbs-down-16',
+	ThumbsDownFilled: 'thumbs-down-filled-16',
+	ThumbsUp: 'thumbs-up-16',
+	ThumbsUpFilled: 'thumbs-up-filled-16',
+	Ticket: 'ticket-16',
+	Torch: 'torch-16',
+	Train: 'train-16',
+	Trash: 'trash-16',
+	Tray: 'tray-16',
+	Tree: 'tree-16',
+	Trophy: 'trophy-16',
+	TwoPeople: 'two-people-16',
+	Umbrella: 'umbrella-16',
+	Underline: 'underline-16',
+	Undo: 'undo-16',
+	Upload: 'upload-16',
+	Uppercase: 'uppercase-16',
+	Video: 'video-16',
+	VideoDisabled: 'video-disabled-16',
+	Wallet: 'wallet-16',
+	Wand: 'wand-16',
+	Warning: 'warning-16',
+	Waveform: 'waveform-16',
+	Weights: 'weights-16',
+	Wifi: 'wifi-16',
+	WifiDisabled: 'wifi-disabled-16',
+	Wind: 'wind-16',
+	Window: 'app-window-16',
+	Windsock: 'windsock-16',
+	WrenchScrewdriver: 'wrench-screwdriver-16',
+	WristWatch: 'wrist-watch-16',
+	XMarkCircle: 'x-mark-circle-16',
+	XMarkCircleFilled: 'x-mark-circle-filled-16',
+	XMarkCircleHalfDash: 'x-mark-circle-half-dash-16',
+	XMarkTopRightSquare: 'x-mark-top-right-square-16',
+	Xmark: 'xmark-16',
+	/** @deprecated Use {@link Icon.ArrowClockwise} instead. */
+	TwoArrowsClockwise: 'arrow-clockwise-16',
+	/** @deprecated Use {@link Icon.EyeDisabled} instead. */
+	EyeSlash: 'eye-disabled-16',
+	/** @deprecated Use {@link Icon.SpeakerDown} instead. */
+	SpeakerArrowDown: 'speaker-down-16',
+	/** @deprecated Use {@link Icon.SpeakerUp} instead. */
+	SpeakerArrowUp: 'speaker-up-16',
+	/** @deprecated Use {@link Icon.SpeakerOff} instead. */
+	SpeakerSlash: 'speaker-off-16',
+	/** @deprecated Use {@link Icon.BlankDocument} instead. */
+	TextDocument: 'blank-document-16',
+	/** @deprecated Use {@link Icon.XMarkCircle} instead. */
+	XmarkCircle: 'x-mark-circle-16'
+};
+
+=== 2138 sidecar/src/api/index.ts	ts	module	-
+import React from 'react';
+import { Color } from './colors';
+import { Cache } from './cache';
+import { Icon } from './icon';
+import { LaunchType, Toast } from './types';
+import { createLocalStorage } from './utils';
+import { useNavigation } from './navigation';
+import { List } from './components/list';
+import { Grid } from './components/grid';
+import { Form } from './components/form';
+import { Action, ActionPanel } from './components/actions';
+import { Detail } from './components/detail';
+import {
+	environment,
+	getSelectedFinderItems,
+	getSelectedText,
+	open,
+	getApplications,
+	getDefaultApplication,
+	getFrontmostApplication,
+	showInFinder,
+	trash,
+	AI as AIConstant
+} from './environment';
+import { preferencesStore } from '../preferences';
+import { showToast } from './toast';
+import { showHUD } from './hud';
+import { BrowserExtensionAPI } from './browserExtension';
+import { Clipboard } from './clipboard';
+import * as OAuth from './oauth';
+import { AI } from './ai';
+import { Keyboard } from './keyboard';
+import { currentPluginName, currentPluginPreferences } from '../state';
+
+const Image = {
+	Mask: {
+		Circle: 'circle',
+		RoundedRectangle: 'roundedRectangle'
+	}
+};
+
+export const getRaycastApi = () => {
+	const LocalStorage = createLocalStorage();
+
+	return {
+		LocalStorage,
+		Color,
+		Cache,
+		Icon,
+		Image,
+		LaunchType,
+		Toast,
+		OAuth,
+		AI: {
+			...AI,
+			...AIConstant
+		},
+		Action,
+		ActionPanel,
+		Detail,
+		Form,
+		Grid,
+		List,
+		Clipboard,
+		environment,
+		getApplications,
+		getDefaultApplication,
+		getFrontmostApplication,
+		getPreferenceValues: () => {
+			if (currentPluginName) {
+				return preferencesStore.getPreferenceValues(currentPluginName, currentPluginPreferences);
+			}
+			return {};
+		},
+		getSelectedFinderItems,
+		getSelectedText,
+		open,
+		showInFinder,
+		showToast,
+		showHUD,
+		trash,
+		useNavigation,
+		usePersistentState: <T>(
+			key: string,
+			initialValue: T
+		): [T, React.Dispatch<React.SetStateAction<T>>, boolean] => {
+			const [state, setState] = React.useState(initialValue);
+			return [state, setState, false];
+		},
+		BrowserExtension: BrowserExtensionAPI,
+		Keyboard
+	};
+};
+
+=== 1684 sidecar/src/api/keyboard.ts	ts	module	-
+type KeyEquivalent =
+	| 'a'
+	| 'b'
+	| 'c'
+	| 'd'
+	| 'e'
+	| 'f'
+	| 'g'
+	| 'h'
+	| 'i'
+	| 'j'
+	| 'k'
+	| 'l'
+	| 'm'
+	| 'n'
+	| 'o'
+	| 'p'
+	| 'q'
+	| 'r'
+	| 's'
+	| 't'
+	| 'u'
+	| 'v'
+	| 'w'
+	| 'x'
+	| 'y'
+	| 'z'
+	| '0'
+	| '1'
+	| '2'
+	| '3'
+	| '4'
+	| '5'
+	| '6'
+	| '7'
+	| '8'
+	| '9'
+	| '.'
+	| ','
+	| ';'
+	| '='
+	| '+'
+	| '-'
+	| '['
+	| ']'
+	| '{'
+	| '}'
+	| '«'
+	| '»'
+	| '('
+	| ')'
+	| '/'
+	| '\\'
+	| "'"
+	| '`'
+	| '§'
+	| '^'
+	| '@'
+	| '$'
+	| 'return'
+	| 'delete'
+	| 'deleteForward'
+	| 'tab'
+	| 'arrowUp'
+	| 'arrowDown'
+	| 'arrowLeft'
+	| 'arrowRight'
+	| 'pageUp'
+	| 'pageDown'
+	| 'home'
+	| 'end'
+	| 'space'
+	| 'escape'
+	| 'enter'
+	| 'backspace';
+type KeyModifier = 'cmd' | 'ctrl' | 'opt' | 'shift';
+
+type KeyboardShortcut = {
+	key: KeyEquivalent;
+	modifiers: KeyModifier[];
+};
+
+const Common = {
+	Copy: { modifiers: ['cmd', 'shift'], key: 'c' },
+	CopyDeeplink: { modifiers: ['cmd', 'shift'], key: 'c' },
+	CopyName: { modifiers: ['cmd', 'shift'], key: '.' },
+	CopyPath: { modifiers: ['cmd', 'shift'], key: ',' },
+	Duplicate: { modifiers: ['cmd'], key: 'd' },
+	Edit: { modifiers: ['cmd'], key: 'e' },
+	MoveDown: { modifiers: ['cmd', 'shift'], key: 'arrowDown' },
+	MoveUp: { modifiers: ['cmd', 'shift'], key: 'arrowUp' },
+	New: { modifiers: ['cmd'], key: 'n' },
+	Open: { modifiers: ['cmd'], key: 'o' },
+	OpenWith: { modifiers: ['cmd', 'shift'], key: 'o' },
+	Pin: { modifiers: ['cmd', 'shift'], key: 'p' },
+	Refresh: { modifiers: ['cmd'], key: 'r' },
+	Remove: { modifiers: ['cmd'], key: 'x' },
+	RemoveAll: { modifiers: ['cmd', 'shift'], key: 'x' },
+	ToggleQuickLook: { modifiers: ['cmd'], key: 'y' }
+} satisfies Record<string, KeyboardShortcut>;
+
+export const Keyboard = {
+	Shortcut: { Common }
+};
+
+=== 484 sidecar/src/api/navigation.ts	ts	module	-
+import React from 'react';
+import { currentRootElement, navigationStack } from '../state';
+import { updateContainer } from '../reconciler';
+
+export const useNavigation = () => {
+	const push = (element: React.ReactElement) => {
+		if (currentRootElement) {
+			navigationStack.push(currentRootElement);
+			updateContainer(element);
+		}
+	};
+
+	const pop = () => {
+		const previous = navigationStack.pop();
+		if (previous) {
+			updateContainer(previous);
+		}
+	};
+
+	return { push, pop };
+};
+
+=== 6854 sidecar/src/api/oauth.ts	ts	module	-
+import * as crypto from 'crypto';
+import { writeOutput, writeLog } from '../io';
+
+export enum RedirectMethod {
+	Web = 'web',
+	App = 'app',
+	AppURI = 'app-uri'
+}
+
+export interface PKCEClientOptions {
+	redirectMethod: RedirectMethod;
+	providerName: string;
+	providerIcon?: string;
+	description?: string;
+	providerId?: string;
+}
+
+export interface AuthorizationRequestOptions {
+	endpoint: string;
+	clientId: string;
+	scope: string;
+	extraParameters?: { [key: string]: string };
+}
+
+export interface AuthorizationRequest {
+	url: string;
+	codeVerifier: string;
+	codeChallenge: string;
+	redirectURI: string;
+	state: string;
+	toURL: () => string;
+}
+
+export interface AuthorizationOptions {
+	url: string;
+}
+
+export interface AuthorizationResponse {
+	authorizationCode: string;
+}
+
+export interface TokenResponse {
+	access_token: string;
+	refresh_token?: string;
+	expires_in?: number;
+	scope?: string;
+	id_token?: string;
+}
+
+export interface TokenSetOptions {
+	accessToken: string;
+	refreshToken?: string;
+	expiresIn?: number;
+	scope?: string;
+	idToken?: string;
+}
+
+export interface TokenSet {
+	accessToken: string;
+	refreshToken?: string;
+	expiresIn?: number;
+	scope?: string;
+	idToken?: string;
+	updatedAt: Date;
+	isExpired: () => boolean;
+}
+
+const pendingAuthorizationRequests = new Map<
+	string,
+	{ resolve: (value: AuthorizationResponse) => void; reject: (reason?: unknown) => void }
+>();
+
+const pendingTokenRequests = new Map<
+	string,
+	{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }
+>();
+
+export function handleOAuthResponse(
+	_requestId: string,
+	code: string,
+	state: string,
+	error?: string
+) {
+	const promise = pendingAuthorizationRequests.get(state);
+	if (promise) {
+		if (error) {
+			promise.reject(new Error(error));
+		} else {
+			promise.resolve({ authorizationCode: code });
+		}
+		pendingAuthorizationRequests.delete(state);
+	} else {
+		writeLog(`OAuth state mismatch. Request ID (state): ${state} not found in pending requests.`);
+	}
+}
+
+export function handleTokenResponse(requestId: string, result: unknown, error?: string) {
+	const promise = pendingTokenRequests.get(requestId);
+	if (promise) {
+		if (error) {
+			promise.reject(new Error(error));
+		} else {
+			promise.resolve(result);
+		}
+		pendingTokenRequests.delete(requestId);
+	}
+}
+
+function sendTokenRequest<T>(type: string, payload: object): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const requestId = crypto.randomUUID();
+		pendingTokenRequests.set(requestId, { resolve: resolve as (value: unknown) => void, reject });
+		writeOutput({
+			type,
+			payload: { requestId, ...payload }
+		});
+		setTimeout(() => {
+			if (pendingTokenRequests.has(requestId)) {
+				pendingTokenRequests.delete(requestId);
+				reject(new Error(`Token request for ${type} timed out`));
+			}
+		}, 5000);
+	});
+}
+
+interface StoredTokenSet extends TokenSetOptions {
+	updatedAt: string;
+}
+
+export class PKCEClient {
+	private options: PKCEClientOptions;
+
+	constructor(options: PKCEClientOptions) {
+		this.options = options;
+	}
+
+	private getProviderId(): string {
+		return this.options.providerId ?? this.options.providerName.toLowerCase().replace(/\s/g, '-');
+	}
+
+	async authorizationRequest(options: AuthorizationRequestOptions): Promise<AuthorizationRequest> {
+		const codeVerifier = crypto.randomBytes(32).toString('base64url');
+		const codeChallenge = crypto.createHash('sha256').update(codeVerifier).digest('base64url');
+		const state = JSON.stringify({
+			providerName: this.options.providerName,
+			id: crypto.randomUUID(),
+			flavor: 'release'
+		});
+
+		let redirectURI: string;
+		const packageName = 'Extension'; // TODO: what does this mean, and is it always the same?
+		switch (this.options.redirectMethod) {
+			case RedirectMethod.Web:
+				redirectURI = `https://raycast.com/redirect?packageName=${packageName}`;
+				break;
+			case RedirectMethod.App:
+				redirectURI = `raycast://oauth?package_name=${packageName}`;
+				break;
+			case RedirectMethod.AppURI:
+				redirectURI = `com.raycast:/oauth?package_name=${packageName}`;
+				break;
+		}
+
+		const urlParams = new URLSearchParams({
+			response_type: 'code',
+			client_id: options.clientId,
+			scope: options.scope,
+			redirect_uri: redirectURI,
+			state: state,
+			code_challenge: codeChallenge,
+			code_challenge_method: 'S256',
+			...options.extraParameters
+		});
+
+		const authRequest: AuthorizationRequest = {
+			url: `${options.endpoint}?${urlParams.toString()}`,
+			codeVerifier,
+			codeChallenge,
+			redirectURI,
+			state,
+			toURL: () => authRequest.url
+		};
+
+		return authRequest;
+	}
+
+	async authorize(
+		authRequest: AuthorizationRequest | AuthorizationOptions
+	): Promise<AuthorizationResponse> {
+		const state =
+			'state' in authRequest
+				? authRequest.state
+				: new URL(authRequest.url).searchParams.get('state');
+
+		if (!state) {
+			throw new Error('State parameter is missing from authorization request.');
+		}
+
+		return new Promise((resolve, reject) => {
+			pendingAuthorizationRequests.set(state, { resolve, reject });
+
+			writeOutput({
+				type: 'oauth-authorize',
+				payload: {
+					url: authRequest.url,
+					providerName: this.options.providerName,
+					providerIcon: this.options.providerIcon,
+					description: this.options.description
+				}
+			});
+
+			setTimeout(
+				() => {
+					if (pendingAuthorizationRequests.has(state)) {
+						pendingAuthorizationRequests.delete(state);
+						reject(new Error('OAuth authorization timed out'));
+					}
+				},
+				5 * 60 * 1000
+			);
+		});
+	}
+
+	async getTokens(): Promise<TokenSet | undefined> {
+		const tokenData = await sendTokenRequest<StoredTokenSet | undefined>('oauth-get-tokens', {
+			providerId: this.getProviderId()
+		});
+
+		if (!tokenData) {
+			return undefined;
+		}
+
+		const updatedAt = new Date(tokenData.updatedAt);
+		const expiresIn = tokenData.expiresIn;
+
+		const tokenSet: TokenSet = {
+			...tokenData,
+			updatedAt: updatedAt,
+			isExpired: () => {
+				if (!expiresIn) {
+					return false;
+				}
+				const now = new Date();
+				const expiryDate = new Date(updatedAt.getTime() + expiresIn * 1000);
+				return now.getTime() > expiryDate.getTime() - 60000;
+			}
+		};
+
+		return tokenSet;
+	}
+
+	async setTokens(tokens: TokenSetOptions | TokenResponse): Promise<void> {
+		let tokenSetOptions: TokenSetOptions;
+
+		if ('access_token' in tokens) {
+			tokenSetOptions = {
+				accessToken: tokens.access_token,
+				refreshToken: tokens.refresh_token,
+				expiresIn: tokens.expires_in,
+				scope: tokens.scope,
+				idToken: tokens.id_token
+			};
+		} else {
+			tokenSetOptions = tokens;
+		}
+
+		const payload = {
+			...tokenSetOptions,
+			updatedAt: new Date().toISOString()
+		};
+
+		await sendTokenRequest<void>('oauth-set-tokens', {
+			providerId: this.getProviderId(),
+			tokens: payload
+		});
+	}
+
+	async removeTokens(): Promise<void> {
+		await sendTokenRequest<void>('oauth-remove-tokens', {
+			providerId: this.getProviderId()
+		});
+	}
+}
+
+=== 1143 sidecar/src/api/rpc.ts	ts	module	-
+import { writeOutput } from '../io';
+import * as crypto from 'crypto';
+
+const pendingRequests = new Map<
+	string,
+	{ resolve: (value: unknown) => void; reject: (reason?: unknown) => void }
+>();
+
+export function sendRequest<T>(type: string, payload: object = {}): Promise<T> {
+	return new Promise((resolve, reject) => {
+		const requestId = crypto.randomUUID();
+		pendingRequests.set(requestId, { resolve: resolve as (value: unknown) => void, reject });
+
+		writeOutput({
+			type,
+			payload: { requestId, ...payload }
+		});
+
+		setTimeout(() => {
+			if (pendingRequests.has(requestId)) {
+				pendingRequests.delete(requestId);
+				reject(new Error(`Request for ${type} timed out`));
+			}
+		}, 5000);
+	});
+}
+
+export function invokeCommand<T>(command: string, params: object = {}): Promise<T> {
+	return sendRequest<T>('invoke_command', { command, params });
+}
+
+export function handleResponse(requestId: string, result: unknown, error?: string) {
+	const promise = pendingRequests.get(requestId);
+	if (promise) {
+		if (error) {
+			promise.reject(new Error(error));
+		} else {
+			promise.resolve(result);
+		}
+		pendingRequests.delete(requestId);
+	}
+}
+
+=== 2765 sidecar/src/api/toast.ts	ts	module	-
+import type * as api from '@raycast/api';
+import { writeOutput } from '../io';
+import { getNextInstanceId, toasts } from '../state';
+import { Toast as ToastEnum } from './types';
+
+class ToastImpl implements api.Toast {
+	#id: number;
+	#style: api.Toast.Style;
+	#title: string;
+	#message?: string;
+	primaryAction?: api.Toast.ActionOptions;
+	secondaryAction?: api.Toast.ActionOptions;
+
+	constructor(options: api.Toast.Options) {
+		this.#id = getNextInstanceId();
+		this.#style = options.style ?? ToastEnum.Style.Success;
+		this.#title = options.title;
+		this.#message = options.message;
+		this.primaryAction = options.primaryAction;
+		this.secondaryAction = options.secondaryAction;
+	}
+
+	get id() {
+		return this.#id;
+	}
+
+	get style() {
+		return this.#style;
+	}
+	set style(newStyle: api.Toast.Style) {
+		this.#style = newStyle;
+		this._update();
+	}
+
+	get title() {
+		return this.#title;
+	}
+	set title(newTitle: string) {
+		this.#title = newTitle;
+		this._update();
+	}
+
+	get message() {
+		return this.#message;
+	}
+	set message(newMessage: string | undefined) {
+		this.#message = newMessage;
+		this._update();
+	}
+
+	private _update() {
+		writeOutput({
+			type: 'UPDATE_TOAST',
+			payload: {
+				id: this.#id,
+				style: this.#style,
+				title: this.#title,
+				message: this.#message
+			}
+		});
+	}
+
+	async hide(): Promise<void> {
+		writeOutput({ type: 'HIDE_TOAST', payload: { id: this.#id } });
+		toasts.delete(this.#id);
+	}
+
+	async show(): Promise<void> {
+		this._sendShowCommand();
+	}
+
+	_sendShowCommand() {
+		toasts.set(this.id, this);
+		writeOutput({
+			type: 'SHOW_TOAST',
+			payload: {
+				id: this.#id,
+				style: this.style,
+				title: this.title,
+				message: this.message,
+				primaryAction: this.primaryAction
+					? {
+							title: this.primaryAction.title,
+							onAction: !!this.primaryAction.onAction,
+							shortcut: this.primaryAction.shortcut
+						}
+					: undefined,
+				secondaryAction: this.secondaryAction
+					? {
+							title: this.secondaryAction.title,
+							onAction: !!this.secondaryAction.onAction,
+							shortcut: this.secondaryAction.shortcut
+						}
+					: undefined
+			}
+		});
+	}
+}
+
+export async function showToast(options: api.Toast.Options): Promise<api.Toast>;
+export async function showToast(
+	style: api.Toast.Style,
+	title: string,
+	message?: string
+): Promise<api.Toast>;
+
+export async function showToast(
+	optionsOrStyle: api.Toast.Options | api.Toast.Style,
+	title?: string,
+	message?: string
+): Promise<api.Toast> {
+	let options: api.Toast.Options;
+
+	if (typeof optionsOrStyle === 'object' && optionsOrStyle !== null) {
+		options = optionsOrStyle;
+	} else {
+		options = {
+			style: optionsOrStyle,
+			title: title as string,
+			message
+		};
+	}
+
+	const toast = new ToastImpl(options);
+	await toast.show();
+	return toast;
+}
+
+=== 313 sidecar/src/api/types.ts	ts	module	-
+export const LaunchType = {
+	UserInitiated: 'userInitiated',
+	Background: 'background'
+};
+
+export const Toast = {
+	Style: {
+		Success: 'SUCCESS',
+		Failure: 'FAILURE',
+		Animated: 'ANIMATED'
+	}
+} as const;
+
+export type Application = {
+	name: string;
+	path: string;
+	bundleId?: string;
+	localizedName?: string;
+};
+
+=== 1512 sidecar/src/api/utils.ts	ts	module	-
+import React, { type ElementType } from 'react';
+import { jsx } from 'react/jsx-runtime';
+
+export const createLocalStorage = () => {
+	const storage = new Map<string, string>();
+	return {
+		getItem: async (key: string) => storage.get(key),
+		setItem: async (key: string, value: string) => storage.set(key, value),
+		removeItem: async (key: string) => storage.delete(key),
+		clear: async () => storage.clear()
+	};
+};
+
+export const createWrapperComponent = (name: string) => {
+	const ComponentFactory = (props: { children?: React.ReactNode }) => {
+		return jsx(name as ElementType, props);
+	};
+	ComponentFactory.displayName = name;
+	return ComponentFactory;
+};
+
+export const createSlottedComponent = (baseName: string, accessoryPropNames: string[]) => {
+	const AccessorySlotFactory = createWrapperComponent('_AccessorySlot');
+	const PrimitiveFactory = createWrapperComponent(baseName);
+
+	const SlottedComponentFactory = (props: { [key: string]: any; children?: React.ReactNode }) => {
+		const { children, ...rest } = props;
+		const accessoryElements = [];
+		for (const name of accessoryPropNames) {
+			if (rest[name]) {
+				accessoryElements.push(AccessorySlotFactory({ name, children: rest[name] }));
+				delete rest[name];
+			}
+		}
+		return PrimitiveFactory({
+			...rest,
+			children: [children, ...accessoryElements].filter(Boolean)
+		});
+	};
+	SlottedComponentFactory.displayName = baseName;
+	return SlottedComponentFactory;
+};
+
+export const createAccessorySlot = () => createWrapperComponent('_AccessorySlot');
+
+=== 1091 sidecar/src/config.ts	ts	module	-
+import * as path from 'path';
+
+export interface SidecarConfig {
+	dataDir: string;
+	cacheDir: string;
+	supportDir: string;
+	pluginsDir: string;
+	preferencesFile: string;
+	assetsDir: string;
+}
+
+function getArg(name: string): string | undefined {
+	const prefix = `--${name}=`;
+	for (const arg of process.argv.slice(2)) {
+		if (arg.startsWith(prefix)) {
+			return arg.slice(prefix.length);
+		}
+	}
+	const key = `--${name}`;
+	const idx = process.argv.indexOf(key);
+	if (idx !== -1 && idx + 1 < process.argv.length) {
+		return process.argv[idx + 1];
+	}
+	return undefined;
+}
+
+export function createConfig(): SidecarConfig {
+	const dataDir = getArg('data-dir');
+	const cacheBase = getArg('cache-dir');
+
+	if (!dataDir || !cacheBase) {
+		throw new Error('data-dir and cache-dir are required');
+	}
+
+	const pluginsDir = path.join(dataDir, 'plugins');
+	return {
+		dataDir,
+		cacheDir: path.join(cacheBase, 'sidecar'),
+		supportDir: path.join(dataDir, 'support'),
+		pluginsDir,
+		preferencesFile: path.join(dataDir, 'preferences.json'),
+		assetsDir: pluginsDir
+	};
+}
+
+export const config = createConfig();
+
+=== 10868 sidecar/src/hostConfig.ts	ts	module	-
+import type { Fiber, HostConfig, OpaqueHandle, ReactContext } from 'react-reconciler';
+import type {
+	ComponentType,
+	ComponentProps,
+	Container,
+	FlareInstance,
+	TextInstance,
+	ParentInstance,
+	AnyInstance
+} from './types';
+import {
+	instances,
+	getNextInstanceId,
+	addToCommitBuffer,
+	clearCommitBuffer,
+	commitBuffer
+} from './state';
+import { writeLog, writeOutput } from './io';
+import { serializeProps, optimizeCommitBuffer, getComponentDisplayName } from './utils';
+import React, { type ReactNode } from 'react';
+
+const handleAccessory = (parent: ParentInstance, child: AnyInstance) => {
+	if (child.type === '_AccessorySlot') {
+		if ('props' in child) {
+			const accessoryName = child.props.name as string;
+			const accessoryInstance = child.children[0];
+
+			if (accessoryInstance && 'id' in parent) {
+				if (!parent.namedChildren) {
+					parent.namedChildren = {};
+				}
+				parent.namedChildren[accessoryName] = accessoryInstance.id;
+
+				addToCommitBuffer({
+					type: 'UPDATE_PROPS',
+					payload: { id: parent.id, props: parent.props, namedChildren: parent.namedChildren }
+				});
+			}
+		}
+		return true;
+	}
+	return false;
+};
+
+const appendChildToParent = (parent: ParentInstance, child: AnyInstance) => {
+	if (handleAccessory(parent, child)) {
+		return;
+	}
+
+	const existingIndex = parent.children.findIndex(({ id }) => id === child.id);
+	if (existingIndex > -1) {
+		parent.children.splice(existingIndex, 1);
+	}
+	parent.children.push(child);
+	addToCommitBuffer({
+		type: 'APPEND_CHILD',
+		payload: { parentId: parent.id, childId: child.id }
+	});
+};
+
+const insertChildBefore = (
+	parent: ParentInstance,
+	child: AnyInstance,
+	beforeChild: AnyInstance
+) => {
+	if (handleAccessory(parent, child)) {
+		return;
+	}
+
+	const existingIndex = parent.children.findIndex(({ id }) => id === child.id);
+	if (existingIndex > -1) {
+		parent.children.splice(existingIndex, 1);
+	}
+
+	const beforeIndex = parent.children.findIndex(({ id }) => id === beforeChild.id);
+	if (beforeIndex !== -1) {
+		parent.children.splice(beforeIndex, 0, child);
+		addToCommitBuffer({
+			type: 'INSERT_BEFORE',
+			payload: {
+				parentId: parent.id,
+				childId: child.id,
+				beforeId: beforeChild.id
+			}
+		});
+	} else {
+		appendChildToParent(parent, child);
+	}
+};
+
+const removeChildFromParent = (parent: ParentInstance, child: AnyInstance) => {
+	parent.children = parent.children.filter(({ id }) => id !== child.id);
+	addToCommitBuffer({
+		type: 'REMOVE_CHILD',
+		payload: { parentId: parent.id, childId: child.id }
+	});
+};
+
+function processProps(props: Record<string, unknown>) {
+	const propsToSerialize: Record<string, unknown> = {};
+	const namedChildren: { [key: string]: number } = {};
+
+	for (const [key, value] of Object.entries(props)) {
+		if (key === 'children') continue;
+
+		if (React.isValidElement(value)) {
+			// This logic is now only relevant for createInstance
+			const result = createInstanceFromElement(value);
+			if (Array.isArray(result)) {
+				if (result.length > 0) {
+					throw new Error(`The prop '${key}' cannot be a React.Fragment or an array of elements.`);
+				}
+			} else {
+				namedChildren[key] = result.id;
+			}
+		} else {
+			propsToSerialize[key] = value;
+		}
+	}
+	return { propsToSerialize, namedChildren };
+}
+
+function createInstanceFromElement(element: React.ReactElement): FlareInstance | FlareInstance[] {
+	if (element.type === undefined || element.type === React.Fragment) {
+		const props = element.props as { children?: ReactNode };
+		const childElements = React.Children.toArray(props.children);
+		return childElements
+			.filter(React.isValidElement)
+			.flatMap((child) => createInstanceFromElement(child as React.ReactElement));
+	}
+
+	if (typeof element.type === 'function') {
+		const FunctionComponent = element.type as React.FunctionComponent;
+		const rendered = FunctionComponent(element.props);
+
+		if (rendered === null || rendered === undefined) return [];
+		if (Array.isArray(rendered)) {
+			return rendered.flatMap((child) =>
+				React.isValidElement(child) ? createInstanceFromElement(child) : []
+			);
+		}
+		if (React.isValidElement(rendered)) {
+			return createInstanceFromElement(rendered);
+		}
+		return [];
+	}
+
+	const componentType = getComponentDisplayName(element.type as ComponentType);
+	const id = getNextInstanceId();
+
+	const props = (element.props ?? {}) as Record<string, unknown>;
+	const children = ('children' in props ? props.children : []) as ReactNode;
+	const childElements = React.Children.toArray(children);
+	const childInstances = childElements
+		.filter(React.isValidElement)
+		.flatMap((child) => createInstanceFromElement(child as React.ReactElement));
+
+	const { propsToSerialize, namedChildren } = processProps(props);
+
+	const instance: FlareInstance = {
+		id,
+		type: componentType,
+		children: childInstances,
+		props: serializeProps(propsToSerialize),
+		_unserializedProps: props,
+		_internalFiber: (element as unknown as { _owner?: Fiber })._owner,
+		namedChildren
+	};
+
+	instances.set(id, instance);
+
+	addToCommitBuffer({
+		type: 'CREATE_INSTANCE',
+		payload: {
+			id,
+			type: componentType,
+			props: instance.props,
+			children: childInstances.map((c) => c.id),
+			namedChildren: instance.namedChildren
+		}
+	});
+
+	return instance;
+}
+
+export const hostConfig: HostConfig<
+	ComponentType,
+	ComponentProps,
+	Container,
+	FlareInstance,
+	TextInstance,
+	never,
+	never,
+	never,
+	FlareInstance | TextInstance,
+	object,
+	never,
+	NodeJS.Timeout,
+	number,
+	null
+> = {
+	getPublicInstance(instance) {
+		return instance;
+	},
+	getRootHostContext() {
+		return {};
+	},
+	getChildHostContext() {
+		return {};
+	},
+
+	prepareForCommit: () => null,
+	resetAfterCommit: () => {
+		if (commitBuffer.length > 0) {
+			const now = Date.now();
+			const optimizedPayload = optimizeCommitBuffer(commitBuffer);
+			writeLog(`time to optimize: ${Date.now() - now}ms`);
+			writeOutput({
+				type: 'BATCH_UPDATE',
+				payload: optimizedPayload
+			});
+			clearCommitBuffer();
+		}
+	},
+
+	createInstance(type, props, root, hostContext, internalInstanceHandle: OpaqueHandle) {
+		const componentType =
+			typeof type === 'string' ? type : type.displayName || type.name || 'Anonymous';
+		const id = getNextInstanceId();
+
+		const instance: FlareInstance = {
+			id,
+			type: componentType,
+			children: [],
+			props: {},
+			_unserializedProps: props,
+			_internalFiber: internalInstanceHandle,
+			namedChildren: {}
+		};
+
+		const isImperative = [
+			'Form.TextField',
+			'Form.PasswordField',
+			'Form.TextArea',
+			'Form.Checkbox',
+			'Form.DatePicker',
+			'Form.Dropdown',
+			'Form.TagPicker',
+			'Form.FilePicker'
+		].includes(instance.type as string);
+
+		if (isImperative) {
+			Object.assign(instance, {
+				focus: () => {
+					writeOutput({
+						type: 'FOCUS_ELEMENT',
+						payload: { elementId: instance.id }
+					});
+				},
+				reset: () => {
+					writeOutput({
+						type: 'RESET_ELEMENT',
+						payload: { elementId: instance.id }
+					});
+				}
+			});
+		}
+
+		(internalInstanceHandle as Fiber).stateNode = instance;
+		instances.set(id, instance);
+
+		addToCommitBuffer({
+			type: 'CREATE_INSTANCE',
+			payload: {
+				id,
+				type: componentType,
+				props: instance.props,
+				namedChildren: instance.namedChildren
+			}
+		});
+		return instance;
+	},
+
+	createTextInstance(text) {
+		const id = getNextInstanceId();
+		const instance: TextInstance = { id, type: 'TEXT', text };
+		instances.set(id, instance);
+		addToCommitBuffer({
+			type: 'CREATE_TEXT_INSTANCE',
+			payload: { id: instance.id, type: instance.type, text: instance.text }
+		});
+		return instance;
+	},
+
+	appendInitialChild: appendChildToParent,
+	appendChild: appendChildToParent,
+	appendChildToContainer: appendChildToParent,
+	insertBefore: insertChildBefore,
+	insertInContainerBefore: insertChildBefore,
+	removeChild: removeChildFromParent,
+	removeChildFromContainer: removeChildFromParent,
+
+	commitUpdate(instance, type, oldProps, newProps) {
+		const propsToSerialize: Record<string, unknown> = {};
+		for (const key in newProps) {
+			if (key !== 'children' && !React.isValidElement(newProps[key])) {
+				propsToSerialize[key] = newProps[key];
+			}
+		}
+
+		instance.props = serializeProps(propsToSerialize);
+		instance._unserializedProps = newProps;
+
+		addToCommitBuffer({
+			type: 'UPDATE_PROPS',
+			payload: {
+				id: instance.id,
+				props: instance.props,
+				namedChildren: instance.namedChildren
+			}
+		});
+	},
+
+	commitTextUpdate(textInstance, oldText, newText) {
+		textInstance.text = newText;
+		addToCommitBuffer({
+			type: 'UPDATE_TEXT',
+			payload: { id: textInstance.id, text: newText }
+		});
+	},
+
+	finalizeInitialChildren: (instance, type, props) => {
+		const { propsToSerialize, namedChildren } = processProps(props);
+		instance.props = serializeProps(propsToSerialize);
+		instance.namedChildren = { ...instance.namedChildren, ...namedChildren };
+
+		addToCommitBuffer({
+			type: 'UPDATE_PROPS',
+			payload: { id: instance.id, props: instance.props, namedChildren: instance.namedChildren }
+		});
+
+		return false;
+	},
+	shouldSetTextContent: () => false,
+
+	clearContainer: (container) => {
+		container.children = [];
+		addToCommitBuffer({
+			type: 'CLEAR_CONTAINER',
+			payload: { containerId: container.id }
+		});
+	},
+
+	scheduleTimeout: setTimeout,
+	cancelTimeout: (id) => clearTimeout(id),
+	noTimeout: -1,
+
+	isPrimaryRenderer: true,
+	supportsMutation: true,
+	supportsPersistence: false,
+	supportsHydration: false,
+
+	detachDeletedInstance() {},
+	commitMount() {},
+	hideInstance() {},
+	hideTextInstance() {},
+	unhideInstance() {},
+	unhideTextInstance() {},
+	resetTextContent() {},
+	preparePortalMount() {},
+	getCurrentUpdatePriority: () => 1,
+	getInstanceFromNode: () => null,
+	beforeActiveInstanceBlur: () => {},
+	afterActiveInstanceBlur: () => {},
+	prepareScopeUpdate() {},
+	getInstanceFromScope: () => null,
+	setCurrentUpdatePriority() {},
+	resolveUpdatePriority: () => 1,
+	maySuspendCommit: () => false,
+	NotPendingTransition: null,
+	HostTransitionContext: React.createContext(null) as unknown as ReactContext<null>,
+
+	resetFormInstance: function (): void {
+		throw new Error('Function not implemented.');
+	},
+	requestPostPaintCallback: function (): void {
+		throw new Error('Function not implemented.');
+	},
+	shouldAttemptEagerTransition: function (): boolean {
+		throw new Error('Function not implemented.');
+	},
+	trackSchedulerEvent: function (): void {
+		throw new Error('Function not implemented.');
+	},
+	resolveEventType: function (): null | string {
+		throw new Error('Function not implemented.');
+	},
+	resolveEventTimeStamp: function (): number {
+		throw new Error('Function not implemented.');
+	},
+	preloadInstance: function (): boolean {
+		throw new Error('Function not implemented.');
+	},
+	startSuspendingCommit: function (): void {
+		throw new Error('Function not implemented.');
+	},
+	suspendInstance: function (): void {
+		throw new Error('Function not implemented.');
+	},
+	waitForCommitToBeReady: function () {
+		throw new Error('Function not implemented.');
+	}
+};
+
+=== 5234 sidecar/src/index.ts	ts	module	-
+import { createInterface } from 'readline';
+import { writeLog, writeOutput } from './io';
+import { runPlugin } from './plugin';
+import { instances, navigationStack, toasts, browserExtensionState } from './state';
+import { batchedUpdates, updateContainer } from './reconciler';
+import { preferencesStore } from './preferences';
+import type { FlareInstance } from './types';
+import { handleResponse } from './api/rpc';
+import { handleOAuthResponse, handleTokenResponse } from './api/oauth';
+import { handleAiStreamChunk, handleAiStreamEnd, handleAiStreamError } from './api/ai';
+
+process.on('unhandledRejection', (reason: unknown) => {
+	writeLog(`--- UNHANDLED PROMISE REJECTION ---`);
+	const stack = reason && typeof reason === 'object' && 'stack' in reason ? reason.stack : reason;
+	writeLog(stack);
+});
+
+const rl = createInterface({ input: process.stdin });
+
+rl.on('line', (line) => {
+	batchedUpdates(() => {
+		try {
+			const command: { action: string; payload: unknown } = JSON.parse(line);
+
+			if (command.action.endsWith('-response')) {
+				const { requestId, result, error, state, code } = command.payload as {
+					requestId: string;
+					result?: unknown;
+					error?: string;
+					state?: string;
+					code?: string;
+				};
+
+				if (command.action === 'oauth-authorize-response') {
+					if (state && code) {
+						handleOAuthResponse(requestId, code, state, error);
+					}
+				} else if (command.action.startsWith('oauth-')) {
+					handleTokenResponse(requestId, result, error);
+				} else {
+					handleResponse(requestId, result, error);
+				}
+				return;
+			}
+
+			if (command.action === 'ai-stream-chunk') {
+				const payload = command.payload as { requestId: string; text: string };
+				handleAiStreamChunk(payload);
+				return;
+			}
+
+			if (command.action === 'ai-stream-end') {
+				const payload = command.payload as { requestId: string; full_text: string };
+				handleAiStreamEnd(payload);
+				return;
+			}
+
+			if (command.action === 'ai-stream-error') {
+				const payload = command.payload as { requestId: string; error: string };
+				handleAiStreamError(payload);
+				return;
+			}
+
+			switch (command.action) {
+				case 'run-plugin': {
+					const { pluginPath, mode, aiAccessStatus } = command.payload as {
+						pluginPath?: string;
+						commandName?: string;
+						mode?: 'view' | 'no-view';
+						aiAccessStatus: boolean;
+					};
+					runPlugin(pluginPath, mode, aiAccessStatus);
+					break;
+				}
+				case 'get-preferences': {
+					const { pluginName } = command.payload as { pluginName: string };
+					const preferences = preferencesStore.getAllPreferences();
+					writeOutput({
+						type: 'preference-values',
+						payload: {
+							pluginName,
+							values: preferences[pluginName] || {}
+						}
+					});
+					break;
+				}
+				case 'set-preferences': {
+					const { pluginName, values } = command.payload as {
+						pluginName: string;
+						values: Record<string, unknown>;
+					};
+					preferencesStore.setPreferenceValues(pluginName, values);
+					break;
+				}
+				case 'pop-view': {
+					const previousElement = navigationStack.pop();
+					if (previousElement) {
+						updateContainer(previousElement);
+					} else {
+						writeOutput({ type: 'go-back-to-plugin-list', payload: {} });
+					}
+					break;
+				}
+				case 'dispatch-event': {
+					const { instanceId, handlerName, args } = command.payload as {
+						instanceId: number;
+						handlerName: string;
+						args: unknown[];
+					};
+
+					const instance = instances.get(instanceId);
+					if (!instance) {
+						writeLog(`Instance ${instanceId} not found.`);
+						return;
+					}
+
+					if (!('props' in instance)) {
+						return;
+					}
+
+					const flareInstance = instance as FlareInstance;
+
+					const props = flareInstance._unserializedProps;
+					const handler = props?.[handlerName];
+
+					if (typeof handler === 'function') {
+						handler(...args);
+					} else {
+						writeLog(
+							`Handler ${handlerName} not found or not a function on instance ${instanceId}`
+						);
+					}
+					break;
+				}
+				case 'dispatch-toast-action': {
+					const { toastId, actionType } = command.payload as {
+						toastId: number;
+						actionType: 'primary' | 'secondary';
+					};
+					const toast = toasts.get(toastId);
+					if (toast) {
+						const action = actionType === 'primary' ? toast.primaryAction : toast.secondaryAction;
+						if (action?.onAction) {
+							action.onAction(toast);
+						}
+					}
+					break;
+				}
+				case 'trigger-toast-hide': {
+					const { toastId } = command.payload as { toastId: number };
+					const toast = toasts.get(toastId);
+					toast?.hide();
+					break;
+				}
+				case 'browser-extension-connection-status': {
+					const { isConnected } = command.payload as { isConnected: boolean };
+					browserExtensionState.isConnected = isConnected;
+					break;
+				}
+				default:
+					writeLog(`Unknown command action: ${command.action}`);
+			}
+		} catch (err: unknown) {
+			const error =
+				err instanceof Error
+					? { message: err.message, stack: err.stack }
+					: { message: String(err) };
+			writeLog(`ERROR: ${error.message} \n ${error.stack ?? ''}`);
+			writeOutput({ type: 'error', payload: error.message });
+
+			throw err;
+		}
+	});
+});
+
+writeLog('Node.js Sidecar started successfully with React Reconciler.');
+
+=== 1345 sidecar/src/io.ts	ts	module	-
+import { Packr } from 'msgpackr';
+import { deflate } from 'pako';
+
+const packr = new Packr();
+const COMPRESSION_THRESHOLD = 2048; // 2KB
+
+export const writeOutput = (data: object): void => {
+	try {
+		const payload = packr.pack({ ...data, timestamp: Date.now() });
+
+		let payloadToWrite: Uint8Array = payload;
+		let isCompressed = false;
+
+		if (payload.length > COMPRESSION_THRESHOLD) {
+			const compressed = deflate(payload);
+			if (compressed.length < payload.length) {
+				payloadToWrite = compressed;
+				isCompressed = true;
+				writeLog(`Compressed payload from ${payload.length} to ${compressed.length} bytes`);
+			}
+		}
+
+		const header = Buffer.alloc(4);
+		let headerValue = payloadToWrite.length;
+		if (isCompressed) {
+			headerValue |= 0x80000000;
+		}
+
+		header.writeUInt32BE(headerValue >>> 0);
+
+		process.stdout.write(header);
+		process.stdout.write(payloadToWrite);
+	} catch (e: unknown) {
+		const errorString = e instanceof Error ? e.toString() : String(e);
+		const errorPayload = packr.pack({ type: 'log', payload: errorString, timestamp: Date.now() });
+		const errorHeader = Buffer.alloc(4);
+		errorHeader.writeUInt32BE(errorPayload.length);
+		process.stdout.write(errorHeader);
+		process.stdout.write(errorPayload);
+	}
+};
+
+export const writeLog = (message: unknown): void => {
+	writeOutput({ type: 'log', payload: message });
+};
+
+=== 4238 sidecar/src/plugin.ts	ts	module	-
+import React from 'react';
+import { updateContainer } from './reconciler';
+import { writeLog, writeOutput } from './io';
+import { getRaycastApi } from './api';
+import { inspect } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
+import type { PluginInfo, Preference } from '@flare/protocol';
+import { environment } from './api/environment';
+import { config } from './config';
+import * as ReactJsxRuntime from 'react/jsx-runtime';
+import { aiContext, setCurrentPlugin } from './state';
+
+const createPluginRequire =
+	() =>
+	(moduleName: string): unknown => {
+		if (moduleName === 'react') {
+			return React;
+		}
+
+		if (moduleName.startsWith('@raycast/api')) {
+			return getRaycastApi();
+		}
+
+		if (moduleName === 'react') {
+			return React;
+		}
+
+		if (moduleName === 'react/jsx-runtime') {
+			return ReactJsxRuntime;
+		}
+
+		return require(moduleName);
+	};
+
+export const loadPlugin = (pluginPath: string): string => {
+	try {
+		if (!fs.existsSync(pluginPath)) {
+			throw new Error(`Plugin file not found: ${pluginPath}`);
+		}
+		return fs.readFileSync(pluginPath, 'utf-8');
+	} catch (error) {
+		writeLog(`Error loading plugin from ${pluginPath}: ${error}`);
+		throw error;
+	}
+};
+
+interface LaunchProps {
+	arguments: Record<string, unknown>;
+	launchType: typeof environment.launchType;
+}
+
+export const runPlugin = (
+	pluginPath?: string,
+	mode: 'view' | 'no-view' = 'view',
+	aiAccessStatus: boolean
+): void => {
+	let pluginName = 'unknown';
+	let preferences: Preference[] = [];
+
+	if (!pluginPath) {
+		throw new Error('No plugin specified.');
+	}
+
+	aiContext.hasAccess = aiAccessStatus;
+	const scriptText = loadPlugin(pluginPath);
+
+	const pluginDir = path.dirname(pluginPath);
+	const packageJsonPath = path.join(pluginDir, 'package.json');
+
+	if (fs.existsSync(packageJsonPath)) {
+		try {
+			const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+			pluginName = packageJson.name || path.basename(pluginDir);
+			const pluginPreferences = packageJson.preferences || [];
+			const allCommandPreferences = (packageJson.commands || []).flatMap(
+				(cmd: { preferences?: Preference[] }) => cmd.preferences || []
+			);
+			preferences = [...pluginPreferences, ...allCommandPreferences];
+		} catch (error) {
+			writeLog(`Error reading plugin package.json: ${error}`);
+		}
+	}
+
+	environment.assetsPath = path.join(config.pluginsDir, pluginName, 'assets');
+	environment.extensionName = pluginName;
+
+	setCurrentPlugin(pluginName, preferences);
+
+	const pluginModule = {
+		exports: {} as {
+			default: React.ComponentType<LaunchProps> | ((props: LaunchProps) => Promise<void>) | null;
+		}
+	};
+
+	const scriptFunction = new Function(
+		'require',
+		'module',
+		'exports',
+		'React',
+		'console',
+		scriptText
+	);
+
+	const mockConsole = {
+		log: (...args: unknown[]) => {
+			writeLog('[plugin] log: ' + args.map((arg) => inspect(arg, { depth: null })).join(' '));
+		},
+		warn: (...args: unknown[]) => {
+			writeLog('[plugin] warn: ' + args.map((arg) => inspect(arg, { depth: null })).join(' '));
+		},
+		error: (...args: unknown[]) => {
+			writeLog('[plugin] error: ' + args.map((arg) => inspect(arg, { depth: null })).join(' '));
+		}
+	};
+
+	scriptFunction(createPluginRequire(), pluginModule, pluginModule.exports, React, mockConsole);
+
+	const PluginRoot = pluginModule.exports.default;
+
+	if (!PluginRoot) {
+		throw new Error('Plugin did not export a default component.');
+	}
+
+	const launchProps: LaunchProps = {
+		arguments: {},
+		launchType: environment.launchType
+	};
+
+	if (mode === 'no-view') {
+		if (typeof PluginRoot === 'function') {
+			(PluginRoot as (props: LaunchProps) => Promise<void>)(launchProps)
+				.then(() => {
+					writeLog('No-view command finished.');
+					writeOutput({ type: 'go-back-to-plugin-list', payload: {} });
+				})
+				.catch((e) => {
+					writeLog(`No-view command failed: ${e}`);
+					writeOutput({ type: 'go-back-to-plugin-list', payload: {} });
+				});
+		} else {
+			throw new Error('No-view command did not export a default function.');
+		}
+	} else {
+		writeLog('Plugin loaded. Initializing React render...');
+		const AppElement = React.createElement(PluginRoot as React.ComponentType, launchProps);
+		updateContainer(AppElement, () => {
+			writeLog('Initial render complete');
+		});
+	}
+};
+
+=== 1959 sidecar/src/preferences.ts	ts	module	-
+import * as fs from 'fs';
+import * as path from 'path';
+import { writeLog } from './io';
+import type { Preference } from '@flare/protocol';
+import { config } from './config';
+
+export class PreferencesStore {
+	private preferencesPath: string;
+	private preferences: Record<string, Record<string, unknown>> = {};
+
+	constructor() {
+		this.preferencesPath = config.preferencesFile;
+		this.loadPreferences();
+	}
+
+	private loadPreferences(): void {
+		try {
+			if (fs.existsSync(this.preferencesPath)) {
+				const data = fs.readFileSync(this.preferencesPath, 'utf-8');
+				this.preferences = JSON.parse(data);
+			}
+		} catch (error) {
+			writeLog(`Error loading preferences: ${error}`);
+			this.preferences = {};
+		}
+	}
+
+	private savePreferences(): void {
+		try {
+			const dir = path.dirname(this.preferencesPath);
+			fs.mkdirSync(dir, { recursive: true });
+			fs.writeFileSync(this.preferencesPath, JSON.stringify(this.preferences, null, 2));
+		} catch (error) {
+			writeLog(`Error saving preferences: ${error}`);
+		}
+	}
+
+	public getPreferenceValues(
+		pluginName: string,
+		preferenceDefinitions?: Preference[]
+	): Record<string, unknown> {
+		const pluginPrefs = this.preferences[pluginName] || {};
+		const result: Record<string, unknown> = {};
+
+		if (preferenceDefinitions) {
+			for (const pref of preferenceDefinitions) {
+				if (pluginPrefs[pref.name] !== undefined) {
+					result[pref.name] = pluginPrefs[pref.name];
+				} else if (pref.default !== undefined) {
+					result[pref.name] = pref.default;
+				}
+			}
+		}
+
+		return result;
+	}
+
+	public setPreferenceValues(pluginName: string, values: Record<string, unknown>): void {
+		if (!this.preferences[pluginName]) {
+			this.preferences[pluginName] = {};
+		}
+
+		Object.assign(this.preferences[pluginName], values);
+		this.savePreferences();
+	}
+
+	public getAllPreferences(): Record<string, Record<string, unknown>> {
+		return { ...this.preferences };
+	}
+}
+
+export const preferencesStore = new PreferencesStore();
+
+=== 855 sidecar/src/reconciler.ts	ts	module	-
+import Reconciler from 'react-reconciler';
+import type React from 'react';
+import { root, setCurrentRootElement } from './state';
+import { hostConfig } from './hostConfig';
+import { writeLog } from './io';
+
+const reconciler = Reconciler(hostConfig);
+
+const onRecoverableError = (error: Error) => {
+	writeLog(`--- REACT RECOVERABLE ERROR ---`);
+	writeLog(`Error: ${error.message}`);
+	writeLog(`Stack: ${error.stack}`);
+};
+
+export const container = reconciler.createContainer(
+	root,
+	0, // LegacyRoot
+	null,
+	false,
+	null,
+
+	'',
+	onRecoverableError,
+	null
+);
+
+export const updateContainer = (element: React.ReactElement, callback?: () => void) => {
+	setCurrentRootElement(element);
+	reconciler.updateContainer(element, container, null, callback);
+};
+
+export const batchedUpdates = (callback: () => void) => {
+	reconciler.batchedUpdates(callback, null);
+};
+
+=== 1238 sidecar/src/state.ts	ts	module	-
+import type { AnyInstance, Container, Toast } from './types';
+import type { Command, Preference } from '@flare/protocol';
+import type React from 'react';
+
+export const instances = new Map<number, AnyInstance>();
+export const root: Container = { id: 'root', children: [] };
+export const toasts = new Map<number, Toast>();
+export const browserExtensionState = {
+	isConnected: false
+};
+export const aiContext = { hasAccess: false };
+
+let instanceCounter = 0;
+export const getNextInstanceId = (): number => ++instanceCounter;
+
+export let commitBuffer: Command[] = [];
+
+export const clearCommitBuffer = (): void => {
+	commitBuffer = [];
+};
+
+export const addToCommitBuffer = (commit: Command): void => {
+	commitBuffer.push(commit);
+};
+
+export const navigationStack: React.ReactElement[] = [];
+export let currentRootElement: React.ReactElement | null = null;
+
+export const setCurrentRootElement = (element: React.ReactElement) => {
+	currentRootElement = element;
+};
+
+export let currentPluginName: string | null = null;
+export let currentPluginPreferences: Preference[] = [];
+
+export const setCurrentPlugin = (pluginName: string, preferences?: Preference[]) => {
+	currentPluginName = pluginName;
+	currentPluginPreferences = preferences || [];
+};
+
+=== 1440 sidecar/src/types.ts	ts	module	-
+import type React from 'react';
+import type Reconciler from 'react-reconciler';
+
+export type ComponentType = string | React.ComponentType;
+export type ComponentProps = Record<string, unknown>;
+
+export interface BaseInstance {
+	id: number;
+	_internalFiber?: Reconciler.Fiber;
+}
+
+export interface FlareInstance extends BaseInstance {
+	type: ComponentType;
+	props: ComponentProps;
+	_unserializedProps?: ComponentProps;
+	children: (FlareInstance | TextInstance)[];
+	namedChildren?: { [key: string]: number };
+}
+
+export interface TextInstance extends BaseInstance {
+	type: 'TEXT';
+	text: string;
+}
+
+export interface Container {
+	id: 'root';
+	children: (FlareInstance | TextInstance)[];
+}
+
+export type AnyInstance = FlareInstance | TextInstance;
+export type ParentInstance = FlareInstance | Container;
+export type UpdatePayload = Record<string, unknown>;
+
+export interface SerializedReactElement {
+	$$typeof: 'react.element.serialized';
+	type: string;
+	props: Record<string, unknown>;
+}
+
+export enum ToastStyle {
+	Success = 'SUCCESS',
+	Failure = 'FAILURE',
+	Animated = 'ANIMATED'
+}
+
+export interface ToastActionOptions {
+	title: string;
+	onAction?: (toast: Toast) => void;
+	shortcut?: { modifiers: string[]; key: string };
+}
+
+export interface Toast {
+	id: number;
+	title: string;
+	message?: string;
+	style?: ToastStyle;
+	primaryAction?: ToastActionOptions;
+	secondaryAction?: ToastActionOptions;
+	hide(): Promise<void>;
+	show(): Promise<void>;
+}
+
+=== 4827 sidecar/src/utils.ts	ts	module	-
+import React from 'react';
+import type { ComponentType, ParentInstance } from './types';
+import { root, instances } from './state';
+import type { Command } from '@flare/protocol';
+
+export const getComponentDisplayName = (type: ComponentType): string => {
+	if (typeof type === 'string') {
+		return type;
+	}
+	return type.displayName ?? type.name ?? 'Anonymous';
+};
+
+export function serializeProps(props: Record<string, unknown>): Record<string, unknown> {
+	const serialized: Record<string, unknown> = {};
+
+	for (const key in props) {
+		// part 1: we don't need to serialize children because they are handled by the reconciler
+		if (key === 'children') {
+			continue;
+		}
+
+		const value = props[key];
+
+		if (typeof value === 'function') {
+			serialized[key] = true;
+			continue;
+		}
+
+		// part 2: deep-serialize react elements if they appear in props
+		if (React.isValidElement(value)) {
+			serialized[key] = {
+				$$typeof: 'react.element.serialized',
+				type: getComponentDisplayName(value.type as ComponentType),
+				props: serializeProps(value.props as Record<string, unknown>)
+			};
+			continue;
+		}
+
+		// part 3: recursively serialize arrays because they might contain elements
+		if (Array.isArray(value)) {
+			serialized[key] = value.map((item) =>
+				React.isValidElement(item)
+					? {
+							$$typeof: 'react.element.serialized',
+							type: getComponentDisplayName(item.type as ComponentType),
+							props: serializeProps(item.props as Record<string, unknown>)
+						}
+					: item
+			);
+			continue;
+		}
+
+		// part 4: we don't need to serialize the value, just copy it directly
+		serialized[key] = value;
+	}
+
+	return serialized;
+}
+
+function createStableFingerprint(
+	props: Record<string, unknown>,
+	namedChildren?: Record<string, number>
+): string {
+	let result = '';
+
+	const propKeys = Object.keys(props).sort();
+	for (const key of propKeys) {
+		if (key === 'ref') continue;
+		result += `${key}=${String(props[key])};`;
+	}
+
+	if (namedChildren) {
+		const childKeys = Object.keys(namedChildren).sort();
+		if (childKeys.length > 0) {
+			result += '::nc::'; // named children
+			for (const key of childKeys) {
+				result += `${key}=${String(namedChildren[key])};`;
+			}
+		}
+	}
+	return result;
+}
+
+export function optimizeCommitBuffer(buffer: Command[]): Command[] {
+	const CHILD_OP_THRESHOLD = 10;
+	const PROPS_TEMPLATE_THRESHOLD = 5;
+
+	const childOpsByParent = new Map<ParentInstance['id'], Command[]>();
+	const updatePropsOps: Extract<Command, { type: 'UPDATE_PROPS' }>[] = [];
+	const otherNonUpdateOps: Command[] = [];
+
+	for (const op of buffer) {
+		if (op.type === 'UPDATE_PROPS') {
+			updatePropsOps.push(op);
+		} else if (
+			op.type === 'APPEND_CHILD' ||
+			op.type === 'REMOVE_CHILD' ||
+			op.type === 'INSERT_BEFORE'
+		) {
+			const parentId = op.payload.parentId;
+			childOpsByParent.set(parentId, (childOpsByParent.get(parentId) ?? []).concat(op));
+		} else {
+			otherNonUpdateOps.push(op);
+		}
+	}
+
+	const finalOps: Command[] = [...otherNonUpdateOps];
+
+	for (const [parentId, ops] of childOpsByParent.entries()) {
+		if (ops.length <= CHILD_OP_THRESHOLD) {
+			finalOps.push(...ops);
+		} else {
+			const parentInstance = parentId === 'root' ? root : instances.get(parentId as number);
+			if (parentInstance && 'children' in parentInstance) {
+				const childrenIds = parentInstance.children.map(({ id }) => id);
+				finalOps.push({ type: 'REPLACE_CHILDREN', payload: { parentId, childrenIds } });
+			} else {
+				finalOps.push(...ops);
+			}
+		}
+	}
+
+	if (updatePropsOps.length < PROPS_TEMPLATE_THRESHOLD * 2) {
+		finalOps.push(...updatePropsOps);
+		return finalOps;
+	}
+
+	const propsToIdMap = new Map<string, number[]>();
+	const idToPayloadMap = new Map<number, Extract<Command, { type: 'UPDATE_PROPS' }>['payload']>();
+
+	for (const op of updatePropsOps) {
+		const payload = op.payload;
+		idToPayloadMap.set(payload.id, payload);
+		const fingerprint = createStableFingerprint(payload.props, payload.namedChildren);
+
+		const ids = propsToIdMap.get(fingerprint);
+		if (ids) {
+			ids.push(payload.id);
+		} else {
+			propsToIdMap.set(fingerprint, [payload.id]);
+		}
+	}
+
+	const handledIds = new Set<number>();
+
+	for (const ids of propsToIdMap.values()) {
+		if (ids.length > PROPS_TEMPLATE_THRESHOLD) {
+			const templateId = ids[0];
+			const prototypePayload = idToPayloadMap.get(templateId)!;
+
+			finalOps.push({
+				type: 'DEFINE_PROPS_TEMPLATE',
+				payload: {
+					templateId,
+					props: prototypePayload.props,
+					namedChildren: prototypePayload.namedChildren
+				}
+			});
+
+			finalOps.push({
+				type: 'APPLY_PROPS_TEMPLATE',
+				payload: {
+					templateId: templateId,
+					targetIds: ids
+				}
+			});
+
+			ids.forEach((id) => handledIds.add(id));
+		}
+	}
+
+	const remainingUpdateProps = updatePropsOps.filter((op) => !handledIds.has(op.payload.id));
+	finalOps.push(...remainingUpdateProps);
+
+	return finalOps;
+}
+
+=== 1122 src/lib/__mocks__/tauri.mock.ts	ts	module	-
+import { vi, type Mock, type MockedObject } from 'vitest';
+import * as core from '@tauri-apps/api/core';
+import * as os from '@tauri-apps/plugin-os';
+import * as clipboard from '@tauri-apps/plugin-clipboard-manager';
+
+type Promisable<T> = T | Promise<T>;
+type MockFactoryWithHelper<M = unknown> = (
+	importOriginal: <T extends M = M>() => Promise<T>
+) => Promisable<Partial<M>>;
+
+const createApiMock: MockFactoryWithHelper = vi.hoisted(() => async (importOriginal) => {
+	const module = (await importOriginal()) as object;
+
+	const mocks: Record<string, Mock> = {};
+	for (const [key, value] of Object.entries(module)) {
+		if (typeof value === 'function') {
+			mocks[key] = vi.fn();
+		}
+	}
+
+	const mock = { ...module, ...mocks };
+	return { ...mock, default: mock };
+});
+
+vi.mock('@tauri-apps/api/core', createApiMock);
+vi.mock('@tauri-apps/plugin-os', createApiMock);
+vi.mock('@tauri-apps/plugin-clipboard-manager', createApiMock);
+
+export const mockedCore = core as MockedObject<typeof core>;
+export const mockedOs = os as MockedObject<typeof os>;
+export const mockedClipboard = clipboard as MockedObject<typeof clipboard>;
+
 === 704 src/lib/apps.svelte.ts	svelte-module-ts	runes	-
 import { invoke } from '@tauri-apps/api/core';
 import { frecencyStore } from './frecency.svelte';
@@ -28,6 +3805,114 @@ class AppsStore {
 }
 
 export const appsStore = new AppsStore();
+
+=== 2976 src/lib/assets.ts	ts	module	-
+import { type ImageLike } from '@flare/protocol';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { mode } from 'mode-watcher';
+import path from 'path';
+import type { ColorLike } from './props';
+
+// this matches any emoji character (u flag = unicode, \p{Emoji} = any unicode emoji)
+const EMOJI_REGEX = /\p{Emoji}/u;
+const graphemeSegmenter = new Intl.Segmenter();
+
+const iconIsEmoji = (icon: string) => {
+	// explanation: some emojis are made up of multiple characters, so we need to check if the icon is a single emoji
+	// first of all, we need to segment the icon into graphemes (characters)
+	// if it has a single visual character, and one of the corresponding code points is an emoji, then we consider it to be an emoji
+	// i genuinely hate unicode pls send help
+	const graphemes = graphemeSegmenter.segment(icon);
+
+	return Array.from(graphemes).length === 1 && EMOJI_REGEX.test(icon);
+};
+
+type ImageMask = 'circle' | 'roundedRectangle';
+
+export type ResolvedIcon =
+	| { type: 'raycast'; name: string; tintColor?: ColorLike }
+	| {
+			type: 'image';
+			src: string;
+			mask?: ImageMask;
+			tintColor?: ColorLike;
+	  }
+	| { type: 'emoji'; emoji: string };
+
+export function resolveIcon(
+	icon: ImageLike | undefined | null,
+	assetsBasePath: string
+): ResolvedIcon | null {
+	if (!icon) return null;
+
+	if (typeof icon === 'string') {
+		if (iconIsEmoji(icon)) {
+			return { type: 'emoji', emoji: icon };
+		}
+
+		// TODO: better heuristic?
+		if (icon.endsWith('-16')) {
+			return { type: 'raycast', name: icon };
+		}
+
+		if (icon.startsWith('http') || icon.startsWith('data:') || icon.startsWith('blob:')) {
+			return { type: 'image', src: icon };
+		}
+
+		if (icon.startsWith('/')) {
+			return { type: 'image', src: convertFileSrc(icon) };
+		}
+
+		return { type: 'image', src: convertFileSrc(path.join(assetsBasePath, icon)) };
+	}
+
+	if (typeof icon === 'object' && 'source' in icon) {
+		const source =
+			typeof icon.source === 'object'
+				? mode.current === 'dark'
+					? icon.source.dark
+					: icon.source.light
+				: icon.source;
+
+		// TODO: better heuristic?
+		if (source.endsWith('-16')) {
+			return {
+				type: 'raycast',
+				name: source,
+				tintColor:
+					// TODO: actually handle adjustContrast
+					typeof icon.tintColor === 'object'
+						? { ...icon.tintColor, adjustContrast: false }
+						: icon.tintColor
+			};
+		}
+
+		let src: string;
+		if (source.startsWith('http') || source.startsWith('data:') || source.startsWith('blob:')) {
+			src = source;
+		} else if (source.startsWith('/')) {
+			src = convertFileSrc(source);
+		} else {
+			src = convertFileSrc(path.join(assetsBasePath, source));
+		}
+
+		return {
+			type: 'image',
+			src: src,
+			mask: icon.mask,
+			tintColor:
+				typeof icon.tintColor === 'object' && icon.tintColor
+					? { adjustContrast: false, ...icon.tintColor }
+					: icon.tintColor
+		};
+	}
+
+	if (typeof icon === 'object' && 'fileIcon' in icon) {
+		return { type: 'image', src: convertFileSrc(icon.fileIcon) };
+	}
+
+	return null;
+}
 
 === 6929 src/lib/command-palette.svelte.ts	svelte-module-ts	runes	-
 import type { PluginInfo } from '@flare/protocol';
@@ -1437,6 +5322,300 @@ export function useCommandPaletteActions({
 	onconfirm={handleForceInstall}
 	oncancel={() => (showConfirmationDialog = false)}
 />
+
+=== 9415 src/lib/components/Extensions.svelte.test.ts	ts	module	-
+import { mockedCore, mockedClipboard } from '$lib/__mocks__/tauri.mock';
+import { render, screen, cleanup, waitFor } from '@testing-library/svelte';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import Extensions from './Extensions.svelte';
+import type { Extension } from '$lib/store';
+import { openUrl } from '@tauri-apps/plugin-opener';
+
+if (typeof window !== 'undefined') {
+	window.HTMLElement.prototype.animate = () => ({
+		finished: Promise.resolve({} as Animation),
+		cancel: () => {},
+		play: () => {},
+		pause: () => {},
+		reverse: () => {},
+		finish: () => {},
+		commitStyles: () => {},
+		updatePlaybackRate: () => {},
+		persist: () => {},
+		startTime: 0,
+		currentTime: 0,
+		timeline: null,
+		playbackRate: 1,
+		pending: false,
+		playState: 'idle',
+		ready: Promise.resolve({} as Animation),
+		onfinish: null,
+		oncancel: null,
+		onremove: null,
+		effect: null,
+		id: '',
+		replaceState: 'active',
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		dispatchEvent: () => false
+	});
+}
+
+vi.mock('@tauri-apps/plugin-opener', () => ({
+	openUrl: vi.fn()
+}));
+
+const mockedFetch = vi.fn();
+vi.mock('@tauri-apps/plugin-http', () => ({
+	fetch: (url: string) => mockedFetch(url)
+}));
+
+const extensionsStore = vi.hoisted(() => ({
+	searchText: '',
+	searchResults: [] as Extension[],
+	selectedCategory: 'All Categories',
+	extensions: [] as Extension[],
+	featuredExtensions: [] as Extension[],
+	trendingExtensions: [] as Extension[],
+	isSearching: false,
+	isLoading: false,
+	selectedIndex: 0,
+	loadMore: vi.fn(),
+	_reset: function () {
+		this.searchText = '';
+		this.searchResults = [];
+		this.selectedCategory = 'All Categories';
+		this.extensions = [];
+		this.featuredExtensions = [];
+		this.trendingExtensions = [];
+		this.isSearching = false;
+		this.isLoading = false;
+		this.selectedIndex = 0;
+		this.loadMore.mockClear();
+	}
+}));
+vi.mock('./extensions/store.svelte', () => ({
+	extensionsStore
+}));
+
+const viewManager = vi.hoisted(() => ({
+	extensionToSelect: null,
+	showSettings: vi.fn(),
+	_reset: function () {
+		this.extensionToSelect = null;
+		this.showSettings.mockClear();
+	}
+}));
+vi.mock('$lib/viewManager.svelte', () => ({
+	viewManager
+}));
+
+const mockAuthor = {
+	name: 'Raycast',
+	handle: 'raycast',
+	avatar: 'https://raycast.com/avatar.png',
+	initials: 'RC',
+	avatar_placeholder_color: '#A067DC' as const
+};
+
+const createMockExtension = (
+	id: string,
+	name: string,
+	category: string,
+	options: Partial<Extension> = {}
+): Extension => ({
+	id,
+	name,
+	native_id: null,
+	title: name,
+	description: `Description for ${name}`,
+	author: mockAuthor,
+	owner: mockAuthor,
+	icons: { light: 'icon.png', dark: 'icon.png' },
+	categories: [category],
+	store_url: `https://raycast.com/raycast/${name}`,
+	download_url: `https://raycast.com/api/v1/extensions/raycast/${name}/download`,
+	readme_url: `https://github.com/raycast/extensions/blob/main/extensions/${name}/README.md`,
+	source_url: `https://github.com/raycast/extensions/tree/main/extensions/${name}`,
+	seo_categories: [],
+	platforms: null,
+	created_at: Date.now(),
+	kill_listed_at: null,
+	status: 'active',
+	is_new: false,
+	access: 'public',
+	download_count: 100,
+	commit_sha: '12345',
+	relative_path: `extensions/${name}`,
+	api_version: '1.0',
+	prompt_examples: [],
+	metadata_count: 0,
+	updated_at: Date.now(),
+	readme_assets_path: '',
+	commands: [],
+	tools: [],
+	contributors: [],
+	...options
+});
+
+const mockFeatured = createMockExtension('1', 'Featured Extension', 'Featured');
+const mockTrending = createMockExtension('2', 'Trending Extension', 'Trending');
+const mockRegular = createMockExtension('3', 'Regular Extension', 'Productivity');
+const mockDetailed = createMockExtension('1', 'Featured Extension', 'Featured');
+
+describe('Extensions.svelte', () => {
+	const onBack = vi.fn();
+	const onInstall = vi.fn();
+	const user = userEvent.setup();
+
+	beforeEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+		extensionsStore._reset();
+		viewManager._reset();
+		mockedFetch.mockClear();
+		mockedCore.invoke.mockResolvedValue({ status: 'success' });
+	});
+
+	describe('1. Initial Rendering and State', () => {
+		it('should show a loading indicator while loading', () => {
+			extensionsStore.isLoading = true;
+			render(Extensions, { onBack, onInstall });
+			expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
+		});
+
+		it('should render the header and search input', () => {
+			render(Extensions, { onBack, onInstall });
+			expect(screen.getByPlaceholderText('Search Store for extensions...')).toBeInTheDocument();
+		});
+
+		it('should display extensions with headers when loaded', async () => {
+			extensionsStore.featuredExtensions = [mockFeatured];
+			extensionsStore.trendingExtensions = [mockTrending];
+			extensionsStore.extensions = [mockRegular];
+			render(Extensions, { onBack, onInstall });
+
+			expect(await screen.findByText('Featured')).toBeInTheDocument();
+			expect(await screen.findByText(mockFeatured.title)).toBeInTheDocument();
+
+			expect(await screen.findByText('Trending')).toBeInTheDocument();
+			expect(await screen.findByText(mockTrending.title)).toBeInTheDocument();
+		});
+	});
+
+	describe('2. Search and Filtering', () => {
+		it('should update searchText in the store when typing in search input', async () => {
+			render(Extensions, { onBack, onInstall });
+			const searchInput = screen.getByPlaceholderText('Search Store for extensions...');
+			await user.type(searchInput, 'test search');
+			expect(extensionsStore.searchText).toBe('test search');
+		});
+
+		it('should display only search results when searchText is present', async () => {
+			extensionsStore.searchText = 'search';
+			extensionsStore.searchResults = [mockRegular];
+			render(Extensions, { onBack, onInstall });
+
+			expect(await screen.findByText('Search Results')).toBeInTheDocument();
+			expect(screen.getByText(mockRegular.title)).toBeInTheDocument();
+			expect(screen.queryByText('Featured')).not.toBeInTheDocument();
+		});
+
+		it('should display filtered extensions when a category is selected', async () => {
+			extensionsStore.selectedCategory = 'Productivity';
+			extensionsStore.extensions = [mockFeatured, mockRegular];
+			render(Extensions, { onBack, onInstall });
+
+			await waitFor(() => {
+				expect(screen.getByText('Productivity', { selector: 'button' })).toBeInTheDocument();
+			});
+			expect(screen.getByText(mockRegular.title)).toBeInTheDocument();
+			expect(screen.queryByText(mockFeatured.title)).not.toBeInTheDocument();
+		});
+	});
+
+	describe('3. Extension Selection and Detail View', () => {
+		beforeEach(() => {
+			extensionsStore.featuredExtensions = [mockFeatured];
+			mockedFetch.mockResolvedValue({
+				ok: true,
+				json: () => Promise.resolve(mockDetailed)
+			});
+		});
+
+		it('should switch to detail view on item click', async () => {
+			render(Extensions, { onBack, onInstall });
+			const extensionItem = await screen.findByText(mockFeatured.title);
+			await user.click(extensionItem);
+
+			expect(await screen.findByText('Install Extension')).toBeInTheDocument();
+			expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+		});
+
+		it('should fetch detailed extension data when an item is selected', async () => {
+			render(Extensions, { onBack, onInstall });
+			const extensionItem = await screen.findByText(mockFeatured.title);
+			await user.click(extensionItem);
+
+			await waitFor(() => {
+				expect(mockedFetch).toHaveBeenCalledWith(
+					`https://backend.raycast.com/api/v1/extensions/${mockFeatured.author.handle}/${mockFeatured.name}`
+				);
+			});
+		});
+	});
+
+	describe('4. Actions and Shortcuts', () => {
+		beforeEach(() => {
+			extensionsStore.extensions = [
+				mockRegular,
+				createMockExtension('4', 'no-readme', 'Tools', { readme_url: null })
+			];
+			extensionsStore.selectedIndex = 1;
+		});
+
+		it('should open extension in browser via action menu', async () => {
+			render(Extensions, { onBack, onInstall });
+			const menuTrigger = await screen.findByTestId('action-menu-trigger');
+			await user.click(menuTrigger);
+
+			const openButton = await screen.findByText('Open in Browser');
+			await user.click(openButton);
+			expect(openUrl).toHaveBeenCalledWith(mockRegular.store_url);
+		});
+
+		it('should copy extension URL via action menu', async () => {
+			render(Extensions, { onBack, onInstall });
+			const menuTrigger = await screen.findByTestId('action-menu-trigger');
+			await user.click(menuTrigger);
+
+			const copyButton = await screen.findByText('Copy Extension URL');
+			await user.click(copyButton);
+			expect(mockedClipboard.writeText).toHaveBeenCalledWith(mockRegular.store_url);
+		});
+
+		it('should view source code via action menu', async () => {
+			render(Extensions, { onBack, onInstall });
+			const menuTrigger = await screen.findByTestId('action-menu-trigger');
+			await user.click(menuTrigger);
+
+			const sourceButton = await screen.findByText('View Source Code');
+			await user.click(sourceButton);
+			expect(openUrl).toHaveBeenCalledWith(mockRegular.source_url);
+		});
+
+		it('should disable README button if no readme_url exists', async () => {
+			extensionsStore.selectedIndex = 2;
+			render(Extensions, { onBack, onInstall });
+			const menuTrigger = await screen.findByTestId('action-menu-trigger');
+			await waitFor(() => user.click(menuTrigger));
+
+			const readmeButton = await screen.findByText('View README');
+			expect(readmeButton).toHaveAttribute('aria-disabled', 'true');
+		});
+	});
+});
 
 === 5537 src/lib/components/FileSearchView.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3658,6 +7837,479 @@ export function useCommandPaletteActions({
 	{/snippet}
 </MainLayout>
 
+=== 16003 src/lib/components/command-palette/CommandPalette.svelte.test.ts	ts	module	-
+import { mockedClipboard, mockedCore } from '$lib/__mocks__/tauri.mock';
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/svelte';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import CommandPalette from './CommandPalette.svelte';
+import { type PluginInfo } from '@flare/protocol';
+import type { App } from '$lib/apps.svelte';
+import type { Quicklink } from '$lib/quicklinks.svelte';
+import { focusManager } from '$lib/focus.svelte';
+
+const appsStore = vi.hoisted(() => ({
+	apps: [] as App[],
+	isLoading: false
+}));
+vi.mock('$lib/apps.svelte', () => ({
+	appsStore
+}));
+
+const quicklinksStore = vi.hoisted(() => ({
+	quicklinks: [] as Quicklink[],
+	isLoading: false,
+	error: null
+}));
+vi.mock('$lib/quicklinks.svelte', () => ({
+	quicklinksStore
+}));
+
+const frecencyStore = vi.hoisted(() => ({
+	data: [],
+	isLoading: false,
+	hiddenItemIds: [],
+	recordUsage: vi.fn().mockResolvedValue(undefined),
+	hideItem: vi.fn().mockResolvedValue(undefined)
+}));
+vi.mock('$lib/frecency.svelte', () => ({
+	frecencyStore
+}));
+
+const viewManager = vi.hoisted(() => ({
+	showSettings: vi.fn()
+}));
+vi.mock('$lib/viewManager.svelte', () => ({
+	viewManager
+}));
+
+describe('CommandPalette.svelte', () => {
+	const onRunPlugin = vi.fn();
+	const user = userEvent.setup();
+
+	const mockPlugins: PluginInfo[] = [
+		{
+			pluginPath: '/path/to/plugin1',
+			title: 'Mock Plugin 1',
+			pluginName: 'mock-plugin-1',
+			pluginTitle: 'Mock Extension',
+			commandName: 'mock-command-1',
+			icon: 'mock-icon-16',
+			mode: 'view',
+			owner: 'test',
+			author: 'test',
+			preferences: [],
+			description: 'A mock plugin'
+		},
+		{
+			pluginPath: '/path/to/plugin2',
+			title: 'Mock Plugin 2',
+			pluginName: 'mock-plugin-2',
+			pluginTitle: 'Another Extension',
+			commandName: 'mock-command-2',
+			icon: 'mock-icon-16',
+			mode: 'view',
+			owner: 'test',
+			preferences: [],
+			description: 'Another mock plugin'
+		}
+	];
+
+	const mockApps: App[] = [
+		{
+			name: 'Test App 1',
+			comment: 'A great testing application',
+			exec: '/usr/bin/test-app-1'
+		}
+	];
+
+	const mockQuicklinks: Quicklink[] = [
+		{
+			id: 1,
+			name: 'Google Search',
+			link: 'https://google.com/search?q={argument}',
+			application: null,
+			icon: 'link-16',
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString()
+		},
+		{
+			id: 2,
+			name: 'Simple Link',
+			link: 'https://example.com',
+			application: null,
+			icon: 'link-16',
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString()
+		}
+	];
+
+	beforeEach(() => {
+		cleanup();
+		vi.clearAllMocks();
+		appsStore.apps = [];
+		quicklinksStore.quicklinks = [];
+		frecencyStore.data = [];
+		mockedCore.invoke.mockResolvedValue(undefined);
+		focusManager.reset();
+	});
+
+	describe('1. Initial Rendering and Display', () => {
+		it('should render the search input and default placeholder', () => {
+			render(CommandPalette, {
+				plugins: [],
+				onRunPlugin
+			});
+
+			const input = screen.getByPlaceholderText('Search for apps and commands...');
+			expect(input).toBeInTheDocument();
+
+			expect(input).toHaveFocus();
+		});
+
+		it('should display a list of plugins', async () => {
+			render(CommandPalette, {
+				plugins: mockPlugins,
+				onRunPlugin
+			});
+
+			expect(await screen.findByText('Mock Plugin 1')).toBeInTheDocument();
+			expect(await screen.findByText('Mock Extension')).toBeInTheDocument();
+			expect(await screen.findByText('Mock Plugin 2')).toBeInTheDocument();
+			expect(await screen.findByText('Another Extension')).toBeInTheDocument();
+
+			const commandAccessories = await screen.findAllByText('Command');
+			expect(commandAccessories.length).toBe(2);
+		});
+
+		it('should display a list of installed applications', async () => {
+			appsStore.apps = mockApps;
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			expect(await screen.findByText('Test App 1')).toBeInTheDocument();
+			expect(await screen.findByText('A great testing application')).toBeInTheDocument();
+
+			const appAccessories = await screen.findAllByText('Application');
+			expect(appAccessories.length).toBe(1);
+		});
+
+		it('should display a list of quicklinks', async () => {
+			quicklinksStore.quicklinks = mockQuicklinks;
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			expect(await screen.findByText('Google Search', { selector: 'p' })).toBeInTheDocument();
+			expect(await screen.findByText('https://google.com/search?q=...')).toBeInTheDocument();
+
+			const quicklinkAccessories = await screen.findAllByText('Quicklink');
+			expect(quicklinkAccessories.length).toBe(2);
+		});
+	});
+
+	describe('2. Search and Filtering', () => {
+		it('should filter the list based on search text', async () => {
+			appsStore.apps = mockApps;
+			quicklinksStore.quicklinks = mockQuicklinks;
+
+			const { container } = render(CommandPalette, {
+				plugins: mockPlugins,
+				onRunPlugin
+			});
+
+			const listContainer = within(container).getByTestId('command-palette-content');
+
+			const initialListCount = within(listContainer).getAllByTestId('list-item').length;
+
+			const searchInput = screen.getByPlaceholderText('Search for apps and commands...');
+			await user.type(searchInput, 'Mock Plugin 1');
+
+			expect(listContainer).toBeInTheDocument();
+
+			const listItems = within(listContainer).getAllByTestId('list-item');
+			expect(listItems.length).not.toEqual(initialListCount);
+			expect(listItems[0]).toHaveClass('!bg-accent');
+		});
+
+		it('should display the calculator result when a mathematical expression is typed', async () => {
+			mockedCore.invoke.mockImplementation(async (command) => {
+				if (command === 'calculate_soulver') {
+					return JSON.stringify({ value: '4', type: 'number' });
+				}
+			});
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			const searchInput = screen.getByPlaceholderText('Search for apps and commands...');
+			await user.type(searchInput, '2+2');
+
+			expect(await screen.findByText('Calculator')).toBeInTheDocument();
+			expect(screen.getByText('2+2')).toBeInTheDocument();
+			expect(screen.getByText('4')).toBeInTheDocument();
+		});
+
+		it('should not display the calculator for non-mathematical text', async () => {
+			mockedCore.invoke.mockImplementation(async (command) => {
+				if (command === 'calculate_soulver') {
+					return JSON.stringify({ type: 'none' });
+				}
+			});
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			const searchInput = screen.getByPlaceholderText('Search for apps and commands...');
+			await user.type(searchInput, 'hello world');
+
+			expect(screen.queryByText('Calculator')).not.toBeInTheDocument();
+		});
+
+		it('should clear the search text when the Escape key is pressed in the input', async () => {
+			render(CommandPalette, { plugins: [], onRunPlugin });
+			const searchInput = screen.getByPlaceholderText<HTMLInputElement>(
+				'Search for apps and commands...'
+			);
+
+			await user.type(searchInput, 'some text');
+			expect(searchInput.value).toBe('some text');
+
+			await fireEvent.keyDown(searchInput, { key: 'Escape' });
+
+			expect(searchInput.value).toBe('');
+		});
+	});
+
+	describe('3. Item Selection and Execution (`Enter` key)', () => {
+		it('should execute a selected plugin on Enter', async () => {
+			render(CommandPalette, { plugins: [mockPlugins[0]], onRunPlugin });
+
+			await user.keyboard('{Enter}');
+
+			expect(onRunPlugin).toHaveBeenCalledTimes(1);
+			expect(onRunPlugin).toHaveBeenCalledWith(mockPlugins[0]);
+			expect(frecencyStore.recordUsage).toHaveBeenCalledWith(mockPlugins[0].pluginPath);
+		});
+
+		it('should launch a selected application on Enter', async () => {
+			appsStore.apps = mockApps;
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			await user.keyboard('{Enter}');
+
+			expect(mockedCore.invoke).toHaveBeenCalledWith('launch_app', { exec: mockApps[0].exec });
+			expect(frecencyStore.recordUsage).toHaveBeenCalledWith(mockApps[0].exec);
+		});
+
+		it('should copy the calculator answer on Enter', async () => {
+			mockedCore.invoke.mockImplementation(async (command) => {
+				if (command === 'calculate_soulver') {
+					return JSON.stringify({ value: '4', type: 'number' });
+				}
+			});
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+			const searchInput = screen.getByPlaceholderText('Search for apps and commands...');
+			await user.type(searchInput, '2+2');
+
+			await waitFor(() => expect(screen.getByText('Calculator')).toBeInTheDocument());
+
+			await user.keyboard('{Enter}');
+
+			expect(mockedClipboard.writeText).toHaveBeenCalledWith('4');
+		});
+
+		it('should execute a simple quicklink (without argument) on Enter', async () => {
+			const simpleQuicklink = mockQuicklinks.find((q) => !q.link.includes('{argument}'))!;
+			quicklinksStore.quicklinks = [simpleQuicklink];
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			await waitFor(() => expect(screen.getByText(simpleQuicklink.name)).toBeInTheDocument());
+
+			await user.keyboard('{Enter}');
+
+			expect(mockedCore.invoke).toHaveBeenCalledWith('execute_quicklink', {
+				link: simpleQuicklink.link,
+				application: simpleQuicklink.application
+			});
+			expect(frecencyStore.recordUsage).toHaveBeenCalledWith(`quicklink-${simpleQuicklink.id}`);
+		});
+	});
+
+	describe('4. Quicklinks with Arguments', () => {
+		it('should show the argument input when a complex quicklink is selected', async () => {
+			const complexQuicklink = mockQuicklinks.find((q) => q.link.includes('{argument}'))!;
+			quicklinksStore.quicklinks = [complexQuicklink];
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			const argumentInput = await screen.findByPlaceholderText('Query');
+			expect(argumentInput).toBeInTheDocument();
+
+			await user.keyboard('{Enter}');
+			await waitFor(() => expect(argumentInput).toHaveFocus());
+
+			const mainInput = screen.getByPlaceholderText(complexQuicklink.name);
+			expect(mainInput).toBeInTheDocument();
+		});
+
+		it('should execute a complex quicklink with the provided argument', async () => {
+			const complexQuicklink = mockQuicklinks.find((q) => q.link.includes('{argument}'))!;
+			quicklinksStore.quicklinks = [complexQuicklink];
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			const argumentInput = await screen.findByPlaceholderText('Query');
+			expect(argumentInput).toBeInTheDocument();
+
+			await user.keyboard('{Enter}');
+			expect(argumentInput).toHaveFocus();
+
+			await user.type(argumentInput, 'Svelte');
+			await user.keyboard('{Enter}');
+
+			expect(mockedCore.invoke).toHaveBeenCalledWith('execute_quicklink', {
+				link: 'https://google.com/search?q=Svelte',
+				application: complexQuicklink.application
+			});
+
+			const mainInput = screen.getByPlaceholderText('Search for apps and commands...');
+			expect(mainInput).toHaveValue('');
+		});
+
+		it('should hide the argument input on Escape', async () => {
+			const complexQuicklink = mockQuicklinks.find((q) => q.link.includes('{argument}'))!;
+			quicklinksStore.quicklinks = [complexQuicklink];
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			const argumentInput = await screen.findByPlaceholderText('Query');
+			await user.keyboard('{Enter}');
+			await waitFor(() => expect(argumentInput).toHaveFocus());
+
+			await user.keyboard('{Escape}');
+
+			const mainInput = screen.getByPlaceholderText(complexQuicklink.name);
+			expect(mainInput).toHaveFocus();
+		});
+
+		it('should hide the argument input on Backspace in an empty argument input', async () => {
+			const complexQuicklink = mockQuicklinks.find((q) => q.link.includes('{argument}'))!;
+			quicklinksStore.quicklinks = [complexQuicklink];
+
+			render(CommandPalette, { plugins: [], onRunPlugin });
+
+			const argumentInput = await screen.findByPlaceholderText('Query');
+			await user.keyboard('{Enter}');
+			await waitFor(() => expect(argumentInput).toHaveFocus());
+
+			expect(argumentInput).toHaveValue('');
+			await user.keyboard('{Backspace}');
+
+			const mainInput = screen.getByPlaceholderText(complexQuicklink.name);
+			expect(mainInput).toHaveFocus();
+		});
+	});
+
+	describe('5. Keyboard Shortcuts and Actions', () => {
+		it('should trigger "Copy Deeplink" with Ctrl+Shift+C for a plugin', async () => {
+			render(CommandPalette, { plugins: [mockPlugins[0]], onRunPlugin });
+			const searchInput = await screen.findByPlaceholderText('Search for apps and commands...');
+			await waitFor(() => expect(screen.getByText('Mock Plugin 1')).toBeInTheDocument());
+
+			await fireEvent.keyDown(searchInput, { key: 'c', ctrlKey: true, shiftKey: true });
+
+			expect(mockedClipboard.writeText).toHaveBeenCalledWith(
+				'raycast://extensions/test/mock-plugin-1/mock-command-1'
+			);
+		});
+
+		it('should trigger "Copy App Path" with Ctrl+Shift+. for an app', async () => {
+			appsStore.apps = mockApps;
+			render(CommandPalette, { plugins: [], onRunPlugin });
+			const searchInput = await screen.findByPlaceholderText('Search for apps and commands...');
+			await waitFor(() => expect(screen.getByText('Test App 1')).toBeInTheDocument());
+
+			await fireEvent.keyDown(searchInput, { key: '.', ctrlKey: true, shiftKey: true });
+
+			expect(mockedClipboard.writeText).toHaveBeenCalledWith('/usr/bin/test-app-1');
+		});
+
+		it('should trigger "Hide Application" with Ctrl+h for an app', async () => {
+			appsStore.apps = mockApps;
+			render(CommandPalette, { plugins: [], onRunPlugin });
+			const searchInput = await screen.findByPlaceholderText('Search for apps and commands...');
+			await waitFor(() => expect(screen.getByText('Test App 1')).toBeInTheDocument());
+
+			await fireEvent.keyDown(searchInput, { key: 'h', ctrlKey: true });
+
+			expect(frecencyStore.hideItem).toHaveBeenCalledWith('/usr/bin/test-app-1');
+		});
+
+		it('should trigger "Configure Command" with Ctrl+Shift+, for a plugin', async () => {
+			render(CommandPalette, { plugins: [mockPlugins[0]], onRunPlugin });
+			const searchInput = await screen.findByPlaceholderText('Search for apps and commands...');
+			await waitFor(() => expect(screen.getByText('Mock Plugin 1')).toBeInTheDocument());
+
+			await fireEvent.keyDown(searchInput, { key: ',', ctrlKey: true, shiftKey: true });
+
+			expect(viewManager.showSettings).toHaveBeenCalledWith('mock-plugin-1');
+		});
+	});
+
+	describe('6. Keyboard Navigation', () => {
+		it('should move selection down with ArrowDown key', async () => {
+			render(CommandPalette, { plugins: mockPlugins, onRunPlugin });
+			const listItems = await screen.findAllByTestId('list-item');
+			expect(listItems[0]).toHaveClass('!bg-accent');
+
+			await user.keyboard('{ArrowDown}');
+
+			expect(listItems[0]).not.toHaveClass('!bg-accent');
+			expect(listItems[1]).toHaveClass('!bg-accent');
+		});
+
+		it('should move selection up with ArrowUp key', async () => {
+			render(CommandPalette, { plugins: mockPlugins, onRunPlugin });
+			const listItems = await screen.findAllByTestId('list-item');
+			await user.keyboard('{ArrowDown}');
+
+			expect(listItems[1]).toHaveClass('!bg-accent');
+
+			await user.keyboard('{ArrowUp}');
+
+			expect(listItems[1]).not.toHaveClass('!bg-accent');
+			expect(listItems[0]).toHaveClass('!bg-accent');
+		});
+
+		it('should wrap selection from top to bottom on ArrowUp', async () => {
+			render(CommandPalette, { plugins: mockPlugins, onRunPlugin });
+			const listItems = await screen.findAllByTestId('list-item');
+			expect(listItems[0]).toHaveClass('!bg-accent');
+
+			await user.keyboard('{ArrowUp}');
+
+			expect(listItems[0]).not.toHaveClass('!bg-accent');
+			expect(listItems[listItems.length - 1]).toHaveClass('!bg-accent');
+		});
+
+		it('should wrap selection from bottom to top on ArrowDown', async () => {
+			render(CommandPalette, { plugins: mockPlugins, onRunPlugin });
+			const listItems = await screen.findAllByTestId('list-item');
+
+			for (let i = 0; i < listItems.length - 1; i++) {
+				await user.keyboard('{ArrowDown}');
+			}
+
+			expect(listItems[listItems.length - 1]).toHaveClass('!bg-accent');
+
+			await user.keyboard('{ArrowDown}');
+
+			expect(listItems[listItems.length - 1]).not.toHaveClass('!bg-accent');
+			expect(listItems[0]).toHaveClass('!bg-accent');
+		});
+	});
+});
+
 === 1676 src/lib/components/extensions/CategoryFilter.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
@@ -5686,6 +10338,43 @@ export const extensionsStore = new ExtensionsStore();
 	</div>
 {/if}
 
+=== 682 src/lib/components/nodes/form/utils.ts	ts	module	-
+import { z } from 'zod/v4';
+
+const FormValueSchema = z.union([
+	z.string(),
+	z.number(),
+	z.boolean(),
+	z.array(z.string()),
+	z.array(z.number()),
+	z.date(),
+	z.null()
+]);
+type FormValue = z.infer<typeof FormValueSchema>;
+
+type FormEvent<T extends FormValue> = {
+	target: {
+		id: string;
+		value?: T;
+	};
+
+	type: 'focus' | 'blur';
+};
+
+export const serializeEvent = (itemId: string, event: Event): FormEvent<FormValue> => {
+	const value = FormValueSchema.safeParse(
+		event.target && 'value' in event.target ? event.target.value : undefined
+	);
+
+	return {
+		type: event.type as 'focus' | 'blur',
+		target: {
+			id: itemId,
+			value: value.success ? value.data : undefined
+		}
+	};
+};
+
 === 615 src/lib/components/nodes/list/ItemDetail.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { UINode } from '$lib/types';
@@ -6283,6 +10972,104 @@ export const extensionsStore = new ExtensionsStore();
 	</DropdownMenu.Content>
 </DropdownMenu.Root>
 
+=== 1525 src/lib/components/nodes/shared/actions.ts	ts	module	-
+import type { ActionCopyToClipboardProps, ActionOpenInBrowserProps, ActionProps } from '$lib/props';
+import type { UINode } from '$lib/types';
+import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+import { openUrl } from '@tauri-apps/plugin-opener';
+
+export type ActionDefinition = ActionProps & { handler?: () => void; disabled?: boolean };
+
+// TODO: naming?
+export const nodeToActionDefinition = (
+	node: UINode,
+	onDispatch: (instanceId: number, handlerName: string, args: unknown[]) => void
+): ActionDefinition => {
+	const title = typeof node.props.title === 'string' ? node.props.title : undefined;
+
+	switch (node.type) {
+		case 'Action.CopyToClipboard': {
+			const copyProps = node.props as ActionCopyToClipboardProps;
+
+			return {
+				title: title ?? 'Copy to Clipboard',
+				...copyProps,
+				handler: () => {
+					writeText(copyProps.content);
+					onDispatch(node.id, 'onCopy', []);
+				}
+			};
+		}
+		case 'Action.OpenInBrowser': {
+			const openProps = node.props as ActionOpenInBrowserProps;
+
+			return {
+				title: 'Open in Browser',
+				...openProps,
+				handler: () => {
+					openUrl(openProps.url);
+					onDispatch(node.id, 'onOpenInBrowser', []);
+				}
+			};
+		}
+		case 'Action.SubmitForm': {
+			return {
+				title: title ?? 'Submit Form',
+				...node.props,
+				handler: () => onDispatch(node.id, 'onSubmit', [])
+			};
+		}
+		case 'Action.Push':
+		case 'Action':
+		default: {
+			return {
+				title: title!,
+				...node.props,
+				handler: () => onDispatch(node.id, 'onAction', [])
+			};
+		}
+	}
+};
+
+=== 1033 src/lib/components/nodes/shared/dropdown.ts	ts	module	-
+import type { UINode } from '$lib/types';
+import { getTypedProps, type DropdownItemProps } from '$lib/props';
+
+export function getDropdownItems(node: UINode, uiTree: Map<number, UINode>): DropdownItemProps[] {
+	const items: DropdownItemProps[] = [];
+	if (!node) return items;
+
+	function traverse(children: number[]) {
+		for (const childId of children) {
+			const childNode = uiTree.get(childId);
+			if (!childNode) continue;
+
+			if (
+				childNode.type === 'List.Dropdown.Item' ||
+				childNode.type === 'Grid.Dropdown.Item' ||
+				childNode.type === 'Form.Dropdown.Item'
+			) {
+				const itemProps = getTypedProps({
+					...childNode,
+					type: 'List.Dropdown.Item'
+				});
+				if (itemProps) {
+					items.push(itemProps);
+				}
+			} else if (
+				childNode.type === 'List.Dropdown.Section' ||
+				childNode.type === 'Grid.Dropdown.Section' ||
+				childNode.type === 'Form.Dropdown.Section'
+			) {
+				if (childNode.children) traverse(childNode.children);
+			}
+		}
+	}
+
+	if (node.children) traverse(node.children);
+	return items;
+}
+
 === 595 src/lib/components/ui/accordion/accordion-content.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Accordion as AccordionPrimitive } from 'bits-ui';
@@ -6377,6 +11164,24 @@ export const extensionsStore = new ExtensionsStore();
 	data-slot="accordion"
 	{...restProps}
 />
+
+=== 337 src/lib/components/ui/accordion/index.ts	ts	module	-
+import Root from './accordion.svelte';
+import Content from './accordion-content.svelte';
+import Item from './accordion-item.svelte';
+import Trigger from './accordion-trigger.svelte';
+
+export {
+	Root,
+	Content,
+	Item,
+	Trigger,
+	//
+	Root as Accordion,
+	Content as AccordionContent,
+	Item as AccordionItem,
+	Trigger as AccordionTrigger
+};
 
 === 450 src/lib/components/ui/alert-dialog/alert-dialog-action.svelte	svelte	runes	runes
 <script lang="ts">
@@ -6560,6 +11365,47 @@ export const extensionsStore = new ExtensionsStore();
 
 <AlertDialogPrimitive.Trigger bind:ref data-slot="alert-dialog-trigger" {...restProps} />
 
+=== 1077 src/lib/components/ui/alert-dialog/index.ts	ts	module	-
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+import Trigger from './alert-dialog-trigger.svelte';
+import Title from './alert-dialog-title.svelte';
+import Action from './alert-dialog-action.svelte';
+import Cancel from './alert-dialog-cancel.svelte';
+import Footer from './alert-dialog-footer.svelte';
+import Header from './alert-dialog-header.svelte';
+import Overlay from './alert-dialog-overlay.svelte';
+import Content from './alert-dialog-content.svelte';
+import Description from './alert-dialog-description.svelte';
+
+const Root = AlertDialogPrimitive.Root;
+const Portal = AlertDialogPrimitive.Portal;
+
+export {
+	Root,
+	Title,
+	Action,
+	Cancel,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	//
+	Root as AlertDialog,
+	Title as AlertDialogTitle,
+	Action as AlertDialogAction,
+	Cancel as AlertDialogCancel,
+	Portal as AlertDialogPortal,
+	Footer as AlertDialogFooter,
+	Header as AlertDialogHeader,
+	Trigger as AlertDialogTrigger,
+	Overlay as AlertDialogOverlay,
+	Content as AlertDialogContent,
+	Description as AlertDialogDescription
+};
+
 === 2852 src/lib/components/ui/button/button.svelte	svelte	runes	runes
 <script lang="ts" module>
 	import { cn, type WithElementRef } from '$lib/utils.js';
@@ -6642,6 +11488,25 @@ export const extensionsStore = new ExtensionsStore();
 		{@render children?.()}
 	</button>
 {/if}
+
+=== 258 src/lib/components/ui/button/index.ts	ts	module	-
+import Root, {
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant,
+	buttonVariants
+} from './button.svelte';
+
+export {
+	Root,
+	type ButtonProps as Props,
+	//
+	Root as Button,
+	buttonVariants,
+	type ButtonProps,
+	type ButtonSize,
+	type ButtonVariant
+};
 
 === 1003 src/lib/components/ui/carousel/carousel-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -6895,6 +11760,87 @@ export const extensionsStore = new ExtensionsStore();
 	{@render children?.()}
 </div>
 
+=== 1831 src/lib/components/ui/carousel/context.ts	ts	module	-
+import type { WithElementRef } from '$lib/utils.js';
+import type {
+	EmblaCarouselSvelteType,
+	default as emblaCarouselSvelte
+} from 'embla-carousel-svelte';
+import { getContext, hasContext, setContext } from 'svelte';
+import type { HTMLAttributes } from 'svelte/elements';
+
+export type CarouselAPI =
+	NonNullable<NonNullable<EmblaCarouselSvelteType['$$_attributes']>['on:emblaInit']> extends (
+		evt: CustomEvent<infer CarouselAPI>
+	) => void
+		? CarouselAPI
+		: never;
+
+type EmblaCarouselConfig = NonNullable<Parameters<typeof emblaCarouselSvelte>[1]>;
+
+export type CarouselOptions = EmblaCarouselConfig['options'];
+export type CarouselPlugins = EmblaCarouselConfig['plugins'];
+
+////
+
+export type CarouselProps = {
+	opts?: CarouselOptions;
+	plugins?: CarouselPlugins;
+	setApi?: (api: CarouselAPI | undefined) => void;
+	orientation?: 'horizontal' | 'vertical';
+} & WithElementRef<HTMLAttributes<HTMLDivElement>>;
+
+const EMBLA_CAROUSEL_CONTEXT = Symbol('EMBLA_CAROUSEL_CONTEXT');
+
+export type EmblaContext = {
+	api: CarouselAPI | undefined;
+	orientation: 'horizontal' | 'vertical';
+	scrollNext: () => void;
+	scrollPrev: () => void;
+	canScrollNext: boolean;
+	canScrollPrev: boolean;
+	handleKeyDown: (e: KeyboardEvent) => void;
+	options: CarouselOptions;
+	plugins: CarouselPlugins;
+	onInit: (e: CustomEvent<CarouselAPI>) => void;
+	scrollTo: (index: number, jump?: boolean) => void;
+	scrollSnaps: number[];
+	selectedIndex: number;
+};
+
+export function setEmblaContext(config: EmblaContext): EmblaContext {
+	setContext(EMBLA_CAROUSEL_CONTEXT, config);
+	return config;
+}
+
+export function getEmblaContext(name = 'This component') {
+	if (!hasContext(EMBLA_CAROUSEL_CONTEXT)) {
+		throw new Error(`${name} must be used within a <Carousel.Root> component`);
+	}
+	return getContext<ReturnType<typeof setEmblaContext>>(EMBLA_CAROUSEL_CONTEXT);
+}
+
+=== 407 src/lib/components/ui/carousel/index.ts	ts	module	-
+import Root from './carousel.svelte';
+import Content from './carousel-content.svelte';
+import Item from './carousel-item.svelte';
+import Previous from './carousel-previous.svelte';
+import Next from './carousel-next.svelte';
+
+export {
+	Root,
+	Content,
+	Item,
+	Previous,
+	Next,
+	//
+	Root as Carousel,
+	Content as CarouselContent,
+	Item as CarouselItem,
+	Previous as CarouselPrevious,
+	Next as CarouselNext
+};
+
 === 1424 src/lib/components/ui/checkbox/checkbox.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Checkbox as CheckboxPrimitive } from 'bits-ui';
@@ -6932,6 +11878,14 @@ export const extensionsStore = new ExtensionsStore();
 		</div>
 	{/snippet}
 </CheckboxPrimitive.Root>
+
+=== 79 src/lib/components/ui/checkbox/index.ts	ts	module	-
+import Root from './checkbox.svelte';
+export {
+	Root,
+	//
+	Root as Checkbox
+};
 
 === 1505 src/lib/components/ui/command/command-dialog.svelte	svelte	runes	runes
 <script lang="ts">
@@ -7180,6 +12134,48 @@ export const extensionsStore = new ExtensionsStore();
 	{...restProps}
 />
 
+=== 945 src/lib/components/ui/command/index.ts	ts	module	-
+import { Command as CommandPrimitive } from 'bits-ui';
+
+import Root from './command.svelte';
+import Dialog from './command-dialog.svelte';
+import Empty from './command-empty.svelte';
+import Group from './command-group.svelte';
+import Item from './command-item.svelte';
+import Input from './command-input.svelte';
+import List from './command-list.svelte';
+import Separator from './command-separator.svelte';
+import Shortcut from './command-shortcut.svelte';
+import LinkItem from './command-link-item.svelte';
+
+const Loading = CommandPrimitive.Loading;
+
+export {
+	Root,
+	Dialog,
+	Empty,
+	Group,
+	Item,
+	LinkItem,
+	Input,
+	List,
+	Separator,
+	Shortcut,
+	Loading,
+	//
+	Root as Command,
+	Dialog as CommandDialog,
+	Empty as CommandEmpty,
+	Group as CommandGroup,
+	Item as CommandItem,
+	LinkItem as CommandLinkItem,
+	Input as CommandInput,
+	List as CommandList,
+	Separator as CommandSeparator,
+	Shortcut as CommandShortcut,
+	Loading as CommandLoading
+};
+
 === 245 src/lib/components/ui/dialog/dialog-close.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
@@ -7346,6 +12342,45 @@ export const extensionsStore = new ExtensionsStore();
 </script>
 
 <DialogPrimitive.Trigger bind:ref data-slot="dialog-trigger" {...restProps} />
+
+=== 865 src/lib/components/ui/dialog/index.ts	ts	module	-
+import { Dialog as DialogPrimitive } from 'bits-ui';
+
+import Title from './dialog-title.svelte';
+import Footer from './dialog-footer.svelte';
+import Header from './dialog-header.svelte';
+import Overlay from './dialog-overlay.svelte';
+import Content from './dialog-content.svelte';
+import Description from './dialog-description.svelte';
+import Trigger from './dialog-trigger.svelte';
+import Close from './dialog-close.svelte';
+
+const Root = DialogPrimitive.Root;
+const Portal = DialogPrimitive.Portal;
+
+export {
+	Root,
+	Title,
+	Portal,
+	Footer,
+	Header,
+	Trigger,
+	Overlay,
+	Content,
+	Description,
+	Close,
+	//
+	Root as Dialog,
+	Title as DialogTitle,
+	Portal as DialogPortal,
+	Footer as DialogFooter,
+	Header as DialogHeader,
+	Trigger as DialogTrigger,
+	Overlay as DialogOverlay,
+	Content as DialogContent,
+	Description as DialogDescription,
+	Close as DialogClose
+};
 
 === 1430 src/lib/components/ui/dropdown-menu/dropdown-menu-checkbox-item.svelte	svelte	runes	runes
 <script lang="ts">
@@ -7661,6 +12696,67 @@ export const extensionsStore = new ExtensionsStore();
 
 <DropdownMenuPrimitive.Trigger bind:ref data-slot="dropdown-menu-trigger" {...restProps} />
 
+=== 1570 src/lib/components/ui/dropdown-menu/index.ts	ts	module	-
+import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
+import CheckboxItem from './dropdown-menu-checkbox-item.svelte';
+import Content from './dropdown-menu-content.svelte';
+import Group from './dropdown-menu-group.svelte';
+import Item from './dropdown-menu-item.svelte';
+import Label from './dropdown-menu-label.svelte';
+import RadioGroup from './dropdown-menu-radio-group.svelte';
+import RadioItem from './dropdown-menu-radio-item.svelte';
+import Separator from './dropdown-menu-separator.svelte';
+import Shortcut from './dropdown-menu-shortcut.svelte';
+import Trigger from './dropdown-menu-trigger.svelte';
+import SubContent from './dropdown-menu-sub-content.svelte';
+import SubTrigger from './dropdown-menu-sub-trigger.svelte';
+import GroupHeading from './dropdown-menu-group-heading.svelte';
+const Sub = DropdownMenuPrimitive.Sub;
+const Root = DropdownMenuPrimitive.Root;
+
+export {
+	CheckboxItem,
+	Content,
+	Root as DropdownMenu,
+	CheckboxItem as DropdownMenuCheckboxItem,
+	Content as DropdownMenuContent,
+	Group as DropdownMenuGroup,
+	Item as DropdownMenuItem,
+	Label as DropdownMenuLabel,
+	RadioGroup as DropdownMenuRadioGroup,
+	RadioItem as DropdownMenuRadioItem,
+	Separator as DropdownMenuSeparator,
+	Shortcut as DropdownMenuShortcut,
+	Sub as DropdownMenuSub,
+	SubContent as DropdownMenuSubContent,
+	SubTrigger as DropdownMenuSubTrigger,
+	Trigger as DropdownMenuTrigger,
+	GroupHeading as DropdownMenuGroupHeading,
+	Group,
+	GroupHeading,
+	Item,
+	Label,
+	RadioGroup,
+	RadioItem,
+	Root,
+	Separator,
+	Shortcut,
+	Sub,
+	SubContent,
+	SubTrigger,
+	Trigger
+};
+
+=== 117 src/lib/components/ui/input/index.ts	ts	module	-
+import Root, { type Props } from './input.svelte';
+
+export {
+	Root,
+	//
+	Root as Input,
+	type Props as InputProps
+};
+
 === 1820 src/lib/components/ui/input/input.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from 'svelte/elements';
@@ -7713,6 +12809,11 @@ export const extensionsStore = new ExtensionsStore();
 	/>
 {/if}
 
+=== 49 src/lib/components/ui/kbd/index.ts	ts	module	-
+import Kbd from './kbd.svelte';
+
+export { Kbd };
+
 === 1207 src/lib/components/ui/kbd/kbd.svelte	svelte	runes	runes
 <script lang="ts" module>
 	import { tv, type VariantProps } from 'tailwind-variants';
@@ -7763,6 +12864,15 @@ export const extensionsStore = new ExtensionsStore();
 	{@render children?.()}
 </kbd>
 
+=== 74 src/lib/components/ui/label/index.ts	ts	module	-
+import Root from './label.svelte';
+
+export {
+	Root,
+	//
+	Root as Label
+};
+
 === 542 src/lib/components/ui/label/label.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Label as LabelPrimitive } from 'bits-ui';
@@ -7784,6 +12894,25 @@ export const extensionsStore = new ExtensionsStore();
 	)}
 	{...restProps}
 />
+
+=== 374 src/lib/components/ui/popover/index.ts	ts	module	-
+import { Popover as PopoverPrimitive } from 'bits-ui';
+import Content from './popover-content.svelte';
+import Trigger from './popover-trigger.svelte';
+const Root = PopoverPrimitive.Root;
+const Close = PopoverPrimitive.Close;
+
+export {
+	Root,
+	Content,
+	Trigger,
+	Close,
+	//
+	Root as Popover,
+	Content as PopoverContent,
+	Trigger as PopoverTrigger,
+	Close as PopoverClose
+};
 
 === 1042 src/lib/components/ui/popover/popover-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -7834,6 +12963,45 @@ export const extensionsStore = new ExtensionsStore();
 	class={cn('', className)}
 	{...restProps}
 />
+
+=== 971 src/lib/components/ui/select/index.ts	ts	module	-
+import { Select as SelectPrimitive } from 'bits-ui';
+
+import Group from './select-group.svelte';
+import Label from './select-label.svelte';
+import Item from './select-item.svelte';
+import Content from './select-content.svelte';
+import Trigger from './select-trigger.svelte';
+import Separator from './select-separator.svelte';
+import ScrollDownButton from './select-scroll-down-button.svelte';
+import ScrollUpButton from './select-scroll-up-button.svelte';
+import GroupHeading from './select-group-heading.svelte';
+
+const Root = SelectPrimitive.Root;
+
+export {
+	Root,
+	Group,
+	Label,
+	Item,
+	Content,
+	Trigger,
+	Separator,
+	ScrollDownButton,
+	ScrollUpButton,
+	GroupHeading,
+	//
+	Root as Select,
+	Group as SelectGroup,
+	Label as SelectLabel,
+	Item as SelectItem,
+	Content as SelectContent,
+	Trigger as SelectTrigger,
+	Separator as SelectSeparator,
+	ScrollDownButton as SelectScrollDownButton,
+	ScrollUpButton as SelectScrollUpButton,
+	GroupHeading as SelectGroupHeading
+};
 
 === 1686 src/lib/components/ui/select/select-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -8066,6 +13234,15 @@ export const extensionsStore = new ExtensionsStore();
 	<ChevronDownIcon class="size-4 opacity-50" />
 </SelectPrimitive.Trigger>
 
+=== 82 src/lib/components/ui/separator/index.ts	ts	module	-
+import Root from './separator.svelte';
+
+export {
+	Root,
+	//
+	Root as Separator
+};
+
 === 509 src/lib/components/ui/separator/separator.svelte	svelte	runes	runes
 <script lang="ts">
 	import { Separator as SeparatorPrimitive } from 'bits-ui';
@@ -8087,6 +13264,15 @@ export const extensionsStore = new ExtensionsStore();
 	)}
 	{...restProps}
 />
+
+=== 76 src/lib/components/ui/switch/index.ts	ts	module	-
+import Root from './switch.svelte';
+
+export {
+	Root,
+	//
+	Root as Switch
+};
 
 === 1160 src/lib/components/ui/switch/switch.svelte	svelte	runes	runes
 <script lang="ts">
@@ -8118,6 +13304,24 @@ export const extensionsStore = new ExtensionsStore();
 		)}
 	/>
 </SwitchPrimitive.Root>
+
+=== 297 src/lib/components/ui/tabs/index.ts	ts	module	-
+import Root from './tabs.svelte';
+import Content from './tabs-content.svelte';
+import List from './tabs-list.svelte';
+import Trigger from './tabs-trigger.svelte';
+
+export {
+	Root,
+	Content,
+	List,
+	Trigger,
+	//
+	Root as Tabs,
+	Content as TabsContent,
+	List as TabsList,
+	Trigger as TabsTrigger
+};
 
 === 352 src/lib/components/ui/tabs/tabs-content.svelte	svelte	runes	runes
 <script lang="ts">
@@ -8198,6 +13402,15 @@ export const extensionsStore = new ExtensionsStore();
 	class={cn('flex flex-col gap-2', className)}
 	{...restProps}
 />
+
+=== 80 src/lib/components/ui/textarea/index.ts	ts	module	-
+import Root from './textarea.svelte';
+
+export {
+	Root,
+	//
+	Root as Textarea
+};
 
 === 912 src/lib/components/ui/textarea/textarea.svelte	svelte	runes	runes
 <script lang="ts">
@@ -8386,6 +13599,652 @@ export function useTypedNode<T extends ComponentType>(
 
 	return () => ({ node, props });
 }
+
+=== 2890 src/lib/nodes.ts	ts	module	-
+import type { Component } from 'svelte';
+import type { UINode } from './types';
+import Detail from '$lib/components/nodes/detail/Detail.svelte';
+import Metadata from '$lib/components/nodes/detail/Metadata.svelte';
+import MetadataLabel from '$lib/components/nodes/detail/MetadataLabel.svelte';
+import MetadataLink from '$lib/components/nodes/detail/MetadataLink.svelte';
+import MetadataTagList from '$lib/components/nodes/detail/MetadataTagList.svelte';
+import MetadataTagListItem from '$lib/components/nodes/detail/MetadataTagListItem.svelte';
+import MetadataSeparator from '$lib/components/nodes/detail/MetadataSeparator.svelte';
+import ListItemDetail from '$lib/components/nodes/list/ItemDetail.svelte';
+import Form from '$lib/components/nodes/form/Form.svelte';
+import FormTextField from '$lib/components/nodes/form/TextField.svelte';
+import FormTextArea from '$lib/components/nodes/form/TextArea.svelte';
+import FormDescription from '$lib/components/nodes/form/Description.svelte';
+import FormDropdown from '$lib/components/nodes/form/Dropdown.svelte';
+import FormLinkAccessory from '$lib/components/nodes/form/LinkAccessory.svelte';
+import AccessoryDropdown from '$lib/components/nodes/shared/AccessoryDropdown.svelte';
+import DropdownItem from '$lib/components/nodes/shared/DropdownItem.svelte';
+import DropdownSection from '$lib/components/nodes/shared/DropdownSection.svelte';
+import GridEmptyView from '$lib/components/nodes/GridEmptyView.svelte';
+
+export const componentMap = new Map<
+	string,
+	Component<{
+		nodeId: number;
+		uiTree: Map<number, UINode>;
+		onDispatch: (instanceId: number, handlerName: string, args: unknown[]) => void;
+	}>
+>([
+	['Detail', Detail],
+	['Detail.Metadata', Metadata],
+	['Detail.Metadata.Label', MetadataLabel],
+	['Detail.Metadata.Link', MetadataLink],
+	['Detail.Metadata.TagList', MetadataTagList],
+	['Detail.Metadata.TagList.Item', MetadataTagListItem],
+	['Detail.Metadata.Separator', MetadataSeparator],
+	['Grid.Dropdown', AccessoryDropdown],
+	['Grid.Dropdown.Section', DropdownSection],
+	['Grid.Dropdown.Item', DropdownItem],
+	['Grid.EmptyView', GridEmptyView],
+	['List.Dropdown', AccessoryDropdown],
+	['List.Dropdown.Item', DropdownItem],
+	['List.Dropdown.Section', DropdownSection],
+	['List.Item.Detail', ListItemDetail],
+	['List.Item.Detail.Metadata', Metadata],
+	['List.Item.Detail.Metadata.Label', MetadataLabel],
+	['List.Item.Detail.Metadata.Link', MetadataLink],
+	['List.Item.Detail.Metadata.TagList', MetadataTagList],
+	['List.Item.Detail.Metadata.TagList.Item', MetadataTagListItem],
+	['List.Item.Detail.Metadata.Separator', MetadataSeparator],
+	['Form', Form],
+	['Form.TextField', FormTextField],
+	['Form.TextArea', FormTextArea],
+	['Form.Description', FormDescription],
+	['Form.Dropdown', FormDropdown],
+	['Form.Dropdown.Item', DropdownItem],
+	['Form.Dropdown.Section', DropdownSection],
+	['Form.LinkAccessory', FormLinkAccessory]
+]);
+
+=== 2706 src/lib/props/actions.ts	ts	module	-
+import { z } from 'zod/v4';
+import { ImageLikeSchema } from '@flare/protocol';
+import { platform } from '@tauri-apps/plugin-os';
+
+const KeyModifierSchema = z.enum(['cmd', 'ctrl', 'opt', 'shift']);
+const KeyEquivalentSchema = z.string();
+
+export const KeyboardShortcutSchema = z.object({
+	modifiers: z.array(KeyModifierSchema),
+	key: KeyEquivalentSchema
+});
+export type KeyboardShortcut = z.infer<typeof KeyboardShortcutSchema>;
+
+export const keyEventMatches = (event: KeyboardEvent, shortcut: KeyboardShortcut) => {
+	if (event.key.toLowerCase() !== shortcut.key.toLowerCase()) {
+		return false;
+	}
+
+	const isMac = platform() === 'macos';
+	const required = new Set(shortcut.modifiers);
+
+	const metaExpected = isMac ? required.has('cmd') : false;
+	const ctrlExpected = isMac ? required.has('ctrl') : required.has('cmd') || required.has('ctrl');
+	const altExpected = required.has('opt');
+	const shiftExpected = required.has('shift');
+
+	return (
+		event.metaKey === metaExpected &&
+		event.ctrlKey === ctrlExpected &&
+		event.altKey === altExpected &&
+		event.shiftKey === shiftExpected
+	);
+};
+
+const ActionStyleSchema = z.enum(['regular', 'destructive']);
+
+export const ActionPropsSchema = z.object({
+	title: z.string(),
+	icon: ImageLikeSchema.optional(),
+	shortcut: KeyboardShortcutSchema.optional(),
+	style: ActionStyleSchema.optional()
+});
+export type ActionProps = z.infer<typeof ActionPropsSchema>;
+
+export const ActionPushPropsSchema = z.object({
+	title: z.string(),
+	icon: ImageLikeSchema.optional(),
+	shortcut: KeyboardShortcutSchema.optional()
+});
+
+export const ActionCopyToClipboardPropsSchema = z.object({
+	content: z.string(),
+	title: z.string().optional(),
+	icon: ImageLikeSchema.optional(),
+	shortcut: KeyboardShortcutSchema.optional()
+});
+export type ActionCopyToClipboardProps = z.infer<typeof ActionCopyToClipboardPropsSchema>;
+
+export const ActionOpenInBrowserPropsSchema = z.object({
+	url: z.url(),
+	title: z.string().optional(),
+	icon: ImageLikeSchema.optional(),
+	shortcut: KeyboardShortcutSchema.optional()
+});
+export type ActionOpenInBrowserProps = z.infer<typeof ActionOpenInBrowserPropsSchema>;
+
+export const ActionSubmitFormPropsSchema = z.object({
+	title: z.string().optional(),
+	icon: ImageLikeSchema.optional(),
+	shortcut: KeyboardShortcutSchema.optional(),
+	style: ActionStyleSchema.optional()
+});
+export type ActionSubmitFormProps = z.infer<typeof ActionSubmitFormPropsSchema>;
+
+export const ActionPanelSectionPropsSchema = z.object({
+	title: z.string().optional()
+});
+export type ActionPanelSectionProps = z.infer<typeof ActionPanelSectionPropsSchema>;
+
+export const ActionPanelPropsSchema = z.object({});
+export type ActionPanelProps = z.infer<typeof ActionPanelPropsSchema>;
+
+=== 2031 src/lib/props/color.ts	ts	module	-
+import { z } from 'zod/v4';
+
+export const RaycastColorSchema = z.enum([
+	'raycast-blue',
+	'raycast-green',
+	'raycast-magenta',
+	'raycast-orange',
+	'raycast-purple',
+	'raycast-red',
+	'raycast-yellow',
+	'raycast-primary-text',
+	'raycast-secondary-text'
+]);
+
+export const DynamicColorSchema = z.object({
+	dark: z.string(),
+	light: z.string(),
+	adjustContrast: z.boolean().default(false)
+});
+
+export const ColorLikeSchema = z.union([DynamicColorSchema, RaycastColorSchema, z.string()]);
+export type ColorLike = z.infer<typeof ColorLikeSchema>;
+
+export const colorLikeToColor = (color: ColorLike, isDarkMode: boolean) => {
+	const isRaycastColor = (colorLike: ColorLike): colorLike is z.infer<typeof RaycastColorSchema> =>
+		RaycastColorSchema.safeParse(colorLike).success;
+	const isDynamicColor = (colorLike: ColorLike): colorLike is z.infer<typeof DynamicColorSchema> =>
+		DynamicColorSchema.safeParse(colorLike).success;
+
+	if (isRaycastColor(color)) {
+		const dynamicColor = raycastToDynamicColor(color);
+		return isDarkMode ? dynamicColor.dark : dynamicColor.light;
+	}
+	if (isDynamicColor(color)) {
+		return isDarkMode ? color.dark : color.light;
+	}
+
+	return color;
+};
+
+export const raycastToDynamicColor = (
+	color: z.infer<typeof RaycastColorSchema>
+): z.infer<typeof DynamicColorSchema> => {
+	const colorMap = {
+		'raycast-blue': {
+			light: '#0A7FF5',
+			dark: '#228CF6'
+		},
+		'raycast-green': {
+			light: '#07BA65',
+			dark: '#4EF8A7'
+		},
+		'raycast-magenta': {
+			light: '#F50AA3',
+			dark: '#F84EBD'
+		},
+		'raycast-orange': {
+			light: '#F5600A',
+			dark: '#F88D4E'
+		},
+		'raycast-purple': {
+			light: '#470AF5',
+			dark: '#7B4EF8'
+		},
+		'raycast-red': {
+			light: '#F50A0A',
+			dark: '#F84E4E'
+		},
+		'raycast-yellow': {
+			light: '#AD7D00',
+			dark: '#FFCC47'
+		},
+		'raycast-primary-text': {
+			light: '#0D0D0D',
+			dark: '#F2F2F2'
+		},
+		'raycast-secondary-text': {
+			light: '#646464',
+			dark: '#A0A0A0'
+		}
+	};
+	return {
+		dark: colorMap[color].dark,
+		light: colorMap[color].light,
+		adjustContrast: false
+	};
+};
+
+=== 1763 src/lib/props/detail.ts	ts	module	-
+import { z } from 'zod/v4';
+import { ImageLikeSchema } from '@flare/protocol';
+import { ColorLikeSchema } from './color';
+import { TextWithColorSchema } from './text';
+
+export const DetailMetadataLabelPropsSchema = z.object({
+	title: z.string(),
+	text: z.union([z.string(), TextWithColorSchema]).optional(),
+	icon: ImageLikeSchema.optional(),
+	isLoading: z.boolean().default(false)
+});
+export type DetailMetadataLabelProps = z.infer<typeof DetailMetadataLabelPropsSchema>;
+
+export const DetailMetadataLinkPropsSchema = z.object({
+	title: z.string(),
+	text: z.string(),
+	target: z.string()
+});
+export type DetailMetadataLinkProps = z.infer<typeof DetailMetadataLinkPropsSchema>;
+
+export const DetailMetadataTagListItemPropsSchema = z
+	.object({
+		text: z.string().optional(),
+		color: ColorLikeSchema,
+		icon: ImageLikeSchema.optional()
+	})
+	.refine((data) => data.text != null || data.icon != null, {
+		message: 'Either text or icon must be provided for TagList.Item'
+	});
+export type DetailMetadataTagListItemProps = z.infer<typeof DetailMetadataTagListItemPropsSchema>;
+
+export const DetailMetadataTagListPropsSchema = z.object({
+	title: z.string()
+});
+export type DetailMetadataTagListProps = z.infer<typeof DetailMetadataTagListPropsSchema>;
+
+export const DetailMetadataSeparatorPropsSchema = z.object({});
+export type DetailMetadataSeparatorProps = z.infer<typeof DetailMetadataSeparatorPropsSchema>;
+
+export const DetailMetadataPropsSchema = z.object({});
+export type DetailMetadataProps = z.infer<typeof DetailMetadataPropsSchema>;
+
+export const DetailPropsSchema = z.object({
+	isLoading: z.boolean().default(false),
+	markdown: z.string().optional(),
+	navigationTitle: z.string().optional()
+});
+export type DetailProps = z.infer<typeof DetailPropsSchema>;
+
+=== 1116 src/lib/props/dropdown.ts	ts	module	-
+import { z } from 'zod/v4';
+import { ImageLikeSchema } from '@flare/protocol';
+
+export const DropdownItemPropsSchema = z.object({
+	value: z.string(),
+	title: z.string(),
+	keywords: z.array(z.string()).optional(),
+	icon: ImageLikeSchema.optional()
+});
+export type DropdownItemProps = z.infer<typeof DropdownItemPropsSchema>;
+
+export const DropdownSectionPropsSchema = z.object({
+	title: z.string().optional()
+});
+export type DropdownSectionProps = z.infer<typeof DropdownSectionPropsSchema>;
+
+export const DropdownPropsSchema = z.object({
+	id: z.string().optional(),
+	tooltip: z.string().optional(),
+	defaultValue: z.string().optional(),
+	filtering: z.union([z.boolean(), z.object({ keepSectionOrder: z.boolean() })]).optional(),
+	isLoading: z.boolean().optional(),
+	placeholder: z.string().optional(),
+	storeValue: z.boolean().optional(),
+	throttle: z.boolean().optional(),
+	value: z.string().optional().nullable(),
+	autoFocus: z.boolean().default(false),
+	error: z.string().optional(),
+	info: z.string().optional(),
+	title: z.string().optional()
+});
+export type DropdownProps = z.infer<typeof DropdownPropsSchema>;
+
+=== 1513 src/lib/props/form.ts	ts	module	-
+import { z } from 'zod/v4';
+
+export const FormPropsSchema = z.object({
+	enableDrafts: z.boolean().optional(),
+	navigationTitle: z.string().optional(),
+	isLoading: z.boolean().default(false)
+});
+export type FormProps = z.infer<typeof FormPropsSchema>;
+
+export const FormTextFieldPropsSchema = z.object({
+	id: z.string(),
+	autoFocus: z.boolean().default(false),
+	defaultValue: z.string().optional(),
+	error: z.string().optional(),
+	info: z.string().optional(),
+	placeholder: z.string().optional(),
+	storeValue: z.boolean().default(false),
+	title: z.string().optional(),
+	value: z.string().optional()
+});
+export type FormTextFieldProps = z.infer<typeof FormTextFieldPropsSchema>;
+
+export const FormTextAreaPropsSchema = z.object({
+	id: z.string(),
+	autoFocus: z.boolean().default(false),
+	defaultValue: z.string().optional(),
+	enableMarkdown: z.boolean().default(false),
+	error: z.string().optional(),
+	info: z.string().optional(),
+	placeholder: z.string().optional(),
+	storeValue: z.boolean().default(false),
+	title: z.string().optional(),
+	value: z.string().optional()
+});
+export type FormTextAreaProps = z.infer<typeof FormTextAreaPropsSchema>;
+
+export const FormDescriptionPropsSchema = z.object({
+	title: z.string().optional(),
+	text: z.string()
+});
+export type FormDescriptionProps = z.infer<typeof FormDescriptionPropsSchema>;
+
+export const FormLinkAccessoryPropsSchema = z.object({
+	target: z.string(),
+	text: z.string()
+});
+export type FormLinkAccessoryProps = z.infer<typeof FormLinkAccessoryPropsSchema>;
+
+=== 2707 src/lib/props/grid.ts	ts	module	-
+import { ImageLikeSchema } from '@flare/protocol';
+import { z } from 'zod/v4';
+import { ColorLikeSchema } from './color';
+
+export const GridFitSchema = z.enum(['contain', 'fill']);
+export type GridFit = z.infer<typeof GridFitSchema>;
+
+export const GridInsetSchema = z.enum(['small', 'medium', 'large']);
+export type GridInset = z.infer<typeof GridInsetSchema>;
+
+export const GridPropsSchema = z.object({
+	filtering: z.union([z.boolean(), z.object({ keepSectionOrder: z.boolean() })]).optional(),
+	throttle: z.boolean().default(false),
+	columns: z.number().default(6),
+	searchBarPlaceholder: z.string().optional(),
+	onSearchTextChange: z.boolean().optional(),
+	onSelectionChange: z.boolean().optional(),
+	isLoading: z.boolean().default(false),
+	inset: GridInsetSchema.optional(),
+	aspectRatio: z.enum(['1', '3/2', '2/3', '4/3', '3/4', '16/9', '9/16']).optional(),
+	fit: GridFitSchema.optional(),
+	pagination: z
+		.object({
+			hasMore: z.boolean(),
+			onLoadMore: z.boolean(),
+			pageSize: z.number()
+		})
+		.optional(),
+	selectedItemId: z.string().optional()
+});
+export type GridProps = z.infer<typeof GridPropsSchema>;
+
+const GridItemContentValueSchema = z.union([
+	ImageLikeSchema,
+	z.object({
+		color: ColorLikeSchema
+	})
+]);
+
+export const GridItemContentSchema = z.union([
+	GridItemContentValueSchema,
+	z.object({
+		tooltip: z.string(),
+		value: GridItemContentValueSchema
+	})
+]);
+export type GridItemContent = z.infer<typeof GridItemContentSchema>;
+
+export const GridItemAccessorySchema = z.object({
+	icon: ImageLikeSchema.optional(),
+	text: z.string().optional(),
+	tooltip: z.string().optional()
+});
+export type GridItemAccessory = z.infer<typeof GridItemAccessorySchema>;
+
+export const GridItemPropsSchema = z.object({
+	id: z.string().optional(),
+	content: GridItemContentSchema,
+	title: z.string().optional(),
+	subtitle: z.string().optional(),
+	keywords: z.array(z.string()).optional(),
+	accessory: GridItemAccessorySchema.optional(),
+	quickLook: z.object({ name: z.string().optional(), path: z.string() }).optional()
+});
+export type GridItemProps = z.infer<typeof GridItemPropsSchema>;
+
+export const GridSectionPropsSchema = z.object({
+	title: z.string().optional(),
+	subtitle: z.string().optional(),
+	columns: z.number().optional(),
+	aspectRatio: z.enum(['1', '3/2', '2/3', '4/3', '3/4', '16/9', '9/16']).optional(),
+	fit: GridFitSchema.optional(),
+	inset: GridInsetSchema.optional()
+});
+export type GridSectionProps = z.infer<typeof GridSectionPropsSchema>;
+
+export const GridEmptyViewPropsSchema = z.object({
+	title: z.string(),
+	description: z.string().optional(),
+	icon: ImageLikeSchema.optional().catch(undefined)
+});
+export type GridEmptyViewProps = z.infer<typeof GridEmptyViewPropsSchema>;
+
+=== 3937 src/lib/props/index.ts	ts	module	-
+import { z } from 'zod/v4';
+import type { UINode } from '../types';
+import {
+	ActionPropsSchema,
+	ActionPushPropsSchema,
+	ActionPanelPropsSchema,
+	ActionPanelSectionPropsSchema,
+	ActionCopyToClipboardPropsSchema,
+	ActionOpenInBrowserPropsSchema,
+	ActionSubmitFormPropsSchema
+} from './actions';
+import {
+	DetailPropsSchema,
+	DetailMetadataPropsSchema,
+	DetailMetadataLabelPropsSchema,
+	DetailMetadataLinkPropsSchema,
+	DetailMetadataTagListPropsSchema,
+	DetailMetadataTagListItemPropsSchema,
+	DetailMetadataSeparatorPropsSchema
+} from './detail';
+import {
+	GridPropsSchema,
+	GridItemPropsSchema,
+	GridSectionPropsSchema,
+	GridEmptyViewPropsSchema
+} from './grid';
+import { ViewSectionPropsSchema } from './section';
+import {
+	FormPropsSchema,
+	FormTextFieldPropsSchema,
+	FormTextAreaPropsSchema,
+	FormDescriptionPropsSchema,
+	FormLinkAccessoryPropsSchema
+} from './form';
+import {
+	ListPropsSchema,
+	ListItemPropsSchema,
+	ListItemDetailPropsSchema,
+	ListItemDetailMetadataPropsSchema
+} from './list';
+import {
+	DropdownPropsSchema,
+	DropdownSectionPropsSchema,
+	DropdownItemPropsSchema
+} from './dropdown';
+
+export * from './actions';
+export * from './detail';
+export * from './grid';
+export * from './list';
+export * from './form';
+export * from './color';
+export * from './dropdown';
+export * from './section';
+
+export const componentSchemas = {
+	Action: ActionPropsSchema,
+	'Action.Push': ActionPushPropsSchema,
+	ActionPanel: ActionPanelPropsSchema,
+	'ActionPanel.Section': ActionPanelSectionPropsSchema,
+	'Action.CopyToClipboard': ActionCopyToClipboardPropsSchema,
+	'Action.OpenInBrowser': ActionOpenInBrowserPropsSchema,
+	'Action.SubmitForm': ActionSubmitFormPropsSchema,
+
+	List: ListPropsSchema,
+	'List.Section': ViewSectionPropsSchema,
+	'List.Item': ListItemPropsSchema,
+	'List.Dropdown': DropdownPropsSchema,
+	'List.Dropdown.Section': DropdownSectionPropsSchema,
+	'List.Dropdown.Item': DropdownItemPropsSchema,
+	'List.Item.Detail': ListItemDetailPropsSchema,
+	'List.Item.Detail.Metadata': ListItemDetailMetadataPropsSchema,
+	'List.Item.Detail.Metadata.Label': DetailMetadataLabelPropsSchema,
+	'List.Item.Detail.Metadata.Link': DetailMetadataLinkPropsSchema,
+	'List.Item.Detail.Metadata.TagList': DetailMetadataTagListPropsSchema,
+	'List.Item.Detail.Metadata.TagList.Item': DetailMetadataTagListItemPropsSchema,
+	'List.Item.Detail.Metadata.Separator': DetailMetadataSeparatorPropsSchema,
+
+	Grid: GridPropsSchema,
+	'Grid.Section': GridSectionPropsSchema,
+	'Grid.Item': GridItemPropsSchema,
+	'Grid.EmptyView': GridEmptyViewPropsSchema,
+	'Grid.Dropdown': DropdownPropsSchema,
+	'Grid.Dropdown.Section': DropdownSectionPropsSchema,
+	'Grid.Dropdown.Item': DropdownItemPropsSchema,
+
+	Form: FormPropsSchema,
+	'Form.TextField': FormTextFieldPropsSchema,
+	'Form.TextArea': FormTextAreaPropsSchema,
+	'Form.Description': FormDescriptionPropsSchema,
+	'Form.Dropdown': DropdownPropsSchema,
+	'Form.Dropdown.Item': DropdownItemPropsSchema,
+	'Form.Dropdown.Section': DropdownSectionPropsSchema,
+	'Form.LinkAccessory': FormLinkAccessoryPropsSchema,
+
+	Detail: DetailPropsSchema,
+	'Detail.Metadata': DetailMetadataPropsSchema,
+	'Detail.Metadata.Label': DetailMetadataLabelPropsSchema,
+	'Detail.Metadata.Link': DetailMetadataLinkPropsSchema,
+	'Detail.Metadata.TagList': DetailMetadataTagListPropsSchema,
+	'Detail.Metadata.TagList.Item': DetailMetadataTagListItemPropsSchema,
+	'Detail.Metadata.Separator': DetailMetadataSeparatorPropsSchema
+};
+
+export type Schemas = typeof componentSchemas;
+export type ComponentType = keyof Schemas;
+
+export function getTypedProps<T extends ComponentType>(
+	node: UINode & { type: T }
+): z.infer<Schemas[T]> | null {
+	const result = (componentSchemas[node.type] as z.ZodTypeAny).safeParse(node.props);
+	if (!result.success) {
+		console.error(
+			`[Props Validation Error] For node ${node.id} (type: ${node.type}):`,
+			z.prettifyError(result.error)
+		);
+		return null;
+	}
+	return result.data as z.infer<Schemas[T]>;
+}
+
+=== 1674 src/lib/props/list.ts	ts	module	-
+import { z } from 'zod/v4';
+import { ImageLikeSchema } from '@flare/protocol';
+import { ColorLikeSchema } from './color';
+import { DetailMetadataPropsSchema } from './detail';
+
+export const ListPropsSchema = z.object({
+	filtering: z.boolean().optional(),
+	isShowingDetail: z.boolean().optional(),
+	onSearchTextChange: z.boolean().optional(),
+	isLoading: z.boolean().default(false)
+});
+export type ListProps = z.infer<typeof ListPropsSchema>;
+
+const TextWithColorSchema = z.object({
+	value: z.string(),
+	color: ColorLikeSchema.optional()
+});
+
+const TagValueSchema = z.union([z.string(), z.date()]);
+
+const TagWithColorSchema = z.object({
+	value: TagValueSchema,
+	color: ColorLikeSchema.optional()
+});
+
+const ListItemAccessorySchema = z.object({
+	text: z.union([z.string(), TextWithColorSchema]).optional().nullable(),
+	tag: z.union([TagValueSchema, TagWithColorSchema]).optional().nullable(),
+	date: z.date().optional().nullable(),
+	icon: ImageLikeSchema.optional().nullable(),
+	tooltip: z.string().optional().nullable()
+});
+
+export const ListItemPropsSchema = z.object({
+	icon: ImageLikeSchema.optional(),
+	title: z.string(),
+	accessories: z.array(ListItemAccessorySchema).optional(),
+	keywords: z.array(z.string()).optional()
+});
+export type ListItemProps = z.infer<typeof ListItemPropsSchema>;
+
+export const ListItemDetailPropsSchema = z.object({
+	isLoading: z.boolean().default(false),
+	markdown: z.string().default('')
+});
+export type ListItemDetailProps = z.infer<typeof ListItemDetailPropsSchema>;
+
+export const ListItemDetailMetadataPropsSchema = DetailMetadataPropsSchema;
+export type ListItemDetailMetadataProps = z.infer<typeof ListItemDetailMetadataPropsSchema>;
+
+=== 261 src/lib/props/section.ts	ts	module	-
+import { z } from 'zod/v4';
+import { GridInsetSchema } from './grid';
+
+export const ViewSectionPropsSchema = z.object({
+	title: z.string().optional(),
+	inset: GridInsetSchema.optional()
+});
+export type ViewSectionProps = z.infer<typeof ViewSectionPropsSchema>;
+
+=== 367 src/lib/props/text.ts	ts	module	-
+import { z } from 'zod/v4';
+import { RaycastColorSchema } from './color';
+
+export const TextWithColorSchema = z.object({
+	value: z.string(),
+	color: RaycastColorSchema
+});
+export type TextWithColor = z.infer<typeof TextWithColorSchema>;
+
+export const TextLikeSchema = z.union([z.string(), TextWithColorSchema]);
+export type TextLike = z.infer<typeof TextLikeSchema>;
 
 === 1553 src/lib/quicklinks.svelte.ts	svelte-module-ts	runes	-
 import { invoke } from '@tauri-apps/api/core';
@@ -8804,6 +14663,158 @@ class SidecarService {
 
 export const sidecarService = new SidecarService();
 
+=== 4086 src/lib/store.ts	ts	module	-
+import * as z from 'zod';
+
+export const AccessSchema = z.enum(['public']);
+export type Access = z.infer<typeof AccessSchema>;
+
+export const AvatarPlaceholderColorSchema = z.enum([
+	'#A067DC',
+	'#BD9500',
+	'#D36CDD',
+	'#D47600',
+	'#D64854',
+	'#D85A9B',
+	'#DC829A',
+	'#EB6B3E',
+	'#26B795',
+	'#43B93A',
+	'#52A9E4',
+	'#5385D9',
+	'#70920F',
+	'#7871E8'
+]);
+export type AvatarPlaceholderColor = z.infer<typeof AvatarPlaceholderColorSchema>;
+
+export const ModeSchema = z.enum(['menu-bar', 'no-view', 'view']);
+export type Mode = z.infer<typeof ModeSchema>;
+
+export const PlatformSchema = z.enum(['macOS', 'Windows']);
+export type Platform = z.infer<typeof PlatformSchema>;
+
+export const StatusSchema = z.enum(['active', 'deprecated']);
+export type Status = z.infer<typeof StatusSchema>;
+
+export const IconsSchema = z.object({
+	light: z.union([z.null(), z.string()]),
+	dark: z.union([z.null(), z.string()])
+});
+export type Icons = z.infer<typeof IconsSchema>;
+
+export const AuthorSchema = z.object({
+	id: z.string().optional(),
+	name: z.string(),
+	handle: z.string(),
+	bio: z.union([z.null(), z.string()]).optional(),
+	twitter_handle: z.union([z.null(), z.string()]).optional(),
+	github_handle: z.union([z.null(), z.string()]).optional(),
+	location: z.union([z.null(), z.string()]).optional(),
+	initials: z.string(),
+	avatar_placeholder_color: AvatarPlaceholderColorSchema,
+	slack_community_username: z.union([z.null(), z.string()]).optional(),
+	slack_community_user_id: z.union([z.null(), z.string()]).optional(),
+	created_at: z.number().optional(),
+	website_anchor: z.union([z.null(), z.string()]).optional(),
+	website: z.union([z.null(), z.string()]).optional(),
+	username: z.string().optional(),
+	avatar: z.union([z.null(), z.string()])
+});
+export type Author = z.infer<typeof AuthorSchema>;
+
+export const ToolSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	title: z.string(),
+	description: z.string(),
+	keywords: z.array(z.any()),
+	functionalities: z.array(z.any()),
+	mode: z.null(),
+	side_effects: z.boolean(),
+	icons: IconsSchema
+});
+export type Tool = z.infer<typeof ToolSchema>;
+
+export const CommandSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	title: z.string(),
+	subtitle: z.string(),
+	description: z.string(),
+	keywords: z.array(z.string()),
+	mode: ModeSchema,
+	disabled_by_default: z.boolean(),
+	beta: z.boolean(),
+	icons: IconsSchema
+});
+export type Command = z.infer<typeof CommandSchema>;
+
+export const VersionSchema = z.object({
+	title: z.string(),
+	title_link: z.null(),
+	date: z.string(),
+	markdown: z.string()
+});
+export type Version = z.infer<typeof VersionSchema>;
+
+export const ChangelogSchema = z.object({
+	versions: z.array(VersionSchema)
+});
+export type Changelog = z.infer<typeof ChangelogSchema>;
+
+export const ExtensionSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	native_id: z.null(),
+	seo_categories: z.array(z.string()),
+	platforms: z.union([z.array(PlatformSchema), z.null()]),
+	author: AuthorSchema,
+	created_at: z.number(),
+	kill_listed_at: z.number().nullable(),
+	owner: AuthorSchema,
+	status: StatusSchema,
+	is_new: z.boolean(),
+	access: AccessSchema,
+	store_url: z.string(),
+	download_count: z.number(),
+	title: z.string(),
+	description: z.string(),
+	commit_sha: z.string(),
+	relative_path: z.string(),
+	api_version: z.string(),
+	categories: z.array(z.string()),
+	prompt_examples: z.array(z.string()),
+	metadata_count: z.number(),
+	updated_at: z.number(),
+	source_url: z.string(),
+	readme_url: z.union([z.null(), z.string()]),
+	readme_assets_path: z.string(),
+	icons: IconsSchema,
+	commands: z.array(CommandSchema),
+	tools: z.array(ToolSchema),
+	download_url: z.string(),
+	contributors: z.array(AuthorSchema),
+	past_contributors: z.array(z.any()).optional(),
+	listed: z.boolean().optional(),
+	metadata: z.array(z.string()).optional(),
+	changelog: ChangelogSchema.optional()
+});
+export type Extension = z.infer<typeof ExtensionSchema>;
+
+export const PaginatedExtensionsResponseSchema = z.object({
+	data: z.array(ExtensionSchema)
+});
+export type PaginatedExtensionsResponse = z.infer<typeof PaginatedExtensionsResponseSchema>;
+
+=== 152 src/lib/types.ts	ts	module	-
+export type UINode = {
+	id: number;
+	type: string;
+	props: Record<string, unknown>;
+	children: number[];
+	namedChildren?: { [key: string]: number };
+};
+
 === 7891 src/lib/ui.svelte.ts	svelte-module-ts	runes	-
 import type { UINode } from '$lib/types';
 import type { Command } from '@flare/protocol';
@@ -9091,6 +15102,21 @@ function createUiStore() {
 }
 
 export const uiStore = createUiStore();
+
+=== 631 src/lib/utils.ts	ts	module	-
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+	return twMerge(clsx(inputs));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChild<T> = T extends { child?: any } ? Omit<T, 'child'> : T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, 'children'> : T;
+export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
+export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
 
 === 7128 src/lib/viewManager.svelte.ts	svelte-module-ts	runes	-
 import type { ImageLike, PluginInfo } from '@flare/protocol';
@@ -9863,6 +15889,11 @@ export function useGridView(args: () => GridViewArgs) {
 	};
 }
 
+=== 141 src/lib/views/index.ts	ts	module	-
+export { useListView } from './list.svelte';
+export { useGridView } from './grid.svelte';
+export type { FlatViewItem } from './base.svelte';
+
 === 1465 src/lib/views/list.svelte.ts	svelte-module-ts	runes	-
 import type { VListHandle } from 'virtua/svelte';
 import { _useBaseView, type BaseViewArgs } from './base.svelte';
@@ -9927,6 +15958,13 @@ export function useListView(args: () => BaseViewArgs) {
 <ModeWatcher />
 
 {@render children()}
+
+=== 242 src/routes/+layout.ts	ts	module	-
+// Tauri doesn't have a Node.js server to do proper SSR
+// so we will use adapter-static to prerender the app (SSG)
+// See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
+export const prerender = true;
+export const ssr = false;
 
 === 8344 src/routes/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -10251,4 +16289,26 @@ export function useListView(args: () => BaseViewArgs) {
 		background-color: transparent;
 	}
 </style>
+
+=== 404 vitest-setup-client.ts	ts	module	-
+import '@testing-library/jest-dom/vitest';
+import { beforeAll } from 'vitest';
+
+/// <reference types="@vitest/browser/matchers" />
+/// <reference types="@vitest/browser/providers/playwright" />
+
+beforeAll(() => {
+	// TODO: better method?
+	global.ResizeObserver = class ResizeObserver {
+		observe() {
+			// do nothing
+		}
+		unobserve() {
+			// do nothing
+		}
+		disconnect() {
+			// do nothing
+		}
+	};
+});
 

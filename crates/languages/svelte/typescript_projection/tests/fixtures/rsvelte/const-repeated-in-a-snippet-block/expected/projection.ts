@@ -1,13 +1,10 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { v } = $props();
+	let /** @typedef {{ v: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { v } = $props();
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    v: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     if (v) {
       const h = v;
@@ -39,7 +36,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const ConstRepeatedInASnippetBlock__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof ConstRepeatedInASnippetBlock__SvelteComponent_>} ConstRepeatedInASnippetBlock__SvelteComponent_ */

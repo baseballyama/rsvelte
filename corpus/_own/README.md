@@ -14,6 +14,10 @@ result.
 | `rsvelte/check/`        | `rsvelte`                 | type check projects                            |
 | `rsvelte/crates/`       | `rsvelte`                 | files the old port's crate tests read          |
 | `rsvelte/lsp/`          | `rsvelte`                 | language server probes                         |
+| `rsvelte/errors/`       | `rsvelte`                 | a component for each code no other unit raises |
+| `mutants/`              | `rsvelte-mutants`         | broken copies of components svelte compiles    |
+| `test262/`              | `test262`                 | test262's language tests, as rune modules      |
+| `typescript/`           | `typescript`              | TypeScript conformance tests, as rune modules  |
 | `main-tests/core-1/` …  | `rsvelte-tests-core-1` …  | inputs of the compiler's tests                 |
 | `main-tests/formatter/` | `rsvelte-tests-formatter` | inputs of the formatter's tests                |
 | `main-tests/other/`     | `rsvelte-tests`           | inputs of the other crates' tests              |
@@ -25,11 +29,28 @@ commit passed to the compiler, the formatter, the linter or svelte2tsx, one dire
 The type checker sees each source as one project, so `main-tests/` is split into sources small
 enough for svelte-check.
 
+`rsvelte/errors/` holds a component for each error or warning code no other unit raises, named
+after the code. The codes `uncovered-codes.txt` still lists need a compile option, legacy mode,
+experimental async, a custom renderer or a file that is not a component, or svelte never raises
+them. `mutants/` is the output of
+`node tools/oracle/mutate.ts`: it breaks one node of each component of the MIT sources, and keeps
+a copy that svelte rejects. It keeps two for each mutation, code and kind of node, under
+`<source>/<mutation>/<code>/`.
+
+`test262/` and `typescript/` are the output of `node tools/oracle/conformance.ts <suite>
+<checkout>`, which takes up to eight tests of each directory of test262's `test/language` and of
+TypeScript's conformance tests, renamed to `.svelte.js` or `.svelte.ts`. It leaves out a test262
+test that must fail to parse or runs only in sloppy mode, as a module is strict, and a TypeScript
+test of several files or one TypeScript does not emit alone. The commits it reads are constants of
+the tool.
+
 `held/` keeps inputs that no source reads yet, by why: rsvelte panics on them (`panic/`), prints
 a projection that is not TypeScript (`invalid-projection/`) or overflows its stack
 (`stack-overflow/`), or the official svelte-check overflows its stack (`official-stack-overflow/`).
-Each of the first three stops the corpus test or the performance ratchet for everyone, so the
-input waits here. When its fix lands, move it back to the source its directory names.
+The corpus test records a panic as `panicked`, but the performance ratchet stops at one, and a
+stack overflow ends either run. So the input waits here, and `held.rs` in the command line's
+tests fails once one in `panic/` no longer panics. Then move it back to the source its directory
+names.
 
 In `check/`, only components and rune modules are units; the corpus does not read the
 `tsconfig.json`, `svelte.config.js` and `.ts` files beside them.

@@ -7,10 +7,10 @@ implementations live in `../languages/`; shared data and task scheduling live in
 [configuration](configuration_loading/README.md): JSON, JS/TS or custom settings, and the
 runtime functions they name. Node is optional.
 
-| Host            | Who uses it                                                                | Interface                                          |
-| --------------- | -------------------------------------------------------------------------- | -------------------------------------------------- |
-| `command_line/` | People running rsvelte in a terminal, and toolchain developers             | The native `rsvelte` and `rsvelte-dev` executables |
-| `browser/`      | Developers embedding rsvelte in a web page; for now, the site's playground | JavaScript bindings to WebAssembly                 |
+| Host            | Who uses it                                                    | Interface                                          |
+| --------------- | -------------------------------------------------------------- | -------------------------------------------------- |
+| `command_line/` | People running rsvelte in a terminal, and toolchain developers | The native `rsvelte` and `rsvelte-dev` executables |
+| `browser/`      | `rsvelte/compiler` in a browser, and the site's playground     | JavaScript bindings to WebAssembly                 |
 
 A host knows no language. It installs the plugins' extensions and runs their tasks; a page
 installs them without a file system, and shows each artifact a task computed through the
@@ -93,8 +93,15 @@ registers its tools. See [the corpus guide](../../corpus/README.md) for oracle c
 
 ## Browser / WebAssembly
 
-The browser host exposes Rust functions to JavaScript through `wasm-bindgen`. Web application
-developers call these functions directly. The site's playground calls the same bindings.
+The browser host exposes Rust functions to JavaScript through `wasm-bindgen`. Built without its
+default `playground` feature, the host becomes the WebAssembly module of the npm package's
+`rsvelte/compiler`. Its `compile` and `compileModule` return the result of the package's native
+module as JSON. A browser build imports the package's browser entry, which runs
+the WebAssembly module; in Node, the package runs it where the native module does not load.
+`node --run generate -- --dev` from `apps/rsvelte/` builds it, and `node --run test:wasm` and
+`node --run test:browser` test it.
+
+The site's playground calls the bindings of the `playground` feature.
 
 Build the bindings with `pnpm run generate` from `apps/site/`. See
 [the site setup](../../apps/site/README.md) for prerequisites and build steps. Initialize the

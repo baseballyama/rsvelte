@@ -2,16 +2,13 @@
 function $$render() {
   
 	let text = $state('');
-	let /** @type {typeof __rsvelte_public_props0} */ { p = $bindable() } = $props();
+	let /** @typedef {{ p?: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { p = $bindable() } = $props();
   p;
 
 	let rest = {};
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    p: __rsvelte_untyped_prop(),
-  }, false);
   async () => {
     {
       svelteHTML.createElement("textarea", {
@@ -72,7 +69,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "p">} */ (__rsvelte_export_component))();
 }
 export const Textarea__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof Textarea__SvelteComponent_>} Textarea__SvelteComponent_ */

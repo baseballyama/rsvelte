@@ -2981,6 +2981,21 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads no script in a one-line file whose script follows the template, `{#if x}<p></p>{/if}<script lang=\"ts\">let a = 1</script>`"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/4fd47e2cba0dad6e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/583f2b2edcebe57c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/ad7d90b669ae5faf.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/cffe1f9d59ce39ca.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_nested_special_types_2166/a_slots_interface_declared_inside_a_function_is_still_detected/4cfec2737432c169.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx names this component's `$$Slots`, declared inside a function, at the top level, so svelte-check reads the global `$$Slots` a broken neighbor's script declares; alone, svelte-check and rsvelte report nothing"
+
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
@@ -6668,3 +6683,457 @@
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-expr-cls-named.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 drops the parentheses of `export default (class cName {})`, which makes the class expression a declaration that binds `cName`"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-expr-gen-anon.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 drops the parentheses of `export default (function* () {})`, which makes the generator expression a declaration"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-cls-named.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/parser/ecmascript6/Iterators/parserForOfStatement24.svelte.ts".skip]
+"svelte.compileModule/client" = "upstream bug: esrap 2.4.2 drops the parentheses of `for ((async) of [1, 2]);`, which no parser reads"
+"svelte.compileModule/server" = "upstream bug: esrap 2.4.2 drops the parentheses of `for ((async) of [1, 2]);`, which no parser reads"
+
+["svelte/typescript/Symbols/ES5SymbolProperty2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/ambient/ambientInsideNonAmbient.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/async/es2017/asyncAwaitIsolatedModules_es2017.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/async/es2017/asyncAwait_es2017.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/async/es5/asyncQualifiedReturnType_es5.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/async/es6/asyncAwait_es6.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/classDeclarations/classAbstractKeyword/classAbstractImportInstantiation.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/classDeclarations/classHeritageSpecification/classExtendsItselfIndirectly2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/classDeclarations/classHeritageSpecification/classExtendsShadowedConstructorFunction.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/classExpression.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/constructorDeclarations/classConstructorAccessibility.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/members/classTypes/genericSetterInClassType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/members/classTypes/instancePropertiesInheritedIntoClassType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/members/classTypes/instancePropertyInClassType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/members/constructorFunctionTypes/classWithConstructors.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/classes/members/constructorFunctionTypes/constructorHasPrototypeProperty.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnum1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnum2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnum3.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnum4.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnumInNamespace.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnumNoObjectPrototypePropertyAccess.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnumPropertyAccess1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/constEnums/constEnumPropertyAccess2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/controlFlow/assertionTypePredicates1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/declarationEmit/classDoesNotDependOnPrivateMember.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumBasics.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumClassification.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumConstantMemberWithString.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumConstantMemberWithStringEmitDeclaration.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumConstantMemberWithTemplateLiterals.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumConstantMemberWithTemplateLiteralsEmitDeclaration.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/enums/enumConstantMembers.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/es2017/useObjectValuesAndEntries1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/es2019/importMeta/importMetaNarrowing.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/es6/for-ofStatements/for-of47.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/es7/exponentiationOperator/compoundExponentiationAssignmentLHSCanBeAssigned1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/es7/exponentiationOperator/exponentiationOperatorWithEnumUnion.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/arrayLiterals/arrayLiteralInference.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/assignmentOperator/compoundAdditionAssignmentLHSCanBeAssigned.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/assignmentOperator/compoundAdditionAssignmentLHSCannotBeAssigned.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/assignmentOperator/compoundAdditionAssignmentWithInvalidOperands.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/assignmentOperator/compoundArithmeticAssignmentLHSCanBeAssigned.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/assignmentOperator/compoundArithmeticAssignmentWithInvalidOperands.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/additionOperator/additionOperatorWithNullValueAndValidOperator.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/additionOperator/additionOperatorWithNumberAndEnum.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/additionOperator/additionOperatorWithStringAndEveryType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/arithmeticOperator/arithmeticOperatorWithEnum.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/arithmeticOperator/arithmeticOperatorWithEnumUnion.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/arithmeticOperator/arithmeticOperatorWithNullValueAndValidOperands.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/comparisonOperator/comparisonOperatorWithNoRelationshipTypeParameter.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/comparisonOperator/comparisonOperatorWithOneOperandIsAny.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/comparisonOperator/comparisonOperatorWithSubtypeEnumAndNumber.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/inOperator/inOperatorWithInvalidOperands.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/logicalAndOperator/logicalAndOperatorWithEveryType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/binaryOperators/logicalOrOperator/logicalOrOperatorWithEveryType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/contextualTyping/functionExpressionContextualTyping1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/elementAccess/stringEnumInElementAccess01.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/functionCalls/forgottenNew.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/functions/typeOfThisInFunctionExpression.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/propertyAccess/propertyAccess.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/thisKeyword/thisInInvalidContexts.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/thisKeyword/thisInInvalidContextsExternalModule.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/bitwiseNotOperator/bitwiseNotOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/bitwiseNotOperator/bitwiseNotOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/logicalNotOperator/logicalNotOperatorWithBooleanType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/logicalNotOperator/logicalNotOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/logicalNotOperator/logicalNotOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/logicalNotOperator/logicalNotOperatorWithStringType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/negateOperator/negateOperatorWithBooleanType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/negateOperator/negateOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/negateOperator/negateOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/plusOperator/plusOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/typeofOperator/typeofOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/unaryOperators/voidOperator/voidOperatorWithEnumType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/expressions/valuesAndReferences/assignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/externalModules/es6/es6modulekind.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/externalModules/es6/es6modulekindWithES2015Target.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/externalModules/es6/es6modulekindWithES5Target12.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/externalModules/es6/es6modulekindWithES5Target2.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/externalModules/esnext/esnextmodulekind.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/externalModules/esnext/esnextmodulekindWithES5Target12.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/externalModules/esnext/esnextmodulekindWithES5Target2.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/externalModules/exportDefaultClassNameWithObject.svelte.ts".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/functions/functionOverloadErrors.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/interfaces/declarationMerging/mergeThreeInterfaces2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/interfaces/declarationMerging/mergedInterfacesWithMultipleBases2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/interfaces/interfacesExtendingClasses/implementingAnInterfaceExtendingClassWithPrivates2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/DeclarationMerging/ClassAndModuleThatMergeWithModulesExportedGenericFunctionAndNonGenericClassStaticFunctionOfTheSameName.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/DeclarationMerging/ClassAndModuleThatMergeWithStaticFunctionAndExportedFunctionThatShareAName.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/DeclarationMerging/ModuleAndEnumWithSameNameAndCommonRoot.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/codeGeneration/importStatementsInterfaces.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportClassWhichExtendsInterfaceWithInaccessibleType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportClassWithInaccessibleTypeInIndexerTypeAnnotations.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportFunctionWithAccessibleTypesInParameterAndReturnTypeAnnotation.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportFunctionWithInaccessibleTypesInReturnTypeAnnotation.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/importDeclarations/circularImportAlias.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/importDeclarations/importAliasIdentifiers.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/importDeclarations/importAliasMergedNamespace.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/importDeclarations/invalidImportAliasIdentifiers.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/internalModules/moduleDeclarations/asiPreventsParsingAsNamespace03.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/EnumDeclarations/parserEnum1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/EnumDeclarations/parserEnum2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/EnumDeclarations/parserEnum3.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/EnumDeclarations/parserEnum6.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/IncompleteMemberVariables/parserErrorRecovery_IncompleteMemberVariable1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration7.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/SuperExpressions/parserSuperExpression1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/SuperExpressions/parserSuperExpression4.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/parser/ecmascript5/parserRealSource5.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/pedantic/noUncheckedIndexedAccess.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/scanner/ecmascript5/scannerEnum1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/VariableStatements/everyTypeWithAnnotationAndInitializer.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/VariableStatements/everyTypeWithAnnotationAndInvalidInitializer.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/VariableStatements/everyTypeWithInitializer.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/VariableStatements/invalidMultipleVariableDeclarations.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/for-inStatements/for-inStatements.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/forStatements/forStatements.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/forStatements/forStatementsMultipleInvalidDecl.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/ifDoWhileStatements/ifDoWhileStatements.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/switchStatements/switchStatements.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/statements/throwStatements/throwStatements.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/any/assignEveryTypeToAny.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/intersection/intersectionReduction.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/literal/literalTypeWidening.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/localTypes/localTypes1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/objectTypeLiteral/propertySignatures/propertyNamesOfReservedWords.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/primitives/enum/invalidEnumAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/primitives/enum/validEnumAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/primitives/number/validNumberAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/specifyingTypes/typeReferences/genericTypeReferenceWithoutTypeArgument.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/specifyingTypes/typeReferences/nonGenericTypeReferenceWithTypeArguments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeAliases/asiPreventsParsingAsTypeAlias02.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeParameters/typeParameterLists/typeParameterConstModifiersReturnsAndYields.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/assignmentCompatibility/assignmentCompatWithObjectMembers4.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/assignmentCompatibility/assignmentCompatWithStringIndexer2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/assignmentCompatibility/enumAssignability.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/bestCommonType/bestCommonTypeOfTuple.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/bestCommonType/heterogeneousArrayLiterals.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/comparable/equalityWithEnumTypes.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/typeInference/genericCallWithOverloadedConstructorTypedArguments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/typeRelationships/typeInference/genericClassWithObjectTypeArgsAndConstraints.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/uniqueSymbol/uniqueSymbolsPropertyNames.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"
+
+["svelte/typescript/types/unknown/unknownType2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (rsvelte writes oxc's emit of an enum or a namespace)"

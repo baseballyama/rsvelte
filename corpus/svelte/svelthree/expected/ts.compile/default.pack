@@ -1,0 +1,3172 @@
+# rsvelte pack 1
+=== 2126 src/lib/ani/SvelthreeAni.ts	js
+import SvelthreeAnimationManager from "./SvelthreeAnimationManager.js";
+import SvelthreeAnimationObjectFactory from "./SvelthreeAnimationObjectFactory.js";
+export default class SvelthreeAni {
+    scene;
+    foo;
+    ani_fn;
+    aniauto;
+    ani_obj_factory = undefined;
+    ani_manager = undefined;
+    constructor(scene, foo, ani_fn, aniauto) {
+        this.scene = scene;
+        this.foo = foo;
+        this.ani_fn = ani_fn;
+        this.aniauto = aniauto;
+        this.create_ani_manager();
+    }
+    create_ani_manager() {
+        //if (verbose && log_dev) console.debug(...c_dev(c_name, "createAnimationManager!"))
+        if (this.foo && !this.ani_manager) {
+            this.ani_obj_factory = new SvelthreeAnimationObjectFactory(this.ani_fn);
+            this.ani_manager = new SvelthreeAnimationManager(this.ani_obj_factory, this.aniauto, this.foo, this.scene);
+        }
+    }
+    onCurrentSceneActiveChange(currentSceneActive) {
+        this.ani_manager ? this.ani_manager.handleCurrentSceneStatus(currentSceneActive) : null;
+    }
+    getAnimation() {
+        if (this.ani_manager) {
+            return this.ani_manager.getAnimation();
+        }
+        else {
+            console.error("SVELTHREE > SvelthreeAnimation > getAnimation : missing SvelthreeAnimationManager!", {
+                ani_manager: this.ani_manager
+            });
+            return undefined;
+        }
+    }
+    destroyAnimation() {
+        //if (verbose && log_dev) console.debug(...c_dev(c_name, "destroyAnimation!"))
+        if (this.ani_manager) {
+            this.ani_manager.destroyAnimation();
+        }
+        else {
+            console.error("SVELTHREE > SvelthreeAnimation > destroyAnimation : missing SvelthreeAnimationManager!", {
+                ani_manager: this.ani_manager
+            });
+        }
+    }
+    startAnimation() {
+        if (this.ani_manager) {
+            this.ani_manager.startAnimation();
+        }
+        else {
+            console.error("SVELTHREE > SvelthreeAnimation > startAni : missing SvelthreeAnimationManager!", {
+                ani_manager: this.ani_manager
+            });
+        }
+    }
+}
+
+=== 5393 src/lib/ani/SvelthreeAnimationManager.ts	js
+export default class SvelthreeAnimationManager {
+    ani_obj_factory;
+    aniauto;
+    foo;
+    scene;
+    /** Generated animation-`Object Literal` (_interface `SvelthreeAnimation`_): result of `this.ani_obj_factory.create(...)`. */
+    ani_obj;
+    constructor(ani_obj_factory, aniauto, foo, scene) {
+        this.ani_obj_factory = ani_obj_factory;
+        this.aniauto = aniauto;
+        this.foo = foo;
+        this.scene = scene;
+        this.ani_obj = undefined;
+    }
+    handleCurrentSceneStatus(currentSceneActive) {
+        if (currentSceneActive) {
+            /* console.info(
+                "SVELTHREE > SvelthreeAnimationManager > handleCurrentSceneStatus : currentSceneActive = true!"
+            ) */
+            if (this.aniauto) {
+                // console.info("SVELTHREE > SvelthreeAnimationManager > handleCurrentSceneStatus : this.aniauto = true!")
+                this.handle_scene_active();
+            }
+        }
+        else {
+            /* console.info(
+                "SVELTHREE > SvelthreeAnimationManager > handleCurrentSceneStatus : currentSceneActive = false!"
+            ) */
+            this.handle_scene_inactive();
+        }
+    }
+    // active / reactivated
+    handle_scene_active() {
+        // console.info("SVELTHREE > SvelthreeAnimationManager > handle_scene_active!")
+        // check if animation has been initiated, if so try to execute 'onSceneReactivated'...
+        if (this.ani_obj) {
+            this.try_on_scene_reactivated();
+        }
+        else {
+            // ... otherwise initate / start it (aniauto is true)
+            this.initiate_animation();
+        }
+    }
+    /*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+    initiate_animation(...args) {
+        // console.info("SVELTHREE > SvelthreeAnimationManager > initiate_animation!")
+        // if animation is a function it has not been initiated / started yet (otherwise object)
+        if (this.scene) {
+            if (!this.scene.userData.isActive) {
+                /* console.warn(
+                    "SVELTHREE > SvelthreeAnimationManager : initiate_animation : You're about to initiate an animation in an inactive Scene!"
+                ) */
+            }
+        }
+        else if (this.scene === null && this.foo.isScene) {
+            if (!this.foo.userData.isActive) {
+                /* console.warn(
+                    "SVELTHREE > SvelthreeAnimationManager : initiate_animation : You're about to initiate an animation in an inactive NESTED Scene!"
+                ) */
+            }
+        }
+        this.ani_obj = this.ani_obj_factory.create(this.foo, args);
+        /* console.info(
+            "SVELTHREE > SvelthreeAnimationManager > initiate_animation : after initialization: this.ani_obj:",
+            this.ani_obj
+        ) */
+        try {
+            if (this.ani_obj) {
+                this.ani_obj.onStart();
+            }
+        }
+        catch (err) {
+            throw new Error("SVELTHREE Exception, " + err);
+        }
+    }
+    try_on_scene_reactivated() {
+        if (this.ani_obj &&
+            Object.hasOwn(this.ani_obj, "onSceneReactivated") &&
+            typeof this.ani_obj["onSceneReactivated"] === "function") {
+            this.ani_obj.onSceneReactivated();
+        }
+        else {
+            /* console.warn(
+                "SVELTHREE > SvelthreeAnimationManager > try_on_scene_reactivated : 'onSceneReactivated' property is missing in 'SvelthreeAnimation'-Object! Please ensure this is correct.",
+                this.ani_obj
+            ) */
+        }
+    }
+    // inactive / deactivated
+    handle_scene_inactive() {
+        // check if animation has been initiated
+        // if it has been initated, try to execute 'onSceneDeactivated'
+        if (this.ani_obj) {
+            this.try_on_scene_deactivated();
+        }
+        else {
+            /* console.info(
+                "SVELTHREE > SvelthreeAnimationManager > handle_scene_inactive : 'SvelthreeAnimation'-Object not available!"
+            ) */
+        }
+    }
+    try_on_scene_deactivated() {
+        if (this.ani_obj &&
+            Object.hasOwn(this.ani_obj, "onSceneDeactivated") &&
+            typeof this.ani_obj["onSceneDeactivated"] === "function") {
+            this.ani_obj.onSceneDeactivated();
+        }
+        else {
+            /* console.warn(
+                "SVELTHREE > SvelthreeAnimationManager > try_on_scene_deactivated : 'onSceneDeactivated' property is missing in 'SvelthreeAnimation'-Object! Please ensure this is correct.",
+                this.ani_obj
+            ) */
+        }
+    }
+    startAnimation() {
+        if (!this.ani_obj) {
+            this.initiate_animation();
+        }
+        else {
+            /* console.info(
+                "SVELTHREE > SvelthreeAnimationManager > startAnimation : animation has already been initiated! 'animation': ",
+                this.ani_obj
+            ) */
+        }
+    }
+    destroyAnimation() {
+        if (this.ani_obj &&
+            Object.hasOwn(this.ani_obj, "onDestroy") &&
+            typeof this.ani_obj["onDestroy"] === "function") {
+            this.ani_obj.onDestroy();
+        }
+        else {
+            console.error("SVELTHREE > SvelthreeAnimationManager > destroyAnimation : required 'onDestroy' property is missing in 'SvelthreeAnimation'-Object!");
+        }
+    }
+    getAnimation() {
+        return this.ani_obj;
+    }
+}
+
+=== 1062 src/lib/ani/SvelthreeAnimationObjectFactory.ts	js
+export default class SvelthreeAnimationObjectFactory {
+    ani_fn;
+    constructor(ani_fn) {
+        this.ani_fn = ani_fn;
+    }
+    /*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+    create(foo, ...args) {
+        let ani_obj;
+        try {
+            ani_obj = this.ani_fn(foo, args);
+            if (!Object.hasOwn(ani_obj, "onStart")) {
+                console.error("SVELTHREE > Provided animation is missing 'onStart' function!", {
+                    animation: ani_obj
+                });
+                //throw new Error("SVELTHREE Exception (see warning above)")
+            }
+            if (!Object.hasOwn(ani_obj, "onDestroy")) {
+                console.error("SVELTHREE > Provided animation has no 'onDestroy' function!", {
+                    animation: ani_obj
+                });
+                //throw new Error("SVELTHREE Exception (see warning above)")
+            }
+        }
+        catch (err) {
+            throw new Error("SVELTHREE Exception, " + err);
+        }
+        return ani_obj;
+    }
+}
+
+=== 247 src/lib/ani/index.ts	js
+export { default as SvelthreeAnimationObjectFactory } from "./SvelthreeAnimationObjectFactory.js";
+export { default as SvelthreeAnimationManager } from "./SvelthreeAnimationManager.js";
+export { default as SvelthreeAni } from "./SvelthreeAni.js";
+
+=== 203 src/lib/constants/CameraValues.ts	js
+export default class CameraValues {
+    // Orthographic Camera
+    static CAM_ORTHO_FRUSTUM_SIZE = 1;
+    static CAM_ORTHO_ASPECT = 1;
+    static CAM_ORTHO_NEAR = 0.1;
+    static CAM_ORTHO_FAR = 2000;
+}
+
+=== 295 src/lib/constants/Cameras.ts	js
+/** Camera props that need a **p**rojection **m**atrix **u**pdate after change. */
+export const CAM_PROPS_PMU = new Set([
+    "fov",
+    "aspect",
+    "near",
+    "far",
+    "filmOffset",
+    "filmGauge",
+    "focus",
+    "zoom",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "view"
+]);
+
+=== 481 src/lib/constants/ExposedPropKeys.ts	js
+export default class ExposedPropKeys {
+    static ambientLight = ["color", "intensity"];
+    static perspectiveCamera = [
+        "aspect",
+        "far",
+        "filmGauge",
+        "filmOffset",
+        "focus",
+        "fov",
+        "near",
+        "zoom"
+        //,"view"
+    ];
+    static orthographicCamera = [
+        "left",
+        "right",
+        "top",
+        "bottom",
+        "near",
+        "far",
+        "zoom"
+        //,"view"
+    ];
+    static mesh = [];
+}
+
+=== 1368 src/lib/constants/Interaction.ts	js
+export const SUPPORTED_ADD_EVENT_LISTENER_OPTIONS = [
+    "once",
+    "passive",
+    "capture"
+    //"signal" ->  RECONSIDER  implement?
+];
+export const ADD_EVENT_LISTENER_OPTIONS_SET = new Set([...SUPPORTED_ADD_EVENT_LISTENER_OPTIONS]);
+export const SUPPORTED_MODIFIERS = [
+    "preventDefault",
+    "stopPropagation",
+    "capture",
+    "once",
+    //"passive",    ->  TODO  implement
+    //"nonpassive", ->  TODO  implement
+    //"trusted",    ->  RECONSIDER  implement?
+    "self"
+];
+export const SUPPORTED_MODIFIERS_SET = new Set([...SUPPORTED_MODIFIERS]);
+export const POINTER_EVENTS = [
+    "click",
+    "pointerup",
+    "pointerdown",
+    "pointerover",
+    "pointerout",
+    //"pointerenter", DEPRECATED  -> same as "pointerover"
+    //"pointerleave", DEPRECATED  -> same as "pointerout"
+    "pointermove",
+    "pointermoveover"
+    //"gotpointercapture",  ->  RECONSIDER  implement?
+    //"lostpointercapture", ->  RECONSIDER  implement?
+    //"pointercancel"       ->  RECONSIDER  implement?
+];
+export const KEYBOARD_EVENTS = ["keydown", "keypress", "keyup"];
+export const KEYBOARD_LISTENER_TARGETS = ["window", "document", "self"];
+export const FOCUS_EVENTS = ["focus", "blur", "focusin", "focusout"];
+// TODO  implement wheel events
+export const WHEEL_EVENTS = ["wheel", "wheelover"];
+export const WHEEL_LISTENER_TARGETS = ["window", "document", "self"];
+
+=== 745 src/lib/constants/LogCSS.ts	js
+export default class LogCSS {
+    static PREFIX_ON_MOUNT = "☰";
+    static PREFIX_BEFORE_UPDATE = "~";
+    static PREFIX_AFTER_UPDATE = "✓";
+    static REACTIVE_STATEMENT = "color:red; font-weight:bold;";
+    static BEFORE_UPDATE = "font-weight:bold; color: #A5F3FC; background: #4B5563; padding: 2px 4px; border: 1px solid #4B5563; border-radius: 6px;";
+    static AFTER_UPDATE = "font-weight:bold; background: #4B5563; color: #BBF7D0; padding: 2px 4px; border: 1px solid #4B5563; border-radius: 6px;";
+    static ON_MOUNT = "font-weight:bold; background: #4B5563; color: white; padding: 2px 4px; border: 1px solid #4B5563; border-radius: 6px;";
+    static DEV_DEBUG = "font-weight:normal";
+    static FEATURE_MAU = "font-weight:normal";
+}
+
+=== 128 src/lib/constants/index.ts	js
+export { default as ExposedPropKeys } from "./ExposedPropKeys.js";
+export { default as CameraValues } from "./CameraValues.js";
+
+=== 1348 src/lib/index.ts	js
+// export all Svelte components
+export { default as PerspectiveCamera } from "./components/PerspectiveCamera.svelte";
+export { default as OrthographicCamera } from "./components/OrthographicCamera.svelte";
+export { default as Mesh } from "./components/Mesh.svelte";
+export { default as Points } from "./components/Points.svelte";
+export { default as Object3D } from "./components/Object3D.svelte";
+export { default as Group } from "./components/Group.svelte";
+export { default as Canvas } from "./components/Canvas.svelte";
+export { default as DirectionalLight } from "./components/DirectionalLight.svelte";
+export { default as SpotLight } from "./components/SpotLight.svelte";
+export { default as RectAreaLight } from "./components/RectAreaLight.svelte";
+export { default as AmbientLight } from "./components/AmbientLight.svelte";
+export { default as HemisphereLight } from "./components/HemisphereLight.svelte";
+export { default as PointLight } from "./components/PointLight.svelte";
+export { default as Scene } from "./components/Scene.svelte";
+export { default as LoadedGLTF } from "./components/LoadedGLTF.svelte";
+export { default as WebGLRenderer } from "./components/WebGLRenderer.svelte";
+export { default as OrbitControls } from "./components/OrbitControls.svelte";
+export { default as CubeCamera } from "./components/CubeCamera.svelte";
+
+=== 6835 src/lib/logic/if$/if$_instance_change.ts	js
+export const if$_instance_change = (inst, our_parent, inst_uuid, 
+// TODO  Remove `create`
+_create, 
+// TODO  Remove `inst_name`
+_inst_name, comp_name, handler) => {
+    // console.warn(`comp ${comp_name} > Something happened with the ${inst_name} instance!`)
+    if (our_parent) {
+        // it's free
+        if (!inst.parent) {
+            // console.warn(`comp ${comp_name} > ${inst_name} instance is free / was not added anywhere yet ...`)
+            // applicable to checks below.
+            handler();
+            // DEPRECATED  -> handler can be called in both cases, keep code as reminder.
+            /*
+            // we have registered one already
+            if (inst_uuid) {
+                // console.warn(`comp ${comp_name} > ... we have already registered one before ...`)
+
+                handler()
+
+            
+                // it's different than the registered one -> replace!
+                if (inst_uuid !== inst.uuid) {
+                    // console.warn(
+                    // 	`comp ${comp_name} > ... it was a different one --> add it to 'our_parent' (after removing the old one from it's parent -> should be 'our_parent').`
+                    // )
+                    // console.info(`comp ${comp_name} > has uuid`, inst_uuid)
+                    // console.info(`comp ${comp_name} > got uuid`, inst.uuid)
+
+                    handler()
+                }
+
+                // it's the same one -> it was just created -> initialization
+                else if (inst_uuid === inst.uuid) {
+                    // console.warn(`comp ${comp_name} > ... it was same one! -> shouldn't happen ?! ...`)
+
+                    // DEPRECATED  -> we don't need `create`, keep code as reminder.
+                    // if (create) {
+                    // 	console.warn(`comp ${comp_name} > ... it was created! that's where inst_uuid was set! that's why! -> initialization --> add it to 'our_parent.`)
+
+                    // 	handler()
+                    // } else {
+                    // 	console.warn(`comp ${comp_name} > ... it was not created, it was injected! that's why! -> initialization --> add it to 'our_parent.`)
+
+                    // 	handler()
+                    // }
+
+                    handler()
+                }
+            
+            }
+
+            // we haven't registered any yet -> initialization
+            else if (!inst_uuid) {
+                // console.warn(
+                // 	`comp ${comp_name} > ... we haven't registered any yet -> initialization --> add it to 'our_parent.'`
+                // )
+
+                handler()
+            }
+            */
+        }
+        // it's not free
+        else if (inst.parent) {
+            // const message: string[] = []
+            // console.error(`comp ${comp_name} > ${inst_name} instance is not free / already has a parent!`)
+            // it's already a child of our parent
+            if (inst.parent === our_parent) {
+                // message.push(`The instance ${inst_name} is already a child of 'our_parent'`)
+                // console.error(`The instance ${inst_name} is already a child of 'our_parent' -> ?!`)
+                // it's already a child of our parent, but we have registered one already
+                if (inst_uuid) {
+                    // message.push(`. The component was already managing an instance `)
+                    // console.error(`comp ${comp_name} > ... we have already registered one before ...`)
+                    // it's different than the registered one -> ?!
+                    if (inst_uuid !== inst.uuid) {
+                        // message.push(`and it was a different one. `)
+                        if (inst.userData.svelthreeComponent !== self) {
+                            // message.push(`This one has been generated by another component! -> `)
+                            // message.push(`The instance '${inst_name}' you've provided will be removed / re-added while it's current managing component will be cleared of any references to it!`)
+                            // console.warn(`comp ${comp_name} > ${message.join("")}`)
+                            handler();
+                        }
+                        // cannot / shouldn't happen -> it cannot be a different one and being managed by this component at the same time.
+                        else if (inst.userData.svelthreeComponent === self) {
+                            throw Error(`comp ${comp_name} > if$_instance_change > THIS SHOULDN'T HAPPEN!`);
+                        }
+                    }
+                    // IMPORTANT  it's the same one -> happens on every component update!
+                    else if (inst_uuid === inst.uuid) {
+                        // message.push(`and it is the same one. -> we're here because ${inst_name} prop got updated! -> nothing / silent`)
+                        // console.warn(`comp ${comp_name} > ${message.join("")}`)
+                        // console.info(`comp ${comp_name} > has uuid`, inst_uuid)
+                        // console.info(`comp ${comp_name} > got uuid`, inst.uuid)
+                        // DO NOTHING / SILENT
+                    }
+                }
+                // it's already a child of our parent, but we haven't registered one yet -> initialization
+                else if (!inst_uuid) {
+                    // message.push(`. We've already registered one before.`)
+                    // message.push(` The instance '${inst_name}' you've provided has already been added to the scene / some other instance in the scene and was created / is currently being managed by some other component!`)
+                    // message.push(` It will be removed / re-added while it's current managing component will be cleared of any references to it!`)
+                    // console.warn(`comp ${comp_name} > ${message.join("")}`)
+                    handler();
+                }
+            }
+            // it has a different parent
+            else if (inst.parent !== our_parent) {
+                // message.push(` TThe instance ${inst_name} is not a child of 'our_parent'!`)
+                // message.push(` The instance '${inst_name}' you've provided has already been added to the scene / some other instance in the scene and was created / is currently being managed by some other component!`)
+                // message.push(` It will be removed / re-added while it's current managing component will be cleared of any references to it!`)
+                // console.warn(`comp ${comp_name} > ${message.join("")}`, inst.parent)
+                handler();
+            }
+        }
+    }
+    else {
+        // IS ROOT SCENE!
+        //console.warn(`SVELTHREE > component's 'our_parent' is 'undefined' this means the component is a 'root_scene' (direct child of the 'Canvas' component)`)
+        // DO NOTHING / SILENT
+    }
+};
+
+=== 98 src/lib/logic/if$/index.ts	js
+// complex reactive if-statements
+export { if$_instance_change } from "./if$_instance_change.js";
+
+=== 466 src/lib/logic/shared/find.ts	js
+/** Search in all scenes (_direct children of canvas_) for an instance with the specified `uuid` */
+const find_in_canvas = (scenes_array, uuid) => {
+    if (scenes_array) {
+        for (let i = 0; i < scenes_array.length; i++) {
+            const scene = scenes_array[i].scene;
+            const found = scene.getObjectByProperty("uuid", uuid);
+            if (found)
+                return found;
+        }
+    }
+    return undefined;
+};
+export { find_in_canvas };
+
+=== 269 src/lib/logic/shared/index.ts	js
+// logic shred / same across all components
+export { remove_instance } from "./remove.js";
+export { recreate_shadow_dom_el, create_shadow_dom_el } from "./shadow_dom.js";
+export { set_initial_userdata } from "./userdata.js";
+export { find_in_canvas } from "./find.js";
+
+=== 2278 src/lib/logic/shared/remove.ts	js
+const remove_helper_of = (obj) => {
+    if (obj.userData.helper?.parent) {
+        obj.userData.helper.parent.remove(obj.userData.helper);
+        obj.userData.helper = null;
+    }
+};
+const remove_box_of = (obj) => {
+    if (obj.userData.box?.parent) {
+        obj.userData.box.parent.remove(obj.userData.box);
+        obj.userData.box = null;
+    }
+};
+const remove_from_parent = (obj) => {
+    if (obj.parent)
+        obj.parent.remove(obj);
+};
+const reset_userdata = (obj) => {
+    obj.userData.svelthreeComponent = undefined;
+    obj.userData.interact = undefined;
+    obj.userData.block = undefined;
+    obj.userData.initScale = undefined;
+};
+const clear_new_instance_managing_component = (new_instance, instance_name, current_component) => {
+    const managed_by_component = new_instance?.userData?.svelthreeComponent || null;
+    const same_component = managed_by_component === current_component;
+    const component_state = managed_by_component?.state();
+    const instance = component_state?.[instance_name];
+    const same_instance = instance === new_instance;
+    if (managed_by_component && !same_component && same_instance) {
+        //console.warn('clear current managing component!')
+        managed_by_component.clear();
+    }
+    else {
+        // DO NOTHING / SILENT
+        //console.warn('do NOT clear current manging component!')
+    }
+};
+/** Removes the (three) instance of the object created by the component from it's parent (_if any_).
+ * - removes `box ` helper
+ * - removes any registered `helper`
+ * - clears the managing component ( _if applicable_ )
+ * - resets `userData`
+ *
+ * TODO  RECONSIDER  disposal? (optional?)
+ */
+const remove_instance = (obj, instance_name, new_instance = null, current_component = null) => {
+    if (obj) {
+        remove_box_of(obj);
+        remove_helper_of(obj);
+        remove_from_parent(obj);
+        if (new_instance && current_component)
+            clear_new_instance_managing_component(new_instance, instance_name, current_component);
+        reset_userdata(obj);
+        // TODO  dispose? (optional?)
+        return true;
+    }
+    else {
+        console.error(`SVELTHREE > remove_instance : Cannot remove invalid '${instance_name}' instance!`, obj);
+        return false;
+    }
+};
+export { remove_instance };
+
+=== 1941 src/lib/logic/shared/shadow_dom.ts	js
+const recreate_shadow_dom_el = (shadow_dom_el, our_parent_shadow_dom_el, button, link, c_name) => {
+    if (shadow_dom_el)
+        remove_shadow_dom_el(shadow_dom_el);
+    return create_shadow_dom_el(our_parent_shadow_dom_el, button, link, c_name);
+};
+const remove_shadow_dom_el = (shadow_dom_el) => {
+    if (shadow_dom_el.parentNode)
+        shadow_dom_el.parentNode.removeChild(shadow_dom_el);
+};
+const create_shadow_dom_el = (our_parent_shadow_dom_el, button, link, c_name) => {
+    let shadow_dom_el;
+    if (button) {
+        shadow_dom_el = document.createElement("button");
+        // try...catch : If `Object.assign()` fails to set a property of `shadow_dom_el` because it is read-only, code should not stop executing.
+        try {
+            Object.assign(shadow_dom_el, button);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    else if (link) {
+        shadow_dom_el = document.createElement("a");
+        // try...catch : If `Object.assign()` fails to set a property of `shadow_dom_el` because it is read-only, code should not stop executing.
+        try {
+            Object.assign(shadow_dom_el, link);
+        }
+        catch (err) {
+            console.error(err);
+        }
+    }
+    else {
+        shadow_dom_el = document.createElement("div");
+    }
+    shadow_dom_el.dataset.kind = `${c_name}`;
+    // IMPORTANT  Scenes are appended reactively when `shadow_root_el` is available!
+    if (c_name !== "Scene") {
+        if (our_parent_shadow_dom_el) {
+            our_parent_shadow_dom_el.appendChild(shadow_dom_el);
+            return shadow_dom_el;
+        }
+        else {
+            console.error(`SVELTHREE > ${c_name} > create_shadow_dom_el > couldn't append shadow dom, no 'our_parent_shadow_dom_el'!`, our_parent_shadow_dom_el);
+            return null;
+        }
+    }
+    else {
+        return shadow_dom_el;
+    }
+};
+export { recreate_shadow_dom_el, create_shadow_dom_el };
+
+=== 312 src/lib/logic/shared/userdata.ts	js
+const set_initial_userdata = (instance, comp) => {
+    instance.userData.initScale = instance.scale.x;
+    instance.userData.svelthreeComponent = comp;
+    instance.userData.interact = false;
+    instance.userData.block = false;
+    instance.userData.index_in_raycast = null;
+};
+export { set_initial_userdata };
+
+=== 28 src/lib/logic/special/index.ts	js
+// special logic
+export {};
+
+=== 86 src/lib/stores/index.ts	js
+import { writable } from "svelte/store";
+export const svelthreeStores = writable([]);
+
+=== 11 src/lib/types/types-comp-props.ts	js
+export {};
+
+=== 11 src/lib/types/types-extra.ts	js
+export {};
+
+=== 1119 src/lib/utils/Calc.ts	js
+import { Vector3 } from "three";
+export default class Calc {
+    static get_unproject_pointer(c, e, cam) {
+        const rect = c.getBoundingClientRect();
+        const px = ((e.clientX - rect.left) / (rect.right - rect.left)) * 2 - 1;
+        const py = -((e.clientY - rect.top) / (rect.bottom - rect.top)) * 2 + 1;
+        if (cam.type === "PerspectiveCamera") {
+            // Perspective Camera
+            // see: https://stackoverflow.com/questions/13055214/mouse-canvas-x-y-to-three-js-world-x-y-z
+            const v = new Vector3(px, py, 0.5);
+            const t = new Vector3();
+            v.unproject(cam);
+            v.sub(cam.position).normalize();
+            const d = -cam.position.z / v.z;
+            //let d = ( unproject_z - cam.position.z ) / v.z
+            t.copy(cam.position).add(v.multiplyScalar(d));
+            return t;
+        }
+        else if (cam.type === "OrthographicCamera") {
+            const vz = (cam.near + cam.far) / (cam.near - cam.far);
+            const v = new Vector3(px, py, vz);
+            v.unproject(cam).sub(cam.position);
+            return v;
+        }
+    }
+}
+
+=== 3197 src/lib/utils/CameraUtils.ts	js
+import { CameraValues } from "../constants/index.js";
+export default class CameraUtils {
+    // #region --- Orthographic Camera
+    static getOrthoCamDefaultParams(frustumSize) {
+        const _frustumSize = frustumSize || CameraValues.CAM_ORTHO_FRUSTUM_SIZE;
+        const _aspect = CameraValues.CAM_ORTHO_ASPECT;
+        const _near = CameraValues.CAM_ORTHO_NEAR;
+        const _far = CameraValues.CAM_ORTHO_FAR;
+        const left = (_frustumSize * _aspect) / -2;
+        const right = (_frustumSize * _aspect) / 2;
+        const top = _frustumSize / 2;
+        const bottom = _frustumSize / -2;
+        return [left, right, top, bottom, _near, _far];
+    }
+    /**
+     * Updates OrthographicCamera's `projectionMatrix` on canvas aspect change.
+     */
+    static updateOtrhoCam(cam, frustumSize, canvasW, canvasH) {
+        //if (verbose_mode()) console.debug("SVELTHREE > CameraUtils : updateOtrhoCam!")
+        // AUTO only
+        // no props, no params, cam has been created by using defaultParams
+        // if user provided frustumSize that will / is being used, otherwise default
+        // if user has provided aspect that will be used, not the actual aspect (someone might need it like that)
+        // adding frustumSize attribute enters auto modus, where frustum planes are being calculated depending on current canvas size / aspect
+        if (frustumSize) {
+            //const _aspect = aspect || canvasW / canvasH
+            const aspect = canvasW / canvasH;
+            // abilty to have (blank)
+            //const _frustumSize = frustumSize || CameraValues.CAM_ORTHO_FRUSTUM_SIZE
+            const left = (frustumSize * aspect) / -2;
+            const right = (frustumSize * aspect) / 2;
+            const top = frustumSize / 2;
+            const bottom = frustumSize / -2;
+            cam.left = left;
+            cam.right = right;
+            cam.top = top;
+            cam.bottom = bottom;
+            cam.updateProjectionMatrix();
+        }
+        // If has provided props or has created cam using params --> No effect!
+        // - using params: cam.left, .right etc. are available / will be updated by props if inside
+        // - defaultParams (blank): cam.left, .right etc. are available  / will be updated by props if inside
+    }
+    /**
+     * Logs a warning if user is providing 'frustumSize' and at the same time tries to define frustum planes via 'props' attribute.
+     */
+    static logOrthoCamFrustumWarnings(left, right, top, bottom) {
+        const prefix = "SVELTHREE > Camera / OrthographicCamera : Using 'frustumSize' and ";
+        const suffix = " prop can lead to undesired effects! ";
+        left ? console.warn(`${prefix}'left'${suffix}`) : null;
+        right ? console.warn(`${prefix}'right'${suffix}`) : null;
+        top ? console.warn(`${prefix}'top'${suffix}`) : null;
+        bottom ? console.warn(`${prefix}'bottom'${suffix}`) : null;
+    }
+    // #endregion
+    // #region --- PerspectiveCamera Camera
+    /**
+     * Updates PerspectiveCamera's `projectionMatrix` on canvas aspect change.
+     */
+    static updatePerspCam(cam, canvasW, canvasH) {
+        cam.aspect = canvasW / canvasH;
+        cam.updateProjectionMatrix();
+    }
+}
+
+=== 895 src/lib/utils/CubeCameraHelper.ts	js
+import { CameraHelper } from "three";
+export default class CubeCameraHelper {
+    allHelpers = [];
+    constructor(camera) {
+        this.allHelpers = this.createHelpers(camera);
+    }
+    createHelpers(camera) {
+        const all = [];
+        for (let i = 0; i < camera.children.length; i++) {
+            const pc = camera.children[i];
+            const helper = new CameraHelper(pc);
+            all.push(helper);
+        }
+        return all;
+    }
+    add(scene) {
+        for (let i = 0; i < this.allHelpers.length; i++) {
+            const helper = this.allHelpers[i];
+            if (helper.parent !== scene)
+                scene.add(helper);
+        }
+    }
+    remove() {
+        for (let i = 0; i < this.allHelpers.length; i++) {
+            const helper = this.allHelpers[i];
+            if (helper && helper.parent)
+                helper.parent.remove(helper);
+        }
+    }
+}
+
+=== 10968 src/lib/utils/GLTF_afterLoaded.ts	js
+//import type { AnyTHREEMeshMaterial } from "../types/types-extra.js"
+export default class GLTF_afterLoaded {
+    // TODO  RECONSIDER  static for_all_cameras ?
+    // TODO  RECONSIDER  static for_all_animations ?
+    // TODO  RECONSIDER  static remove_all_animations ?
+    // TODO  RECONSIDER  static for_all_textures ?
+    // TODO  RECONSIDER  static remove_all_textures ?
+    static remove_all_lights = async (gltf_content) => {
+        //console.log("remove_all_lights!")
+        if (gltf_content) {
+            if (gltf_content.scenes?.length > 1) {
+                for (let i = 0; i < gltf_content.scenes.length; i++) {
+                    await GLTF_afterLoaded.remove_all(gltf_content.scenes[i], "isLight");
+                }
+            }
+            else {
+                await GLTF_afterLoaded.remove_all(gltf_content.scene, "isLight");
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'remove_all_lights(gltf_content)' -> 'gltf_content' not available!", { gltf_content });
+        }
+    };
+    static remove_all_cameras = async (gltf_content) => {
+        //console.log("remove_all_cameras!")
+        if (gltf_content) {
+            if (gltf_content.scenes?.length > 1) {
+                for (let i = 0; i < gltf_content.scenes.length; i++) {
+                    await GLTF_afterLoaded.remove_all(gltf_content.scenes[i], "isCamera");
+                }
+            }
+            else {
+                await GLTF_afterLoaded.remove_all(gltf_content.scene, "isCamera");
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'remove_all_cameras(gltf_content)' -> 'gltf_content' not available!", { gltf_content });
+        }
+    };
+    static async remove_all(scene, typ) {
+        //console.log("remove_all started!")
+        if (scene) {
+            const fns = [];
+            const check_obj = (obj, parent, typ) => async () => {
+                if (obj) {
+                    if (Object.hasOwn(obj, typ)) {
+                        // see https://github.com/mrdoob/three.js/blob/1a241ef10048770d56e06d6cd6a64c76cc720f95/src/core/Object3D.js#L342-L369
+                        if (parent) {
+                            const index_to_remove = parent.children.indexOf(obj);
+                            //console.log(`removing -> [${index_to_remove}] ${obj.type}`, obj.uuid)
+                            parent.children.splice(index_to_remove, 1);
+                        }
+                    }
+                }
+                else {
+                    console.error("SVELTHREE > GLTF_afterLoaded > async 'remove_all(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!", { obj });
+                }
+            };
+            const traverse = (child, parent) => {
+                fns.push(check_obj(child, parent, typ));
+                const children = child.children;
+                for (let i = 0, l = children.length; i < l; i++) {
+                    traverse(children[i], child);
+                }
+            };
+            traverse(scene);
+            for (const fn of fns) {
+                await fn();
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'remove_all(scene, ...)' -> 'scene' not available!", {
+                scene
+            });
+        }
+        //console.log("remove_all FINISHED!")
+        //if (scene) { console.log(scene) }
+    }
+    static async apply_to_materials(scene, props) {
+        //console.log("apply_to_materials started!")
+        if (scene) {
+            const fns = [];
+            const check_obj = (obj, props) => async () => {
+                if (obj) {
+                    if (Object.hasOwn(obj, "isMesh") && Object.hasOwn(obj, "material")) {
+                        for (const prop in props) {
+                            try {
+                                // TODO  TS Error
+                                //const mesh = obj as THREE.Mesh
+                                //const mesh_material = mesh.material as AnyTHREEMeshMaterial
+                                //if (mesh_material && Object.hasOwn(mesh_material, prop)) mesh_material[prop as keyof AnyTHREEMeshMaterial] = props[prop as keyof PropsAnyTHREEMeshMaterial]
+                                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                                // @ts-ignore
+                                mesh_material[prop] = props[prop];
+                            }
+                            catch (err) {
+                                console.error(err);
+                            }
+                        }
+                    }
+                }
+                else {
+                    console.error("SVELTHREE > GLTF_afterLoaded > async 'apply_to_materials(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!", { obj });
+                }
+            };
+            const traverse = (child, props) => {
+                fns.push(check_obj(child, props));
+                const children = child.children;
+                for (let i = 0, l = children.length; i < l; i++) {
+                    traverse(children[i], props);
+                }
+            };
+            traverse(scene, props);
+            for (const fn of fns) {
+                await fn();
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'get_all_scene_lights(scene, ...)' -> 'scene' not available!", { scene });
+        }
+        //console.log("apply_to_materials FINISHED!")
+        //if (scene) { console.log(scene) }
+    }
+    static async apply_to_meshes(scene, props) {
+        //console.log("apply_to_meshes started!")
+        if (scene) {
+            const fns = [];
+            const check_obj = (obj, props) => async () => {
+                if (obj) {
+                    if (Object.hasOwn(obj, "isMesh")) {
+                        for (const prop in props) {
+                            try {
+                                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                                // @ts-ignore
+                                obj[prop] = props[prop];
+                            }
+                            catch (err) {
+                                console.error(err);
+                            }
+                        }
+                    }
+                }
+                else {
+                    console.error("SVELTHREE > GLTF_afterLoaded > async 'apply_to_meshes(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!", { obj });
+                }
+            };
+            const traverse = (child, props) => {
+                fns.push(check_obj(child, props));
+                const children = child.children;
+                for (let i = 0, l = children.length; i < l; i++) {
+                    traverse(children[i], props);
+                }
+            };
+            traverse(scene, props);
+            for (const fn of fns) {
+                await fn();
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'apply_to_meshes(scene, ...)' -> 'scene' not available!", { scene });
+        }
+        //console.log("apply_to_meshes FINISHED!")
+        //if (scene) { console.log(scene) }
+    }
+    static async apply_to_lights(scene, props) {
+        //console.log("apply_to_lights started!")
+        if (scene) {
+            const fns = [];
+            const check_obj = (obj, props) => async () => {
+                if (obj) {
+                    if (Object.hasOwn(obj, "isLight")) {
+                        for (const prop in props) {
+                            try {
+                                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                                // @ts-ignore
+                                obj[prop] = props[prop];
+                            }
+                            catch (err) {
+                                console.error(err);
+                            }
+                        }
+                    }
+                }
+                else {
+                    console.error("SVELTHREE > GLTF_afterLoaded > async 'apply_to_lights(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!", { obj });
+                }
+            };
+            const traverse = (obj, props) => {
+                fns.push(check_obj(obj, props));
+                const children = obj.children;
+                for (let i = 0, l = children.length; i < l; i++) {
+                    traverse(children[i], props);
+                }
+            };
+            traverse(scene, props);
+            for (const fn of fns) {
+                await fn();
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'apply_to_lights(scene, ...)' -> 'scene' not available!", { scene });
+        }
+        //console.log("apply_to_lights FINISHED!")
+        //if (scene) { console.log(scene) }
+    }
+    static for_all_materials = (props) => async (gltf_content) => {
+        if (gltf_content) {
+            if (gltf_content.scenes?.length > 1) {
+                for (let i = 0; i < gltf_content.scenes.length; i++) {
+                    await GLTF_afterLoaded.apply_to_materials(gltf_content.scenes[i], props);
+                }
+            }
+            else {
+                await GLTF_afterLoaded.apply_to_materials(gltf_content.scene, props);
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'for_all_materials(props)(gltf_content)' -> 'gltf_content' not available!", { gltf_content });
+        }
+    };
+    static for_all_meshes = (props) => async (gltf_content) => {
+        if (gltf_content) {
+            if (gltf_content.scenes?.length > 1) {
+                for (let i = 0; i < gltf_content.scenes.length; i++) {
+                    await GLTF_afterLoaded.apply_to_meshes(gltf_content.scenes[i], props);
+                }
+            }
+            else {
+                await GLTF_afterLoaded.apply_to_meshes(gltf_content.scene, props);
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'for_all_meshes(props)(gltf_content)' -> 'gltf_content' not available!", { gltf_content });
+        }
+    };
+    static for_all_lights = (props) => async (gltf_content) => {
+        if (gltf_content) {
+            if (gltf_content.scenes?.length > 1) {
+                for (let i = 0; i < gltf_content.scenes.length; i++) {
+                    await GLTF_afterLoaded.apply_to_lights(gltf_content.scenes[i], props);
+                }
+            }
+            else {
+                await GLTF_afterLoaded.apply_to_lights(gltf_content.scene, props);
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_afterLoaded > async 'for_all_lights(props)(gltf_content)' -> 'gltf_content' not available!", { gltf_content });
+        }
+    };
+}
+
+=== 4015 src/lib/utils/GLTF_utils.ts	js
+export default class GLTF_utils {
+    /** Get an array of references to all **Meshes** (_all scenes_) inside the loaded GLTF content. */
+    static async get_all_meshes(content) {
+        const found_meshes = [];
+        const is_foo = "isMesh";
+        if (content) {
+            if (content.scenes?.length > 1) {
+                for (let i = 0; i < content.scenes.length; i++) {
+                    await GLTF_utils.get_all(content.scenes[i], found_meshes, is_foo);
+                }
+            }
+            else {
+                await GLTF_utils.get_all(content.scene, found_meshes, is_foo);
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_utils > async 'get_all_meshes(content)' -> 'content' not available!", {
+                content
+            });
+        }
+        return found_meshes;
+    }
+    /** Get an array of references to all **Meshes** in a specific scene inside the loaded GLTF content. */
+    static async get_all_scene_meshes(scene) {
+        const found_meshes = [];
+        if (scene) {
+            const is_foo = "isMesh";
+            await GLTF_utils.get_all(scene, found_meshes, is_foo);
+        }
+        else {
+            console.error("SVELTHREE > GLTF_utils > async 'get_all_scene_meshes(scene)' -> 'scene' not available!", {
+                scene
+            });
+        }
+        return found_meshes;
+    }
+    /** Get an array of references to all **Lights** (_all scenes_) inside the loaded GLTF content. */
+    static async get_all_lights(content) {
+        const found_lights = [];
+        const is_foo = "isLight";
+        if (content) {
+            if (content.scenes?.length > 1) {
+                for (let i = 0; i < content.scenes.length; i++) {
+                    await GLTF_utils.get_all(content.scenes[i], found_lights, is_foo);
+                }
+            }
+            else {
+                await GLTF_utils.get_all(content.scene, found_lights, is_foo);
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_utils > async 'get_all_lights(content)' -> 'content' not available!", {
+                content
+            });
+        }
+        return found_lights;
+    }
+    /** Get an array of references to all **Lights** in a specific scene inside the loaded GLTF content. */
+    static async get_all_scene_lights(scene) {
+        const found_lights = [];
+        if (scene) {
+            const is_foo = "isLight";
+            await GLTF_utils.get_all(scene, found_lights, is_foo);
+        }
+        else {
+            console.error("SVELTHREE > GLTF_utils > async 'get_all_scene_lights(scene)' -> 'scene' not available!", {
+                scene
+            });
+        }
+        return found_lights;
+    }
+    /** [ _**internal utility**_ ] Get all references of a specific type from a scene. */
+    static async get_all(scene, found, is_foo) {
+        //console.log(`get_all_of_type - ${check} - started!`)
+        if (scene) {
+            const fns = [];
+            const check_obj = (obj, is_foo, depot) => async () => {
+                if (obj) {
+                    if (Object.hasOwn(obj, is_foo))
+                        depot.push(obj);
+                }
+                else {
+                    console.error("SVELTHREE > GLTF_utils > async 'get_all(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!", { obj });
+                }
+            };
+            const traverse = (child) => {
+                fns.push(check_obj(child, is_foo, found));
+                const children = child.children;
+                for (let i = 0, l = children.length; i < l; i++) {
+                    traverse(children[i]);
+                }
+            };
+            traverse(scene);
+            for (const fn of fns) {
+                await fn();
+            }
+        }
+        else {
+            console.error("SVELTHREE > GLTF_utils > async 'get_all(scene, ...)' -> 'scene' not available!", { scene });
+        }
+        //console.log(`get_all_of_type - ${check} - finished!`)
+    }
+}
+
+=== 32631 src/lib/utils/PropUtils.ts	js
+import { Color, Euler, Matrix4, Quaternion, Vector2, Vector3 } from "three";
+import { verbose_mode, log_prop_utils } from "../utils/SvelthreeLogger.js";
+/**
+ * Collection of static utility methods which allow setting props to various values.
+ * `PropUtils` are being used by:
+ * - component's props directly / on change of component's attributes (reactive)
+ * - `SvelthreeProps` (`sProps`) via `Propeller`
+ */
+export default class PropUtils {
+    static verbose = verbose_mode();
+    static getShortHandAttrWarnings(prefix) {
+        const warnings = {
+            rot: `${prefix} 'rot' attribute ignored! : overridden by either 'matrix' or 'quat' attribute!`,
+            pos: `${prefix} 'pos' attribute ignored! : overridden by 'matrix' attribute!`,
+            quat: `${prefix} 'quat' attribute ignored! : overridden by 'matrix' attribute!`,
+            scale: `${prefix} 'scale' attribute ignored! : overridden by 'matrix' attribute!`,
+            lookAt: `${prefix} 'lookAt' attribute ignored! : overridden by 'matrix' attribute!`
+        };
+        return warnings;
+    }
+    static warn(message) {
+        console.warn(message);
+    }
+    /** Check if an Array contains exactly 2 numbers. */
+    static is2Nums(p) {
+        return p.length === 2 && p.every((el) => !isNaN(el));
+    }
+    static isArray2Nums(p) {
+        return Array.isArray(p) && PropUtils.is2Nums(p);
+    }
+    static isArray3Nums(p) {
+        return Array.isArray(p) && PropUtils.is3Nums(p);
+    }
+    /** Check if an Array contains exactly 3 numbers. */
+    static is3Nums(p) {
+        return p.length === 3 && p.every((el) => !isNaN(el));
+    }
+    static isMatrix4ParamsArray(p) {
+        return Array.isArray(p) && p.length === 16 && p.every((el) => !isNaN(el));
+    }
+    /** Check if an Array contains exactly 16 numbers. */
+    static isMatrix4Params(p) {
+        return p.length === 16 && p.every((el) => !isNaN(el));
+    }
+    static isEulerParamsArray(p) {
+        return (Array.isArray(p) &&
+            p.length === 4 &&
+            !isNaN(p[0]) &&
+            !isNaN(p[1]) &&
+            !isNaN(p[2]) &&
+            typeof p[3] === "string");
+    }
+    /** Check if an Array contains exactly three numbers and one string. */
+    static isEulerParams(p) {
+        return (p.length === 4 &&
+            !isNaN(p[0]) &&
+            !isNaN(p[1]) &&
+            !isNaN(p[2]) &&
+            typeof p[3] === "string");
+    }
+    static isQuaternionParamsArray(p) {
+        return Array.isArray(p) && p.length === 4 && p.every((el) => !isNaN(el));
+    }
+    /** Check if an Array contains exactly 4 numbers. */
+    static isQuaternionParams(p) {
+        return p.length === 4 && p.every((el) => !isNaN(el));
+    }
+    static checkIfComplexValueType(val) {
+        if (Array.isArray(val)) {
+            if (PropUtils.is2Nums(val))
+                return "Array2Nums";
+            if (PropUtils.is3Nums(val))
+                return "Array3Nums";
+            if (PropUtils.isEulerParams(val))
+                return "EulerParamsArray";
+            if (PropUtils.isQuaternionParams(val))
+                return "QuaternionParamsArray";
+            if (PropUtils.isMatrix4Params(val))
+                return "Matrix4ParamsArray";
+        }
+        else if (val) {
+            if (val.isVector2)
+                return "Vector2";
+            if (val.isVector3)
+                return "Vector3";
+            if (val.isColor)
+                return "Color";
+            if (val.isEuler)
+                return "Euler";
+            if (val.isQuaternion)
+                return "Quaternion";
+            if (val["isMatrix4"])
+                return "Matrix4";
+        }
+        return undefined;
+    }
+    static setRotationFromValue(obj, val, complex) {
+        switch (complex) {
+            case undefined:
+                if (val && Array.isArray(val)) {
+                    PropUtils.is3Nums(val)
+                        ? PropUtils.setRotArray3(obj, val)
+                        : PropUtils.isEulerParams(val)
+                            ? PropUtils.setRotEulerArray(obj, val)
+                            : PropUtils.isQuaternionParams(val)
+                                ? PropUtils.setRotQuaternionArray(obj, val)
+                                : console.error("SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value!", {
+                                    obj: obj,
+                                    value: val
+                                });
+                }
+                else if (val) {
+                    ;
+                    val.isEuler
+                        ? PropUtils.setRotEuler(obj, val)
+                        : val.isVector3
+                            ? PropUtils.setRotVector3(obj, val)
+                            : val.isQuaternion
+                                ? PropUtils.setRotQuaternion(obj, val)
+                                : console.error("SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value!", {
+                                    obj: obj,
+                                    value: val
+                                });
+                }
+                else {
+                    console.error("SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value!", {
+                        obj: obj,
+                        value: val
+                    });
+                }
+                break;
+            case "Euler":
+                PropUtils.setRotEuler(obj, val);
+                break;
+            case "EulerParamsArray":
+                PropUtils.setRotEulerArray(obj, val);
+                break;
+            case "Vector3":
+                PropUtils.setRotVector3(obj, val);
+                break;
+            case "Array3Nums":
+                PropUtils.setRotArray3(obj, val);
+                break;
+            case "Quaternion":
+                PropUtils.setRotQuaternion(obj, val);
+                break;
+            case "QuaternionParamsArray":
+                PropUtils.setRotQuaternionArray(obj, val);
+                break;
+            default:
+                console.error("SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value! No such 'ComplexValueType'!", {
+                    obj: obj,
+                    value: val,
+                    complex: complex
+                });
+                break;
+        }
+    }
+    static setRotEuler(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setRotEuler : ", { obj, val });
+        obj.setRotationFromEuler(val);
+    }
+    static setRotEulerArray(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setRotEulerArray : ", { obj, val });
+        obj.rotation.set(val[0], val[1], val[2], val[3]);
+    }
+    static setRotVector3(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setRotVector3 : ", { obj, val });
+        obj.rotation.set(val.x, val.y, val.z);
+    }
+    static setRotArray3(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setRotQuaternion : ", { obj, val });
+        obj.rotation.set(val[0], val[1], val[2]);
+    }
+    static setRotQuaternion(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setRotQuaternion : ", { obj, val });
+        obj.setRotationFromQuaternion(val);
+    }
+    static setRotQuaternionArray(obj, val) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setRotQuaternionArray : ", { obj, val });
+        }
+        obj.quaternion.set(val[0], val[1], val[2], val[3]);
+    }
+    static setPositionFromValue(obj, val, complex) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromValue : ", { obj, val, complex });
+        }
+        switch (complex) {
+            case undefined:
+                PropUtils.isArray3Nums(val)
+                    ? PropUtils.setPositionFromArray3(obj, val)
+                    : val?.isVector3
+                        ? PropUtils.setPositionFromVector3(obj, val)
+                        : console.error("SVELTHREE > [ PropUtils ] -> setPositionFromValue : invalid 'position' value!", {
+                            obj: obj,
+                            value: val
+                        });
+                break;
+            case "Array3Nums":
+                PropUtils.setPositionFromArray3(obj, val);
+                break;
+            case "Vector3":
+                PropUtils.setPositionFromVector3(obj, val);
+                break;
+            default:
+                console.error("SVELTHREE > [ PropUtils ] -> setPositionFromValue : invalid 'position' value! No such 'ComplexValueType'!", {
+                    obj: obj,
+                    value: val,
+                    complex: complex
+                });
+                break;
+        }
+    }
+    static setPositionFromVector3(obj, val) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromVector3 : ", { obj, val });
+        }
+        obj.position.copy(val);
+    }
+    static setPositionFromArray3(obj, val) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromArray3 : ", { obj, val });
+        }
+        obj.position.set(val[0], val[1], val[2]);
+    }
+    static setScaleFromValue(obj, val, complex) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromValue : ", { obj, val, complex });
+        }
+        switch (complex) {
+            case undefined:
+                if (val) {
+                    PropUtils.isArray3Nums(val)
+                        ? PropUtils.setScaleFromArray3(obj, val)
+                        : val.isVector3
+                            ? PropUtils.setScaleFromVector3(obj, val)
+                            : !isNaN(val)
+                                ? PropUtils.setScaleFromNumber(obj, val)
+                                : console.error("SVELTHREE > [ PropUtils ] -> setScaleFromValue : invalid 'scale' value!", {
+                                    obj: obj,
+                                    value: val
+                                });
+                }
+                else {
+                    console.error("SVELTHREE > [ PropUtils ] -> setScaleFromValue : invalid 'scale' value!", {
+                        obj: obj,
+                        value: val
+                    });
+                }
+                break;
+            case "Array3Nums":
+                PropUtils.setScaleFromArray3(obj, val);
+                break;
+            case "Vector3":
+                PropUtils.setScaleFromVector3(obj, val);
+                break;
+            default:
+                console.error("SVELTHREE > [ PropUtils ] -> setScaleFromValue : invalid 'scale' value! No such 'ComplexValueType'!", {
+                    obj: obj,
+                    value: val,
+                    complex: complex
+                });
+                break;
+        }
+    }
+    static setScaleFromVector3(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromArray3 : ", { obj, val });
+        obj.scale.copy(val);
+    }
+    static setScaleFromNumber(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromNumber : ", { obj, val });
+        // uniform scale
+        obj.scale.set(val, val, val);
+    }
+    static setScaleFromArray3(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromArray3 : ", { obj, val });
+        obj.scale.set(val[0], val[1], val[2]);
+    }
+    /* THREE  IMPORTANT
+    // TODO  NAIL IT DOWN!
+    `lookAt` doesn't work with lights with `target` property (DirectionalLight & SpotLight).
+    Here we have to manipulate the position of the `target` + before we do that, make sure it's added
+    to the scene. So when manipulating these lights via `lookAt` attribute or `lookAt` in props-object:
+     
+        a) `target` object has no parent: add `target` to the PARENT OF THE LIGHT + set `target` position
+        b) `target` object has parent: set `target` position
+
+    CAVEATS:
+    - if user sets `target` attribute or `target` prop and tries to use `lookAt` attribute or prop they'll interfere
+    TEST: ... the last one updated will be applied
+
+    */
+    static setLookAtFromValue(three_instance, val, complex) {
+        if (this.verbose && log_prop_utils(three_instance))
+            console.debug("SVELTHREE > [ PropUtils ] -> setLookAtFromValue!", { three_instance, val });
+        // IMPORTANT  update Matrix before setting `lookAt`--> lookAt has to be applied as last.
+        // this way we apply all other transforms before lookAt-update!
+        three_instance.updateMatrix();
+        // target lookat position
+        let t_pos;
+        if (val) {
+            // TODO  TOFIX  this seems to be broken?! (Spotlight)
+            // can use Object3D as `lookAt` value
+            let target_instance;
+            // set target lookat position
+            if (!val.is_svelthree_component && val.isObject3D) {
+                // val is a manually created `Object3D` instance
+                target_instance = val;
+                t_pos = new Vector3();
+                target_instance.getWorldPosition(t_pos);
+            }
+            else if (val.is_svelthree_component) {
+                // val is an instance created by a svelthree component
+                const target_component = val;
+                target_instance = target_component.get_instance();
+                t_pos = new Vector3();
+                target_instance.getWorldPosition(t_pos);
+            }
+            else if (val.isVector3) {
+                // val is a Vector3
+                target_instance = null;
+                t_pos = val;
+            }
+            else if (PropUtils.isArray3Nums(val)) {
+                // val is [number, number, number]
+                target_instance = null;
+                t_pos = val;
+            }
+            else {
+                target_instance = null;
+                t_pos = null;
+            }
+            if (t_pos) {
+                // Use 'target':  IMPORTANT  Manipulating `target` via `lookAt` shorthand attribute is limited to `Lights` with 'target' property only (DirectionalLight | SpotLight)
+                if (three_instance.isLight) {
+                    const light = three_instance;
+                    if (Object.hasOwn(light, "target")) {
+                        // set target to provided component / instance
+                        if (target_instance) {
+                            if (light.userData.target_uuid) {
+                                if (light.userData.target_uuid !== target_instance.uuid) {
+                                    light.target = target_instance;
+                                    light.userData.target_uuid = target_instance.uuid;
+                                    light.target.updateMatrixWorld();
+                                }
+                                else {
+                                    light.target.updateMatrixWorld();
+                                }
+                            }
+                            else {
+                                light.target = target_instance;
+                                light.userData.target_uuid = target_instance.uuid;
+                                light.target.updateMatrixWorld();
+                            }
+                        }
+                        else {
+                            // set target to built-in target (Object3D)
+                            light.target = light.userData.builtin_target;
+                            light.userData.target_uuid = light.target.uuid;
+                            // change position of built-in target (Object3D)
+                            const light_target = light.target;
+                            if (light_target) {
+                                if (light_target.isObject3D) {
+                                    if (light.matrixAutoUpdate === false) {
+                                        light_target.matrixAutoUpdate = false;
+                                    }
+                                    // add target to light's parent if needed
+                                    if (light.target.parent === null) {
+                                        const light_parent = light.parent;
+                                        if (light_parent !== null) {
+                                            // target has no parent, add target to parent of obj
+                                            light_parent.add(light_target);
+                                            if (this.verbose) {
+                                                console.warn(`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : 'target' of ${light.type} was added to the parent of ${light.type}!`, { light, target: light_target });
+                                            }
+                                        }
+                                        else {
+                                            console.error(`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : Cannot add 'target' to the unavilable 'parent' of ${light.type}!`, { light, parent: light_parent });
+                                        }
+                                    }
+                                    else {
+                                        // nothing, 'target' was already added to light's parent
+                                    }
+                                    // set position of the target
+                                    PropUtils.setPositionFromValue(light_target, t_pos, complex);
+                                    // IMPORTANT  We have to update 'matrixWorld' of 'target' here (at least with render modes 'auto'), regardles of 'obj_target.matrixAutoUpdate' value!
+                                    // 'SpotlightHelper' and 'DirectionalLightHelper' use 'lookAt' to 'light.target.matrixWorld' for orientation.
+                                    if (light.matrixAutoUpdate === false) {
+                                        light_target.updateMatrix();
+                                        light_target.updateMatrixWorld();
+                                    }
+                                    else {
+                                        light_target.updateMatrixWorld();
+                                    }
+                                }
+                                else {
+                                    console.error(`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : ${light.type}'s 'target' has to be an 'Object3D'!`, {
+                                        light,
+                                        target: light_target
+                                    });
+                                }
+                            }
+                            else {
+                                console.error(`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid '${light.type}.target' value!`, {
+                                    light,
+                                    target: light_target
+                                });
+                            }
+                        }
+                    }
+                    else {
+                        console.error(`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : ${light.type} has no 'target' property!`, {
+                            light
+                        });
+                    }
+                }
+                else {
+                    // Use `Object3D.lookAt` function (not 'target') on any `Object3D`
+                    if (PropUtils.isArray3Nums(t_pos)) {
+                        // TODO  Type wrong in  THREE  -> Object3D.d.ts
+                        three_instance.lookAt(t_pos[0], t_pos[1], t_pos[2]);
+                    }
+                    else if (t_pos.isVector3) {
+                        three_instance.lookAt(t_pos);
+                    }
+                    else {
+                        console.error("SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid 'lookAt' value!", {
+                            three_instance,
+                            value: t_pos
+                        });
+                    }
+                }
+            }
+            else {
+                console.error("SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid 'lookAt' target-position value!", {
+                    three_instance,
+                    value: t_pos
+                });
+            }
+        }
+        else {
+            console.error("SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid 'lookAt' value!", {
+                three_instance,
+                value: val
+            });
+        }
+    }
+    // we know that 'obj' has property 'key', see 'Propeller'
+    static setColorFromValueKey(obj, val, key, complex) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setColorFromValueKey : ", { obj, val, key, complex });
+        }
+        // color value can be `0`
+        if (val || val === 0) {
+            PropUtils.isArray3Nums(val)
+                ? PropUtils.setColorFromArray(obj, val, key)
+                : !isNaN(val)
+                    ? PropUtils.setColorFromNumber(obj, val, key)
+                    : val.isColor
+                        ? PropUtils.setColorFromColor(obj, val, key)
+                        : val.isVector3
+                            ? PropUtils.setColorFromVector3(obj, val, key)
+                            : typeof val === "string"
+                                ? PropUtils.setColorFromString(obj, val, key)
+                                : console.error(`[ PropUtils ] -> setColorFromValueKey : invalid '${key}' value!`, {
+                                    obj: obj,
+                                    value: val
+                                });
+        }
+        else {
+            console.error(`[ PropUtils ] -> setColorFromValueKey : invalid '${key}' value!`, {
+                obj: obj,
+                value: val
+            });
+        }
+    }
+    // TODO  handle background as `Texture`
+    /*
+    public static setBackgroundAsTextureFromValueKey() {
+        // TODO
+    }
+    */
+    static setColorFromArray(obj, val, key) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setColorFromArray : ", { obj, val, key });
+        }
+        if (obj[key] === null || obj[key] === undefined) {
+            ;
+            obj[key] = new Color(val[0], val[1], val[2]);
+        }
+        else {
+            obj[key].setRGB(val[0], val[1], val[2]);
+        }
+    }
+    static setColorFromNumber(obj, val, key) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setColorFromNumber : ", { obj, val, key });
+        }
+        if (obj[key] === null || obj[key] === undefined) {
+            ;
+            obj[key] = new Color(val);
+        }
+        else {
+            obj[key].set(val);
+        }
+    }
+    static setColorFromColor(obj, val, key) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setColorFromColor : ", { obj, val, key });
+        }
+        if (obj[key] === null || obj[key] === undefined) {
+            ;
+            obj[key] = new Color();
+            obj[key].copy(val);
+        }
+        else {
+            obj[key].copy(val);
+        }
+    }
+    static setColorFromVector3(obj, val, key) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setColorFromVector3 : ", { obj, val, key });
+        }
+        if (obj[key] === null || obj[key] === undefined) {
+            ;
+            obj[key] = new Color(val.x, val.y, val.z);
+        }
+        else {
+            obj[key].setRGB(val.x, val.y, val.z);
+        }
+    }
+    static setColorFromString(obj, val, key) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setColorFromString : ", { obj, val, key });
+        }
+        if (obj[key] === null || obj[key] === undefined) {
+            ;
+            obj[key] = new Color(val);
+        }
+        else {
+            obj[key].set(val);
+        }
+    }
+    // Light specific
+    static setIntensity(light, val) {
+        if (this.verbose && log_prop_utils(light))
+            console.debug("SVELTHREE > [ PropUtils ] -> setIntensity : ", { light, val });
+        light.intensity = val;
+    }
+    static setShadowMapSizeFromValue(obj, val, complex) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromValue : ", { obj, val, complex });
+        }
+        switch (complex) {
+            case undefined:
+                PropUtils.isArray2Nums(val)
+                    ? PropUtils.setMapSizeFromArray2(obj, val)
+                    : val?.["isVector2"]
+                        ? PropUtils.setMapSizeFromVector2(obj, val)
+                        : console.error("SVELTHREE > [ PropUtils ] -> setPositionFromValue : invalid 'position' value!", {
+                            obj: obj,
+                            value: val
+                        });
+                break;
+            case "Array2Nums":
+                PropUtils.setMapSizeFromArray2(obj, val);
+                break;
+            case "Vector2":
+                PropUtils.setMapSizeFromVector2(obj, val);
+                break;
+            default:
+                console.error("SVELTHREE > [ PropUtils ] -> setShadowMapSizeFromValue : invalid 'mapSize' value! No such 'ComplexValueType'!", {
+                    obj: obj,
+                    value: val,
+                    complex: complex
+                });
+                break;
+        }
+    }
+    static setMapSizeFromVector2(obj, val) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setMapSizeFromVector2 : ", { obj, val });
+        }
+        obj.mapSize.copy(val);
+    }
+    static setMapSizeFromArray2(obj, val) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setMapSizeFromArray3 : ", { obj, val });
+        }
+        obj.mapSize.set(val[0], val[1]);
+    }
+    static setShadowMapSize(light, shadowMapSize) {
+        if (this.verbose && log_prop_utils(light)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setShadowMapSize : ", { light, shadowMapSize });
+        }
+        if (light) {
+            light.shadow.mapSize.width = shadowMapSize;
+            light.shadow.mapSize.height = shadowMapSize;
+        }
+    }
+    static setShadowBias(light, shadowBiasSize) {
+        if (this.verbose && log_prop_utils(light)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setShadowBias : ", { light, shadowBiasSize });
+        }
+        if (light) {
+            light.shadow.bias = shadowBiasSize;
+        }
+    }
+    static setCastShadow(light, castShadow) {
+        if (this.verbose && log_prop_utils(light)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setCastShadow : ", { light, castShadow });
+        }
+        if (light) {
+            light.castShadow = castShadow;
+        }
+    }
+    /**
+     * Sets `matrix` of an object.
+     * IMPORTANT  Setting "manually" updating the `matrix` property will automatically set `matrixAutoUpdate` to `false`.
+     * Applying transformations via `position`, `rotation`, `scale` etc. will automatically set `matrixAutoUpdate` to `true` again.
+     */
+    static setMatrixFromValue(obj, val) {
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> obj.matrixAutoUpdate before! : ", obj.matrixAutoUpdate);
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! : ", { obj, val });
+        if (val) {
+            if (val["isMatrix4"]) {
+                // see https://stackoverflow.com/questions/60393190/threejs-transform-by-applymatrix4-doesnt-preserve-eigen-vectors-direction
+                //mesh.applyMatrix4(matrix)
+                if (this.verbose && log_prop_utils(obj))
+                    console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! is Matrix4 BEFORE : ", {
+                        obj,
+                        val,
+                        m: obj.matrix
+                    });
+                // save initial `matrixAutoUpdate` value
+                const initialMatrixAutoUpdate = obj.matrixAutoUpdate;
+                // force disable `matrixAutoUpdate` before matrix manipulation
+                obj.matrixAutoUpdate = false;
+                obj.matrix.copy(val); // copy is faster
+                // reset inital `matrixAutoUpdate` value
+                obj.matrixAutoUpdate = initialMatrixAutoUpdate;
+                // mark for matrixWorld update (as updateMatrix() normally would)
+                obj.matrixWorldNeedsUpdate = true;
+                if (this.verbose && log_prop_utils(obj))
+                    console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! is Matrix4 AFTER : ", {
+                        obj,
+                        val,
+                        m: obj.matrix
+                    });
+            }
+            else if (PropUtils.isMatrix4ParamsArray(val)) {
+                // save initial `matrixAutoUpdate` value
+                const initialMatrixAutoUpdate = obj.matrixAutoUpdate;
+                // force disable `matrixAutoUpdate` before matrix manipulation
+                obj.matrixAutoUpdate = false;
+                obj.matrix.set(...val).transpose();
+                // TODO  Nail down updating matrix / matrixWorld
+                // reset inital `matrixAutoUpdate` value
+                obj.matrixAutoUpdate = initialMatrixAutoUpdate;
+                // mark for matrixWorld update (as updateMatrix() normally would)
+                obj.matrixWorldNeedsUpdate = true;
+            }
+            else {
+                console.error(`[ PropUtils ] -> setMatrixFromValue : invalid 'matrix' value!`, {
+                    obj: obj,
+                    value: val
+                });
+            }
+        }
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> obj.matrixAutoUpdate after! : ", obj.matrixAutoUpdate);
+        if (this.verbose && log_prop_utils(obj))
+            console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! AFTER : ", { obj, val, m: obj.matrix });
+    }
+    static setQuaternionFromValue(obj, val, complex) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> setQuaternionFromValue : ", { obj, val, complex });
+        }
+        if (val && val.isQuaternion) {
+            // see https://threejs.org/docs/#api/en/core/Object3D.setRotationFromQuaternion
+            // Copy the given quat into '.quat'.
+            //obj.setRotationFromQuaternion((val as Quaternion).clone().normalize()) // doesn't work solo
+            // copy the received Quaternion in order to prevent circular binding to the prop
+            obj.quaternion.copy(val);
+            // we got to update matrix if 'matrixAutoUpdate' is false
+            //if (obj.matrixAutoUpdate === false) PropUtils.updateMatrixAndWorldMatrix(obj)
+        }
+        else {
+            console.error(`[ PropUtils ] -> setQuaternionFromValue : invalid 'quat' value!`, {
+                obj: obj,
+                value: val
+            });
+        }
+    }
+    /** Simply set property `a` to value `x` -> no special method was assigned to the prop via `Propeller`. */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static applyValueToProp(obj, value, key, complex) {
+        if (this.verbose && log_prop_utils(obj)) {
+            console.debug("SVELTHREE > [ PropUtils ] -> applyValueToProp : ", { obj, value, key, complex });
+        }
+        try {
+            if (Object.hasOwn(obj, key)) {
+                obj[key] = value;
+            }
+        }
+        catch (err) {
+            console.error(`[ PropUtils ] -> applyValueToProp : failed!`, err, { obj, value, key });
+        }
+    }
+}
+
+=== 3672 src/lib/utils/Propeller.ts	js
+import PropUtils from "./PropUtils.js";
+/** ⚙️ `Propeller`'s `update` method redirects some `props` object properties to specific `PropUtils` update
+ * methods and also allows special handling if needed when updating a specific `props` object's property.
+ * It's used **only** internally by `SvelthreeProps` (+`valuators`) **only**. */
+export default class Propeller {
+    /** Used internally by `SvelthreeProps` (+`valuators`) -> redirects some `props` object properties to specific `PropUtils` update methods and also
+     * allows special handling if needed when updating a specific `props` object's property. */
+    static update(obj, obj_type, key, value, origin, complex) {
+        // handle own properties (as opposed to inherited ones)
+        if (origin === "own") {
+            switch (key) {
+                case "position":
+                    PropUtils.setPositionFromValue(obj, value, complex);
+                    break;
+                case "rotation":
+                    PropUtils.setRotationFromValue(obj, value, complex);
+                    break;
+                case "scale":
+                    PropUtils.setScaleFromValue(obj, value, complex);
+                    break;
+                case "quaternion":
+                    PropUtils.setQuaternionFromValue(obj, value, complex);
+                    break;
+                case "matrix":
+                    PropUtils.setMatrixFromValue(obj, value);
+                    break;
+                case "mapSize":
+                    PropUtils.setShadowMapSizeFromValue(obj, value);
+                    break;
+                case "color":
+                case "groundColor":
+                    PropUtils.setColorFromValueKey(obj, value, key, complex);
+                    break;
+                case "background":
+                    if (!value.isTexture) {
+                        PropUtils.setColorFromValueKey(obj, value, key, complex);
+                    }
+                    else {
+                        // TODO  handle background as `Texture`
+                        //PropUtils.setBackgroundAsTextureFromValueKey(obj as Scene, value as Texture, key, complex)
+                    }
+                    break;
+                default:
+                    // wildcard updating of **own** properties
+                    PropUtils.applyValueToProp(obj, value, key);
+                    break;
+            }
+            // handle inherited properties
+        }
+        else if (origin === "inherited") {
+            switch (key) {
+                case "lookAt":
+                    PropUtils.setLookAtFromValue(obj, value, complex);
+                    break;
+                default:
+                    // update `CubeCamera`'s `renderTargetProps` prop (`CubeTexture`)
+                    if (obj_type === "WebGLCubeRenderTarget") {
+                        const cubeRenderTarget = obj;
+                        PropUtils.applyValueToProp(cubeRenderTarget.texture, value, key);
+                    }
+                    else {
+                        // no wildcard updating of **inherited** properties  via `Proppeller` -> show error in the console.
+                        //PropUtils.applyValueToProp(obj, value, key)
+                        console.error(`SVELTHREE > Propeller > ${obj_type} : updating '${key}' is not implemented!`, {
+                            key: key,
+                            value: value
+                        });
+                    }
+                    break;
+            }
+        }
+        else {
+            // shouldn't happen
+            console.error(`SVELTHREE > Propeller > update : 'origin' value is not valid!`, { origin });
+        }
+    }
+}
+
+=== 1231 src/lib/utils/RaycastArray.ts	js
+class RaycastArray_Base extends Array {
+    head_path = ["userData"];
+    index_prop = "index_in_raycast";
+    dirty = false;
+    /*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+    constructor(...args) {
+        super(...args);
+    }
+    push(...to_check_intersection) {
+        super.push(...to_check_intersection);
+        this.process_to_check_intersection();
+        this.set_index_prop();
+        this.dirty = true;
+        return this.length;
+    }
+    splice(start, deleteCount) {
+        super.splice(start, deleteCount);
+        this.set_index_prop();
+        this.dirty = true;
+        return this;
+    }
+    // replace component references with three.js object instances created by the component
+    process_to_check_intersection() {
+        for (let i = 0; i < this.length; i++) {
+            if (this[i]["is_svelthree_component"]) {
+                this[i] = this[i].get_instance();
+            }
+        }
+    }
+    set_index_prop() {
+        for (let i = 0; i < this.length; i++) {
+            this[i][this.head_path[0]][this.index_prop] = i;
+        }
+    }
+}
+class RaycastArray extends RaycastArray_Base {
+    constructor() {
+        super();
+    }
+}
+export { RaycastArray };
+
+=== 425 src/lib/utils/SceneUtils.ts	js
+function get_root_scene(context_scene) {
+    //let context_scene: Scene = getContext("scene")
+    if (context_scene.parent === null) {
+        return context_scene;
+    }
+    else {
+        let n = undefined;
+        let o = context_scene;
+        while (n !== null) {
+            n = o.parent;
+            if (n !== null) {
+                o = n;
+            }
+        }
+        return o;
+    }
+}
+export { get_root_scene };
+
+=== 7126 src/lib/utils/SvelthreeGLTF.ts	js
+import { Euler, Vector3 } from "three";
+// import currently supported components only
+import { default as Mesh } from "../components/Mesh.svelte";
+import { default as Object3D } from "../components/Object3D.svelte";
+import { default as Group } from "../components/Group.svelte";
+export default class SvelthreeGLTF {
+    content;
+    tree = new Map();
+    constructor(content) {
+        this.content = content;
+    }
+    /**  */
+    async parse() {
+        if (this.content.scenes?.length > 1) {
+            for (let i = 0; i < this.content.scenes.length; i++) {
+                await this.build_tree(this.content.scenes[i]);
+            }
+        }
+        else {
+            await this.build_tree(this.content.scene);
+        }
+        return this.tree;
+    }
+    async build_tree(scene) {
+        //console.log("SvelthreeGLTF parsing started!")
+        const fns = [];
+        const make_three_member = (obj, parent, tree_map) => async () => {
+            tree_map.set(obj.uuid, {
+                obj: obj,
+                parent_uuid: parent ? parent.uuid : null,
+                name: obj.name ? obj.name : "",
+                obj_type: obj.type,
+                mesh: obj.type === "Mesh"
+                    ? { geometry: obj.geometry, material: obj.material }
+                    : null,
+                svelthree_comp: undefined
+            });
+        };
+        function traverse(child, tree_map, parent) {
+            fns.push(make_three_member(child, parent, tree_map));
+            const children = child.children;
+            for (let i = 0, l = children.length; i < l; i++) {
+                traverse(children[i], tree_map, child);
+            }
+        }
+        traverse(scene, this.tree);
+        for (const fn of fns) {
+            await fn();
+        }
+        //console.log("SvelthreeGLTF parsing FINISHED!")
+    }
+    async get_parent_component(parent_uuid) {
+        const tree_member = this.tree.get(parent_uuid);
+        if (tree_member?.svelthree_comp) {
+            return tree_member?.svelthree_comp;
+        }
+        else {
+            return undefined;
+        }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async get_parent_context(parent_component) {
+        return parent_component["$$"].context;
+    }
+    /** Generates `svelthree`-components due to the parsed (_see `SvelthreeGLTF.parse()`_) hierarchy-tree-map and
+     * adds the constructed `svelthree`-components-tree to the specified `svelthree`-target-component.
+     */
+    async apply(target_component) {
+        //console.log("SvelthreeGLTF apply started!")
+        const fns = [];
+        const create_component = (item, target_component) => async () => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let context;
+            let dom_target;
+            let parent_component;
+            if (item.parent_uuid) {
+                parent_component = await this.get_parent_component(item.parent_uuid);
+                if (parent_component) {
+                    context = await this.get_parent_context(parent_component);
+                    dom_target = parent_component.get_shadow_dom_el();
+                }
+                else {
+                    console.error(`SVELTHREE > utils > SvelthreeGLTF > create_component : invalid 'parent_component' value!`, parent_component);
+                }
+            }
+            else {
+                // the object has no parent, means it's the root object
+                parent_component = target_component;
+                dom_target = parent_component.get_shadow_dom_el();
+                context = parent_component["$$"].context;
+            }
+            if (dom_target && item && context && parent_component) {
+                switch (item.obj_type) {
+                    // TODO  Add all components we have atm.
+                    case "Mesh":
+                        if (item.mesh && item.name) {
+                            item.svelthree_comp = new Mesh({
+                                target: dom_target,
+                                props: {
+                                    geometry: item.mesh.geometry,
+                                    material: item.mesh.material,
+                                    name: item.name
+                                },
+                                context
+                            });
+                        }
+                        break;
+                    case "Object3D":
+                        item.svelthree_comp = new Object3D({
+                            target: dom_target,
+                            props: { name: item.name },
+                            context
+                        });
+                        break;
+                    case "Group":
+                        item.svelthree_comp = new Group({
+                            target: dom_target,
+                            props: { name: item.name },
+                            context
+                        });
+                        break;
+                    default:
+                        console.error(`SVELTHREE > utils > SvelthreeGLTF : converting '${item.obj.type}' to a svelthree component is not supported (yet?).`, { item });
+                        break;
+                }
+                if (item.svelthree_comp) {
+                    parent_component.register_child_component(item.svelthree_comp, true);
+                }
+                else {
+                    console.error(`SVELTHREE > utils > SvelthreeGLTF : registering '${item.obj.type}' as a generated child component not possible because no svelthree component was generated -> probably this type of object is not supported (yet?).`, { item });
+                }
+            }
+            else {
+                console.error(`SVELTHREE > utils > SvelthreeGLTF > create_component : cannot generate component -> missing at least one of the required:`, { parent_component, dom_target, item, context });
+            }
+        };
+        for (const [, item] of this.tree.entries()) {
+            if (item) {
+                fns.push(create_component(item, target_component));
+            }
+            else {
+                console.error(`SVELTHREE > utils > SvelthreeGLTF > create_component : invalid 'item' value!`, item);
+            }
+        }
+        for (const fn of fns) {
+            await fn();
+        }
+        //postprocess matrix etc.
+        for (const [, item] of this.tree.entries()) {
+            const comp = item.svelthree_comp;
+            if (comp) {
+                comp.$set({ scale: new Vector3().copy(item.obj.scale) });
+                comp.$set({ pos: new Vector3().copy(item.obj.position) });
+                comp.$set({ rot: new Euler().copy(item.obj.rotation) });
+                comp.$set({ castShadow: item.obj.castShadow });
+                comp.$set({ receiveShadow: item.obj.receiveShadow });
+            }
+            else {
+                console.error(`SVELTHREE > utils > SvelthreeGLTF > create_component : invalid 'item.svelthree_comp' (comp) value!`, comp);
+            }
+        }
+        //console.log("SvelthreeGLTF apply FINISHED!")
+    }
+}
+
+=== 6945 src/lib/utils/SvelthreeLogger.ts	js
+import LogCSS from "../constants/LogCSS.js";
+function verbose_mode() {
+    if (import.meta.env.VITE_SVELTHREE_VERBOSE == "1") {
+        return true;
+    }
+    else if (!import.meta.env.VITE_SVELTHREE_VERBOSE || import.meta.env.VITE_SVELTHREE_VERBOSE == "0") {
+        return false;
+    }
+    else {
+        throw new Error(`SVELTHREE > SvelthreeLogger > verboseMode : 'SVELTHREE_VERBOSE' (environment variable) has an invalid value: '${import.meta.env.VITE_SVELTHREE_VERBOSE}', allowed values are '1' or '0'! Please check your environment configuration / .env files.`);
+    }
+}
+function log_prop_utils(obj) {
+    if (obj) {
+        if (obj.userData) {
+            if (obj.userData.svelthreeComponent) {
+                if (obj.userData.svelthreeComponent.log_dev) {
+                    return (obj.userData.svelthreeComponent.log_dev.all ||
+                        obj.userData.svelthreeComponent.log_dev.prop_utils);
+                }
+                else {
+                    return false;
+                }
+            }
+            else {
+                if (obj.type.includes("Camera") && obj.parent === null && !obj.userData.svelthreeComponent) {
+                    //console.warn("[ REMARK ] SvelthreeLogger > PropUtils is (most propbably) about to change change props of an internal Shadow-Camera (OrthographicCamera)...", obj)
+                    if (obj.userData.log_dev) {
+                        return obj.userData.log_dev.all || obj.userData.log_dev.prop_utils;
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                else if (obj.type.includes("Material")) {
+                    console.warn("[ TODO ] SvelthreeLogger > Logging of Materials must be set manually by e.g. adding 'log_dev: { prop_utils: false }' to 'userData' ...", obj);
+                    return true;
+                }
+            }
+        }
+        else {
+            // DirectionalLightShadow has OrthographicCamera as camera
+            // PointLightShadow has PerspectiveCamera as camera
+            // SpotLightShadow has PerspectiveCamera as camera
+            if (obj.isDirectionalLightShadow || obj.isPointLightShadow || obj.isSpotLightShadow) {
+                if (obj.camera) {
+                    if (obj.camera.userData.log_dev) {
+                        return obj.camera.userData.log_dev.all || obj.camera.userData.log_dev.prop_utils;
+                    }
+                    else {
+                        return false;
+                    }
+                }
+                else {
+                    // this shouldn't happen!
+                    throw new Error("SVELTHREE > SvelthreeLogger > no 'camera' in 'obj'!");
+                }
+            }
+            else {
+                // TODO  Wait for it and see what's going on ...
+                console.warn("[ TODO ] SvelthreeLogger > no 'userData' in 'obj'! Logging allowed ...");
+                return true;
+            }
+        }
+    }
+    else {
+        // this shouldn't happen!
+        throw new Error("SVELTHREE > SvelthreeLogger > no 'obj'!");
+    }
+    return false;
+}
+function c_lc(comp_name, message, value) {
+    let css = undefined;
+    let prefix = undefined;
+    switch (message) {
+        case "onMount":
+            css = LogCSS.ON_MOUNT;
+            prefix = LogCSS.PREFIX_ON_MOUNT;
+            break;
+        case "beforeUpdate":
+            css = LogCSS.BEFORE_UPDATE;
+            prefix = LogCSS.PREFIX_BEFORE_UPDATE;
+            break;
+        case "afterUpdate":
+            css = LogCSS.AFTER_UPDATE;
+            prefix = LogCSS.PREFIX_AFTER_UPDATE;
+            break;
+    }
+    let depth_prefix = "";
+    switch (comp_name) {
+        case "Canvas":
+            depth_prefix = "";
+            break;
+        case "Scene":
+            depth_prefix = "·";
+            break;
+        default:
+            depth_prefix = "··";
+            break;
+    }
+    if (depth_prefix !== "") {
+        return [
+            `%c${depth_prefix} ${prefix} ${comp_name}%c · ${message}`,
+            `${css}`,
+            `font-wight: normal; font-style: italic; color: silver;`,
+            value ? value : value === true || value === false ? value : ""
+        ];
+    }
+    else {
+        return [
+            `%c${prefix} ${comp_name}%c · ${message}`,
+            `${css}`,
+            `font-wight: normal; font-style: italic; color: silver;`,
+            value ? value : value === true || value === false ? value : ""
+        ];
+    }
+}
+function c_rs(comp_name, message, value) {
+    return [
+        `%c$: > ${comp_name} -> ${message}`,
+        `${LogCSS.REACTIVE_STATEMENT}`,
+        value ? value : value === true || value === false ? value : ""
+    ];
+}
+function c_lc_int(comp_name, message, value) {
+    let css = undefined;
+    let prefix = undefined;
+    switch (message) {
+        case "onMount":
+            css = LogCSS.ON_MOUNT;
+            prefix = LogCSS.PREFIX_ON_MOUNT;
+            break;
+        case "beforeUpdate":
+            css = LogCSS.BEFORE_UPDATE;
+            prefix = LogCSS.PREFIX_BEFORE_UPDATE;
+            break;
+        case "afterUpdate":
+            css = LogCSS.AFTER_UPDATE;
+            prefix = LogCSS.PREFIX_AFTER_UPDATE;
+            break;
+    }
+    let depth_prefix = "";
+    switch (comp_name) {
+        case "Camera":
+        case "Light":
+            depth_prefix = "···";
+            break;
+        default:
+            depth_prefix = "··";
+            break;
+    }
+    if (depth_prefix !== "") {
+        return [
+            `%c${depth_prefix} ${prefix} ${comp_name}%c · (internal component) ${message}`,
+            `${css}`,
+            `font-wight: normal; font-style: italic; color: silver;`,
+            value ? value : value === true || value === false ? value : ""
+        ];
+    }
+    else {
+        return [
+            `%c${prefix} ${comp_name}%c · (internal component) ${message}`,
+            `${css}`,
+            `font-wight: normal; font-style: italic; color: silver;`,
+            value ? value : value === true || value === false ? value : ""
+        ];
+    }
+}
+function c_rs_int(comp_name, message, value) {
+    return [
+        `%c$: > ${comp_name} -> ${message}`,
+        `${LogCSS.REACTIVE_STATEMENT}`,
+        value ? value : value === true || value === false ? value : ""
+    ];
+}
+function c_dev(comp_name, message, value) {
+    return [
+        `%c[ dev ] -> ${comp_name} : ${message}`,
+        `${LogCSS.DEV_DEBUG}`,
+        value ? value : value === true || value === false ? value : ""
+    ];
+}
+function c_mau(comp_name, message, value) {
+    return [
+        `%c[ mau ] -> ${comp_name} : ${message}`,
+        `${LogCSS.FEATURE_MAU}`,
+        value ? value : value === true || value === false ? value : ""
+    ];
+}
+function get_comp_name(comp) {
+    return comp.constructor.name.replace(/[\d_]/g, "");
+}
+export { c_rs, c_dev, c_lc, c_lc_int, c_rs_int, c_mau, verbose_mode, get_comp_name, log_prop_utils };
+
+=== 7624 src/lib/utils/SvelthreeProps.ts	js
+import { PropArray2X, PropArray3X, PropColorX, PropEulerArrayX, PropEulerX, PropMatrix4ArrayX, PropMatrix4X, PropQuaternionArrayX, PropQuaternionX, PropVector2X, PropVector3X } from "./props/index.js";
+import { safe_not_equal, has_prop } from "svelte/internal";
+import Propeller from "./Propeller.js";
+import PropUtils from "./PropUtils.js";
+/**
+ * Analyzes the type `props` object's properties, and updates corresponding `three` instance's properties via `Propeller`:
+ * - **"reactive" _complex_ values**: if any part of a _complex_ value has changed, like e.g. `c` of a `Matrix4` type property,
+ *   the `three` instance's property will be updated via `Propeller`,
+ *   although the `Matrix4` object itself is still the same object as before.
+ *
+ *   ☝️ _'complex' values like `Array`, `Color`, `Euler`, `Matrix` etc. should be **immutable**
+ *   as their `valuator` will be assigned only once a (new) unique `props` object was assigned,
+ *   not at each (reactive) properties change._
+ * ---
+ * - **partially "reactive" _simple_ values**:
+ *   - **reactive** -> nummeric, strings, boolean etc. properties will be updated via `Propeller` only if they've changed.
+ *   - **not reactive** -> object and function properties will **always** be updated / reassigned via `Propeller`
+ * ---
+ *
+ * ⚙️ `Propeller` redirects some `props` object properties to specific `PropUtils` update methods and also
+ * allows special handling if needed when updating a specific `props` object's property.
+ */
+export default class SvelthreeProps {
+    obj;
+    obj_type;
+    propsPrev;
+    simpleValues;
+    updatedKeys = [];
+    complexValues;
+    complexValuators = {
+        Array2Nums: PropArray2X,
+        Array3Nums: PropArray3X,
+        Color: PropColorX,
+        Euler: PropEulerX,
+        EulerParamsArray: PropEulerArrayX,
+        Matrix4: PropMatrix4X,
+        Matrix4ParamsArray: PropMatrix4ArrayX,
+        Quaternion: PropQuaternionX,
+        QuaternionParamsArray: PropQuaternionArrayX,
+        Vector2: PropVector2X,
+        Vector3: PropVector3X
+    };
+    constructor(obj) {
+        this.obj = obj;
+        this.obj_type = this.get_obj_type();
+    }
+    get_obj_type() {
+        if (this.obj) {
+            return this.obj["type"] || this.obj.constructor.name;
+        }
+        else {
+            return null;
+        }
+    }
+    /**
+     * Process a `props` object / update corresponding properties via `Propeller`.
+     *
+     * ☝️ _'complex' values like `Array`, `Color`, `Euler`, `Matrix` etc. should be **immutable**
+     * as their `valuator` will be assigned only once the unique `props` object was assigned,
+     * not at each (reactive) properties change._
+     */
+    update(props) {
+        if (this.obj && this.obj_type) {
+            // UPDATE -> `props` has already been processed at least once -> `this.propsPrev` available
+            if (this.propsPrev) {
+                // `props` was assigned a new object different from the initially processed one (`this.propsPrev`)
+                if (this.propsPrev !== props) {
+                    // clear everything and 'map' the new `props` object
+                    this.resetAndMap(props);
+                    this.propsPrev = props;
+                }
+                // `props` is the same object as the initially processed one (`this.propsPrev`)
+                else {
+                    // clear `updatedKeys` and check which properties inside the object have changed.
+                    this.updatedKeys = [];
+                    this.checkProps(props);
+                }
+            }
+            else {
+                // INITIALIZE -> `props` was not processed yet -> `this.propsPrev` not available
+                this.resetAndMap(props);
+                this.propsPrev = props;
+            }
+            // return an array of updated keys after update
+            return this.updatedKeys;
+        }
+        else {
+            return [];
+        }
+    }
+    // `props` object is a new one (changed)
+    resetAndMap(props) {
+        this.simpleValues = [];
+        this.complexValues = [];
+        this.updatedKeys = [];
+        if (this.obj) {
+            // analyze and sort `props` object's properties
+            for (const k in props) {
+                const complexType = PropUtils.checkIfComplexValueType(props[k]);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const is_own_prop = has_prop(this.obj, k);
+                const is_inherited_prop = is_own_prop
+                    ? false
+                    : this.obj[k]
+                        ? true
+                        : false;
+                const origin = is_own_prop ? "own" : is_inherited_prop ? "inherited" : null;
+                if (this.obj_type && origin) {
+                    if (complexType) {
+                        // determine the correct `valuator`
+                        const valuator = this.complexValuators[complexType];
+                        const item = {
+                            key: k,
+                            value: new valuator(k, this.obj_type, origin),
+                            complex: complexType
+                        };
+                        this.complexValues.push(item);
+                        // initialize
+                        item.value.update(this.obj, props[k]);
+                        this.updatedKeys.push(k);
+                    }
+                    else {
+                        const item = {
+                            key: k,
+                            value: props[k],
+                            origin
+                        };
+                        this.simpleValues.push(item);
+                        // initialize
+                        Propeller.update(this.obj, this.obj_type, k, props[k], origin);
+                        this.updatedKeys.push(k);
+                    }
+                }
+                else {
+                    console.warn(`SVELTHREE > SvelthreeProps > resetAndMap : unknown property '${k}' in 'props' object -> not available for '${this.obj_type}'`);
+                }
+            }
+        }
+        else {
+            console.error(`SVELTHREE > SvelthreeProps > resetAndMap : ivalid 'obj' value!`, { obj: this.obj });
+        }
+    }
+    // `props` object is the same one
+    checkProps(props) {
+        // check complex props
+        // reassign / update only if the 'complex' value object itself or any of its parts have changed.
+        if (this.complexValues) {
+            for (let i = 0; i < this.complexValues.length; i++) {
+                const k = this.complexValues[i].key;
+                const updated = this.complexValues[i].value.update(this.obj, props[k]);
+                if (updated)
+                    this.updatedKeys.push(k);
+            }
+        }
+        // check 'simple' props (nummeric, strings, boolean... + objects and functions)
+        if (this.simpleValues) {
+            for (let j = 0; j < this.simpleValues.length; j++) {
+                const k = this.simpleValues[j].key;
+                const prop_value = this.simpleValues[j].value;
+                const prop_origin = this.simpleValues[j].origin;
+                // current property value is different than the previous one.
+                // always reassign / update nested ('non complex value') objects and functions.
+                if (safe_not_equal(prop_value, props[k])) {
+                    Propeller.update(this.obj, this.obj_type, k, props[k], prop_origin);
+                    this.simpleValues[j].value = props[k];
+                    this.updatedKeys.push(k);
+                }
+            }
+        }
+    }
+}
+
+=== 1832 src/lib/utils/SvelthreeStoreArray.ts	js
+class SvelthreeStoreArray_Base extends Array {
+    head_path = undefined;
+    index_prop = undefined;
+    /*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+    constructor(...args) {
+        super(...args);
+    }
+    push(...items) {
+        super.push(...items);
+        this.set_index_prop();
+        return this.length;
+    }
+    splice(start, deleteCount) {
+        super.splice(start, deleteCount);
+        this.set_index_prop();
+        return this;
+    }
+    set_index_prop() {
+        for (let i = 0; i < this.length; i++) {
+            let prop_head;
+            if (this.head_path?.length) {
+                // Don't use accessor if `this[i]` is a component (see `CubeCamera`)
+                if (Object.hasOwn(this[i], "$$")) {
+                    const comp_state = this[i].state();
+                    prop_head = comp_state[this.head_path[0]];
+                }
+                else {
+                    prop_head = this[i][this.head_path[0]];
+                }
+                let j = 1;
+                while (j < this.head_path.length) {
+                    if (prop_head) {
+                        prop_head = prop_head[this.head_path[j]];
+                    }
+                    else {
+                        console.error("SVELTHREE > SvelthreeStoreArray : invalid 'prop_head' value!", { prop_head });
+                    }
+                    j++;
+                }
+            }
+            if (prop_head && this.index_prop) {
+                prop_head[this.index_prop] = i;
+            }
+        }
+    }
+}
+class SvelthreeStoreArray extends SvelthreeStoreArray_Base {
+    index_prop;
+    head_path;
+    constructor(index_prop, head_path) {
+        super();
+        this.index_prop = index_prop;
+        this.head_path = head_path;
+    }
+}
+export { SvelthreeStoreArray };
+
+=== 537 src/lib/utils/index.ts	js
+export { default as CameraUtils } from "./CameraUtils.js";
+export { default as Propeller } from "./Propeller.js";
+export { default as PropUtils } from "./PropUtils.js";
+export { default as SvelthreeProps } from "./SvelthreeProps.js";
+export { default as CubeCameraHelper } from "./CubeCameraHelper.js";
+export { default as GLTF_afterLoaded } from "./GLTF_afterLoaded.js";
+export { default as GLTF_utils } from "./GLTF_utils.js";
+export { default as SvelthreeGLTF } from "./SvelthreeGLTF.js";
+export { default as Calc } from "./Calc.js";
+
+=== 1614 src/lib/utils/props/PropArray2X.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropArray2X {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        //v1
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Array2Nums");
+                this.prevValues = [value[0], value[1]];
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (let i = 0; i < 3; i++) {
+                        if (this.prevValues && not_equal(this.prevValues[i], value[i])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Array2Nums");
+                            this.prevValues = [value[0], value[1]];
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Array2Nums");
+                this.prevValues = [value[0], value[1]];
+                this.prev = value;
+                return true;
+        }
+    }
+}
+
+=== 1625 src/lib/utils/props/PropArray3X.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropArray3X {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        //v1
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Array3Nums");
+                this.prevValues = [value[0], value[1], value[2]];
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (let i = 0; i < 3; i++) {
+                        if (not_equal(this.prevValues[i], value[i])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Array3Nums");
+                            this.prevValues = [value[0], value[1], value[2]];
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Array3Nums");
+                this.prevValues = [value[0], value[1], value[2]];
+                this.prev = value;
+                return true;
+        }
+    }
+}
+
+=== 1631 src/lib/utils/props/PropColorX.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropColorX {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Color");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                for (const k in this.prevValues) {
+                    if (this.prevValues) {
+                        if (not_equal(this.prevValues[k], value[k])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Color");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Color");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = { r: value.r, g: value.g, b: value.b };
+    }
+}
+
+=== 1666 src/lib/utils/props/PropEulerArrayX.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropEulerArrayX {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "EulerParamsArray");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (let i = 0; i < 4; i++) {
+                        if (not_equal(this.prevValues[i], value[i])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "EulerParamsArray");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "EulerParamsArray");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = [value[0], value[1], value[2], value[3]];
+    }
+}
+
+=== 1655 src/lib/utils/props/PropEulerX.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropEulerX {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Euler");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (const k in this.prevValues) {
+                        if (not_equal(this.prevValues[k], value[k])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Euler");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Euler");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = { _x: value.x, _y: value.y, _z: value.z, _order: value.order };
+    }
+}
+
+=== 1663 src/lib/utils/props/PropMatrix4ArrayX.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropMatrix4ArrayX {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4ParamsArray");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (let i = 0; i < 16; i++) {
+                        if (not_equal(this.prevValues[i], value.elements[i])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4ParamsArray");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4ParamsArray");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = [...value.elements];
+    }
+}
+
+=== 1625 src/lib/utils/props/PropMatrix4X.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropMatrix4X {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (let i = 0; i < 16; i++) {
+                        if (not_equal(this.prevValues[i], value.elements[i])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = [...value.elements];
+    }
+}
+
+=== 1686 src/lib/utils/props/PropQuaternionArrayX.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropQuaternionArrayX {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "QuaternionParamsArray");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (let i = 0; i < 4; i++) {
+                        if (not_equal(this.prevValues[i], value[i])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "QuaternionParamsArray");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "QuaternionParamsArray");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = [value[0], value[1], value[2], value[3]];
+    }
+}
+
+=== 1653 src/lib/utils/props/PropQuaternionX.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropQuaternionX {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Quaternion");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (const k in value) {
+                        if (not_equal(this.prevValues[k], value[k])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Quaternion");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Quaternion");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = { x: value.x, y: value.y, z: value.z, w: value.w };
+    }
+}
+
+=== 1617 src/lib/utils/props/PropVector2X.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropVector2X {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector2");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (const k in value) {
+                        if (not_equal(this.prevValues[k], value[k])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector2");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector2");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = { x: value.x, y: value.y };
+    }
+}
+
+=== 1629 src/lib/utils/props/PropVector3X.ts	js
+import { not_equal } from "svelte/internal";
+import { Propeller } from "./utils.js";
+export default class PropVector3X {
+    key;
+    obj_type;
+    origin;
+    // previous value reference
+    prev;
+    prevValues;
+    constructor(key, obj_type, origin) {
+        this.key = key;
+        this.obj_type = obj_type;
+        this.origin = origin;
+    }
+    update(obj, value) {
+        switch (this.prev) {
+            case undefined:
+                this.prev = value;
+                // hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector3");
+                this.setPrevValues(value);
+                return true;
+            case value:
+                // same object, perform deep check
+                if (this.prevValues) {
+                    for (const k in value) {
+                        if (not_equal(this.prevValues[k], value[k])) {
+                            Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector3");
+                            this.setPrevValues(value);
+                            this.prev = value;
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            default:
+                // not undefined but !== value --> hot!
+                Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector3");
+                this.setPrevValues(value);
+                this.prev = value;
+                return true;
+        }
+    }
+    setPrevValues(value) {
+        this.prevValues = { x: value.x, y: value.y, z: value.z };
+    }
+}
+
+=== 697 src/lib/utils/props/index.ts	js
+export { default as PropArray2X } from "./PropArray2X.js";
+export { default as PropArray3X } from "./PropArray3X.js";
+export { default as PropEulerX } from "./PropEulerX.js";
+export { default as PropEulerArrayX } from "./PropEulerArrayX.js";
+export { default as PropMatrix4X } from "./PropMatrix4X.js";
+export { default as PropMatrix4ArrayX } from "./PropMatrix4ArrayX.js";
+export { default as PropQuaternionX } from "./PropQuaternionX.js";
+export { default as PropQuaternionArrayX } from "./PropQuaternionArrayX.js";
+export { default as PropVector2X } from "./PropVector3X.js";
+export { default as PropVector3X } from "./PropVector3X.js";
+export { default as PropColorX } from "./PropColorX.js";
+
+=== 56 src/lib/utils/props/utils.ts	js
+export { default as Propeller } from "../Propeller.js";
+
+=== 118 vite.config.ts	js
+import { sveltekit } from "@sveltejs/kit/vite";
+const config = {
+    plugins: [sveltekit()]
+};
+export default config;
+

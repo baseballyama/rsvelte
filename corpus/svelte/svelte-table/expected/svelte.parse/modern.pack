@@ -1,0 +1,16 @@
+# rsvelte pack 1
+=== 65 example/Example1.svelte	ast.sha256
+4b97ba1d1478342a09bab0cb3d521504372aea9a4bf121cea4ce63d1ca26980b
+
+=== 65 example/Example5.svelte	ast.sha256
+ab6b96210b1465cde8c4b4665d2fbe5d6de97d93e04d25c0b8da15aabb63d707
+
+=== 65 example/Example6.svelte	ast.sha256
+0686956935db1468165c14437dcb00413df9833341fb13c167376b25527cb4b8
+
+=== 65 example/Example8.svelte	ast.sha256
+9b4b679f86d573f83a3a50842ce7b60a18973dfc6935b763b0179c8950ec85ca
+
+=== 65 example/example6/HelpButtonComponent.svelte	ast.sha256
+40351ed49cf8709dd8ac1eb9b1ab8a27880fcacafdad5cecfd6d2fc9aad505a8
+

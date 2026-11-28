@@ -1,0 +1,49 @@
+# rsvelte pack 1
+=== 65 src/lib/components/action.svelte	ast.sha256
+9ee68f4a626b706ae05b5a2b61a09fad19a75f4a6d92f5006c430cec5b422c95
+
+=== 65 src/lib/components/code.svelte	ast.sha256
+febaa46e0429b62f4e8dff2f3638b7e040831fcd6e88044557d54946fb685bd9
+
+=== 65 src/lib/components/embed.svelte	ast.sha256
+36141ae95aaed8285a9c326810d864cba0ff65af73af837898c204639167b21a
+
+=== 65 src/lib/components/notes.svelte	ast.sha256
+a8f7ff1cd7837db4a2a5dfa322132a7ebfdea0aeaddd23b8800b0b6caac4c0bc
+
+=== 65 src/lib/components/presentation.svelte	ast.sha256
+b6f7c829370fadff96e17c8326f18d08f89f85792aa4b8834f0750269b91090f
+
+=== 65 src/lib/components/recorder.svelte	ast.sha256
+dc50c4404d3caab8e9d1f18019d887f37d063aaf3521f0f4c30ff7d8f2350738
+
+=== 65 src/lib/components/slide.svelte	ast.sha256
+feeb24e3aaeac4cfbabd51e49fcae4500ef0354daa6a3bfc5820053c052fbe97
+
+=== 65 src/lib/components/slides.svelte	ast.sha256
+892890b41ad788efcd958b2738b9ff0fed66d46025c1f94bb80cc60f1c9b683a
+
+=== 65 src/lib/components/transition.svelte	ast.sha256
+8e24100b2fa08501e896fb17265fdd0c6179e612d9f11bb0e5b0989d562ed4a9
+
+=== 65 src/routes/+layout.svelte	ast.sha256
+b71817ec26cb51208ffd1a8d9f06dc965ccb7e7e40be75d970e90a133608ac43
+
+=== 65 src/routes/+page.svelte	ast.sha256
+27d8c730210f350d1f74d8bd2740efe3a59f0efccaf59ef6c3cece7293397ec7
+
+=== 65 src/routes/file-based/+page.svelte	ast.sha256
+96c28d770ff3915d9863200df47db618c2f40ce30c1497379fc25105c89643d7
+
+=== 65 src/slides/100/slide.svelte	ast.sha256
+834b6e0debb65bb70e06819ec0cf8f8bef2bd0a2804b2168e78fe2910c4691ea
+
+=== 65 src/slides/200/slide.svelte	ast.sha256
+c678bd1debe68a85d4942bcd80576f555bfae66809081f922fb188c24be18932
+
+=== 65 src/slides/300/slide.svelte	ast.sha256
+f70af17a19926320223bdcd28fa36a09f6623c83aaba1b3f466a060a32da2a3e
+
+=== 65 src/slides/400/slide.svelte	ast.sha256
+deeb680cf7a4e5b9a3205dea07292d3923002c74d0a0b542c765887b4342d2ca
+

@@ -16,6 +16,17 @@ impl Artifact for Checked {
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
         let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
+        // The translation reads a component svelte accepts, so it fails where svelte does.
+        let errors = rsvelte_svelte_compile::compile_errors(context, true);
+        if let Some(error) = errors
+            .raised
+            .into_iter()
+            .map(|(_, e)| e)
+            .next()
+            .or(errors.after_analysis)
+        {
+            return Err(error);
+        }
         let compiler_syntax_tree = context
             .get::<rsvelte_svelte_semantic::Lowered>()
             .as_ref()
@@ -39,10 +50,11 @@ pub(crate) static PLUGIN: Plugin = Plugin {
 };
 
 /// Registers vuelte's tasks on `.svelte` documents, and the Svelte plugin's artifacts they read
-/// (which [`rsvelte_svelte_semantic::register`] registers too; a second registration is a no-op).
+/// (which [`rsvelte_svelte_compile::register_validation`] registers too; a second registration is a
+/// no-op).
 pub fn register(reg: &mut Registry) {
     reg.plugin(&PLUGIN);
-    rsvelte_svelte_semantic::register(reg);
+    rsvelte_svelte_compile::register_validation(reg);
     reg.artifact::<Checked>()
         .task(Compile { server: false })
         .task(Compile { server: true });
@@ -59,6 +71,17 @@ impl Compile {
     fn module(&self, context: &DocumentContext<'_>) -> R<(String, Option<String>)> {
         let checked = context.get::<Checked>().as_ref().map_err(Clone::clone)?;
         let c = rsvelte_svelte_syntax::fully_parsed(context).map_err(Clone::clone)?;
+        // The translation reads a component svelte accepts, so it fails where svelte does.
+        let errors = rsvelte_svelte_compile::compile_errors(context, true);
+        if let Some(error) = errors
+            .raised
+            .into_iter()
+            .map(|(_, e)| e)
+            .next()
+            .or(errors.after_analysis)
+        {
+            return Err(error);
+        }
         let compiler_syntax_tree = context
             .get::<rsvelte_svelte_semantic::Lowered>()
             .as_ref()

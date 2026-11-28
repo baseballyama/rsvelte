@@ -1,0 +1,36 @@
+# rsvelte pack 1
+=== 199 src/lib/index.ts	js
+// Reexport your entry components here
+export { default as RenderScan } from './components/RenderScan.svelte';
+export { default as RenderScanObserver } from './components/RenderScanObserver.svelte';
+
+=== 231 tailwind.config.ts	js
+import forms from '@tailwindcss/forms';
+import typography from '@tailwindcss/typography';
+export default {
+    content: ['./src/**/*.{html,js,svelte,ts}'],
+    theme: {
+        extend: {}
+    },
+    plugins: [typography, forms]
+};
+
+=== 394 vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+export default defineConfig({
+    plugins: [
+        sveltekit(),
+        visualizer({
+            emitFile: true,
+            filename: 'stats.html'
+        })
+    ],
+    server: {
+        fs: {
+            allow: ['./package.json']
+        }
+    }
+});
+

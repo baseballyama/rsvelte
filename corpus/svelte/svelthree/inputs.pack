@@ -1,4 +1,3427 @@
 # rsvelte pack 1
+=== 2136 src/lib/ani/SvelthreeAni.ts	ts	module	-
+import type { Scene, Object3D } from "three"
+import type { SvelthreeAnimationFunction, SvelthreeAnimation } from "../types/types-extra.js"
+import SvelthreeAnimationManager from "./SvelthreeAnimationManager.js"
+import SvelthreeAnimationObjectFactory from "./SvelthreeAnimationObjectFactory.js"
+
+export default class SvelthreeAni {
+	private ani_obj_factory: SvelthreeAnimationObjectFactory | undefined = undefined
+	private ani_manager: SvelthreeAnimationManager | undefined = undefined
+
+	constructor(
+		private scene: Scene | undefined | null,
+		private foo: Object3D | undefined | null,
+		private ani_fn: SvelthreeAnimationFunction,
+		private aniauto: boolean
+	) {
+		this.create_ani_manager()
+	}
+
+	private create_ani_manager(): void {
+		//if (verbose && log_dev) console.debug(...c_dev(c_name, "createAnimationManager!"))
+
+		if (this.foo && !this.ani_manager) {
+			this.ani_obj_factory = new SvelthreeAnimationObjectFactory(this.ani_fn)
+			this.ani_manager = new SvelthreeAnimationManager(this.ani_obj_factory, this.aniauto, this.foo, this.scene)
+		}
+	}
+
+	public onCurrentSceneActiveChange(currentSceneActive: boolean): void {
+		this.ani_manager ? this.ani_manager.handleCurrentSceneStatus(currentSceneActive) : null
+	}
+
+	public getAnimation(): SvelthreeAnimation | undefined {
+		if (this.ani_manager) {
+			return this.ani_manager.getAnimation()
+		} else {
+			console.error("SVELTHREE > SvelthreeAnimation > getAnimation : missing SvelthreeAnimationManager!", {
+				ani_manager: this.ani_manager
+			})
+
+			return undefined
+		}
+	}
+
+	public destroyAnimation(): void {
+		//if (verbose && log_dev) console.debug(...c_dev(c_name, "destroyAnimation!"))
+		if (this.ani_manager) {
+			this.ani_manager.destroyAnimation()
+		} else {
+			console.error("SVELTHREE > SvelthreeAnimation > destroyAnimation : missing SvelthreeAnimationManager!", {
+				ani_manager: this.ani_manager
+			})
+		}
+	}
+
+	public startAnimation(): void {
+		if (this.ani_manager) {
+			this.ani_manager.startAnimation()
+		} else {
+			console.error("SVELTHREE > SvelthreeAnimation > startAni : missing SvelthreeAnimationManager!", {
+				ani_manager: this.ani_manager
+			})
+		}
+	}
+}
+
+=== 4834 src/lib/ani/SvelthreeAnimationManager.ts	ts	module	-
+import type SvelthreeAnimationObjectFactory from "./SvelthreeAnimationObjectFactory.js"
+import type { Object3D, Scene } from "three"
+import type { SvelthreeAnimation } from "../types/types-extra.js"
+
+export default class SvelthreeAnimationManager {
+	/** Generated animation-`Object Literal` (_interface `SvelthreeAnimation`_): result of `this.ani_obj_factory.create(...)`. */
+	private ani_obj: SvelthreeAnimation | undefined
+
+	constructor(
+		private ani_obj_factory: SvelthreeAnimationObjectFactory,
+		private aniauto: boolean,
+		private foo: Object3D,
+		private scene: Scene | null | undefined
+	) {
+		this.ani_obj = undefined
+	}
+
+	public handleCurrentSceneStatus(currentSceneActive: boolean): void {
+		if (currentSceneActive) {
+			/* console.info(
+				"SVELTHREE > SvelthreeAnimationManager > handleCurrentSceneStatus : currentSceneActive = true!"
+			) */
+			if (this.aniauto) {
+				// console.info("SVELTHREE > SvelthreeAnimationManager > handleCurrentSceneStatus : this.aniauto = true!")
+				this.handle_scene_active()
+			}
+		} else {
+			/* console.info(
+				"SVELTHREE > SvelthreeAnimationManager > handleCurrentSceneStatus : currentSceneActive = false!"
+			) */
+			this.handle_scene_inactive()
+		}
+	}
+
+	// active / reactivated
+	private handle_scene_active(): void {
+		// console.info("SVELTHREE > SvelthreeAnimationManager > handle_scene_active!")
+		// check if animation has been initiated, if so try to execute 'onSceneReactivated'...
+		if (this.ani_obj) {
+			this.try_on_scene_reactivated()
+		} else {
+			// ... otherwise initate / start it (aniauto is true)
+			this.initiate_animation()
+		}
+	}
+
+	/*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+	private initiate_animation(...args: any[]): void {
+		// console.info("SVELTHREE > SvelthreeAnimationManager > initiate_animation!")
+		// if animation is a function it has not been initiated / started yet (otherwise object)
+
+		if (this.scene) {
+			if (!this.scene.userData.isActive) {
+				/* console.warn(
+					"SVELTHREE > SvelthreeAnimationManager : initiate_animation : You're about to initiate an animation in an inactive Scene!"
+				) */
+			}
+		} else if (this.scene === null && (this.foo as Scene).isScene) {
+			if (!(this.foo as Scene).userData.isActive) {
+				/* console.warn(
+					"SVELTHREE > SvelthreeAnimationManager : initiate_animation : You're about to initiate an animation in an inactive NESTED Scene!"
+				) */
+			}
+		}
+
+		this.ani_obj = this.ani_obj_factory.create(this.foo, args)
+
+		/* console.info(
+			"SVELTHREE > SvelthreeAnimationManager > initiate_animation : after initialization: this.ani_obj:",
+			this.ani_obj
+		) */
+
+		try {
+			if (this.ani_obj) {
+				this.ani_obj.onStart()
+			}
+		} catch (err) {
+			throw new Error("SVELTHREE Exception, " + err)
+		}
+	}
+
+	private try_on_scene_reactivated(): void {
+		if (
+			this.ani_obj &&
+			Object.hasOwn(this.ani_obj, "onSceneReactivated") &&
+			typeof this.ani_obj["onSceneReactivated"] === "function"
+		) {
+			this.ani_obj.onSceneReactivated()
+		} else {
+			/* console.warn(
+				"SVELTHREE > SvelthreeAnimationManager > try_on_scene_reactivated : 'onSceneReactivated' property is missing in 'SvelthreeAnimation'-Object! Please ensure this is correct.",
+				this.ani_obj
+			) */
+		}
+	}
+
+	// inactive / deactivated
+	private handle_scene_inactive(): void {
+		// check if animation has been initiated
+		// if it has been initated, try to execute 'onSceneDeactivated'
+		if (this.ani_obj) {
+			this.try_on_scene_deactivated()
+		} else {
+			/* console.info(
+				"SVELTHREE > SvelthreeAnimationManager > handle_scene_inactive : 'SvelthreeAnimation'-Object not available!"
+			) */
+		}
+	}
+
+	private try_on_scene_deactivated(): void {
+		if (
+			this.ani_obj &&
+			Object.hasOwn(this.ani_obj, "onSceneDeactivated") &&
+			typeof this.ani_obj["onSceneDeactivated"] === "function"
+		) {
+			this.ani_obj.onSceneDeactivated()
+		} else {
+			/* console.warn(
+				"SVELTHREE > SvelthreeAnimationManager > try_on_scene_deactivated : 'onSceneDeactivated' property is missing in 'SvelthreeAnimation'-Object! Please ensure this is correct.",
+				this.ani_obj
+			) */
+		}
+	}
+
+	public startAnimation(): void {
+		if (!this.ani_obj) {
+			this.initiate_animation()
+		} else {
+			/* console.info(
+				"SVELTHREE > SvelthreeAnimationManager > startAnimation : animation has already been initiated! 'animation': ",
+				this.ani_obj
+			) */
+		}
+	}
+
+	public destroyAnimation(): void {
+		if (
+			this.ani_obj &&
+			Object.hasOwn(this.ani_obj, "onDestroy") &&
+			typeof this.ani_obj["onDestroy"] === "function"
+		) {
+			this.ani_obj.onDestroy()
+		} else {
+			console.error(
+				"SVELTHREE > SvelthreeAnimationManager > destroyAnimation : required 'onDestroy' property is missing in 'SvelthreeAnimation'-Object!"
+			)
+		}
+	}
+
+	public getAnimation(): SvelthreeAnimation | undefined {
+		return this.ani_obj
+	}
+}
+
+=== 1041 src/lib/ani/SvelthreeAnimationObjectFactory.ts	ts	module	-
+import type { Object3D } from "three"
+import type { SvelthreeAnimationFunction, SvelthreeAnimation } from "../types/types-extra.js"
+
+export default class SvelthreeAnimationObjectFactory {
+	constructor(private ani_fn: SvelthreeAnimationFunction) {}
+
+	/*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+	public create(foo: Object3D, ...args: any[]): SvelthreeAnimation {
+		let ani_obj: SvelthreeAnimation
+
+		try {
+			ani_obj = this.ani_fn(foo, args)
+
+			if (!Object.hasOwn(ani_obj, "onStart")) {
+				console.error("SVELTHREE > Provided animation is missing 'onStart' function!", {
+					animation: ani_obj
+				})
+				//throw new Error("SVELTHREE Exception (see warning above)")
+			}
+
+			if (!Object.hasOwn(ani_obj, "onDestroy")) {
+				console.error("SVELTHREE > Provided animation has no 'onDestroy' function!", {
+					animation: ani_obj
+				})
+				//throw new Error("SVELTHREE Exception (see warning above)")
+			}
+		} catch (err) {
+			throw new Error("SVELTHREE Exception, " + err)
+		}
+
+		return ani_obj
+	}
+}
+
+=== 244 src/lib/ani/index.ts	ts	module	-
+export { default as SvelthreeAnimationObjectFactory } from "./SvelthreeAnimationObjectFactory.js"
+export { default as SvelthreeAnimationManager } from "./SvelthreeAnimationManager.js"
+export { default as SvelthreeAni } from "./SvelthreeAni.js"
+
+=== 212 src/lib/constants/CameraValues.ts	ts	module	-
+export default class CameraValues {
+	// Orthographic Camera
+	public static CAM_ORTHO_FRUSTUM_SIZE = 1
+	public static CAM_ORTHO_ASPECT = 1
+	public static CAM_ORTHO_NEAR = 0.1
+	public static CAM_ORTHO_FAR = 2000
+}
+
+=== 255 src/lib/constants/Cameras.ts	ts	module	-
+/** Camera props that need a **p**rojection **m**atrix **u**pdate after change. */
+export const CAM_PROPS_PMU = new Set([
+	"fov",
+	"aspect",
+	"near",
+	"far",
+	"filmOffset",
+	"filmGauge",
+	"focus",
+	"zoom",
+	"left",
+	"right",
+	"top",
+	"bottom",
+	"view"
+])
+
+=== 424 src/lib/constants/ExposedPropKeys.ts	ts	module	-
+export default class ExposedPropKeys {
+	public static ambientLight = ["color", "intensity"] as const
+
+	public static perspectiveCamera = [
+		"aspect",
+		"far",
+		"filmGauge",
+		"filmOffset",
+		"focus",
+		"fov",
+		"near",
+		"zoom"
+		//,"view"
+	] as const
+
+	public static orthographicCamera = [
+		"left",
+		"right",
+		"top",
+		"bottom",
+		"near",
+		"far",
+		"zoom"
+		//,"view"
+	] as const
+
+	public static mesh = [] as const
+}
+
+=== 1367 src/lib/constants/Interaction.ts	ts	module	-
+export const SUPPORTED_ADD_EVENT_LISTENER_OPTIONS = [
+	"once",
+	"passive",
+	"capture"
+	//"signal" ->  RECONSIDER  implement?
+] as const
+
+export const ADD_EVENT_LISTENER_OPTIONS_SET = new Set([...SUPPORTED_ADD_EVENT_LISTENER_OPTIONS])
+
+export const SUPPORTED_MODIFIERS = [
+	"preventDefault",
+	"stopPropagation",
+	"capture",
+	"once",
+	//"passive",    ->  TODO  implement
+	//"nonpassive", ->  TODO  implement
+	//"trusted",    ->  RECONSIDER  implement?
+	"self"
+] as const
+
+export const SUPPORTED_MODIFIERS_SET = new Set([...SUPPORTED_MODIFIERS])
+
+export const POINTER_EVENTS = [
+	"click",
+	"pointerup",
+	"pointerdown",
+	"pointerover",
+	"pointerout",
+	//"pointerenter", DEPRECATED  -> same as "pointerover"
+	//"pointerleave", DEPRECATED  -> same as "pointerout"
+	"pointermove",
+	"pointermoveover"
+	//"gotpointercapture",  ->  RECONSIDER  implement?
+	//"lostpointercapture", ->  RECONSIDER  implement?
+	//"pointercancel"       ->  RECONSIDER  implement?
+] as const
+
+export const KEYBOARD_EVENTS = ["keydown", "keypress", "keyup"] as const
+
+export const KEYBOARD_LISTENER_TARGETS = ["window", "document", "self"] as const
+
+export const FOCUS_EVENTS = ["focus", "blur", "focusin", "focusout"] as const
+
+// TODO  implement wheel events
+export const WHEEL_EVENTS = ["wheel", "wheelover"] as const
+
+export const WHEEL_LISTENER_TARGETS = ["window", "document", "self"] as const
+
+=== 780 src/lib/constants/LogCSS.ts	ts	module	-
+export default class LogCSS {
+	public static PREFIX_ON_MOUNT = "☰"
+	public static PREFIX_BEFORE_UPDATE = "~"
+	public static PREFIX_AFTER_UPDATE = "✓"
+
+	public static REACTIVE_STATEMENT = "color:red; font-weight:bold;"
+	public static BEFORE_UPDATE =
+		"font-weight:bold; color: #A5F3FC; background: #4B5563; padding: 2px 4px; border: 1px solid #4B5563; border-radius: 6px;"
+	public static AFTER_UPDATE =
+		"font-weight:bold; background: #4B5563; color: #BBF7D0; padding: 2px 4px; border: 1px solid #4B5563; border-radius: 6px;"
+	public static ON_MOUNT =
+		"font-weight:bold; background: #4B5563; color: white; padding: 2px 4px; border: 1px solid #4B5563; border-radius: 6px;"
+
+	public static DEV_DEBUG = "font-weight:normal"
+	public static FEATURE_MAU = "font-weight:normal"
+}
+
+=== 126 src/lib/constants/index.ts	ts	module	-
+export { default as ExposedPropKeys } from "./ExposedPropKeys.js"
+export { default as CameraValues } from "./CameraValues.js"
+
+=== 3328 src/lib/index.ts	ts	module	-
+// export all Svelte components
+export { default as PerspectiveCamera } from "./components/PerspectiveCamera.svelte"
+export { default as OrthographicCamera } from "./components/OrthographicCamera.svelte"
+export { default as Mesh } from "./components/Mesh.svelte"
+export { default as Points } from "./components/Points.svelte"
+export { default as Object3D } from "./components/Object3D.svelte"
+export { default as Group } from "./components/Group.svelte"
+export { default as Canvas } from "./components/Canvas.svelte"
+export { default as DirectionalLight } from "./components/DirectionalLight.svelte"
+export { default as SpotLight } from "./components/SpotLight.svelte"
+export { default as RectAreaLight } from "./components/RectAreaLight.svelte"
+export { default as AmbientLight } from "./components/AmbientLight.svelte"
+export { default as HemisphereLight } from "./components/HemisphereLight.svelte"
+export { default as PointLight } from "./components/PointLight.svelte"
+export { default as Scene } from "./components/Scene.svelte"
+export { default as LoadedGLTF } from "./components/LoadedGLTF.svelte"
+export { default as WebGLRenderer } from "./components/WebGLRenderer.svelte"
+export { default as OrbitControls } from "./components/OrbitControls.svelte"
+export { default as CubeCamera } from "./components/CubeCamera.svelte"
+
+// generic type utilities
+export type { prop } from "./types/types-extra.js"
+export type { PropMat } from "./types/types-comp-props.js"
+
+// Material related
+export type {
+	MeshAssignableMaterial,
+	PointsAssignableMaterial,
+	MeshMaterialWithColor,
+	MeshMaterialWithEnvMap
+} from "./types/types-extra.js"
+
+// Interaction related
+export type {
+	SvelthreeInteractableComponent,
+	SvelthreePointerEvent,
+	SvelthreePointerEventDetail,
+	SvelthreePointerEventHandler,
+	SvelthreePointerEventModifier,
+	SvelthreeFocusEvent,
+	SvelthreeFocusEventDetail,
+	SvelthreeFocusEventHandler,
+	SvelthreeFocusEventModifier,
+	SvelthreeKeyboardEvent,
+	SvelthreeKeyboardEventDetail,
+	SvelthreeKeyboardEventHandler,
+	SvelthreeKeyboardEventModifier,
+	SvelthreeWheelEvent,
+	SvelthreeWheelEventDetail,
+	SvelthreeWheelEventHandler,
+	SvelthreeWheelEventModifier,
+	SvelthreeModifiersProp,
+	SvelthreePropActionHandler
+} from "./types/types-extra.js"
+
+// `props` Object Literal types
+export type {
+	PropsObject3D,
+	PropsGroup,
+	PropsLoadedGLTF,
+	PropsScene,
+	PropsWebGLRenderer,
+	PropsMesh,
+	PropsPoints,
+	PropsCubeCamera,
+	PropsWebGLCubeRenderTarget,
+	PropsOrthographicCamera,
+	PropsPerspectiveCamera,
+	PropsHemisphereLight,
+	PropsAmbientLight,
+	PropsDirectionalLight,
+	PropsPointLight,
+	PropsRectAreaLight,
+	PropsSpotLight,
+	PropsOrbitControls
+} from "./types/types-comp-props.js"
+
+// `foo` Object Literal types
+export type { PropLink, PropButton, PropWebGLRenderTargetOptions } from "./types/types-comp-props.js"
+
+// TODO  params
+
+// TODO  config
+
+// misc
+export type {
+	AnySvelthreeComponent,
+	Targetable,
+	TargetableSvelthreeComponent,
+	SvelthreeLifecycleCallback,
+	SvelthreeLifecycleCallbackAsync,
+	SvelthreeLifecycleCallbackSync
+} from "./types/types-extra.js"
+
+// Animation related
+export type { SvelthreeAnimationFunction, SvelthreeAnimation } from "./types/types-extra.js"
+
+// GLTF related
+export type {
+	SvelthreeGLTFTreeMap,
+	ISvelthreeGLTFTreeMapMember,
+	GLTFSupportedSvelthreeComponents
+} from "./types/types-extra.js"
+
+=== 5711 src/lib/logic/if$/if$_instance_change.ts	ts	module	-
+import type { Object3D } from "three"
+
+export const if$_instance_change = (
+	inst: Object3D,
+	our_parent: Object3D | undefined | null,
+	inst_uuid: string | undefined | null,
+	// TODO  Remove `create`
+	_create: boolean,
+	// TODO  Remove `inst_name`
+	_inst_name: string,
+	comp_name: string | undefined,
+	handler: () => void
+): void => {
+	// console.warn(`comp ${comp_name} > Something happened with the ${inst_name} instance!`)
+
+	if (our_parent) {
+		// it's free
+		if (!inst.parent) {
+			// console.warn(`comp ${comp_name} > ${inst_name} instance is free / was not added anywhere yet ...`)
+
+			// applicable to checks below.
+			handler()
+
+			// DEPRECATED  -> handler can be called in both cases, keep code as reminder.
+			/*
+			// we have registered one already
+			if (inst_uuid) {
+				// console.warn(`comp ${comp_name} > ... we have already registered one before ...`)
+
+				handler()
+
+			
+				// it's different than the registered one -> replace!
+				if (inst_uuid !== inst.uuid) {
+					// console.warn(
+					// 	`comp ${comp_name} > ... it was a different one --> add it to 'our_parent' (after removing the old one from it's parent -> should be 'our_parent').`
+					// )
+					// console.info(`comp ${comp_name} > has uuid`, inst_uuid)
+					// console.info(`comp ${comp_name} > got uuid`, inst.uuid)
+
+					handler()
+				}
+
+				// it's the same one -> it was just created -> initialization
+				else if (inst_uuid === inst.uuid) {
+					// console.warn(`comp ${comp_name} > ... it was same one! -> shouldn't happen ?! ...`)
+
+					// DEPRECATED  -> we don't need `create`, keep code as reminder.
+					// if (create) {
+					// 	console.warn(`comp ${comp_name} > ... it was created! that's where inst_uuid was set! that's why! -> initialization --> add it to 'our_parent.`)
+
+					// 	handler()
+					// } else {
+					// 	console.warn(`comp ${comp_name} > ... it was not created, it was injected! that's why! -> initialization --> add it to 'our_parent.`)
+
+					// 	handler()
+					// }
+
+					handler()
+				}
+			
+			}
+
+			// we haven't registered any yet -> initialization
+			else if (!inst_uuid) {
+				// console.warn(
+				// 	`comp ${comp_name} > ... we haven't registered any yet -> initialization --> add it to 'our_parent.'`
+				// )
+
+				handler()
+			}
+			*/
+		}
+
+		// it's not free
+		else if (inst.parent) {
+			// const message: string[] = []
+
+			// console.error(`comp ${comp_name} > ${inst_name} instance is not free / already has a parent!`)
+
+			// it's already a child of our parent
+			if (inst.parent === our_parent) {
+				// message.push(`The instance ${inst_name} is already a child of 'our_parent'`)
+				// console.error(`The instance ${inst_name} is already a child of 'our_parent' -> ?!`)
+
+				// it's already a child of our parent, but we have registered one already
+				if (inst_uuid) {
+					// message.push(`. The component was already managing an instance `)
+					// console.error(`comp ${comp_name} > ... we have already registered one before ...`)
+
+					// it's different than the registered one -> ?!
+					if (inst_uuid !== inst.uuid) {
+						// message.push(`and it was a different one. `)
+
+						if (inst.userData.svelthreeComponent !== self) {
+							// message.push(`This one has been generated by another component! -> `)
+							// message.push(`The instance '${inst_name}' you've provided will be removed / re-added while it's current managing component will be cleared of any references to it!`)
+
+							// console.warn(`comp ${comp_name} > ${message.join("")}`)
+
+							handler()
+						}
+
+						// cannot / shouldn't happen -> it cannot be a different one and being managed by this component at the same time.
+						else if (inst.userData.svelthreeComponent === self) {
+							throw Error(`comp ${comp_name} > if$_instance_change > THIS SHOULDN'T HAPPEN!`)
+						}
+					}
+
+					// IMPORTANT  it's the same one -> happens on every component update!
+					else if (inst_uuid === inst.uuid) {
+						// message.push(`and it is the same one. -> we're here because ${inst_name} prop got updated! -> nothing / silent`)
+						// console.warn(`comp ${comp_name} > ${message.join("")}`)
+						// console.info(`comp ${comp_name} > has uuid`, inst_uuid)
+						// console.info(`comp ${comp_name} > got uuid`, inst.uuid)
+						// DO NOTHING / SILENT
+					}
+				}
+
+				// it's already a child of our parent, but we haven't registered one yet -> initialization
+				else if (!inst_uuid) {
+					// message.push(`. We've already registered one before.`)
+					// message.push(` The instance '${inst_name}' you've provided has already been added to the scene / some other instance in the scene and was created / is currently being managed by some other component!`)
+					// message.push(` It will be removed / re-added while it's current managing component will be cleared of any references to it!`)
+
+					// console.warn(`comp ${comp_name} > ${message.join("")}`)
+
+					handler()
+				}
+			}
+
+			// it has a different parent
+			else if (inst.parent !== our_parent) {
+				// message.push(` TThe instance ${inst_name} is not a child of 'our_parent'!`)
+				// message.push(` The instance '${inst_name}' you've provided has already been added to the scene / some other instance in the scene and was created / is currently being managed by some other component!`)
+				// message.push(` It will be removed / re-added while it's current managing component will be cleared of any references to it!`)
+
+				// console.warn(`comp ${comp_name} > ${message.join("")}`, inst.parent)
+
+				handler()
+			}
+		}
+	} else {
+		// IS ROOT SCENE!
+		//console.warn(`SVELTHREE > component's 'our_parent' is 'undefined' this means the component is a 'root_scene' (direct child of the 'Canvas' component)`)
+		// DO NOTHING / SILENT
+	}
+}
+
+=== 97 src/lib/logic/if$/index.ts	ts	module	-
+// complex reactive if-statements
+export { if$_instance_change } from "./if$_instance_change.js"
+
+=== 613 src/lib/logic/shared/find.ts	ts	module	-
+import type { Object3D, Scene } from "three"
+import type { SvelthreeStoreArray } from "../../utils/SvelthreeStoreArray.js"
+
+/** Search in all scenes (_direct children of canvas_) for an instance with the specified `uuid` */
+const find_in_canvas = (scenes_array: SvelthreeStoreArray | undefined, uuid: string): Object3D | undefined => {
+	if (scenes_array) {
+		for (let i = 0; i < scenes_array.length; i++) {
+			const scene: Scene = scenes_array[i].scene
+			const found: Object3D | undefined = scene.getObjectByProperty("uuid", uuid)
+			if (found) return found
+		}
+	}
+	return undefined
+}
+
+export { find_in_canvas }
+
+=== 266 src/lib/logic/shared/index.ts	ts	module	-
+// logic shred / same across all components
+
+export { remove_instance } from "./remove.js"
+export { recreate_shadow_dom_el, create_shadow_dom_el } from "./shadow_dom.js"
+export { set_initial_userdata } from "./userdata.js"
+export { find_in_canvas } from "./find.js"
+
+=== 2490 src/lib/logic/shared/remove.ts	ts	module	-
+import type { Object3D } from "three"
+import type { AnySvelthreeComponent } from "../../types/types-extra.js"
+
+const remove_helper_of = (obj: Object3D): void => {
+	if (obj.userData.helper?.parent) {
+		obj.userData.helper.parent.remove(obj.userData.helper)
+		obj.userData.helper = null
+	}
+}
+
+const remove_box_of = (obj: Object3D): void => {
+	if (obj.userData.box?.parent) {
+		obj.userData.box.parent.remove(obj.userData.box)
+		obj.userData.box = null
+	}
+}
+
+const remove_from_parent = (obj: Object3D): void => {
+	if (obj.parent) obj.parent.remove(obj)
+}
+
+const reset_userdata = (obj: Object3D): void => {
+	obj.userData.svelthreeComponent = undefined
+	obj.userData.interact = undefined
+	obj.userData.block = undefined
+	obj.userData.initScale = undefined
+}
+
+const clear_new_instance_managing_component = (
+	new_instance: Object3D,
+	instance_name: string,
+	current_component: AnySvelthreeComponent
+): void => {
+	const managed_by_component: AnySvelthreeComponent | null =
+		(new_instance?.userData?.svelthreeComponent as AnySvelthreeComponent) || null
+	const same_component = managed_by_component === current_component
+	const component_state = managed_by_component?.state()
+	const instance = component_state?.[instance_name as keyof typeof component_state]
+	const same_instance = instance === new_instance
+
+	if (managed_by_component && !same_component && same_instance) {
+		//console.warn('clear current managing component!')
+		managed_by_component.clear()
+	} else {
+		// DO NOTHING / SILENT
+		//console.warn('do NOT clear current manging component!')
+	}
+}
+
+/** Removes the (three) instance of the object created by the component from it's parent (_if any_).
+ * - removes `box ` helper
+ * - removes any registered `helper`
+ * - clears the managing component ( _if applicable_ )
+ * - resets `userData`
+ *
+ * TODO  RECONSIDER  disposal? (optional?)
+ */
+const remove_instance = (
+	obj: Object3D | undefined,
+	instance_name: string,
+	new_instance: Object3D | undefined | null = null,
+	current_component: AnySvelthreeComponent | null = null
+): boolean => {
+	if (obj) {
+		remove_box_of(obj)
+		remove_helper_of(obj)
+		remove_from_parent(obj)
+		if (new_instance && current_component)
+			clear_new_instance_managing_component(new_instance, instance_name, current_component)
+		reset_userdata(obj)
+		// TODO  dispose? (optional?)
+		return true
+	} else {
+		console.error(`SVELTHREE > remove_instance : Cannot remove invalid '${instance_name}' instance!`, obj)
+		return false
+	}
+}
+
+export { remove_instance }
+
+=== 2240 src/lib/logic/shared/shadow_dom.ts	ts	module	-
+import type { SvelthreeShadowDOMElement } from "../../types/types-extra.js"
+import type { PropButton, PropLink } from "../../types/types-comp-props.js"
+
+const recreate_shadow_dom_el = (
+	shadow_dom_el: SvelthreeShadowDOMElement | undefined | null,
+	our_parent_shadow_dom_el: SvelthreeShadowDOMElement | undefined,
+	button: PropButton | undefined | null,
+	link: PropLink | undefined | null,
+	c_name: string
+): SvelthreeShadowDOMElement | null => {
+	if (shadow_dom_el) remove_shadow_dom_el(shadow_dom_el)
+	return create_shadow_dom_el(our_parent_shadow_dom_el, button, link, c_name)
+}
+
+const remove_shadow_dom_el = (shadow_dom_el: SvelthreeShadowDOMElement): void => {
+	if (shadow_dom_el.parentNode) shadow_dom_el.parentNode.removeChild(shadow_dom_el)
+}
+
+const create_shadow_dom_el = (
+	our_parent_shadow_dom_el: SvelthreeShadowDOMElement | undefined,
+	button: PropButton | undefined | null,
+	link: PropLink | undefined | null,
+	c_name: string
+): SvelthreeShadowDOMElement | null => {
+	let shadow_dom_el: SvelthreeShadowDOMElement
+
+	if (button) {
+		shadow_dom_el = document.createElement("button")
+		// try...catch : If `Object.assign()` fails to set a property of `shadow_dom_el` because it is read-only, code should not stop executing.
+		try {
+			Object.assign(shadow_dom_el, button)
+		} catch (err) {
+			console.error(err)
+		}
+	} else if (link) {
+		shadow_dom_el = document.createElement("a")
+		// try...catch : If `Object.assign()` fails to set a property of `shadow_dom_el` because it is read-only, code should not stop executing.
+		try {
+			Object.assign(shadow_dom_el, link)
+		} catch (err) {
+			console.error(err)
+		}
+	} else {
+		shadow_dom_el = document.createElement("div")
+	}
+
+	shadow_dom_el.dataset.kind = `${c_name}`
+
+	// IMPORTANT  Scenes are appended reactively when `shadow_root_el` is available!
+	if (c_name !== "Scene") {
+		if (our_parent_shadow_dom_el) {
+			our_parent_shadow_dom_el.appendChild(shadow_dom_el)
+			return shadow_dom_el
+		} else {
+			console.error(
+				`SVELTHREE > ${c_name} > create_shadow_dom_el > couldn't append shadow dom, no 'our_parent_shadow_dom_el'!`,
+				our_parent_shadow_dom_el
+			)
+			return null
+		}
+	} else {
+		return shadow_dom_el
+	}
+}
+
+export { recreate_shadow_dom_el, create_shadow_dom_el }
+
+=== 435 src/lib/logic/shared/userdata.ts	ts	module	-
+import type { Object3D } from "three"
+import type { AnySvelthreeComponent } from "../../types/types-extra.js"
+
+const set_initial_userdata = (instance: Object3D, comp: AnySvelthreeComponent) => {
+	instance.userData.initScale = instance.scale.x
+	instance.userData.svelthreeComponent = comp
+	instance.userData.interact = false
+	instance.userData.block = false
+	instance.userData.index_in_raycast = null
+}
+
+export { set_initial_userdata }
+
+=== 27 src/lib/logic/special/index.ts	ts	module	-
+// special logic
+export {}
+
+=== 219 src/lib/stores/index.ts	ts	module	-
+import { writable } from "svelte/store"
+import type { Writable } from "svelte/store"
+import type { StoreBody } from "../types/types-extra.js"
+
+export const svelthreeStores: Writable<(StoreBody | null)[]> = writable([])
+
+=== 10338 src/lib/types/types-comp-props.ts	ts	module	-
+import type {
+	MeshAssignableMaterial,
+	PointsAssignableMaterial,
+	get_props_overwritten,
+	get_props,
+	lookAt_value,
+	color_value,
+	background_value,
+	pos_value,
+	scale_value,
+	rot_value,
+	quat_value,
+	matrix_value,
+	up_value,
+	mapsize_value
+} from "./types-extra.js"
+
+import type {
+	Object3D,
+	Mesh,
+	Points,
+	WebGLRenderer,
+	Scene,
+	AmbientLight,
+	DirectionalLight,
+	HemisphereLight,
+	PointLight,
+	RectAreaLight,
+	SpotLight,
+	OrthographicCamera,
+	PerspectiveCamera,
+	CubeCamera,
+	WebGLCubeRenderTarget,
+	WebGLRenderTargetOptions
+} from "three"
+import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+
+// TODO  At some point we sould type the `userData` interface! -> see https://github.com/vatro/svelthree/issues/95
+
+type MeshLikeOnlyKeys = "customDepthMaterial" | "customDistanceMaterial"
+
+// --- Object3D ---
+
+type WritableObject3DProperties = get_props_overwritten<
+	Object3D,
+	{
+		position: pos_value
+		scale: scale_value
+		rotation: rot_value
+		quaternion: quat_value
+		matrix: matrix_value
+		up: up_value
+	}
+>
+
+export type PropsObject3D = { [P in keyof WritableObject3DProperties]: WritableObject3DProperties[P] }
+
+// intellisense test
+//const obj3d_props: PropsObject3D = {}
+
+export type PropsGroup = PropsObject3D
+export type PropsLoadedGLTF = PropsObject3D
+
+// -- SCENE --
+
+type WritableSceneProperties = get_props_overwritten<
+	Scene,
+	{
+		background?: background_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+export type PropsScene = { [P in keyof WritableSceneProperties]: WritableSceneProperties[P] }
+
+// intellisense test
+//const scene_props: PropsScene = {}
+
+// TODO  check / polish
+type WritableWebGLRendererProperties = get_props<WebGLRenderer>
+export type PropsWebGLRenderer = { [P in keyof WritableWebGLRendererProperties]: WritableWebGLRendererProperties[P] }
+
+// intellisense test
+//const weggl_renderer_props: PropsWebGLRenderer = {}
+
+// --- MESH ---
+
+type WritableMeshProperties = get_props_overwritten<Mesh, { [P in keyof PropsObject3D]: PropsObject3D[P] }>
+export type PropsMesh = { [P in keyof WritableMeshProperties]: WritableMeshProperties[P] }
+
+// intellisense test
+//const mesh_props: PropsMesh = {}
+
+// --- POINTS ---
+
+type WritablePointsProperties = get_props_overwritten<Points, { [P in keyof PropsObject3D]: PropsObject3D[P] }>
+export type PropsPoints = { [P in keyof WritablePointsProperties]: WritablePointsProperties[P] }
+
+// intellisense test
+//const points_props: PropsPoints = {}
+
+// --- CAMERAS ---
+
+type WritableCubeCameraProperties = get_props_overwritten<CubeCamera, { [P in keyof PropsObject3D]: PropsObject3D[P] }>
+export type PropsCubeCamera = { [P in keyof WritableCubeCameraProperties]: WritableCubeCameraProperties[P] }
+
+// intellisense test
+//const cubecam_props: PropsCubeCamera = {}
+
+type WritableWebGLCubeRenderTargetProperties = get_props<WebGLCubeRenderTarget>
+export type PropsWebGLCubeRenderTarget = {
+	[P in keyof WritableWebGLCubeRenderTargetProperties]: WritableWebGLCubeRenderTargetProperties[P]
+}
+
+// intellisense test
+//const cubecam_rendertarget_props: PropsWebGLCubeRenderTarget = {}
+
+type WritableOrthographicCameraProperties = get_props_overwritten<OrthographicCamera, { [P in keyof PropsObject3D]: PropsObject3D[P] }>
+export type PropsOrthographicCamera = {
+	[P in keyof WritableOrthographicCameraProperties]: WritableOrthographicCameraProperties[P]
+}
+
+// intellisense test
+//const orthocam_props: PropsOrthographicCamera = {}
+
+type WritablePerspectiveCameraProperties = get_props_overwritten<
+	PerspectiveCamera,
+	{
+		lookAt: lookAt_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+export type PropsPerspectiveCamera = {
+	[P in keyof WritablePerspectiveCameraProperties]: WritablePerspectiveCameraProperties[P]
+}
+
+// intellisense test
+//const perspcam_props: PropsPerspectiveCamera = {}
+
+// --- LIGHTS ---
+
+type ObsoleteLightHasNoShadowKeys = MeshLikeOnlyKeys | "castShadow" | "receiveShadow" | "shadow"
+type ObsoleteLightHasShadowKeys = MeshLikeOnlyKeys | "receiveShadow"
+// EXCLUDED  THREE :Lights with `target` property use the target for rotation calculation!
+type ObsoleteLightHasShadowAndTargetKeys = ObsoleteLightHasShadowKeys | "rotation" | "quaternion"
+
+type WritableHemisphereLightProperties = get_props_overwritten<
+	HemisphereLight,
+	{
+		color: color_value
+		groundColor: color_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+type PropsHemisphereLightClean = Omit<WritableHemisphereLightProperties, ObsoleteLightHasNoShadowKeys>
+export type PropsHemisphereLight = { [P in keyof PropsHemisphereLightClean]: PropsHemisphereLightClean[P] }
+
+// intellisense test
+//const hemisphere_light_props: PropsHemisphereLight = {}
+
+type WritableAmbientLightProperties = get_props_overwritten<
+	AmbientLight,
+	{
+		color: color_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+type PropsAmbientLightClean = Omit<WritableAmbientLightProperties, ObsoleteLightHasNoShadowKeys>
+export type PropsAmbientLight = { [P in keyof PropsAmbientLightClean]: PropsAmbientLightClean[P] }
+
+// intellisense test
+//const ambient_light_props: PropsAmbientLight = {}
+
+// TODO  Nail down manipulating matrix.
+type WritableDirectionalLightProperties = get_props_overwritten<
+	DirectionalLight,
+	{
+		color: color_value
+		/** CUSTOM  there's actually no `lookAt` property on THREE.DirectionalLight, `svelthree` is using a custom solution! */
+		lookAt: lookAt_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+type PropsDirectionalLightClean = Omit<WritableDirectionalLightProperties, ObsoleteLightHasShadowAndTargetKeys>
+export type PropsDirectionalLight = { [P in keyof PropsDirectionalLightClean]: PropsDirectionalLightClean[P] }
+
+// intellisense test
+//const directional_light_props: PropsDirectionalLight = {}
+
+type WritablePointLightProperties = get_props_overwritten<
+	PointLight,
+	{
+		color: color_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+type PropsPointLightClean = Omit<WritablePointLightProperties, ObsoleteLightHasShadowKeys>
+export type PropsPointLight = { [P in keyof PropsPointLightClean]: PropsPointLightClean[P] }
+
+// intellisense test
+//const point_light_props: PropsPointLight = {}
+
+// TODO  Nail down manipulating matrix.
+// TODO  Nail down lookAt usage!
+type WritableRectAreaLightProperties = get_props_overwritten<
+	RectAreaLight,
+	{
+		color: color_value
+		/** CUSTOM  there's actually no `lookAt` property on THREE.RectAreaLight, `svelthree` isexport let props using a custom solution! */
+		lookAt: lookAt_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+/**
+ * Important Notes:
+ * - There is no shadow support.
+ * - Only `MeshStandardMaterial` and `MeshPhysicalMaterial` are supported.
+ */
+type PropsRectAreaLightClean = Omit<WritableRectAreaLightProperties, ObsoleteLightHasNoShadowKeys>
+export type PropsRectAreaLight = { [P in keyof PropsRectAreaLightClean]: PropsRectAreaLightClean[P] }
+
+// intellisense test
+//const rectarea_light_props: PropsRectAreaLight = {}
+
+// TODO  Nail down manipulating matrix.
+type WritableSpotLightProperties = get_props_overwritten<
+	SpotLight,
+	{
+		color: color_value
+		/** CUSTOM  there's actually no `lookAt` property on THREE.SpotLight, `svelthree` is using a custom solution! */
+		lookAt: lookAt_value
+	} & { [P in keyof PropsObject3D]: PropsObject3D[P] }
+>
+type PropsSpotLightClean = Omit<WritableSpotLightProperties, ObsoleteLightHasShadowAndTargetKeys>
+export type PropsSpotLight = { [P in keyof PropsSpotLightClean]: PropsSpotLightClean[P] }
+
+// intellisense test
+//const spot_light_props: PropsSpotLight = {}
+
+// TODO  extensively test `OrbitControls` `props` atrribute usage.
+type WritableOrbitControlsProperties = get_props<OrbitControls>
+type OrbitControlsClean = Omit<WritableOrbitControlsProperties, MeshLikeOnlyKeys>
+export type PropsOrbitControls = { [P in keyof OrbitControlsClean]: OrbitControlsClean[P] }
+
+// intellisense test
+//const orbitcontrols_props: PropsOrbitControls = {}
+
+type WritableMaterialProps<T> = T extends void ? never : get_props_overwritten<T, { color: color_value }>
+export type PropMat<T extends MeshAssignableMaterial | PointsAssignableMaterial> = { [P in keyof WritableMaterialProps<T>]: WritableMaterialProps<T>[P] }
+
+type WritableButtonProperties = get_props<HTMLButtonElement>
+export type PropButton = { [P in keyof WritableButtonProperties]: WritableButtonProperties[P] }
+
+// intellisense test
+//const button_prop: PropButton = {}
+
+type WritableLinkProperties = get_props<HTMLAnchorElement>
+export type PropLink = { [P in keyof WritableLinkProperties]: WritableLinkProperties[P] }
+
+// intellisense test
+//const link_prop: PropLink = {}
+
+type WritableWebGLRenderTargetOptions = get_props<WebGLRenderTargetOptions>
+export type PropWebGLRenderTargetOptions = { [P in keyof WritableWebGLRenderTargetOptions]: WritableWebGLRenderTargetOptions[P] }
+
+// intellisense test
+//const webglrendertarget_opt: PropWebGLRenderTargetOptions = {}
+
+type WritableShadowProperties<T> = get_props_overwritten<T, { mapSize: mapsize_value }>
+type PropsShadow<T> = { [P in keyof WritableShadowProperties<T>]: WritableShadowProperties<T>[P] }
+
+export type PropsDirectionalLightShadow = PropsShadow<THREE.DirectionalLightShadow>
+export type PropsPointLightShadow = PropsShadow<THREE.PointLightShadow>
+export type PropsSpotLightShadow = PropsShadow<THREE.SpotLightShadow>
+
+// intellisense test
+//const shadow_direct_props: PropsDirectionalLightShadow = {}
+//const shadow_point_props: PropsPointLightShadow = {}
+//const shadow_spot_props: PropsSpotLightShadow = {}
+
+type PropsSvelthree =
+	| PropButton
+	| PropLink
+	| PropWebGLRenderTargetOptions
+	| PropsAmbientLight
+	| PropsCubeCamera
+	| PropsDirectionalLight
+	| PropsDirectionalLightShadow
+	| PropsGroup
+	| PropsHemisphereLight
+	| PropsLoadedGLTF
+	| PropsMesh
+	| PropsObject3D
+	| PropsOrbitControls
+	| PropsOrthographicCamera
+	| PropsPerspectiveCamera
+	| PropsPointLight
+	| PropsPointLightShadow
+	| PropsPoints
+	| PropsRectAreaLight
+	| PropsScene
+	| PropsSpotLight
+	| PropsSpotLightShadow
+	| PropsWebGLCubeRenderTarget
+	| PropsWebGLRenderer
+
+//export type SvelthreePropsObjectLiteral = PropsSvelthree | PropMat<MeshAssignableMaterial> | PropMat<PointsAssignableMaterial>
+export type SvelthreePropsObjectLiteral =
+	| Omit<PropsSvelthree, "$T">
+	| Omit<PropMat<MeshAssignableMaterial>, "$T">
+	| Omit<PropMat<PointsAssignableMaterial>, "$T">
+
+=== 27607 src/lib/types/types-extra.ts	ts	module	-
+type OnlyWritableNonFunctionPropsOverwritten<T, V> = Partial<
+	Omit<
+		Pick<
+			T,
+			{
+				[P in keyof T]-?: (<U>() => U extends { [Q in P]: T[P] } ? 1 : 2) extends <U>() => U extends {
+					-readonly [Q in P]: T[P]
+				}
+					? 1
+					: 2
+					? // eslint-disable-next-line @typescript-eslint/ban-types
+					  T[P] extends Function
+						? never
+						: P
+					: never
+			}[keyof T]
+		>,
+		PropBlackList | keyof V
+	> &
+		V & { readonly $T?: T }
+>
+
+export type get_props_overwritten<T, V> = OnlyWritableNonFunctionPropsOverwritten<T, V>
+
+type OnlyWritableNonFunctionProps<T> = Partial<
+	Omit<
+		Pick<
+			T,
+			{
+				[P in keyof T]-?: (<U>() => U extends { [Q in P]: T[P] } ? 1 : 2) extends <U>() => U extends {
+					-readonly [Q in P]: T[P]
+				}
+					? 1
+					: 2
+					? // eslint-disable-next-line @typescript-eslint/ban-types
+					  T[P] extends Function
+						? never
+						: P
+					: never
+			}[keyof T]
+		>,
+		PropBlackList
+	> & { readonly $T?: T }
+>
+
+export type get_props<T> = OnlyWritableNonFunctionProps<T>
+
+export type RemoveFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : T
+export type RemoveLast<T extends unknown[]> = T extends [...infer H, unknown] ? H : T
+
+export type MeshMaterialWithColor =
+	| THREE.MeshBasicMaterial
+	//| THREE.MeshDepthMaterial
+	//| THREE.MeshDistanceMaterial
+	| THREE.MeshLambertMaterial
+	| THREE.MeshMatcapMaterial
+	//| THREE.MeshNormalMaterial
+	| THREE.MeshPhongMaterial
+	| THREE.MeshPhysicalMaterial
+	| THREE.MeshStandardMaterial
+	| THREE.MeshToonMaterial
+	//| THREE.RawShaderMaterial
+	//| THREE.ShaderMaterial
+	| THREE.ShadowMaterial
+
+export type MeshMaterialWithEnvMap =
+	| THREE.MeshBasicMaterial
+	//| THREE.MeshDepthMaterial
+	//| THREE.MeshDistanceMaterial
+	| THREE.MeshLambertMaterial
+	//| THREE.MeshMatcapMaterial
+	//| THREE.MeshNormalMaterial
+	| THREE.MeshPhongMaterial
+	| THREE.MeshPhysicalMaterial
+	| THREE.MeshStandardMaterial
+//| THREE.MeshToonMaterial
+//| THREE.RawShaderMaterial
+//| THREE.ShaderMaterial
+//| THREE.ShadowMaterial
+
+export type MeshAssignableMaterial =
+	| THREE.MeshBasicMaterial
+	| THREE.MeshDepthMaterial
+	| THREE.MeshDistanceMaterial
+	| THREE.MeshLambertMaterial
+	| THREE.MeshMatcapMaterial
+	| THREE.MeshNormalMaterial
+	| THREE.MeshPhongMaterial
+	| THREE.MeshPhysicalMaterial
+	| THREE.MeshStandardMaterial
+	| THREE.MeshToonMaterial
+	| THREE.RawShaderMaterial
+	| THREE.ShaderMaterial
+	| THREE.ShadowMaterial
+
+export type PointsAssignableMaterial = THREE.PointsMaterial | MeshAssignableMaterial
+
+// Animation
+
+/** Generated animation-`Object Literal`. */
+export interface SvelthreeAnimation {
+	/** Usually used to define the intial state of the animation and start the animation (_set inital prop values and call a function which starts the animation_). */
+	onStart: () => void
+	/** Usually used to destroy (_stop / kill / nullify_) any processes which would otherwise remain in memory. */
+	onDestroy: () => void
+	/** (optional) What should happen with the animation if the parent scene is not the active (_rendered_) scene during the animation?
+	 * _Usually used for pausing the animation in a multiple top-level Scenes scenario._
+	 */
+	onSceneDeactivated?: () => void
+	/** (optional) What should happen with the animation if the parent scene is active (_rendered_) again (_reactivated_) during the animation?
+	 * _Usually used for continuing the animation in a multiple top-level Scenes scenario._
+	 */
+	onSceneReactivated?: () => void
+	/** Any other method or property that should be callable / accessible via e.g. `component_ref.get_ani().foo()` or `component_ref.get_ani().foo`. */
+	[foo: string | number | symbol]: (() => void) | undefined
+}
+
+/**
+ * Function (_Closure_) containing some animation logic. `SvelthreeAnimationFunction` is being processed internally by the component, the resulting `SvelthreeAnimation` (_`Object Literal`_) can be obtained via `component_ref.get_ani()`.
+ * ```
+ * (foo: THREE.Object3D, ...args: any[]) => {
+ *      onStart: () => void
+ *      onDestroy: () => void
+ *      onSceneDeactivated?: () => void
+ *      onSceneReactivated?: () => void
+ *      [anything: string]: any
+ * }
+ * ```
+ * ☝️ `foo` is basically just a named / declared argument, it will be internally replaced by the
+ * `THREE.Object3D`-based instance-reference created by the component the animation function
+ * has been applied to via the `animation` attribute, e.g. `animation={my_animation_function}`.
+ *
+ */
+/*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+export type SvelthreeAnimationFunction = (foo: THREE.Object3D, ...args: any[]) => SvelthreeAnimation
+
+export type LightWithShadow = THREE.DirectionalLight | THREE.SpotLight | THREE.PointLight
+export type LightWithTarget = THREE.DirectionalLight | THREE.SpotLight
+export type LightShadowProps<T> = OnlyWritableNonFunctionProps<Omit<T, PropBlackList>>
+export type LightShadowCamProps<T> = OnlyWritableNonFunctionProps<Omit<T, PropBlackList>>
+
+export type PropBlackList =
+	| "id"
+	| "uuid"
+	| "type"
+	| "children"
+	| "parent"
+	| "matrix"
+	| "matrixWorld"
+	| "matrixWorldNeedsUpdate"
+	| "modelViewMatrix"
+	| "normalMatrix"
+	| "version"
+	| "isMaterial"
+
+export type ComplexValueType =
+	| "Vector2"
+	| "Array2Nums"
+	| "Vector3"
+	| "Array3Nums"
+	| "Euler"
+	| "EulerParamsArray"
+	| "Quaternion"
+	| "QuaternionParamsArray"
+	| "Matrix4"
+	| "Matrix4ParamsArray"
+	| "Color"
+
+import type { default as AmbientLight } from "../components/AmbientLight.svelte"
+import type { default as Canvas } from "../components/Canvas.svelte"
+import type { default as CubeCamera } from "../components/CubeCamera.svelte"
+import type { default as DirectionalLight } from "../components/DirectionalLight.svelte"
+import type { default as Group } from "../components/Group.svelte"
+import type { default as HemisphereLight } from "../components/HemisphereLight.svelte"
+import type { default as LoadedGLTF } from "../components/LoadedGLTF.svelte"
+import type { default as Mesh } from "../components/Mesh.svelte"
+import type { default as Object3D } from "../components/Object3D.svelte"
+import type { default as OrbitControls } from "../components/OrbitControls.svelte"
+import type { default as OrthographicCamera } from "../components/OrthographicCamera.svelte"
+import type { default as PerspectiveCamera } from "../components/PerspectiveCamera.svelte"
+import type { default as PointLight } from "../components/PointLight.svelte"
+import type { default as Points } from "../components/Points.svelte"
+import type { default as RectAreaLight } from "../components/RectAreaLight.svelte"
+import type { default as Scene } from "../components/Scene.svelte"
+import type { default as SpotLight } from "../components/SpotLight.svelte"
+import type { default as WebGLRenderer } from "../components/WebGLRenderer.svelte"
+
+import type { PropMat } from "./types-comp-props.js"
+
+export type AnySvelthreeComponent =
+	| AmbientLight
+	| Canvas
+	| CubeCamera
+	| DirectionalLight
+	| Group
+	| HemisphereLight
+	| LoadedGLTF
+	| Mesh<MeshAssignableMaterial>
+	| Object3D
+	| OrbitControls
+	| OrthographicCamera
+	| PerspectiveCamera
+	| PointLight
+	| Points<PointsAssignableMaterial>
+	| RectAreaLight
+	| Scene
+	| SpotLight
+	| WebGLRenderer
+
+export type SvelthreeComponentShadowDOMRoot = Canvas
+
+export type SvelthreeComponentShadowDOMChild =
+	| AmbientLight
+	//| Canvas
+	| CubeCamera
+	| DirectionalLight
+	| Group
+	| HemisphereLight
+	| LoadedGLTF
+	| Mesh<MeshAssignableMaterial>
+	| Object3D
+	//| OrbitControls
+	| OrthographicCamera
+	| PerspectiveCamera
+	| PointLight
+	| Points<PointsAssignableMaterial>
+	| RectAreaLight
+	| Scene
+	| SpotLight
+//| WebGLRenderer
+
+export type TargetableSvelthreeComponent =
+	| Scene
+	| Object3D
+	| Group
+	| Mesh<MeshAssignableMaterial>
+	| Points<PointsAssignableMaterial>
+	| PointLight
+	| SpotLight
+	| DirectionalLight
+	| OrthographicCamera
+	| PerspectiveCamera
+	| LoadedGLTF
+
+export type Targetable = THREE.Object3D | TargetableSvelthreeComponent | undefined
+
+export type AnyTHREEMeshMaterial = THREE.MeshToonMaterial &
+	THREE.MeshBasicMaterial &
+	THREE.MeshDepthMaterial &
+	THREE.Material &
+	THREE.MeshPhongMaterial &
+	THREE.MeshMatcapMaterial &
+	THREE.MeshNormalMaterial &
+	THREE.MeshLambertMaterial &
+	THREE.MeshStandardMaterial &
+	THREE.MeshDistanceMaterial &
+	THREE.MeshPhysicalMaterial
+
+type AnyTHREEMeshMaterialProperties = get_props<AnyTHREEMeshMaterial>
+export type PropsAnyTHREEMeshMaterial = { [P in keyof AnyTHREEMeshMaterialProperties]: AnyTHREEMeshMaterialProperties[P] }
+
+type AnyTHREELight = THREE.SpotLight & THREE.PointLight & THREE.AmbientLight & THREE.RectAreaLight & THREE.HemisphereLight & THREE.DirectionalLight
+
+type AnyTHREELightProperties = get_props<AnyTHREELight>
+export type PropsAnyTHREELight = { [P in keyof AnyTHREELightProperties]: AnyTHREELightProperties[P] }
+
+import type { GLTF as THREE_GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
+import type { default as GLTF_afterLoaded } from "../utils/GLTF_afterLoaded.js"
+
+type GLTF_afterLoaded_Method = Exclude<keyof typeof GLTF_afterLoaded, "prototype">
+type GLTF_afterLoaded_Task = typeof GLTF_afterLoaded[GLTF_afterLoaded_Method]
+/*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+export type GLTFAfterLoadedTask = GLTF_afterLoaded_Task | ((content_gltf: THREE_GLTF, ...args: any[]) => unknown)
+
+export type RaycastableSvelthreeComponents = Mesh<MeshAssignableMaterial> | Group | Object3D
+export type GLTFSupportedSvelthreeComponents = Mesh<MeshAssignableMaterial> | Group | Object3D | Scene
+
+export interface ISvelthreeGLTFTreeMapMember {
+	obj: THREE.Object3D
+	parent_uuid?: string | null
+	name?: string
+	obj_type?: string
+	mesh?: {
+		geometry: THREE.BufferGeometry
+		material: THREE.Material | THREE.Material[]
+	} | null
+	svelthree_comp?: SvelthreeComponentShadowDOMChild
+}
+
+export type SvelthreeGLTFTreeMap = Map<string, ISvelthreeGLTFTreeMapMember>
+
+export interface PointerState {
+	pos: THREE.Vector2
+	event: PointerEvent | undefined
+	unprojected: THREE.Vector3
+}
+
+interface StoreCanvas {
+	dom: HTMLCanvasElement | undefined
+	svelthreeComponent: Canvas
+	dim: {
+		w: number | undefined
+		h: number | undefined
+	}
+	interactive: boolean
+}
+
+// $svelthreeStores body
+
+import type { SvelthreeStoreArray } from "../utils/SvelthreeStoreArray.js"
+
+export type StoreBody = {
+	id: number | undefined
+	canvas: StoreCanvas
+	scenes: SvelthreeStoreArray
+
+	// IMPORTANT !
+	/** `currentSceneIndex` will always be `+1` real index, because index `0` means `false`,
+	 * so the change from `undefined` to `0` will not be triggered.
+	 */
+	currentSceneIndex: number | undefined
+
+	cameras: SvelthreeStoreArray
+	cubeCameras: SvelthreeStoreArray
+	activeCamera: THREE.PerspectiveCamera | THREE.OrthographicCamera | undefined
+	activeScene: THREE.Scene | undefined
+	renderer: THREE.WebGLRenderer | undefined
+	rendererComponent: WebGLRenderer | undefined
+	raycaster: THREE.Raycaster | undefined
+	orbitcontrols: SvelthreeStoreArray
+	useBVH: boolean
+}
+
+export type WebGLRendererMode = "auto" | "always"
+
+export type SvelthreeShadowDOMElement = HTMLDivElement | HTMLButtonElement | HTMLAnchorElement
+
+import type { PropsWebGLCubeRenderTarget, PropsOrbitControls } from "./types-comp-props.js"
+export type SvelthreePropsOwner =
+	| THREE.Object3D
+	| THREE.Material
+	| THREE.Material[]
+	| THREE.WebGLRenderer
+	| THREE.LightShadow
+	| PropsOrbitControls
+	| PropsWebGLCubeRenderTarget
+
+// shorthand attribute values / also s
+
+/** (_for internal usage_) Types of **shorthand properties**. */
+interface SHTypes {
+	aria: Partial<ARIAMixin>
+	bg: THREE.Texture | THREE.Color | string | number | [r: number, g: number, b: number] | THREE.Vector3 // Scene
+	bg_tex: { url: string; mapping?: THREE.Mapping } // Scene -> TODO  different: type PropBgTex = PropEnvTex
+	cam: PerspectiveCamera | OrthographicCamera | THREE.PerspectiveCamera | THREE.OrthographicCamera // OrbitControls
+	camera: THREE.PerspectiveCamera | THREE.OrthographicCamera | THREE.CubeCamera
+	color: THREE.Color | string | number | [r: number, g: number, b: number] | THREE.Vector3
+	env: THREE.Texture
+	env_tex: { url: string; mapping?: THREE.Mapping } // Scene -> TODO  different: type PropEnvTex = get_props<THREE.FogBase>
+	fog: THREE.FogBase // Scene -> TODO  different: type PropFog = get_props<THREE.FogBase>
+	geometry: THREE.BufferGeometry
+	groundColor: THREE.Texture | THREE.Color | string | number | [r: number, g: number, b: number] | THREE.Vector3 //HemisphereLight
+	lookAt: THREE.Vector3 | Parameters<THREE.Vector3["set"]> | Targetable | null
+	material: THREE.Material | THREE.Material[]
+	matrix: THREE.Matrix4 | Parameters<THREE.Matrix4["set"]>
+	pos: THREE.Vector3 | Parameters<THREE.Vector3["set"]>
+	quat: THREE.Quaternion | Parameters<THREE.Quaternion["set"]>
+	rot:
+		| THREE.Euler
+		| Parameters<THREE.Euler["set"]>
+		| THREE.Quaternion
+		| Parameters<THREE.Quaternion["set"]>
+		| THREE.Vector3
+		| Parameters<THREE.Vector3["set"]>
+	scale: THREE.Vector3 | Parameters<THREE.Vector3["set"]> | number
+}
+
+/** (_for internal usage_) generally overriden property-types (_**not** used as **shorthand properties**_). */
+interface GTypes {
+	up: THREE.Vector3 | Parameters<THREE.Vector3["set"]>
+	mapSize: THREE.Vector2 | Parameters<THREE.Vector2["set"]>
+}
+
+// for internal usage see SvelthreeProps -> ... -> PropUtils pipeline
+export type aria_value = SHTypes["aria"]
+export type background_value = SHTypes["bg"]
+export type color_value = SHTypes["color"]
+export type geometry_value = SHTypes["geometry"]
+export type lookAt_value = SHTypes["lookAt"]
+export type material_value = SHTypes["material"]
+export type matrix_value = SHTypes["matrix"]
+export type pos_value = SHTypes["pos"]
+export type quat_value = SHTypes["quat"]
+export type rot_value = SHTypes["rot"]
+export type scale_value = SHTypes["scale"]
+
+// general (not used as shorthand prop)
+export type up_value = GTypes["up"]
+export type mapsize_value = GTypes["mapSize"]
+
+/** for internal usage see SvelthreeProps -> ... -> PropUtils pipeline */
+export type any_propeller_value =
+	| background_value
+	| color_value
+	| lookAt_value
+	| matrix_value
+	| pos_value
+	| rot_value
+	| scale_value
+	| up_value
+	| mapsize_value
+	| [number, number, number]
+
+/** for internal usage see SvelthreeProps -> ... -> PropUtils pipeline */
+export type any_proputils_value = any_propeller_value
+
+/** (_`svelthree` internal generic interface_)
+ *
+ * Defines types of all shorthand properties (keys) across all components.
+ * Type of `props` requires type parameter `S`.
+ */
+interface SvelthreeShorthandProperties<S> {
+	// get types from internal interface (if S is NOT provided) or from components (if S is provided)
+	aria: S extends void ? SHTypes["aria"] : S extends AnySvelthreeComponent ? (S extends { aria: unknown } ? S["aria"] : undefined) : never
+	bg: S extends void ? SHTypes["bg"] : S extends AnySvelthreeComponent ? (S extends { bg: unknown } ? S["bg"] : undefined) : never
+	bg_tex: S extends void ? SHTypes["bg_tex"] : S extends AnySvelthreeComponent ? (S extends { bg_tex: unknown } ? S["bg_tex"] : undefined) : never
+	cam: S extends void ? SHTypes["cam"] : S extends AnySvelthreeComponent ? (S extends { cam: unknown } ? S["cam"] : undefined) : never // OrbitControls only
+	camera: S extends void ? SHTypes["camera"] : S extends AnySvelthreeComponent ? (S extends { camera: unknown } ? S["camera"] : undefined) : never
+	color: S extends void ? SHTypes["color"] : S extends AnySvelthreeComponent ? (S extends { color: unknown } ? S["color"] : undefined) : never
+	env: S extends void ? SHTypes["env"] : S extends AnySvelthreeComponent ? (S extends { env: unknown } ? S["env"] : undefined) : never
+	env_tex: S extends void ? SHTypes["env_tex"] : S extends AnySvelthreeComponent ? (S extends { env_tex: unknown } ? S["env_tex"] : undefined) : never
+	fog: S extends void ? SHTypes["fog"] : S extends AnySvelthreeComponent ? (S extends { fog: unknown } ? S["fog"] : undefined) : never
+	geometry: S extends void ? SHTypes["geometry"] : S extends AnySvelthreeComponent ? (S extends { geometry: unknown } ? S["geometry"] : undefined) : never
+	groundColor: S extends void
+		? SHTypes["groundColor"]
+		: S extends AnySvelthreeComponent
+		? S extends { groundColor: unknown }
+			? S["groundColor"]
+			: undefined
+		: never
+	lookAt: S extends void ? SHTypes["lookAt"] : S extends AnySvelthreeComponent ? (S extends { lookAt: unknown } ? S["lookAt"] : undefined) : never
+	material: S extends void ? SHTypes["material"] : S extends AnySvelthreeComponent ? (S extends { material: unknown } ? S["material"] : undefined) : never
+	matrix: S extends void ? SHTypes["matrix"] : S extends AnySvelthreeComponent ? (S extends { matrix: unknown } ? S["matrix"] : undefined) : never
+	pos: S extends void ? SHTypes["pos"] : S extends AnySvelthreeComponent ? (S extends { pos: unknown } ? S["pos"] : undefined) : never
+	quat: S extends void ? SHTypes["quat"] : S extends AnySvelthreeComponent ? (S extends { quat: unknown } ? S["quat"] : undefined) : never
+	rot: S extends void ? SHTypes["rot"] : S extends AnySvelthreeComponent ? (S extends { rot: unknown } ? S["rot"] : undefined) : never
+	scale: S extends void ? SHTypes["scale"] : S extends AnySvelthreeComponent ? (S extends { scale: unknown } ? S["scale"] : undefined) : never
+
+	// get types from components only (S needs to be provided)
+	config: S extends AnySvelthreeComponent ? (S extends { config: unknown } ? S["config"] : undefined) : never
+	params: S extends AnySvelthreeComponent ? (S extends { params: unknown } ? S["params"] : undefined) : never
+	props: S extends AnySvelthreeComponent ? (S extends { props: unknown } ? S["props"] : undefined) : never
+
+	// mat (special)
+	mat: S extends MeshAssignableMaterial | PointsAssignableMaterial ? PropMat<S> : never
+}
+
+export type prop<K extends keyof SvelthreeShorthandProperties<void>, S = void> = SvelthreeShorthandProperties<S>[K]
+
+export type SvelthreeInteractableComponent = Mesh<MeshAssignableMaterial> | Points<PointsAssignableMaterial> | Scene | LoadedGLTF
+
+export type WebGLRendererEventDetail = {
+	frame: number
+} | null
+
+export type WebGLRendererComponentEventDispatcher = {
+	[key: string]: WebGLRendererEventDetail
+}
+
+type CanvasEventDetail = {
+	event: PointerEvent | KeyboardEvent | FocusEvent
+}
+
+export type CanvasComponentEventDispatcher = {
+	[key: string]: CanvasEventDetail
+}
+
+export type CanvasComponentEvent = {
+	type: string
+	detail: CanvasEventDetail
+}
+
+export type AllIntersectionsResult = ReturnType<THREE.Raycaster["intersectObjects"]>
+
+export type AllIntersections = {
+	result: AllIntersectionsResult
+}
+
+export type RaycasterData = {
+	/** `intersections` are of the same form as those returned by [`.intersectObject`](https://threejs.org/docs/#api/en/core/Raycaster.intersectObject). */
+	intersection: { [P in keyof THREE.Intersection]: THREE.Intersection[P] }
+	/** Current `Raycaster` `.ray`, e.g. useful properties: `ray.origin: Vector3` | `ray.direction: Vector3`. */
+	ray: THREE.Ray
+	/** The `Camera` used for raycasting. */
+	camera: THREE.Camera
+	/** Current pointer position ( _'point' / Vector3 position_ ) in 3d world space. */
+	unprojected_point: THREE.Vector3
+}
+
+interface InteractionEventDetail {
+	obj: THREE.Object3D | undefined | null
+	comp: SvelthreeInteractableComponent
+}
+
+export interface SvelthreePointerEventDetail extends InteractionEventDetail {
+	evt: PointerEvent
+	/** ☝️ Contains no `raycaster_data` for the `pointermove` Event */
+	raycaster_data?: RaycasterData
+}
+
+export interface SvelthreeKeyboardEventDetail extends InteractionEventDetail {
+	code: KeyboardEvent["code"]
+	evt: KeyboardEvent
+}
+
+export interface SvelthreeFocusEventDetail extends InteractionEventDetail {
+	evt: FocusEvent
+}
+
+export interface SvelthreeWheelEventDetail {
+	evt: WheelEvent
+	obj: THREE.Object3D | undefined | null
+	comp: SvelthreeInteractableComponent
+}
+
+export type SvelthreeInteractionEventDetail = SvelthreePointerEventDetail | SvelthreeKeyboardEventDetail | SvelthreeFocusEventDetail | SvelthreeWheelEventDetail
+
+export type SvelthreeInteractionEvent<D> = {
+	type: string
+	detail: D
+}
+
+import type { createEventDispatcher } from "svelte/internal"
+
+type EventMapPointEvents = {
+	[key in ElementType<typeof POINTER_EVENTS>]: SvelthreePointerEvent
+}
+
+type EventMapPointEventDetails = {
+	[key in ElementType<typeof POINTER_EVENTS>]: SvelthreePointerEventDetail
+}
+
+type EventMapKeyboardEvents = {
+	[key in ElementType<typeof KEYBOARD_EVENTS>]: SvelthreeKeyboardEvent
+}
+
+type EventMapKeyboardEventDetails = {
+	[key in ElementType<typeof KEYBOARD_EVENTS>]: SvelthreeKeyboardEventDetail
+}
+
+type EventMapFocusEvents = {
+	[key in ElementType<typeof FOCUS_EVENTS>]: SvelthreeFocusEvent
+}
+
+type EventMapFocusEventDetails = {
+	[key in ElementType<typeof FOCUS_EVENTS>]: SvelthreeFocusEventDetail
+}
+
+type EventMapWheelEvents = {
+	[key in ElementType<typeof WHEEL_EVENTS>]: SvelthreeWheelEvent
+}
+
+type EventMapWheelEventDetails = {
+	[key in ElementType<typeof WHEEL_EVENTS>]: SvelthreeWheelEventDetail
+}
+
+export type EventMapAllEvents = EventMapPointEvents & EventMapKeyboardEvents & EventMapFocusEvents & EventMapWheelEvents
+export type EventMapAllEventDetails = EventMapPointEventDetails & EventMapKeyboardEventDetails & EventMapFocusEventDetails & EventMapWheelEventDetails
+
+export type SvelthreeInteractionEventDispatcher = ReturnType<typeof createEventDispatcher<EventMapAllEventDetails>>
+
+import type { OrbitControls as THREE_OrbitControls } from "three/examples/jsm/controls/OrbitControls.js"
+export type SvelthreeStoreArrayItem = THREE.Scene | THREE.PerspectiveCamera | THREE.OrthographicCamera | THREE.CubeCamera | THREE_OrbitControls
+export type RaycastArrayInput = (THREE.Object3D | RaycastableSvelthreeComponents)[]
+export type RaycastArrayOutput = THREE.Object3D[]
+
+import type {
+	SUPPORTED_ADD_EVENT_LISTENER_OPTIONS,
+	SUPPORTED_MODIFIERS,
+	POINTER_EVENTS,
+	KEYBOARD_EVENTS,
+	KEYBOARD_LISTENER_TARGETS,
+	FOCUS_EVENTS,
+	WHEEL_EVENTS,
+	WHEEL_LISTENER_TARGETS
+} from "../constants/Interaction.js"
+
+type ElementType<T extends ReadonlyArray<unknown>> = T extends ReadonlyArray<infer ElementType> ? ElementType : never
+
+export type SupportedAddEventListenerOption = ElementType<typeof SUPPORTED_ADD_EVENT_LISTENER_OPTIONS>
+
+export type SvelthreeSupportedModifier = ElementType<typeof SUPPORTED_MODIFIERS>
+
+export type SvelthreeSupportedPointerEvent = ElementType<typeof POINTER_EVENTS>
+
+export type SvelthreeSupportedKeyboardEvent = ElementType<typeof KEYBOARD_EVENTS>
+
+export type SvelthreeKeyboardListenerTarget = ElementType<typeof KEYBOARD_LISTENER_TARGETS>
+
+export type SvelthreeSupportedFocusEvent = ElementType<typeof FOCUS_EVENTS>
+
+export type SvelthreeSupportedWheelEvent = ElementType<typeof WHEEL_EVENTS>
+
+export type SvelthreeWheelListenerTarget = ElementType<typeof WHEEL_LISTENER_TARGETS>
+
+export type SvelthreeSupportedInteractionEvent =
+	| SvelthreeSupportedPointerEvent
+	| SvelthreeSupportedFocusEvent
+	| SvelthreeSupportedKeyboardEvent
+	| SvelthreeSupportedWheelEvent // TODO  -> implement
+
+//"touchstart", ->  RECONSIDER  implement?
+//"touchmove",  ->  RECONSIDER  implement?
+//"touchend",   ->  RECONSIDER  implement?
+//"touchcancel" ->  RECONSIDER  implement?
+
+type GetEventHandler<E, M> = [handler: (e: E) => void, modifiers?: Array<M>] | ((e: E) => void)
+
+export type SvelthreePointerEvent = SvelthreeInteractionEvent<SvelthreePointerEventDetail>
+export type SvelthreePointerEventModifier = SvelthreeSupportedModifier
+
+/** Event handler can be a function `(e) => {...}` or an array containing a function + an array of modifiers, e.g. `[(e) => {...}, ["preventDefault"]]`. */
+export type SvelthreePointerEventHandler = GetEventHandler<SvelthreePointerEvent, SvelthreePointerEventModifier>
+
+export type SvelthreeFocusEvent = SvelthreeInteractionEvent<SvelthreeFocusEventDetail>
+export type SvelthreeFocusEventModifier = SvelthreeSupportedModifier
+
+/** Event handler can be a function `(e) => {...}` or an array containing a function + an array of modifiers, e.g. `[(e) => {...}, ["preventDefault"]]`. */
+export type SvelthreeFocusEventHandler = GetEventHandler<SvelthreeFocusEvent, SvelthreeFocusEventModifier>
+
+export type SvelthreeKeyboardEvent = SvelthreeInteractionEvent<SvelthreeKeyboardEventDetail>
+export type SvelthreeKeyboardEventModifier = SvelthreeSupportedModifier | SvelthreeKeyboardListenerTarget
+
+/** Event handler can be a function `(e) => {...}` or an array containing a function + an array of modifiers, e.g. `[(e) => {...}, ["preventDefault"]]`. */
+export type SvelthreeKeyboardEventHandler = GetEventHandler<SvelthreeKeyboardEvent, SvelthreeKeyboardEventModifier>
+
+export type SvelthreeWheelEvent = SvelthreeInteractionEvent<SvelthreeWheelEventDetail>
+export type SvelthreeWheelEventModifier = SvelthreeSupportedModifier | SvelthreeWheelListenerTarget
+
+/** Event handler can be a function `(e) => {...}` or an array containing a function + an array of modifiers, e.g. `[(e) => {...}, ["preventDefault"]]`. */
+export type SvelthreeWheelEventHandler = GetEventHandler<SvelthreeWheelEvent, SvelthreeWheelEventModifier>
+
+export type SvelthreeModifiersProp =
+	| { all?: SvelthreeSupportedModifier[] }
+	| { [event_name in SvelthreeSupportedPointerEvent]?: Array<SvelthreeSupportedModifier> }
+	| { [event_name in SvelthreeSupportedFocusEvent]?: Array<SvelthreeSupportedModifier> }
+	| { [event_name in SvelthreeSupportedKeyboardEvent]?: Array<SvelthreeKeyboardEventModifier> }
+	| { [event_name in SvelthreeSupportedWheelEvent]?: Array<SvelthreeWheelEventModifier> }
+
+export type SvelthreePropActionHandler = SvelthreePointerEventHandler | SvelthreeFocusEventHandler | SvelthreeKeyboardEventHandler | SvelthreeWheelEventHandler
+/** An explicitly **asynchoronous** callback-function
+ * ```ts
+ * (comp: T) => Promise<unknown>
+ * ```
+ * (_the **callback's argument** (`comp`) will be the actual **`svelthree`-component's instance reference**_)
+ * which can be used as a value for `svelthree`-component's additional lifecycle-callback-attributes:
+ * - `onMountReplace`
+ * - `onDestroyReplace`
+ * - `onDestroyStart` (_if available_)
+ * - `onDestroyEnd` (_if available_)
+ * - `beforeUpdateReplace`
+ * - `afterUpdateReplace`
+ * - `afterUpdateStart` (_if available_)
+ * - `afterUpdateEnd` (_if available_)
+ *
+ */
+export type SvelthreeLifecycleCallbackAsync<T = AnySvelthreeComponent> = (comp: T) => Promise<unknown>
+
+/** An explicitly **synchronous** callback-function
+ * ```ts
+ * (comp: T) => unknown
+ * ```
+ * (_the **callback's argument** (`comp`) will be the actual **`svelthree`-component's instance reference**_)
+ * which can be used as a value for `svelthree`-component's additional lifecycle-callback-attributes:
+ * - `onMountReplace`
+ * - `onDestroyReplace`
+ * - `onDestroyStart` (_if available_)
+ * - `onDestroyEnd` (_if available_)
+ * - `beforeUpdateReplace`
+ * - `afterUpdateReplace`
+ * - `afterUpdateStart` (_if available_)
+ * - `afterUpdateEnd` (_if available_)
+ *
+ */
+export type SvelthreeLifecycleCallbackSync<T = AnySvelthreeComponent> = (comp: T) => unknown
+
+/** A **synchoronous** or **asynchoronous** callback-function
+ * ```ts
+ * (comp: T) => unknown | Promise<unknown>
+ * ```
+ * (_the **callback's argument** (`comp`) will be the actual **`svelthree`-component's instance reference**_)
+ * which can be used as a value for `svelthree`-component's additional lifecycle-callback-attributes:
+ * - `onMountReplace`
+ * - `onDestroyReplace`
+ * - `onDestroyStart` (_if available_)
+ * - `onDestroyEnd` (_if available_)
+ * - `beforeUpdateReplace`
+ * - `afterUpdateReplace`
+ * - `afterUpdateStart` (_if available_)
+ * - `afterUpdateEnd` (_if available_)
+ *
+ */
+export type SvelthreeLifecycleCallback<T = AnySvelthreeComponent> = SvelthreeLifecycleCallbackSync<T> | SvelthreeLifecycleCallbackAsync<T>
+
+=== 1156 src/lib/utils/Calc.ts	ts	module	-
+import { Vector3 } from "three"
+import type { PerspectiveCamera, OrthographicCamera } from "three"
+
+export default class Calc {
+	public static get_unproject_pointer(
+		c: HTMLCanvasElement,
+		e: PointerEvent,
+		cam: PerspectiveCamera | OrthographicCamera
+	): Vector3 | undefined {
+		const rect: DOMRect = c.getBoundingClientRect()
+
+		const px = ((e.clientX - rect.left) / (rect.right - rect.left)) * 2 - 1
+		const py = -((e.clientY - rect.top) / (rect.bottom - rect.top)) * 2 + 1
+
+		if (cam.type === "PerspectiveCamera") {
+			// Perspective Camera
+			// see: https://stackoverflow.com/questions/13055214/mouse-canvas-x-y-to-three-js-world-x-y-z
+
+			const v: Vector3 = new Vector3(px, py, 0.5)
+			const t: Vector3 = new Vector3()
+
+			v.unproject(cam)
+			v.sub(cam.position).normalize()
+			const d = -cam.position.z / v.z
+			//let d = ( unproject_z - cam.position.z ) / v.z
+			t.copy(cam.position).add(v.multiplyScalar(d))
+
+			return t
+		} else if (cam.type === "OrthographicCamera") {
+			const vz: number = (cam.near + cam.far) / (cam.near - cam.far)
+			const v: Vector3 = new Vector3(px, py, vz)
+			v.unproject(cam).sub(cam.position)
+
+			return v
+		}
+	}
+}
+
+=== 3150 src/lib/utils/CameraUtils.ts	ts	module	-
+import type { OrthographicCamera, PerspectiveCamera } from "three"
+import { CameraValues } from "../constants/index.js"
+
+export default class CameraUtils {
+	// #region --- Orthographic Camera
+
+	public static getOrthoCamDefaultParams(
+		frustumSize: number | undefined
+	): ConstructorParameters<typeof OrthographicCamera> {
+		const _frustumSize = frustumSize || CameraValues.CAM_ORTHO_FRUSTUM_SIZE
+		const _aspect = CameraValues.CAM_ORTHO_ASPECT
+		const _near = CameraValues.CAM_ORTHO_NEAR
+		const _far = CameraValues.CAM_ORTHO_FAR
+
+		const left = (_frustumSize * _aspect) / -2
+		const right = (_frustumSize * _aspect) / 2
+		const top = _frustumSize / 2
+		const bottom = _frustumSize / -2
+
+		return [left, right, top, bottom, _near, _far]
+	}
+
+	/**
+	 * Updates OrthographicCamera's `projectionMatrix` on canvas aspect change.
+	 */
+	public static updateOtrhoCam(cam: OrthographicCamera, frustumSize: number, canvasW: number, canvasH: number): void {
+		//if (verbose_mode()) console.debug("SVELTHREE > CameraUtils : updateOtrhoCam!")
+
+		// AUTO only
+		// no props, no params, cam has been created by using defaultParams
+		// if user provided frustumSize that will / is being used, otherwise default
+		// if user has provided aspect that will be used, not the actual aspect (someone might need it like that)
+
+		// adding frustumSize attribute enters auto modus, where frustum planes are being calculated depending on current canvas size / aspect
+		if (frustumSize) {
+			//const _aspect = aspect || canvasW / canvasH
+			const aspect = canvasW / canvasH
+
+			// abilty to have (blank)
+			//const _frustumSize = frustumSize || CameraValues.CAM_ORTHO_FRUSTUM_SIZE
+
+			const left = (frustumSize * aspect) / -2
+			const right = (frustumSize * aspect) / 2
+			const top = frustumSize / 2
+			const bottom = frustumSize / -2
+
+			cam.left = left
+			cam.right = right
+			cam.top = top
+			cam.bottom = bottom
+
+			cam.updateProjectionMatrix()
+		}
+
+		// If has provided props or has created cam using params --> No effect!
+		// - using params: cam.left, .right etc. are available / will be updated by props if inside
+		// - defaultParams (blank): cam.left, .right etc. are available  / will be updated by props if inside
+	}
+
+	/**
+	 * Logs a warning if user is providing 'frustumSize' and at the same time tries to define frustum planes via 'props' attribute.
+	 */
+	public static logOrthoCamFrustumWarnings(left: number, right: number, top: number, bottom: number) {
+		const prefix = "SVELTHREE > Camera / OrthographicCamera : Using 'frustumSize' and "
+		const suffix = " prop can lead to undesired effects! "
+
+		left ? console.warn(`${prefix}'left'${suffix}`) : null
+		right ? console.warn(`${prefix}'right'${suffix}`) : null
+		top ? console.warn(`${prefix}'top'${suffix}`) : null
+		bottom ? console.warn(`${prefix}'bottom'${suffix}`) : null
+	}
+
+	// #endregion
+
+	// #region --- PerspectiveCamera Camera
+
+	/**
+	 * Updates PerspectiveCamera's `projectionMatrix` on canvas aspect change.
+	 */
+	public static updatePerspCam(cam: PerspectiveCamera, canvasW: number, canvasH: number): void {
+		cam.aspect = canvasW / canvasH
+		cam.updateProjectionMatrix()
+	}
+
+	// #endregion
+}
+
+=== 943 src/lib/utils/CubeCameraHelper.ts	ts	module	-
+import type { CubeCamera, PerspectiveCamera, Scene } from "three"
+import { CameraHelper } from "three"
+
+export default class CubeCameraHelper {
+	private allHelpers: CameraHelper[] = []
+
+	constructor(camera: CubeCamera) {
+		this.allHelpers = this.createHelpers(camera)
+	}
+
+	private createHelpers(camera: CubeCamera): CameraHelper[] {
+		const all: CameraHelper[] = []
+		for (let i = 0; i < camera.children.length; i++) {
+			const pc: PerspectiveCamera = (camera.children as PerspectiveCamera[])[i]
+			const helper = new CameraHelper(pc)
+			all.push(helper)
+		}
+		return all
+	}
+
+	public add(scene: Scene): void {
+		for (let i = 0; i < this.allHelpers.length; i++) {
+			const helper = this.allHelpers[i]
+			if (helper.parent !== scene) scene.add(helper)
+		}
+	}
+
+	public remove(): void {
+		for (let i = 0; i < this.allHelpers.length; i++) {
+			const helper = this.allHelpers[i]
+			if (helper && helper.parent) helper.parent.remove(helper)
+		}
+	}
+}
+
+=== 9329 src/lib/utils/GLTF_afterLoaded.ts	ts	module	-
+import type { Object3D, Group } from "three"
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
+import type { PropsMesh } from "../types/types-comp-props.js"
+import type { PropsAnyTHREEMeshMaterial, PropsAnyTHREELight } from "../types/types-extra.js"
+//import type { AnyTHREEMeshMaterial } from "../types/types-extra.js"
+
+export default class GLTF_afterLoaded {
+	// TODO  RECONSIDER  static for_all_cameras ?
+	// TODO  RECONSIDER  static for_all_animations ?
+	// TODO  RECONSIDER  static remove_all_animations ?
+	// TODO  RECONSIDER  static for_all_textures ?
+	// TODO  RECONSIDER  static remove_all_textures ?
+
+	public static remove_all_lights = async (gltf_content: GLTF): Promise<void> => {
+		//console.log("remove_all_lights!")
+		if (gltf_content) {
+			if (gltf_content.scenes?.length > 1) {
+				for (let i = 0; i < gltf_content.scenes.length; i++) {
+					await GLTF_afterLoaded.remove_all(gltf_content.scenes[i], "isLight")
+				}
+			} else {
+				await GLTF_afterLoaded.remove_all(gltf_content.scene, "isLight")
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'remove_all_lights(gltf_content)' -> 'gltf_content' not available!",
+				{ gltf_content }
+			)
+		}
+	}
+
+	public static remove_all_cameras = async (gltf_content: GLTF): Promise<void> => {
+		//console.log("remove_all_cameras!")
+		if (gltf_content) {
+			if (gltf_content.scenes?.length > 1) {
+				for (let i = 0; i < gltf_content.scenes.length; i++) {
+					await GLTF_afterLoaded.remove_all(gltf_content.scenes[i], "isCamera")
+				}
+			} else {
+				await GLTF_afterLoaded.remove_all(gltf_content.scene, "isCamera")
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'remove_all_cameras(gltf_content)' -> 'gltf_content' not available!",
+				{ gltf_content }
+			)
+		}
+	}
+
+	private static async remove_all(scene: Group, typ: string): Promise<void> {
+		//console.log("remove_all started!")
+
+		if (scene) {
+			const fns: (() => Promise<void>)[] = []
+
+			const check_obj = (obj: Object3D | undefined, parent: Object3D | undefined, typ: string) => async () => {
+				if (obj) {
+					if (Object.hasOwn(obj, typ)) {
+						// see https://github.com/mrdoob/three.js/blob/1a241ef10048770d56e06d6cd6a64c76cc720f95/src/core/Object3D.js#L342-L369
+						if (parent) {
+							const index_to_remove: number = parent.children.indexOf(obj)
+							//console.log(`removing -> [${index_to_remove}] ${obj.type}`, obj.uuid)
+							parent.children.splice(index_to_remove, 1)
+						}
+					}
+				} else {
+					console.error(
+						"SVELTHREE > GLTF_afterLoaded > async 'remove_all(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!",
+						{ obj }
+					)
+				}
+			}
+
+			const traverse = (child: Object3D, parent?: Object3D) => {
+				fns.push(check_obj(child, parent, typ))
+				const children = child.children
+				for (let i = 0, l = children.length; i < l; i++) {
+					traverse(children[i], child)
+				}
+			}
+
+			traverse(scene)
+
+			for (const fn of fns) {
+				await fn()
+			}
+		} else {
+			console.error("SVELTHREE > GLTF_afterLoaded > async 'remove_all(scene, ...)' -> 'scene' not available!", {
+				scene
+			})
+		}
+
+		//console.log("remove_all FINISHED!")
+		//if (scene) { console.log(scene) }
+	}
+
+	private static async apply_to_materials(scene: Group, props: PropsAnyTHREEMeshMaterial): Promise<void> {
+		//console.log("apply_to_materials started!")
+
+		if (scene) {
+			const fns: (() => Promise<void>)[] = []
+
+			const check_obj = (obj: Object3D | undefined, props: PropsAnyTHREEMeshMaterial) => async () => {
+				if (obj) {
+					if (Object.hasOwn(obj, "isMesh") && Object.hasOwn(obj, "material")) {
+						for (const prop in props) {
+							try {
+								// TODO  TS Error
+								//const mesh = obj as THREE.Mesh
+								//const mesh_material = mesh.material as AnyTHREEMeshMaterial
+								//if (mesh_material && Object.hasOwn(mesh_material, prop)) mesh_material[prop as keyof AnyTHREEMeshMaterial] = props[prop as keyof PropsAnyTHREEMeshMaterial]
+								// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+								// @ts-ignore
+								mesh_material[prop] = props[prop as keyof PropsAnyTHREEMeshMaterial]
+							} catch (err) {
+								console.error(err)
+							}
+						}
+					}
+				} else {
+					console.error(
+						"SVELTHREE > GLTF_afterLoaded > async 'apply_to_materials(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!",
+						{ obj }
+					)
+				}
+			}
+
+			const traverse = (child: Object3D, props: PropsAnyTHREEMeshMaterial) => {
+				fns.push(check_obj(child, props))
+				const children = child.children
+				for (let i = 0, l = children.length; i < l; i++) {
+					traverse(children[i], props)
+				}
+			}
+
+			traverse(scene, props)
+
+			for (const fn of fns) {
+				await fn()
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'get_all_scene_lights(scene, ...)' -> 'scene' not available!",
+				{ scene }
+			)
+		}
+
+		//console.log("apply_to_materials FINISHED!")
+		//if (scene) { console.log(scene) }
+	}
+
+	private static async apply_to_meshes(scene: Group, props: PropsMesh): Promise<void> {
+		//console.log("apply_to_meshes started!")
+
+		if (scene) {
+			const fns: (() => Promise<void>)[] = []
+
+			const check_obj = (obj: Object3D, props: PropsMesh) => async () => {
+				if (obj) {
+					if (Object.hasOwn(obj, "isMesh")) {
+						for (const prop in props) {
+							try {
+								// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+								// @ts-ignore
+								obj[prop] = props[prop]
+							} catch (err) {
+								console.error(err)
+							}
+						}
+					}
+				} else {
+					console.error(
+						"SVELTHREE > GLTF_afterLoaded > async 'apply_to_meshes(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!",
+						{ obj }
+					)
+				}
+			}
+
+			const traverse = (child: Object3D, props: PropsMesh) => {
+				fns.push(check_obj(child, props))
+				const children = child.children
+				for (let i = 0, l = children.length; i < l; i++) {
+					traverse(children[i], props)
+				}
+			}
+
+			traverse(scene, props)
+
+			for (const fn of fns) {
+				await fn()
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'apply_to_meshes(scene, ...)' -> 'scene' not available!",
+				{ scene }
+			)
+		}
+
+		//console.log("apply_to_meshes FINISHED!")
+		//if (scene) { console.log(scene) }
+	}
+
+	private static async apply_to_lights(scene: Group, props: PropsAnyTHREELight): Promise<void> {
+		//console.log("apply_to_lights started!")
+
+		if (scene) {
+			const fns: (() => Promise<void>)[] = []
+
+			const check_obj = (obj: Object3D, props: PropsAnyTHREELight) => async () => {
+				if (obj) {
+					if (Object.hasOwn(obj, "isLight")) {
+						for (const prop in props) {
+							try {
+								// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+								// @ts-ignore
+								obj[prop] = props[prop]
+							} catch (err) {
+								console.error(err)
+							}
+						}
+					}
+				} else {
+					console.error(
+						"SVELTHREE > GLTF_afterLoaded > async 'apply_to_lights(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!",
+						{ obj }
+					)
+				}
+			}
+
+			const traverse = (obj: Object3D, props: PropsAnyTHREELight) => {
+				fns.push(check_obj(obj, props))
+				const children = obj.children
+				for (let i = 0, l = children.length; i < l; i++) {
+					traverse(children[i], props)
+				}
+			}
+
+			traverse(scene, props)
+
+			for (const fn of fns) {
+				await fn()
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'apply_to_lights(scene, ...)' -> 'scene' not available!",
+				{ scene }
+			)
+		}
+
+		//console.log("apply_to_lights FINISHED!")
+		//if (scene) { console.log(scene) }
+	}
+
+	public static for_all_materials = (props: PropsAnyTHREEMeshMaterial) => async (gltf_content: GLTF) => {
+		if (gltf_content) {
+			if (gltf_content.scenes?.length > 1) {
+				for (let i = 0; i < gltf_content.scenes.length; i++) {
+					await GLTF_afterLoaded.apply_to_materials(gltf_content.scenes[i], props)
+				}
+			} else {
+				await GLTF_afterLoaded.apply_to_materials(gltf_content.scene, props)
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'for_all_materials(props)(gltf_content)' -> 'gltf_content' not available!",
+				{ gltf_content }
+			)
+		}
+	}
+
+	public static for_all_meshes = (props: PropsMesh) => async (gltf_content: GLTF) => {
+		if (gltf_content) {
+			if (gltf_content.scenes?.length > 1) {
+				for (let i = 0; i < gltf_content.scenes.length; i++) {
+					await GLTF_afterLoaded.apply_to_meshes(gltf_content.scenes[i], props)
+				}
+			} else {
+				await GLTF_afterLoaded.apply_to_meshes(gltf_content.scene, props)
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'for_all_meshes(props)(gltf_content)' -> 'gltf_content' not available!",
+				{ gltf_content }
+			)
+		}
+	}
+
+	public static for_all_lights = (props: PropsAnyTHREELight) => async (gltf_content: GLTF) => {
+		if (gltf_content) {
+			if (gltf_content.scenes?.length > 1) {
+				for (let i = 0; i < gltf_content.scenes.length; i++) {
+					await GLTF_afterLoaded.apply_to_lights(gltf_content.scenes[i], props)
+				}
+			} else {
+				await GLTF_afterLoaded.apply_to_lights(gltf_content.scene, props)
+			}
+		} else {
+			console.error(
+				"SVELTHREE > GLTF_afterLoaded > async 'for_all_lights(props)(gltf_content)' -> 'gltf_content' not available!",
+				{ gltf_content }
+			)
+		}
+	}
+}
+
+=== 3678 src/lib/utils/GLTF_utils.ts	ts	module	-
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
+import type { Light, Mesh, Camera, Object3D, Group } from "three"
+
+export default class GLTF_utils {
+	/** Get an array of references to all **Meshes** (_all scenes_) inside the loaded GLTF content. */
+	public static async get_all_meshes(content: GLTF | undefined): Promise<Mesh[]> {
+		const found_meshes: Mesh[] = []
+		const is_foo = "isMesh"
+
+		if (content) {
+			if (content.scenes?.length > 1) {
+				for (let i = 0; i < content.scenes.length; i++) {
+					await GLTF_utils.get_all(content.scenes[i], found_meshes, is_foo)
+				}
+			} else {
+				await GLTF_utils.get_all(content.scene, found_meshes, is_foo)
+			}
+		} else {
+			console.error("SVELTHREE > GLTF_utils > async 'get_all_meshes(content)' -> 'content' not available!", {
+				content
+			})
+		}
+
+		return found_meshes
+	}
+
+	/** Get an array of references to all **Meshes** in a specific scene inside the loaded GLTF content. */
+	public static async get_all_scene_meshes(scene: Group | undefined): Promise<Mesh[]> {
+		const found_meshes: Mesh[] = []
+
+		if (scene) {
+			const is_foo = "isMesh"
+			await GLTF_utils.get_all(scene, found_meshes, is_foo)
+		} else {
+			console.error("SVELTHREE > GLTF_utils > async 'get_all_scene_meshes(scene)' -> 'scene' not available!", {
+				scene
+			})
+		}
+
+		return found_meshes
+	}
+
+	/** Get an array of references to all **Lights** (_all scenes_) inside the loaded GLTF content. */
+	public static async get_all_lights(content: GLTF | undefined): Promise<Light[]> {
+		const found_lights: Light[] = []
+		const is_foo = "isLight"
+
+		if (content) {
+			if (content.scenes?.length > 1) {
+				for (let i = 0; i < content.scenes.length; i++) {
+					await GLTF_utils.get_all(content.scenes[i], found_lights, is_foo)
+				}
+			} else {
+				await GLTF_utils.get_all(content.scene, found_lights, is_foo)
+			}
+		} else {
+			console.error("SVELTHREE > GLTF_utils > async 'get_all_lights(content)' -> 'content' not available!", {
+				content
+			})
+		}
+
+		return found_lights
+	}
+
+	/** Get an array of references to all **Lights** in a specific scene inside the loaded GLTF content. */
+	public static async get_all_scene_lights(scene: Group | undefined): Promise<Light[]> {
+		const found_lights: Light[] = []
+
+		if (scene) {
+			const is_foo = "isLight"
+			await GLTF_utils.get_all(scene, found_lights, is_foo)
+		} else {
+			console.error("SVELTHREE > GLTF_utils > async 'get_all_scene_lights(scene)' -> 'scene' not available!", {
+				scene
+			})
+		}
+
+		return found_lights
+	}
+
+	/** [ _**internal utility**_ ] Get all references of a specific type from a scene. */
+	static async get_all(scene: Group, found: (Mesh | Light | Camera)[], is_foo: string): Promise<void> {
+		//console.log(`get_all_of_type - ${check} - started!`)
+
+		if (scene) {
+			const fns: (() => Promise<void>)[] = []
+
+			const check_obj = (obj: Object3D, is_foo: string, depot: (Mesh | Light | Camera)[]) => async () => {
+				if (obj) {
+					if (Object.hasOwn(obj, is_foo)) depot.push(obj as Mesh | Light | Camera)
+				} else {
+					console.error(
+						"SVELTHREE > GLTF_utils > async 'get_all(scene, ...)' -> async check_obj(obj, ...) -> 'obj' not available!",
+						{ obj }
+					)
+				}
+			}
+
+			const traverse = (child: Object3D) => {
+				fns.push(check_obj(child, is_foo, found))
+				const children = child.children
+				for (let i = 0, l = children.length; i < l; i++) {
+					traverse(children[i])
+				}
+			}
+
+			traverse(scene)
+
+			for (const fn of fns) {
+				await fn()
+			}
+		} else {
+			console.error("SVELTHREE > GLTF_utils > async 'get_all(scene, ...)' -> 'scene' not available!", { scene })
+		}
+
+		//console.log(`get_all_of_type - ${check} - finished!`)
+	}
+}
+
+=== 29279 src/lib/utils/PropUtils.ts	ts	module	-
+import type { Light, Material, Object3D, Scene, LightShadow } from "three"
+import { Color, Euler, Matrix4, Quaternion, Vector2, Vector3 } from "three"
+import type { ComplexValueType, LightWithShadow, LightWithTarget } from "../types/types-extra.js"
+import type {
+	matrix_value,
+	pos_value,
+	rot_value,
+	scale_value,
+	lookAt_value,
+	quat_value,
+	color_value,
+	mapsize_value,
+	//background_value,
+	any_proputils_value
+} from "../types/types-extra.js"
+import type { TargetableSvelthreeComponent, Targetable } from "../types/types-extra.js"
+import { verbose_mode, log_prop_utils } from "../utils/SvelthreeLogger.js"
+
+/**
+ * Collection of static utility methods which allow setting props to various values.
+ * `PropUtils` are being used by:
+ * - component's props directly / on change of component's attributes (reactive)
+ * - `SvelthreeProps` (`sProps`) via `Propeller`
+ */
+export default class PropUtils {
+	private static verbose = verbose_mode()
+
+	public static getShortHandAttrWarnings(prefix: string): { [key: string]: string } {
+		const warnings = {
+			rot: `${prefix} 'rot' attribute ignored! : overridden by either 'matrix' or 'quat' attribute!`,
+			pos: `${prefix} 'pos' attribute ignored! : overridden by 'matrix' attribute!`,
+			quat: `${prefix} 'quat' attribute ignored! : overridden by 'matrix' attribute!`,
+			scale: `${prefix} 'scale' attribute ignored! : overridden by 'matrix' attribute!`,
+			lookAt: `${prefix} 'lookAt' attribute ignored! : overridden by 'matrix' attribute!`
+		}
+
+		return warnings
+	}
+
+	public static warn(message: string) {
+		console.warn(message)
+	}
+
+	/** Check if an Array contains exactly 2 numbers. */
+	public static is2Nums(p: number[]): boolean {
+		return p.length === 2 && p.every((el: number) => !isNaN(el))
+	}
+
+	public static isArray2Nums(p: number[]): boolean {
+		return Array.isArray(p) && PropUtils.is2Nums(p)
+	}
+
+	public static isArray3Nums(p: number[]): boolean {
+		return Array.isArray(p) && PropUtils.is3Nums(p)
+	}
+
+	/** Check if an Array contains exactly 3 numbers. */
+	public static is3Nums(p: number[]): boolean {
+		return p.length === 3 && p.every((el: number) => !isNaN(el))
+	}
+
+	public static isMatrix4ParamsArray(p: matrix_value): boolean {
+		return Array.isArray(p) && p.length === 16 && p.every((el: number) => !isNaN(el))
+	}
+
+	/** Check if an Array contains exactly 16 numbers. */
+	public static isMatrix4Params(p: number[]): boolean {
+		return p.length === 16 && p.every((el: number) => !isNaN(el))
+	}
+
+	public static isEulerParamsArray(p: (number | string)[]): boolean {
+		return (
+			Array.isArray(p) &&
+			p.length === 4 &&
+			!isNaN(p[0] as number) &&
+			!isNaN(p[1] as number) &&
+			!isNaN(p[2] as number) &&
+			typeof p[3] === "string"
+		)
+	}
+
+	/** Check if an Array contains exactly three numbers and one string. */
+	public static isEulerParams(p: (number | string)[]): boolean {
+		return (
+			p.length === 4 &&
+			!isNaN(p[0] as number) &&
+			!isNaN(p[1] as number) &&
+			!isNaN(p[2] as number) &&
+			typeof p[3] === "string"
+		)
+	}
+
+	public static isQuaternionParamsArray(p: number[]): boolean {
+		return Array.isArray(p) && p.length === 4 && p.every((el: number) => !isNaN(el))
+	}
+
+	/** Check if an Array contains exactly 4 numbers. */
+	public static isQuaternionParams(p: number[]): boolean {
+		return p.length === 4 && p.every((el: number) => !isNaN(el))
+	}
+
+	public static checkIfComplexValueType(val: any_proputils_value): ComplexValueType | undefined {
+		if (Array.isArray(val)) {
+			if (PropUtils.is2Nums(val as number[])) return "Array2Nums"
+			if (PropUtils.is3Nums(val as number[])) return "Array3Nums"
+			if (PropUtils.isEulerParams(val as (number | string)[])) return "EulerParamsArray"
+			if (PropUtils.isQuaternionParams(val as number[])) return "QuaternionParamsArray"
+			if (PropUtils.isMatrix4Params(val as number[])) return "Matrix4ParamsArray"
+		} else if (val) {
+			if ((val as Vector2).isVector2) return "Vector2"
+			if ((val as Vector3).isVector3) return "Vector3"
+			if ((val as Color).isColor) return "Color"
+			if ((val as Euler).isEuler) return "Euler"
+			if ((val as Quaternion).isQuaternion) return "Quaternion"
+			if ((val as Matrix4)["isMatrix4" as keyof Matrix4]) return "Matrix4"
+		}
+
+		return undefined
+	}
+
+	public static setRotationFromValue(obj: Object3D, val: rot_value, complex?: ComplexValueType): void {
+		switch (complex) {
+			case undefined:
+				if (val && Array.isArray(val)) {
+					PropUtils.is3Nums(val as number[])
+						? PropUtils.setRotArray3(obj, val as Parameters<Vector3["set"]>)
+						: PropUtils.isEulerParams(val as (number | string)[])
+						? PropUtils.setRotEulerArray(obj, val as Parameters<Euler["set"]>)
+						: PropUtils.isQuaternionParams(val as number[])
+						? PropUtils.setRotQuaternionArray(obj, val as Parameters<Quaternion["set"]>)
+						: console.error(
+								"SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value!",
+								{
+									obj: obj,
+									value: val
+								}
+						  )
+				} else if (val) {
+					;(val as Euler).isEuler
+						? PropUtils.setRotEuler(obj, val as Euler)
+						: (val as Vector3).isVector3
+						? PropUtils.setRotVector3(obj, val as Vector3)
+						: (val as Quaternion).isQuaternion
+						? PropUtils.setRotQuaternion(obj, val as Quaternion)
+						: console.error(
+								"SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value!",
+								{
+									obj: obj,
+									value: val
+								}
+						  )
+				} else {
+					console.error("SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value!", {
+						obj: obj,
+						value: val
+					})
+				}
+				break
+			case "Euler":
+				PropUtils.setRotEuler(obj, val as Euler)
+				break
+			case "EulerParamsArray":
+				PropUtils.setRotEulerArray(obj, val as Parameters<Euler["set"]>)
+				break
+			case "Vector3":
+				PropUtils.setRotVector3(obj, val as Vector3)
+				break
+			case "Array3Nums":
+				PropUtils.setRotArray3(obj, val as Parameters<Vector3["set"]>)
+				break
+			case "Quaternion":
+				PropUtils.setRotQuaternion(obj, val as Quaternion)
+				break
+			case "QuaternionParamsArray":
+				PropUtils.setRotQuaternionArray(obj, val as Parameters<Quaternion["set"]>)
+				break
+			default:
+				console.error(
+					"SVELTHREE > [ PropUtils ] -> setRotationFromValue : invalid 'rotation' value! No such 'ComplexValueType'!",
+					{
+						obj: obj,
+						value: val,
+						complex: complex
+					}
+				)
+				break
+		}
+	}
+
+	public static setRotEuler(obj: Object3D, val: Euler): void {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setRotEuler : ", { obj, val })
+		obj.setRotationFromEuler(val as Euler)
+	}
+
+	public static setRotEulerArray(obj: Object3D, val: Parameters<Euler["set"]>): void {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setRotEulerArray : ", { obj, val })
+		obj.rotation.set(val[0], val[1], val[2], val[3])
+	}
+
+	public static setRotVector3(obj: Object3D, val: Vector3): void {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setRotVector3 : ", { obj, val })
+		obj.rotation.set(val.x, val.y, val.z)
+	}
+
+	public static setRotArray3(obj: Object3D, val: Parameters<Vector3["set"]>): void {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setRotQuaternion : ", { obj, val })
+		obj.rotation.set(val[0], val[1], val[2])
+	}
+
+	public static setRotQuaternion(obj: Object3D, val: Quaternion): void {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setRotQuaternion : ", { obj, val })
+		obj.setRotationFromQuaternion(val)
+	}
+
+	public static setRotQuaternionArray(obj: Object3D, val: Parameters<Quaternion["set"]>): void {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setRotQuaternionArray : ", { obj, val })
+		}
+		obj.quaternion.set(val[0], val[1], val[2], val[3])
+	}
+
+	public static setPositionFromValue(obj: Object3D, val: pos_value, complex?: ComplexValueType): void {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromValue : ", { obj, val, complex })
+		}
+		switch (complex) {
+			case undefined:
+				PropUtils.isArray3Nums(val as number[])
+					? PropUtils.setPositionFromArray3(obj, val as Parameters<Vector3["set"]>)
+					: (val as Vector3)?.isVector3
+					? PropUtils.setPositionFromVector3(obj, val as Vector3)
+					: console.error("SVELTHREE > [ PropUtils ] -> setPositionFromValue : invalid 'position' value!", {
+							obj: obj,
+							value: val
+					  })
+				break
+			case "Array3Nums":
+				PropUtils.setPositionFromArray3(obj, val as Parameters<Vector3["set"]>)
+				break
+			case "Vector3":
+				PropUtils.setPositionFromVector3(obj, val as Vector3)
+				break
+			default:
+				console.error(
+					"SVELTHREE > [ PropUtils ] -> setPositionFromValue : invalid 'position' value! No such 'ComplexValueType'!",
+					{
+						obj: obj,
+						value: val,
+						complex: complex
+					}
+				)
+				break
+		}
+	}
+
+	public static setPositionFromVector3(obj: Object3D, val: Vector3) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromVector3 : ", { obj, val })
+		}
+		obj.position.copy(val)
+	}
+
+	public static setPositionFromArray3(obj: Object3D, val: Parameters<Vector3["set"]>) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromArray3 : ", { obj, val })
+		}
+		obj.position.set(val[0], val[1], val[2])
+	}
+
+	public static setScaleFromValue(obj: Object3D, val: scale_value, complex?: ComplexValueType): void {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromValue : ", { obj, val, complex })
+		}
+		switch (complex) {
+			case undefined:
+				if (val) {
+					PropUtils.isArray3Nums(val as number[])
+						? PropUtils.setScaleFromArray3(obj, val as Parameters<Vector3["set"]>)
+						: (val as Vector3).isVector3
+						? PropUtils.setScaleFromVector3(obj, val as Vector3)
+						: !isNaN(val as number)
+						? PropUtils.setScaleFromNumber(obj, val as number)
+						: console.error("SVELTHREE > [ PropUtils ] -> setScaleFromValue : invalid 'scale' value!", {
+								obj: obj,
+								value: val
+						  })
+				} else {
+					console.error("SVELTHREE > [ PropUtils ] -> setScaleFromValue : invalid 'scale' value!", {
+						obj: obj,
+						value: val
+					})
+				}
+
+				break
+			case "Array3Nums":
+				PropUtils.setScaleFromArray3(obj, val as Parameters<Vector3["set"]>)
+				break
+			case "Vector3":
+				PropUtils.setScaleFromVector3(obj, val as Vector3)
+				break
+			default:
+				console.error(
+					"SVELTHREE > [ PropUtils ] -> setScaleFromValue : invalid 'scale' value! No such 'ComplexValueType'!",
+					{
+						obj: obj,
+						value: val,
+						complex: complex
+					}
+				)
+				break
+		}
+	}
+
+	public static setScaleFromVector3(obj: Object3D, val: Vector3) {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromArray3 : ", { obj, val })
+		obj.scale.copy(val as Vector3)
+	}
+
+	public static setScaleFromNumber(obj: Object3D, val: number) {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromNumber : ", { obj, val })
+		// uniform scale
+		obj.scale.set(val, val, val)
+	}
+
+	public static setScaleFromArray3(obj: Object3D, val: Parameters<Vector3["set"]>) {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setScaleFromArray3 : ", { obj, val })
+		obj.scale.set(val[0], val[1], val[2])
+	}
+
+	/* THREE  IMPORTANT 
+	// TODO  NAIL IT DOWN!
+	`lookAt` doesn't work with lights with `target` property (DirectionalLight & SpotLight).
+	Here we have to manipulate the position of the `target` + before we do that, make sure it's added
+	to the scene. So when manipulating these lights via `lookAt` attribute or `lookAt` in props-object:
+	 
+		a) `target` object has no parent: add `target` to the PARENT OF THE LIGHT + set `target` position
+		b) `target` object has parent: set `target` position
+
+	CAVEATS:
+	- if user sets `target` attribute or `target` prop and tries to use `lookAt` attribute or prop they'll interfere
+	TEST: ... the last one updated will be applied
+
+	*/
+
+	public static setLookAtFromValue(
+		three_instance: Object3D | LightWithTarget,
+		val: lookAt_value,
+		complex?: ComplexValueType
+	) {
+		if (this.verbose && log_prop_utils(three_instance))
+			console.debug("SVELTHREE > [ PropUtils ] -> setLookAtFromValue!", { three_instance, val })
+
+		// IMPORTANT  update Matrix before setting `lookAt`--> lookAt has to be applied as last.
+		// this way we apply all other transforms before lookAt-update!
+		three_instance.updateMatrix()
+
+		// target lookat position
+		let t_pos: Vector3 | Parameters<Vector3["set"]> | undefined | null
+
+		if (val) {
+			// TODO  TOFIX  this seems to be broken?! (Spotlight)
+			// can use Object3D as `lookAt` value
+
+			let target_instance: Targetable | null
+
+			// set target lookat position
+
+			if (!(val as TargetableSvelthreeComponent).is_svelthree_component && (val as Object3D).isObject3D) {
+				// val is a manually created `Object3D` instance
+				target_instance = val as Object3D
+				t_pos = new Vector3()
+				target_instance.getWorldPosition(t_pos)
+			} else if ((val as TargetableSvelthreeComponent).is_svelthree_component) {
+				// val is an instance created by a svelthree component
+				const target_component = val as TargetableSvelthreeComponent
+				target_instance = target_component.get_instance() as Object3D
+				t_pos = new Vector3()
+				target_instance.getWorldPosition(t_pos)
+			} else if ((val as Vector3).isVector3) {
+				// val is a Vector3
+				target_instance = null
+				t_pos = val as Vector3
+			} else if (PropUtils.isArray3Nums(val as number[])) {
+				// val is [number, number, number]
+				target_instance = null
+				t_pos = val as Parameters<Vector3["set"]>
+			} else {
+				target_instance = null
+				t_pos = null
+			}
+
+			if (t_pos) {
+				// Use 'target':  IMPORTANT  Manipulating `target` via `lookAt` shorthand attribute is limited to `Lights` with 'target' property only (DirectionalLight | SpotLight)
+				if ((three_instance as LightWithTarget).isLight) {
+					const light = three_instance as LightWithTarget
+					if (Object.hasOwn(light, "target")) {
+						// set target to provided component / instance
+						if (target_instance) {
+							if (light.userData.target_uuid) {
+								if (light.userData.target_uuid !== target_instance.uuid) {
+									light.target = target_instance
+									light.userData.target_uuid = target_instance.uuid
+									light.target.updateMatrixWorld()
+								} else {
+									light.target.updateMatrixWorld()
+								}
+							} else {
+								light.target = target_instance
+								light.userData.target_uuid = target_instance.uuid
+								light.target.updateMatrixWorld()
+							}
+						} else {
+							// set target to built-in target (Object3D)
+							light.target = light.userData.builtin_target
+							light.userData.target_uuid = light.target.uuid
+
+							// change position of built-in target (Object3D)
+							const light_target = light.target as Object3D
+
+							if (light_target) {
+								if (light_target.isObject3D) {
+									if (light.matrixAutoUpdate === false) {
+										light_target.matrixAutoUpdate = false
+									}
+
+									// add target to light's parent if needed
+									if (light.target.parent === null) {
+										const light_parent = light.parent
+										if (light_parent !== null) {
+											// target has no parent, add target to parent of obj
+											light_parent.add(light_target)
+											if (this.verbose) {
+												console.warn(
+													`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : 'target' of ${light.type} was added to the parent of ${light.type}!`,
+													{ light, target: light_target }
+												)
+											}
+										} else {
+											console.error(
+												`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : Cannot add 'target' to the unavilable 'parent' of ${light.type}!`,
+												{ light, parent: light_parent }
+											)
+										}
+									} else {
+										// nothing, 'target' was already added to light's parent
+									}
+
+									// set position of the target
+									PropUtils.setPositionFromValue(light_target, t_pos, complex)
+									// IMPORTANT  We have to update 'matrixWorld' of 'target' here (at least with render modes 'auto'), regardles of 'obj_target.matrixAutoUpdate' value!
+									// 'SpotlightHelper' and 'DirectionalLightHelper' use 'lookAt' to 'light.target.matrixWorld' for orientation.
+									if (light.matrixAutoUpdate === false) {
+										light_target.updateMatrix()
+										light_target.updateMatrixWorld()
+									} else {
+										light_target.updateMatrixWorld()
+									}
+								} else {
+									console.error(
+										`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : ${light.type}'s 'target' has to be an 'Object3D'!`,
+										{
+											light,
+											target: light_target
+										}
+									)
+								}
+							} else {
+								console.error(
+									`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid '${light.type}.target' value!`,
+									{
+										light,
+										target: light_target
+									}
+								)
+							}
+						}
+					} else {
+						console.error(
+							`SVELTHREE > [ PropUtils ] -> setLookAtFromValue : ${light.type} has no 'target' property!`,
+							{
+								light
+							}
+						)
+					}
+				} else {
+					// Use `Object3D.lookAt` function (not 'target') on any `Object3D`
+					if (PropUtils.isArray3Nums(t_pos as number[])) {
+						// TODO  Type wrong in  THREE  -> Object3D.d.ts
+						three_instance.lookAt(
+							(t_pos as [number, number, number])[0],
+							(t_pos as [number, number, number])[1],
+							(t_pos as [number, number, number])[2]
+						)
+					} else if ((t_pos as Vector3).isVector3) {
+						three_instance.lookAt(t_pos as Vector3)
+					} else {
+						console.error("SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid 'lookAt' value!", {
+							three_instance,
+							value: t_pos
+						})
+					}
+				}
+			} else {
+				console.error(
+					"SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid 'lookAt' target-position value!",
+					{
+						three_instance,
+						value: t_pos
+					}
+				)
+			}
+		} else {
+			console.error("SVELTHREE > [ PropUtils ] -> setLookAtFromValue : invalid 'lookAt' value!", {
+				three_instance,
+				value: val
+			})
+		}
+	}
+
+	// we know that 'obj' has property 'key', see 'Propeller'
+	public static setColorFromValueKey(
+		obj: Material | Light | Scene,
+		val: color_value,
+		key: string,
+		complex?: ComplexValueType
+	) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setColorFromValueKey : ", { obj, val, key, complex })
+		}
+		// color value can be `0`
+		if (val || val === 0) {
+			PropUtils.isArray3Nums(val as number[])
+				? PropUtils.setColorFromArray(obj, val as [r: number, g: number, b: number], key)
+				: !isNaN(val as number)
+				? PropUtils.setColorFromNumber(obj, val as number, key)
+				: (val as Color).isColor
+				? PropUtils.setColorFromColor(obj, val as Color, key)
+				: (val as Vector3).isVector3
+				? PropUtils.setColorFromVector3(obj, val as Vector3, key)
+				: typeof val === "string"
+				? PropUtils.setColorFromString(obj, val, key)
+				: console.error(`[ PropUtils ] -> setColorFromValueKey : invalid '${key}' value!`, {
+						obj: obj,
+						value: val
+				  })
+		} else {
+			console.error(`[ PropUtils ] -> setColorFromValueKey : invalid '${key}' value!`, {
+				obj: obj,
+				value: val
+			})
+		}
+	}
+
+	// TODO  handle background as `Texture`
+	/*
+	public static setBackgroundAsTextureFromValueKey() {
+		// TODO 
+	}
+	*/
+
+	public static setColorFromArray(
+		obj: Material | Light | Scene,
+		val: [r: number, g: number, b: number],
+		key: string
+	) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setColorFromArray : ", { obj, val, key })
+		}
+		if (obj[key as keyof typeof obj] === null || obj[key as keyof typeof obj] === undefined) {
+			;(obj[key as keyof typeof obj] as Color) = new Color(val[0], val[1], val[2])
+		} else {
+			obj[key as keyof typeof obj].setRGB(val[0], val[1], val[2])
+		}
+	}
+
+	public static setColorFromNumber(obj: Material | Light | Scene | Material, val: number, key: string) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setColorFromNumber : ", { obj, val, key })
+		}
+		if (obj[key as keyof typeof obj] === null || obj[key as keyof typeof obj] === undefined) {
+			;(obj[key as keyof typeof obj] as Color) = new Color(val)
+		} else {
+			obj[key as keyof typeof obj].set(val)
+		}
+	}
+
+	public static setColorFromColor(obj: Material | Light | Scene, val: Color, key: string) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setColorFromColor : ", { obj, val, key })
+		}
+		if (obj[key as keyof typeof obj] === null || obj[key as keyof typeof obj] === undefined) {
+			;(obj[key as keyof typeof obj] as Color) = new Color()
+			obj[key as keyof typeof obj].copy(val)
+		} else {
+			obj[key as keyof typeof obj].copy(val)
+		}
+	}
+
+	public static setColorFromVector3(obj: Material | Light | Scene | Material, val: Vector3, key: string) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setColorFromVector3 : ", { obj, val, key })
+		}
+
+		if (obj[key as keyof typeof obj] === null || obj[key as keyof typeof obj] === undefined) {
+			;(obj[key as keyof typeof obj] as Color) = new Color(val.x, val.y, val.z)
+		} else {
+			obj[key as keyof typeof obj].setRGB(val.x, val.y, val.z)
+		}
+	}
+
+	public static setColorFromString(obj: Material | Light | Scene | Material, val: string, key: string) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setColorFromString : ", { obj, val, key })
+		}
+
+		if (obj[key as keyof typeof obj] === null || obj[key as keyof typeof obj] === undefined) {
+			;(obj[key as keyof typeof obj] as Color) = new Color(val)
+		} else {
+			obj[key as keyof typeof obj].set(val)
+		}
+	}
+
+	// Light specific
+
+	public static setIntensity(light: Light, val: number) {
+		if (this.verbose && log_prop_utils(light))
+			console.debug("SVELTHREE > [ PropUtils ] -> setIntensity : ", { light, val })
+		light.intensity = val
+	}
+
+	public static setShadowMapSizeFromValue(obj: LightShadow, val: mapsize_value, complex?: ComplexValueType): void {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setPositionFromValue : ", { obj, val, complex })
+		}
+		switch (complex) {
+			case undefined:
+				PropUtils.isArray2Nums(val as number[])
+					? PropUtils.setMapSizeFromArray2(obj, val as Parameters<Vector2["set"]>)
+					: val?.["isVector2" as keyof typeof val]
+					? PropUtils.setMapSizeFromVector2(obj, val as Vector2)
+					: console.error("SVELTHREE > [ PropUtils ] -> setPositionFromValue : invalid 'position' value!", {
+							obj: obj,
+							value: val
+					  })
+				break
+			case "Array2Nums":
+				PropUtils.setMapSizeFromArray2(obj, val as Parameters<Vector2["set"]>)
+				break
+			case "Vector2":
+				PropUtils.setMapSizeFromVector2(obj, val as Vector2)
+				break
+			default:
+				console.error(
+					"SVELTHREE > [ PropUtils ] -> setShadowMapSizeFromValue : invalid 'mapSize' value! No such 'ComplexValueType'!",
+					{
+						obj: obj,
+						value: val,
+						complex: complex
+					}
+				)
+				break
+		}
+	}
+
+	public static setMapSizeFromVector2(obj: LightShadow, val: Vector2) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setMapSizeFromVector2 : ", { obj, val })
+		}
+		obj.mapSize.copy(val)
+	}
+
+	public static setMapSizeFromArray2(obj: LightShadow, val: Parameters<Vector2["set"]>) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setMapSizeFromArray3 : ", { obj, val })
+		}
+		obj.mapSize.set(val[0], val[1])
+	}
+
+	public static setShadowMapSize(light: LightWithShadow | undefined | null, shadowMapSize: number) {
+		if (this.verbose && log_prop_utils(light)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setShadowMapSize : ", { light, shadowMapSize })
+		}
+		if (light) {
+			light.shadow.mapSize.width = shadowMapSize
+			light.shadow.mapSize.height = shadowMapSize
+		}
+	}
+
+	public static setShadowBias(light: LightWithShadow | undefined | null, shadowBiasSize: number): void {
+		if (this.verbose && log_prop_utils(light)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setShadowBias : ", { light, shadowBiasSize })
+		}
+		if (light) {
+			light.shadow.bias = shadowBiasSize
+		}
+	}
+
+	public static setCastShadow(light: LightWithShadow | undefined | null, castShadow: boolean): void {
+		if (this.verbose && log_prop_utils(light)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setCastShadow : ", { light, castShadow })
+		}
+		if (light) {
+			light.castShadow = castShadow
+		}
+	}
+
+	/**
+	 * Sets `matrix` of an object.
+	 * IMPORTANT  Setting "manually" updating the `matrix` property will automatically set `matrixAutoUpdate` to `false`.
+	 * Applying transformations via `position`, `rotation`, `scale` etc. will automatically set `matrixAutoUpdate` to `true` again.
+	 */
+	public static setMatrixFromValue(obj: Object3D, val: matrix_value) {
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> obj.matrixAutoUpdate before! : ", obj.matrixAutoUpdate)
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! : ", { obj, val })
+		if (val) {
+			if ((val as Matrix4)["isMatrix4" as keyof Matrix4]) {
+				// see https://stackoverflow.com/questions/60393190/threejs-transform-by-applymatrix4-doesnt-preserve-eigen-vectors-direction
+				//mesh.applyMatrix4(matrix)
+
+				if (this.verbose && log_prop_utils(obj))
+					console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! is Matrix4 BEFORE : ", {
+						obj,
+						val,
+						m: obj.matrix
+					})
+
+				// save initial `matrixAutoUpdate` value
+				const initialMatrixAutoUpdate: boolean = obj.matrixAutoUpdate
+
+				// force disable `matrixAutoUpdate` before matrix manipulation
+				obj.matrixAutoUpdate = false
+
+				obj.matrix.copy(val as Matrix4) // copy is faster
+
+				// reset inital `matrixAutoUpdate` value
+				obj.matrixAutoUpdate = initialMatrixAutoUpdate
+
+				// mark for matrixWorld update (as updateMatrix() normally would)
+				obj.matrixWorldNeedsUpdate = true
+
+				if (this.verbose && log_prop_utils(obj))
+					console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! is Matrix4 AFTER : ", {
+						obj,
+						val,
+						m: obj.matrix
+					})
+			} else if (PropUtils.isMatrix4ParamsArray(val)) {
+				// save initial `matrixAutoUpdate` value
+				const initialMatrixAutoUpdate: boolean = obj.matrixAutoUpdate
+
+				// force disable `matrixAutoUpdate` before matrix manipulation
+				obj.matrixAutoUpdate = false
+
+				obj.matrix.set(...(val as Parameters<Matrix4["set"]>)).transpose()
+				// TODO  Nail down updating matrix / matrixWorld
+
+				// reset inital `matrixAutoUpdate` value
+				obj.matrixAutoUpdate = initialMatrixAutoUpdate
+
+				// mark for matrixWorld update (as updateMatrix() normally would)
+				obj.matrixWorldNeedsUpdate = true
+			} else {
+				console.error(`[ PropUtils ] -> setMatrixFromValue : invalid 'matrix' value!`, {
+					obj: obj,
+					value: val
+				})
+			}
+		}
+
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> obj.matrixAutoUpdate after! : ", obj.matrixAutoUpdate)
+		if (this.verbose && log_prop_utils(obj))
+			console.debug("SVELTHREE > [ PropUtils ] -> setMatrixFromValue! AFTER : ", { obj, val, m: obj.matrix })
+	}
+
+	public static setQuaternionFromValue(obj: Object3D, val: quat_value, complex?: ComplexValueType) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> setQuaternionFromValue : ", { obj, val, complex })
+		}
+
+		if (val && (val as Quaternion).isQuaternion) {
+			// see https://threejs.org/docs/#api/en/core/Object3D.setRotationFromQuaternion
+
+			// Copy the given quat into '.quat'.
+
+			//obj.setRotationFromQuaternion((val as Quaternion).clone().normalize()) // doesn't work solo
+			// copy the received Quaternion in order to prevent circular binding to the prop
+			obj.quaternion.copy(val as Quaternion)
+
+			// we got to update matrix if 'matrixAutoUpdate' is false
+			//if (obj.matrixAutoUpdate === false) PropUtils.updateMatrixAndWorldMatrix(obj)
+		} else {
+			console.error(`[ PropUtils ] -> setQuaternionFromValue : invalid 'quat' value!`, {
+				obj: obj,
+				value: val
+			})
+		}
+	}
+
+	/** Simply set property `a` to value `x` -> no special method was assigned to the prop via `Propeller`. */
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	public static applyValueToProp(obj: any, value: unknown, key: string, complex?: ComplexValueType) {
+		if (this.verbose && log_prop_utils(obj)) {
+			console.debug("SVELTHREE > [ PropUtils ] -> applyValueToProp : ", { obj, value, key, complex })
+		}
+		try {
+			if (Object.hasOwn(obj, key)) {
+				obj[key] = value
+			}
+		} catch (err) {
+			console.error(`[ PropUtils ] -> applyValueToProp : failed!`, err, { obj, value, key })
+		}
+	}
+}
+
+=== 3551 src/lib/utils/Propeller.ts	ts	module	-
+import type { WebGLCubeRenderTarget, Object3D, Material, Light, Scene, LightShadow } from "three"
+import type {
+	matrix_value,
+	pos_value,
+	rot_value,
+	scale_value,
+	lookAt_value,
+	quat_value,
+	color_value,
+	mapsize_value,
+	//background_value,
+	any_propeller_value
+} from "../types/types-extra.js"
+import PropUtils from "./PropUtils.js"
+import type { ComplexValueType, SvelthreePropsOwner, LightWithTarget } from "../types/types-extra.js"
+
+/** ⚙️ `Propeller`'s `update` method redirects some `props` object properties to specific `PropUtils` update
+ * methods and also allows special handling if needed when updating a specific `props` object's property.
+ * It's used **only** internally by `SvelthreeProps` (+`valuators`) **only**. */
+export default class Propeller {
+	/** Used internally by `SvelthreeProps` (+`valuators`) -> redirects some `props` object properties to specific `PropUtils` update methods and also
+	 * allows special handling if needed when updating a specific `props` object's property. */
+	public static update(
+		obj: SvelthreePropsOwner,
+		obj_type: string,
+		key: string,
+		value: any_propeller_value,
+		origin: string | null,
+		complex?: ComplexValueType
+	): void {
+		// handle own properties (as opposed to inherited ones)
+		if (origin === "own") {
+			switch (key) {
+				case "position":
+					PropUtils.setPositionFromValue(obj as Object3D, value as pos_value, complex)
+					break
+				case "rotation":
+					PropUtils.setRotationFromValue(obj as Object3D, value as rot_value, complex)
+					break
+				case "scale":
+					PropUtils.setScaleFromValue(obj as Object3D, value as scale_value, complex)
+					break
+				case "quaternion":
+					PropUtils.setQuaternionFromValue(obj as Object3D, value as quat_value, complex)
+					break
+				case "matrix":
+					PropUtils.setMatrixFromValue(obj as Object3D, value as matrix_value)
+					break
+				case "mapSize":
+					PropUtils.setShadowMapSizeFromValue(obj as LightShadow, value as mapsize_value)
+					break
+				case "color":
+				case "groundColor":
+					PropUtils.setColorFromValueKey(obj as Material | Light, value as color_value, key, complex)
+					break
+				case "background":
+					if (!(value as THREE.Texture).isTexture) {
+						PropUtils.setColorFromValueKey(obj as Scene, value as color_value, key, complex)
+					} else {
+						// TODO  handle background as `Texture`
+						//PropUtils.setBackgroundAsTextureFromValueKey(obj as Scene, value as Texture, key, complex)
+					}
+					break
+
+				default:
+					// wildcard updating of **own** properties
+					PropUtils.applyValueToProp(obj, value, key)
+					break
+			}
+			// handle inherited properties
+		} else if (origin === "inherited") {
+			switch (key) {
+				case "lookAt":
+					PropUtils.setLookAtFromValue(obj as Object3D | LightWithTarget, value as lookAt_value, complex)
+					break
+				default:
+					// update `CubeCamera`'s `renderTargetProps` prop (`CubeTexture`)
+					if (obj_type === "WebGLCubeRenderTarget") {
+						const cubeRenderTarget = obj as WebGLCubeRenderTarget
+						PropUtils.applyValueToProp(cubeRenderTarget.texture, value, key)
+					} else {
+						// no wildcard updating of **inherited** properties  via `Proppeller` -> show error in the console.
+						//PropUtils.applyValueToProp(obj, value, key)
+						console.error(`SVELTHREE > Propeller > ${obj_type} : updating '${key}' is not implemented!`, {
+							key: key,
+							value: value
+						})
+					}
+					break
+			}
+		} else {
+			// shouldn't happen
+			console.error(`SVELTHREE > Propeller > update : 'origin' value is not valid!`, { origin })
+		}
+	}
+}
+
+=== 1241 src/lib/utils/RaycastArray.ts	ts	module	-
+import type { RaycastArrayInput, RaycastArrayOutput } from "../types/types-extra.js"
+
+class RaycastArray_Base extends Array {
+	public head_path: string[] = ["userData"]
+	public index_prop = "index_in_raycast"
+	public dirty = false
+
+	/*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+	constructor(...args: any[]) {
+		super(...args)
+	}
+
+	push(...to_check_intersection: RaycastArrayInput): number {
+		super.push(...to_check_intersection)
+		this.process_to_check_intersection()
+		this.set_index_prop()
+		this.dirty = true
+		return this.length
+	}
+
+	splice(start: number, deleteCount?: number): RaycastArrayOutput {
+		super.splice(start, deleteCount)
+		this.set_index_prop()
+		this.dirty = true
+		return this
+	}
+
+	// replace component references with three.js object instances created by the component
+	process_to_check_intersection(): void {
+		for (let i = 0; i < this.length; i++) {
+			if (this[i]["is_svelthree_component"]) {
+				this[i] = this[i].get_instance()
+			}
+		}
+	}
+
+	set_index_prop(): void {
+		for (let i = 0; i < this.length; i++) {
+			this[i][this.head_path[0]][this.index_prop] = i
+		}
+	}
+}
+
+class RaycastArray extends RaycastArray_Base {
+	constructor() {
+		super()
+	}
+}
+
+export { RaycastArray }
+
 === 837 src/lib/utils/RendererUtils.svelte	svelte	runes	neutral
 <script lang="ts" context="module">
 	import type { default as WebGLRenderer } from "../components/WebGLRenderer.svelte"
@@ -28,4 +3451,1394 @@
 		remove_on_render_event = renderer_component.$on(event_name, check)
 	}
 </script>
+
+=== 387 src/lib/utils/SceneUtils.ts	ts	module	-
+import type { Scene } from "three"
+
+function get_root_scene(context_scene: Scene): Scene {
+	//let context_scene: Scene = getContext("scene")
+	if (context_scene.parent === null) {
+		return context_scene
+	} else {
+		let n = undefined
+		let o = context_scene
+		while (n !== null) {
+			n = o.parent
+			if (n !== null) {
+				o = n as Scene
+			}
+		}
+		return o
+	}
+}
+
+export { get_root_scene }
+
+=== 6637 src/lib/utils/SvelthreeGLTF.ts	ts	module	-
+import { Euler, Vector3 } from "three"
+import type { GLTF } from "three/examples/jsm/loaders/GLTFLoader.js"
+
+// import currently supported components only
+import { default as Mesh } from "../components/Mesh.svelte"
+import { default as Object3D } from "../components/Object3D.svelte"
+import { default as Group } from "../components/Group.svelte"
+
+import type {
+	SvelthreeGLTFTreeMap,
+	ISvelthreeGLTFTreeMapMember,
+	SvelthreeShadowDOMElement,
+	SvelthreeComponentShadowDOMChild,
+	MeshAssignableMaterial
+} from "../types/types-extra.js"
+
+export default class SvelthreeGLTF {
+	public tree: SvelthreeGLTFTreeMap = new Map<string, ISvelthreeGLTFTreeMapMember>()
+
+	constructor(public content: GLTF) {}
+
+	/**  */
+	public async parse(): Promise<SvelthreeGLTFTreeMap> {
+		if (this.content.scenes?.length > 1) {
+			for (let i = 0; i < this.content.scenes.length; i++) {
+				await this.build_tree(this.content.scenes[i])
+			}
+		} else {
+			await this.build_tree(this.content.scene)
+		}
+
+		return this.tree
+	}
+
+	async build_tree(scene: THREE.Object3D): Promise<void> {
+		//console.log("SvelthreeGLTF parsing started!")
+
+		const fns: (() => Promise<void>)[] = []
+
+		const make_three_member =
+			(obj: THREE.Object3D, parent: THREE.Object3D | undefined, tree_map: SvelthreeGLTFTreeMap) =>
+			async (): Promise<void> => {
+				tree_map.set(obj.uuid, {
+					obj: obj,
+					parent_uuid: parent ? parent.uuid : null,
+					name: obj.name ? obj.name : "",
+					obj_type: obj.type,
+					mesh:
+						obj.type === "Mesh"
+							? { geometry: (obj as THREE.Mesh).geometry, material: (obj as THREE.Mesh).material }
+							: null,
+					svelthree_comp: undefined
+				})
+			}
+
+		function traverse(child: THREE.Object3D, tree_map: SvelthreeGLTFTreeMap, parent?: THREE.Object3D) {
+			fns.push(make_three_member(child, parent, tree_map))
+
+			const children = child.children
+			for (let i = 0, l = children.length; i < l; i++) {
+				traverse(children[i], tree_map, child)
+			}
+		}
+
+		traverse(scene, this.tree)
+
+		for (const fn of fns) {
+			await fn()
+		}
+
+		//console.log("SvelthreeGLTF parsing FINISHED!")
+	}
+
+	async get_parent_component(parent_uuid: string): Promise<SvelthreeComponentShadowDOMChild | undefined> {
+		const tree_member: ISvelthreeGLTFTreeMapMember | undefined = this.tree.get(parent_uuid)
+
+		if (tree_member?.svelthree_comp) {
+			return tree_member?.svelthree_comp
+		} else {
+			return undefined
+		}
+	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	async get_parent_context(parent_component: SvelthreeComponentShadowDOMChild): Promise<Map<any, any>> {
+		return parent_component["$$"].context
+	}
+
+	/** Generates `svelthree`-components due to the parsed (_see `SvelthreeGLTF.parse()`_) hierarchy-tree-map and
+	 * adds the constructed `svelthree`-components-tree to the specified `svelthree`-target-component.
+	 */
+	public async apply(target_component: SvelthreeComponentShadowDOMChild): Promise<void> {
+		//console.log("SvelthreeGLTF apply started!")
+
+		const fns: (() => Promise<void>)[] = []
+
+		const create_component =
+			(item: ISvelthreeGLTFTreeMapMember, target_component: SvelthreeComponentShadowDOMChild) =>
+			async (): Promise<void> => {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				let context: Map<any, any> | undefined
+				let dom_target: SvelthreeShadowDOMElement | ShadowRoot | undefined | null
+				let parent_component: SvelthreeComponentShadowDOMChild | undefined
+
+				if (item.parent_uuid) {
+					parent_component = await this.get_parent_component(item.parent_uuid)
+					if (parent_component) {
+						context = await this.get_parent_context(parent_component)
+						dom_target = parent_component.get_shadow_dom_el()
+					} else {
+						console.error(
+							`SVELTHREE > utils > SvelthreeGLTF > create_component : invalid 'parent_component' value!`,
+							parent_component
+						)
+					}
+				} else {
+					// the object has no parent, means it's the root object
+					parent_component = target_component
+					dom_target = parent_component.get_shadow_dom_el()
+					context = parent_component["$$"].context
+				}
+
+				if (dom_target && item && context && parent_component) {
+					switch (item.obj_type) {
+						// TODO  Add all components we have atm.
+						case "Mesh":
+							if (item.mesh && item.name) {
+								item.svelthree_comp = new Mesh({
+									target: dom_target,
+									props: {
+										geometry: item.mesh.geometry,
+										material: item.mesh.material as MeshAssignableMaterial,
+										name: item.name
+									},
+									context
+								})
+							}
+							break
+						case "Object3D":
+							item.svelthree_comp = new Object3D({
+								target: dom_target,
+								props: { name: item.name },
+								context
+							})
+							break
+						case "Group":
+							item.svelthree_comp = new Group({
+								target: dom_target,
+								props: { name: item.name },
+								context
+							})
+							break
+						default:
+							console.error(
+								`SVELTHREE > utils > SvelthreeGLTF : converting '${item.obj.type}' to a svelthree component is not supported (yet?).`,
+								{ item }
+							)
+							break
+					}
+
+					if (item.svelthree_comp) {
+						parent_component.register_child_component(item.svelthree_comp, true)
+					} else {
+						console.error(
+							`SVELTHREE > utils > SvelthreeGLTF : registering '${item.obj.type}' as a generated child component not possible because no svelthree component was generated -> probably this type of object is not supported (yet?).`,
+							{ item }
+						)
+					}
+				} else {
+					console.error(
+						`SVELTHREE > utils > SvelthreeGLTF > create_component : cannot generate component -> missing at least one of the required:`,
+						{ parent_component, dom_target, item, context }
+					)
+				}
+			}
+
+		for (const [, item] of this.tree.entries()) {
+			if (item) {
+				fns.push(create_component(item, target_component))
+			} else {
+				console.error(`SVELTHREE > utils > SvelthreeGLTF > create_component : invalid 'item' value!`, item)
+			}
+		}
+
+		for (const fn of fns) {
+			await fn()
+		}
+
+		//postprocess matrix etc.
+		for (const [, item] of this.tree.entries()) {
+			const comp = item.svelthree_comp
+
+			if (comp) {
+				comp.$set({ scale: new Vector3().copy(item.obj.scale) })
+				comp.$set({ pos: new Vector3().copy(item.obj.position) })
+				comp.$set({ rot: new Euler().copy(item.obj.rotation) })
+				comp.$set({ castShadow: item.obj.castShadow })
+				comp.$set({ receiveShadow: item.obj.receiveShadow })
+			} else {
+				console.error(
+					`SVELTHREE > utils > SvelthreeGLTF > create_component : invalid 'item.svelthree_comp' (comp) value!`,
+					comp
+				)
+			}
+		}
+
+		//console.log("SvelthreeGLTF apply FINISHED!")
+	}
+}
+
+=== 6366 src/lib/utils/SvelthreeLogger.ts	ts	module	-
+import LogCSS from "../constants/LogCSS.js"
+import type { AnySvelthreeComponent } from "svelthree/types/types-extra.js"
+import type { get_current_component } from "svelte/internal"
+
+export type LogLC = { all?: boolean; om?: boolean; bu?: boolean; au?: boolean; od?: boolean }
+
+// Currently configuring logging of the 'PropUtils' class only.
+export type LogDEV = { all?: boolean; prop_utils?: boolean }
+
+function verbose_mode(): boolean {
+	if (import.meta.env.VITE_SVELTHREE_VERBOSE == "1") {
+		return true
+	} else if (!import.meta.env.VITE_SVELTHREE_VERBOSE || import.meta.env.VITE_SVELTHREE_VERBOSE == "0") {
+		return false
+	} else {
+		throw new Error(
+			`SVELTHREE > SvelthreeLogger > verboseMode : 'SVELTHREE_VERBOSE' (environment variable) has an invalid value: '${
+				import.meta.env.VITE_SVELTHREE_VERBOSE
+			}', allowed values are '1' or '0'! Please check your environment configuration / .env files.`
+		)
+	}
+}
+
+function log_prop_utils(obj: ReturnType<AnySvelthreeComponent["get_instance"]>): boolean {
+	if (obj) {
+		if (obj.userData) {
+			if (obj.userData.svelthreeComponent) {
+				if (obj.userData.svelthreeComponent.log_dev) {
+					return (
+						obj.userData.svelthreeComponent.log_dev.all ||
+						obj.userData.svelthreeComponent.log_dev.prop_utils
+					)
+				} else {
+					return false
+				}
+			} else {
+				if (obj.type.includes("Camera") && obj.parent === null && !obj.userData.svelthreeComponent) {
+					//console.warn("[ REMARK ] SvelthreeLogger > PropUtils is (most propbably) about to change change props of an internal Shadow-Camera (OrthographicCamera)...", obj)
+					if (obj.userData.log_dev) {
+						return obj.userData.log_dev.all || obj.userData.log_dev.prop_utils
+					} else {
+						return false
+					}
+				} else if (obj.type.includes("Material")) {
+					console.warn(
+						"[ TODO ] SvelthreeLogger > Logging of Materials must be set manually by e.g. adding 'log_dev: { prop_utils: false }' to 'userData' ...",
+						obj
+					)
+					return true
+				}
+			}
+		} else {
+			// DirectionalLightShadow has OrthographicCamera as camera
+			// PointLightShadow has PerspectiveCamera as camera
+			// SpotLightShadow has PerspectiveCamera as camera
+			if (obj.isDirectionalLightShadow || obj.isPointLightShadow || obj.isSpotLightShadow) {
+				if (obj.camera) {
+					if (obj.camera.userData.log_dev) {
+						return obj.camera.userData.log_dev.all || obj.camera.userData.log_dev.prop_utils
+					} else {
+						return false
+					}
+				} else {
+					// this shouldn't happen!
+					throw new Error("SVELTHREE > SvelthreeLogger > no 'camera' in 'obj'!")
+				}
+			} else {
+				// TODO  Wait for it and see what's going on ...
+				console.warn("[ TODO ] SvelthreeLogger > no 'userData' in 'obj'! Logging allowed ...")
+				return true
+			}
+		}
+	} else {
+		// this shouldn't happen!
+		throw new Error("SVELTHREE > SvelthreeLogger > no 'obj'!")
+	}
+
+	return false
+}
+
+function c_lc(comp_name: string, message: string, value?: unknown): [string, string, string, unknown] {
+	let css = undefined
+	let prefix = undefined
+
+	switch (message) {
+		case "onMount":
+			css = LogCSS.ON_MOUNT
+			prefix = LogCSS.PREFIX_ON_MOUNT
+			break
+		case "beforeUpdate":
+			css = LogCSS.BEFORE_UPDATE
+			prefix = LogCSS.PREFIX_BEFORE_UPDATE
+			break
+		case "afterUpdate":
+			css = LogCSS.AFTER_UPDATE
+			prefix = LogCSS.PREFIX_AFTER_UPDATE
+			break
+	}
+
+	let depth_prefix = ""
+
+	switch (comp_name) {
+		case "Canvas":
+			depth_prefix = ""
+			break
+		case "Scene":
+			depth_prefix = "·"
+			break
+		default:
+			depth_prefix = "··"
+			break
+	}
+
+	if (depth_prefix !== "") {
+		return [
+			`%c${depth_prefix} ${prefix} ${comp_name}%c · ${message}`,
+			`${css}`,
+			`font-wight: normal; font-style: italic; color: silver;`,
+			value ? value : value === true || value === false ? value : ""
+		]
+	} else {
+		return [
+			`%c${prefix} ${comp_name}%c · ${message}`,
+			`${css}`,
+			`font-wight: normal; font-style: italic; color: silver;`,
+			value ? value : value === true || value === false ? value : ""
+		]
+	}
+}
+
+function c_rs(comp_name: string, message: string, value?: unknown): [string, string, unknown] {
+	return [
+		`%c$: > ${comp_name} -> ${message}`,
+		`${LogCSS.REACTIVE_STATEMENT}`,
+		value ? value : value === true || value === false ? value : ""
+	]
+}
+
+function c_lc_int(comp_name: string, message: string, value?: unknown): [string, string, string, unknown] {
+	let css = undefined
+	let prefix = undefined
+
+	switch (message) {
+		case "onMount":
+			css = LogCSS.ON_MOUNT
+			prefix = LogCSS.PREFIX_ON_MOUNT
+			break
+		case "beforeUpdate":
+			css = LogCSS.BEFORE_UPDATE
+			prefix = LogCSS.PREFIX_BEFORE_UPDATE
+			break
+		case "afterUpdate":
+			css = LogCSS.AFTER_UPDATE
+			prefix = LogCSS.PREFIX_AFTER_UPDATE
+			break
+	}
+
+	let depth_prefix = ""
+
+	switch (comp_name) {
+		case "Camera":
+		case "Light":
+			depth_prefix = "···"
+			break
+
+		default:
+			depth_prefix = "··"
+			break
+	}
+
+	if (depth_prefix !== "") {
+		return [
+			`%c${depth_prefix} ${prefix} ${comp_name}%c · (internal component) ${message}`,
+			`${css}`,
+			`font-wight: normal; font-style: italic; color: silver;`,
+			value ? value : value === true || value === false ? value : ""
+		]
+	} else {
+		return [
+			`%c${prefix} ${comp_name}%c · (internal component) ${message}`,
+			`${css}`,
+			`font-wight: normal; font-style: italic; color: silver;`,
+			value ? value : value === true || value === false ? value : ""
+		]
+	}
+}
+
+function c_rs_int(comp_name: string, message: string, value?: unknown): [string, string, unknown] {
+	return [
+		`%c$: > ${comp_name} -> ${message}`,
+		`${LogCSS.REACTIVE_STATEMENT}`,
+		value ? value : value === true || value === false ? value : ""
+	]
+}
+
+function c_dev(comp_name: string, message: string, value?: unknown): [string, string, unknown] {
+	return [
+		`%c[ dev ] -> ${comp_name} : ${message}`,
+		`${LogCSS.DEV_DEBUG}`,
+		value ? value : value === true || value === false ? value : ""
+	]
+}
+
+function c_mau(comp_name: string, message: string, value?: unknown): [string, string, unknown] {
+	return [
+		`%c[ mau ] -> ${comp_name} : ${message}`,
+		`${LogCSS.FEATURE_MAU}`,
+		value ? value : value === true || value === false ? value : ""
+	]
+}
+
+function get_comp_name(comp: ReturnType<typeof get_current_component>): string {
+	return comp.constructor.name.replace(/[\d_]/g, "")
+}
+
+export { c_rs, c_dev, c_lc, c_lc_int, c_rs_int, c_mau, verbose_mode, get_comp_name, log_prop_utils }
+
+=== 8042 src/lib/utils/SvelthreeProps.ts	ts	module	-
+import {
+	PropArray2X,
+	PropArray3X,
+	PropColorX,
+	PropEulerArrayX,
+	PropEulerX,
+	PropMatrix4ArrayX,
+	PropMatrix4X,
+	PropQuaternionArrayX,
+	PropQuaternionX,
+	PropVector2X,
+	PropVector3X
+} from "./props/index.js"
+import { safe_not_equal, has_prop } from "svelte/internal"
+import Propeller from "./Propeller.js"
+import PropUtils from "./PropUtils.js"
+import type { ComplexValueType, SvelthreePropsOwner } from "../types/types-extra.js"
+import type { SvelthreePropsObjectLiteral } from "../types/types-comp-props.js"
+
+export type PropOrigin = "own" | "inherited"
+
+type ComplexValuator =
+	| typeof PropArray2X
+	| typeof PropArray3X
+	| typeof PropColorX
+	| typeof PropEulerArrayX
+	| typeof PropEulerX
+	| typeof PropMatrix4ArrayX
+	| typeof PropMatrix4X
+	| typeof PropQuaternionArrayX
+	| typeof PropQuaternionX
+	| typeof PropVector2X
+	| typeof PropVector3X
+
+type ComplexValuatorInstance =
+	| PropArray2X
+	| PropArray3X
+	| PropColorX
+	| PropEulerArrayX
+	| PropEulerX
+	| PropMatrix4ArrayX
+	| PropMatrix4X
+	| PropQuaternionArrayX
+	| PropQuaternionX
+	| PropVector2X
+	| PropVector3X
+
+type ComplexValueItem = {
+	key: string
+	value: ComplexValuatorInstance
+	complex: ComplexValueType
+}
+
+type SimpleValueItem = {
+	key: string
+	value: unknown
+	origin: PropOrigin | null
+}
+
+/**
+ * Analyzes the type `props` object's properties, and updates corresponding `three` instance's properties via `Propeller`:
+ * - **"reactive" _complex_ values**: if any part of a _complex_ value has changed, like e.g. `c` of a `Matrix4` type property,
+ *   the `three` instance's property will be updated via `Propeller`,
+ *   although the `Matrix4` object itself is still the same object as before.
+ *
+ *   ☝️ _'complex' values like `Array`, `Color`, `Euler`, `Matrix` etc. should be **immutable**
+ *   as their `valuator` will be assigned only once a (new) unique `props` object was assigned,
+ *   not at each (reactive) properties change._
+ * ---
+ * - **partially "reactive" _simple_ values**:
+ *   - **reactive** -> nummeric, strings, boolean etc. properties will be updated via `Propeller` only if they've changed.
+ *   - **not reactive** -> object and function properties will **always** be updated / reassigned via `Propeller`
+ * ---
+ *
+ * ⚙️ `Propeller` redirects some `props` object properties to specific `PropUtils` update methods and also
+ * allows special handling if needed when updating a specific `props` object's property.
+ */
+export default class SvelthreeProps {
+	obj: SvelthreePropsOwner | null
+	obj_type: string | null
+	propsPrev: SvelthreePropsObjectLiteral | undefined
+	simpleValues: SimpleValueItem[] | undefined
+
+	updatedKeys: string[] = []
+	complexValues: ComplexValueItem[] | undefined
+
+	complexValuators: { [key in ComplexValueType]: ComplexValuator } = {
+		Array2Nums: PropArray2X,
+		Array3Nums: PropArray3X,
+		Color: PropColorX,
+		Euler: PropEulerX,
+		EulerParamsArray: PropEulerArrayX,
+		Matrix4: PropMatrix4X,
+		Matrix4ParamsArray: PropMatrix4ArrayX,
+		Quaternion: PropQuaternionX,
+		QuaternionParamsArray: PropQuaternionArrayX,
+		Vector2: PropVector2X,
+		Vector3: PropVector3X
+	}
+
+	constructor(obj: SvelthreePropsOwner | null) {
+		this.obj = obj
+		this.obj_type = this.get_obj_type()
+	}
+
+	get_obj_type(): string | null {
+		if (this.obj) {
+			return this.obj["type" as keyof typeof this.obj] || this.obj.constructor.name
+		} else {
+			return null
+		}
+	}
+
+	/**
+	 * Process a `props` object / update corresponding properties via `Propeller`.
+	 *
+	 * ☝️ _'complex' values like `Array`, `Color`, `Euler`, `Matrix` etc. should be **immutable**
+	 * as their `valuator` will be assigned only once the unique `props` object was assigned,
+	 * not at each (reactive) properties change._
+	 */
+	public update(props: SvelthreePropsObjectLiteral): string[] {
+		if (this.obj && this.obj_type) {
+			// UPDATE -> `props` has already been processed at least once -> `this.propsPrev` available
+			if (this.propsPrev) {
+				// `props` was assigned a new object different from the initially processed one (`this.propsPrev`)
+				if (this.propsPrev !== props) {
+					// clear everything and 'map' the new `props` object
+					this.resetAndMap(props)
+					this.propsPrev = props
+				}
+				// `props` is the same object as the initially processed one (`this.propsPrev`)
+				else {
+					// clear `updatedKeys` and check which properties inside the object have changed.
+					this.updatedKeys = []
+					this.checkProps(props)
+				}
+			} else {
+				// INITIALIZE -> `props` was not processed yet -> `this.propsPrev` not available
+				this.resetAndMap(props)
+				this.propsPrev = props
+			}
+
+			// return an array of updated keys after update
+			return this.updatedKeys
+		} else {
+			return []
+		}
+	}
+
+	// `props` object is a new one (changed)
+	resetAndMap(props: SvelthreePropsObjectLiteral) {
+		this.simpleValues = []
+		this.complexValues = []
+		this.updatedKeys = []
+
+		if (this.obj) {
+			// analyze and sort `props` object's properties
+			for (const k in props) {
+				const complexType: ComplexValueType | undefined = PropUtils.checkIfComplexValueType(
+					props[k as keyof SvelthreePropsObjectLiteral]
+				)
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const is_own_prop: any = has_prop(this.obj, k)
+				const is_inherited_prop: boolean = is_own_prop
+					? false
+					: this.obj[k as keyof SvelthreePropsOwner]
+					? true
+					: false
+				const origin: PropOrigin | null = is_own_prop ? "own" : is_inherited_prop ? "inherited" : null
+
+				if (this.obj_type && origin) {
+					if (complexType) {
+						// determine the correct `valuator`
+						const valuator: ComplexValuator = this.complexValuators[complexType]
+
+						const item: ComplexValueItem = {
+							key: k,
+							value: new valuator(k, this.obj_type, origin),
+							complex: complexType
+						}
+						this.complexValues.push(item)
+
+						// initialize
+						item.value.update(this.obj, props[k as keyof SvelthreePropsObjectLiteral])
+						this.updatedKeys.push(k)
+					} else {
+						const item: SimpleValueItem = {
+							key: k,
+							value: props[k as keyof SvelthreePropsObjectLiteral],
+							origin
+						}
+						this.simpleValues.push(item)
+						// initialize
+						Propeller.update(
+							this.obj,
+							this.obj_type,
+							k,
+							props[k as keyof SvelthreePropsObjectLiteral],
+							origin
+						)
+						this.updatedKeys.push(k)
+					}
+				} else {
+					console.warn(
+						`SVELTHREE > SvelthreeProps > resetAndMap : unknown property '${k}' in 'props' object -> not available for '${this.obj_type}'`
+					)
+				}
+			}
+		} else {
+			console.error(`SVELTHREE > SvelthreeProps > resetAndMap : ivalid 'obj' value!`, { obj: this.obj })
+		}
+	}
+
+	// `props` object is the same one
+	checkProps(props: SvelthreePropsObjectLiteral) {
+		// check complex props
+		// reassign / update only if the 'complex' value object itself or any of its parts have changed.
+		if (this.complexValues) {
+			for (let i = 0; i < this.complexValues.length; i++) {
+				const k: string = this.complexValues[i].key
+				const updated: boolean = this.complexValues[i].value.update(
+					this.obj as SvelthreePropsOwner,
+					props[k as keyof SvelthreePropsObjectLiteral]
+				)
+				if (updated) this.updatedKeys.push(k)
+			}
+		}
+
+		// check 'simple' props (nummeric, strings, boolean... + objects and functions)
+		if (this.simpleValues) {
+			for (let j = 0; j < this.simpleValues.length; j++) {
+				const k: string = this.simpleValues[j].key
+				const prop_value = this.simpleValues[j].value
+				const prop_origin = this.simpleValues[j].origin
+
+				// current property value is different than the previous one.
+				// always reassign / update nested ('non complex value') objects and functions.
+				if (safe_not_equal(prop_value, props[k as keyof SvelthreePropsObjectLiteral])) {
+					Propeller.update(
+						this.obj as SvelthreePropsOwner,
+						this.obj_type as string,
+						k,
+						props[k as keyof SvelthreePropsObjectLiteral],
+						prop_origin
+					)
+					this.simpleValues[j].value = props[k as keyof SvelthreePropsObjectLiteral]
+					this.updatedKeys.push(k)
+				}
+			}
+		}
+	}
+}
+
+=== 1603 src/lib/utils/SvelthreeStoreArray.ts	ts	module	-
+import type { SvelthreeStoreArrayItem } from "../types/types-extra.js"
+
+class SvelthreeStoreArray_Base extends Array {
+	public head_path?: string[] | undefined = undefined
+	public index_prop: string | undefined = undefined
+
+	/*eslint @typescript-eslint/no-explicit-any: ["error", { "ignoreRestArgs": true }]*/
+	constructor(...args: any[]) {
+		super(...args)
+	}
+
+	push(...items: any[]): number {
+		super.push(...items)
+		this.set_index_prop()
+		return this.length
+	}
+
+	splice(start: number, deleteCount?: number): SvelthreeStoreArrayItem[] {
+		super.splice(start, deleteCount)
+		this.set_index_prop()
+		return this
+	}
+
+	set_index_prop(): void {
+		for (let i = 0; i < this.length; i++) {
+			let prop_head: { [key: string]: unknown } | undefined
+
+			if (this.head_path?.length) {
+				// Don't use accessor if `this[i]` is a component (see `CubeCamera`)
+				if (Object.hasOwn(this[i], "$$")) {
+					const comp_state = this[i].state()
+					prop_head = comp_state[this.head_path[0]]
+				} else {
+					prop_head = this[i][this.head_path[0]]
+				}
+
+				let j = 1
+				while (j < this.head_path.length) {
+					if (prop_head) {
+						prop_head = prop_head[this.head_path[j]] as { [key: string]: unknown }
+					} else {
+						console.error("SVELTHREE > SvelthreeStoreArray : invalid 'prop_head' value!", { prop_head })
+					}
+					j++
+				}
+			}
+
+			if (prop_head && this.index_prop) {
+				prop_head[this.index_prop] = i
+			}
+		}
+	}
+}
+
+class SvelthreeStoreArray extends SvelthreeStoreArray_Base {
+	constructor(public index_prop: string, public head_path?: string[]) {
+		super()
+	}
+}
+
+export { SvelthreeStoreArray }
+
+=== 528 src/lib/utils/index.ts	ts	module	-
+export { default as CameraUtils } from "./CameraUtils.js"
+export { default as Propeller } from "./Propeller.js"
+export { default as PropUtils } from "./PropUtils.js"
+export { default as SvelthreeProps } from "./SvelthreeProps.js"
+export { default as CubeCameraHelper } from "./CubeCameraHelper.js"
+export { default as GLTF_afterLoaded } from "./GLTF_afterLoaded.js"
+export { default as GLTF_utils } from "./GLTF_utils.js"
+export { default as SvelthreeGLTF } from "./SvelthreeGLTF.js"
+export { default as Calc } from "./Calc.js"
+
+=== 1443 src/lib/utils/props/PropArray2X.ts	ts	module	-
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropArray2X {
+	// previous value reference
+	prev: [number, number] | undefined
+	prevValues: [number, number] | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: [number, number]): boolean {
+		//v1
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value as [number, number], this.origin, "Array2Nums")
+				this.prevValues = [value[0], value[1]]
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (let i = 0; i < 3; i++) {
+						if (this.prevValues && not_equal(this.prevValues[i], value[i])) {
+							Propeller.update(
+								obj,
+								this.obj_type,
+								this.key,
+								value as [number, number],
+								this.origin,
+								"Array2Nums"
+							)
+							this.prevValues = [value[0], value[1]]
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value as [number, number], this.origin, "Array2Nums")
+				this.prevValues = [value[0], value[1]]
+				this.prev = value
+				return true
+		}
+	}
+}
+
+=== 1574 src/lib/utils/props/PropArray3X.ts	ts	module	-
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropArray3X {
+	// previous value reference
+	prev: [number, number, number] | undefined
+	prevValues: [number, number, number] | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: [number, number, number]): boolean {
+		//v1
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(
+					obj,
+					this.obj_type,
+					this.key,
+					value as [number, number, number],
+					this.origin,
+					"Array3Nums"
+				)
+				this.prevValues = [value[0], value[1], value[2]]
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (let i = 0; i < 3; i++) {
+						if (not_equal(this.prevValues[i], value[i])) {
+							Propeller.update(
+								obj,
+								this.obj_type,
+								this.key,
+								value as [number, number, number],
+								this.origin,
+								"Array3Nums"
+							)
+							this.prevValues = [value[0], value[1], value[2]]
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(
+					obj,
+					this.obj_type,
+					this.key,
+					value as [number, number, number],
+					this.origin,
+					"Array3Nums"
+				)
+				this.prevValues = [value[0], value[1], value[2]]
+				this.prev = value
+				return true
+		}
+	}
+}
+
+=== 1480 src/lib/utils/props/PropColorX.ts	ts	module	-
+import type { Color } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropColorX {
+	// previous value reference
+	prev: Color | undefined
+	prevValues: { r: number; g: number; b: number } | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Color): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Color")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				for (const k in this.prevValues) {
+					if (this.prevValues) {
+						if (
+							not_equal(
+								this.prevValues[k as keyof typeof this.prevValues],
+								value[k as keyof typeof this.prevValues]
+							)
+						) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Color")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Color")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Color) {
+		this.prevValues = { r: value.r, g: value.g, b: value.b }
+	}
+}
+
+=== 1457 src/lib/utils/props/PropEulerArrayX.ts	ts	module	-
+import type { Euler } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropEulerArrayX {
+	// previous value reference
+	prev: Parameters<Euler["set"]> | undefined
+	prevValues: Parameters<Euler["set"]> | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Parameters<Euler["set"]>): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "EulerParamsArray")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (let i = 0; i < 4; i++) {
+						if (not_equal(this.prevValues[i], value[i])) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "EulerParamsArray")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "EulerParamsArray")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Parameters<Euler["set"]>) {
+		this.prevValues = [value[0], value[1], value[2], value[3]]
+	}
+}
+
+=== 1466 src/lib/utils/props/PropEulerX.ts	ts	module	-
+import type { Euler } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropEulerX {
+	// previous value reference
+	prev: Euler | undefined
+	prevValues: { _x: number; _y: number; _z: number; _order: string } | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Euler): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Euler")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (const k in this.prevValues) {
+						if (not_equal(this.prevValues[k as keyof typeof this.prevValues], value[k as keyof Euler])) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Euler")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Euler")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Euler) {
+		this.prevValues = { _x: value.x, _y: value.y, _z: value.z, _order: value.order }
+	}
+}
+
+=== 1437 src/lib/utils/props/PropMatrix4ArrayX.ts	ts	module	-
+import type { Matrix4 } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropMatrix4ArrayX {
+	// previous value reference
+	prev: Matrix4 | undefined
+	prevValues: Parameters<Matrix4["set"]> | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Matrix4): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4ParamsArray")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (let i = 0; i < 16; i++) {
+						if (not_equal(this.prevValues[i], value.elements[i])) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4ParamsArray")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4ParamsArray")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Matrix4) {
+		this.prevValues = [...value.elements] as Parameters<Matrix4["set"]>
+	}
+}
+
+=== 1399 src/lib/utils/props/PropMatrix4X.ts	ts	module	-
+import type { Matrix4 } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropMatrix4X {
+	// previous value reference
+	prev: Matrix4 | undefined
+	prevValues: Parameters<Matrix4["set"]> | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Matrix4): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (let i = 0; i < 16; i++) {
+						if (not_equal(this.prevValues[i], value.elements[i])) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Matrix4")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Matrix4) {
+		this.prevValues = [...value.elements] as Parameters<Matrix4["set"]>
+	}
+}
+
+=== 1502 src/lib/utils/props/PropQuaternionArrayX.ts	ts	module	-
+import type { Quaternion } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropQuaternionArrayX {
+	// previous value reference
+	prev: Parameters<Quaternion["set"]> | undefined
+	prevValues: Parameters<Quaternion["set"]> | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Parameters<Quaternion["set"]>): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "QuaternionParamsArray")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (let i = 0; i < 4; i++) {
+						if (not_equal(this.prevValues[i], value[i])) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "QuaternionParamsArray")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "QuaternionParamsArray")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Parameters<Quaternion["set"]>) {
+		this.prevValues = [value[0], value[1], value[2], value[3]]
+	}
+}
+
+=== 1496 src/lib/utils/props/PropQuaternionX.ts	ts	module	-
+import type { Quaternion } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropQuaternionX {
+	// previous value reference
+	prev: Quaternion | undefined
+	prevValues: { x: number; y: number; z: number; w: number } | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Quaternion): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Quaternion")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (const k in value) {
+						if (
+							not_equal(this.prevValues[k as keyof typeof this.prevValues], value[k as keyof Quaternion])
+						) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Quaternion")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Quaternion")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Quaternion) {
+		this.prevValues = { x: value.x, y: value.y, z: value.z, w: value.w }
+	}
+}
+
+=== 1462 src/lib/utils/props/PropVector2X.ts	ts	module	-
+import type { Vector2 } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropVector2X {
+	// previous value reference
+	prev: Vector2 | undefined
+	prevValues: { x: number; y: number } | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Vector2): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector2")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (const k in value) {
+						if (
+							not_equal(
+								this.prevValues[k as keyof typeof this.prevValues],
+								value[k as keyof typeof this.prevValues]
+							)
+						) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector2")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector2")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Vector2) {
+		this.prevValues = { x: value.x, y: value.y }
+	}
+}
+
+=== 1485 src/lib/utils/props/PropVector3X.ts	ts	module	-
+import type { Vector3 } from "three"
+import { not_equal } from "svelte/internal"
+import { Propeller } from "./utils.js"
+import type { SvelthreePropsOwner } from "../../types/types-extra.js"
+
+export default class PropVector3X {
+	// previous value reference
+	prev: Vector3 | undefined
+	prevValues: { x: number; y: number; z: number } | undefined
+
+	constructor(private key: string, private obj_type: string, private origin: string) {}
+
+	public update(obj: SvelthreePropsOwner, value: Vector3): boolean {
+		switch (this.prev) {
+			case undefined:
+				this.prev = value
+				// hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector3")
+				this.setPrevValues(value)
+				return true
+
+			case value:
+				// same object, perform deep check
+				if (this.prevValues) {
+					for (const k in value) {
+						if (
+							not_equal(
+								this.prevValues[k as keyof typeof this.prevValues],
+								value[k as keyof typeof this.prevValues]
+							)
+						) {
+							Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector3")
+							this.setPrevValues(value)
+							this.prev = value
+							return true
+						}
+					}
+				}
+				return false
+			default:
+				// not undefined but !== value --> hot!
+				Propeller.update(obj, this.obj_type, this.key, value, this.origin, "Vector3")
+				this.setPrevValues(value)
+				this.prev = value
+				return true
+		}
+	}
+
+	setPrevValues(value: Vector3) {
+		this.prevValues = { x: value.x, y: value.y, z: value.z }
+	}
+}
+
+=== 686 src/lib/utils/props/index.ts	ts	module	-
+export { default as PropArray2X } from "./PropArray2X.js"
+export { default as PropArray3X } from "./PropArray3X.js"
+export { default as PropEulerX } from "./PropEulerX.js"
+export { default as PropEulerArrayX } from "./PropEulerArrayX.js"
+export { default as PropMatrix4X } from "./PropMatrix4X.js"
+export { default as PropMatrix4ArrayX } from "./PropMatrix4ArrayX.js"
+export { default as PropQuaternionX } from "./PropQuaternionX.js"
+export { default as PropQuaternionArrayX } from "./PropQuaternionArrayX.js"
+export { default as PropVector2X } from "./PropVector3X.js"
+export { default as PropVector3X } from "./PropVector3X.js"
+export { default as PropColorX } from "./PropColorX.js"
+
+=== 55 src/lib/utils/props/utils.ts	ts	module	-
+export { default as Propeller } from "../Propeller.js"
+
+=== 165 vite.config.ts	ts	module	-
+import { sveltekit } from "@sveltejs/kit/vite"
+import type { UserConfig } from "vite"
+
+const config: UserConfig = {
+	plugins: [sveltekit()]
+}
+
+export default config
 

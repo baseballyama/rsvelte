@@ -1970,6 +1970,22 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
+=== 554 src/routes/devices.html/+page.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<tr>` cannot be a child of `<table>`. `<table>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 51,
+		"column": 4,
+		"character": 1524
+	},
+	"end": {
+		"line": 62,
+		"column": 5,
+		"character": 2056
+	}
+}
+
 === 1071 src/routes/groups.html/+page.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -2126,4 +2142,20 @@ export default function _page($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 554 src/routes/users.html/+page.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<tr>` cannot be a child of `<table>`. `<table>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 41,
+		"column": 4,
+		"character": 1246
+	},
+	"end": {
+		"line": 52,
+		"column": 5,
+		"character": 1764
+	}
+}
 

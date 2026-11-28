@@ -1,0 +1,4968 @@
+# rsvelte pack 1
+=== 206 playwright.config.ts	js
+const config = {
+    webServer: {
+        command: "npm run build && npm run preview",
+        port: 4173,
+    },
+    testDir: "tests",
+    testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+};
+export default config;
+
+=== 5118 scripts/semantic-release-pr-notes.test.ts	js
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { generateNotes, getRepoSlug, dedupePRs, sanitizeBody, fallbackNotes, formatPR, } from "../scripts/semantic-release-pr-notes.cjs";
+describe("getRepoSlug", () => {
+    it("extracts owner/repo from HTTPS URL", () => {
+        expect(getRepoSlug("https://github.com/kampsy/ui.git")).toBe("kampsy/ui");
+    });
+    it("extracts owner/repo from SSH URL", () => {
+        expect(getRepoSlug("git@github.com:kampsy/ui.git")).toBe("kampsy/ui");
+    });
+    it("returns undefined for non-GitHub URLs", () => {
+        expect(getRepoSlug("https://gitlab.com/kampsy/ui.git")).toBeUndefined();
+    });
+});
+describe("dedupePRs", () => {
+    it("removes duplicate PRs by number", () => {
+        const prs = [
+            { number: 1, title: "First" },
+            { number: 2, title: "Second" },
+            { number: 1, title: "First again" },
+        ];
+        expect(dedupePRs(prs)).toHaveLength(2);
+        expect(dedupePRs(prs).map(p => p.number)).toEqual([1, 2]);
+    });
+});
+describe("sanitizeBody", () => {
+    it("strips PR template sections", () => {
+        const body = `## Description
+Some description.
+
+## Type of Change
+- [x] Feature
+
+## Checklist
+- [x] Done
+
+## Screenshots (if applicable)
+N/A`;
+        const cleaned = sanitizeBody(body);
+        expect(cleaned).toContain("## Description");
+        expect(cleaned).toContain("Some description.");
+        expect(cleaned).not.toContain("## Type of Change");
+        expect(cleaned).not.toContain("## Checklist");
+        expect(cleaned).not.toContain("## Screenshots");
+    });
+    it("removes HTML comments", () => {
+        expect(sanitizeBody("<!-- hidden --> visible")).toBe("visible");
+    });
+});
+describe("fallbackNotes", () => {
+    it("lists commit subjects", () => {
+        const commits = [{ subject: "feat: add button" }, { subject: "fix: button color" }];
+        expect(fallbackNotes(commits)).toContain("feat: add button");
+        expect(fallbackNotes(commits)).toContain("fix: button color");
+    });
+});
+describe("formatPR", () => {
+    it("formats a PR with link and sanitized body", () => {
+        const pr = {
+            number: 50,
+            title: "feat: example",
+            html_url: "https://github.com/kampsy/ui/pull/50",
+            body: "## Description\nExample body.\n\n## Type of Change\n- [x] Feature",
+        };
+        const formatted = formatPR(pr, "https://github.com/kampsy/ui");
+        expect(formatted).toContain("## [#50: feat: example]");
+        expect(formatted).toContain("Example body.");
+        expect(formatted).not.toContain("Type of Change");
+    });
+});
+describe("generateNotes", () => {
+    const originalFetch = global.fetch;
+    beforeEach(() => {
+        global.fetch = vi.fn();
+    });
+    afterEach(() => {
+        global.fetch = originalFetch;
+        vi.restoreAllMocks();
+    });
+    function createContext(commits) {
+        return {
+            commits,
+            logger: { log: vi.fn(), warn: vi.fn() },
+            options: { repositoryUrl: "https://github.com/kampsy/ui.git" },
+        };
+    }
+    it("returns empty string when no commits are provided", async () => {
+        const result = await generateNotes({}, createContext([]));
+        expect(result).toBe("");
+    });
+    it("falls back to commit subjects when no PR is associated", async () => {
+        global.fetch.mockResolvedValueOnce({
+            ok: true,
+            json: async () => [],
+        });
+        const result = await generateNotes({}, createContext([{ hash: "abc123", subject: "feat: add feature" }]));
+        expect(result).toContain("feat: add feature");
+        expect(result).toContain("## Changes");
+    });
+    it("uses merged PR description as release notes", async () => {
+        global.fetch.mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                {
+                    number: 50,
+                    title: "feat: example PR",
+                    state: "MERGED",
+                    html_url: "https://github.com/kampsy/ui/pull/50",
+                    body: "## Description\nExample release content.",
+                },
+            ],
+        });
+        const result = await generateNotes({}, createContext([{ hash: "abc123", subject: "feat: example PR" }]));
+        expect(result).toContain("## [#50: feat: example PR]");
+        expect(result).toContain("Example release content.");
+    });
+    it("ignores unmerged PRs", async () => {
+        global.fetch.mockResolvedValueOnce({
+            ok: true,
+            json: async () => [
+                {
+                    number: 50,
+                    title: "draft PR",
+                    state: "OPEN",
+                    html_url: "https://github.com/kampsy/ui/pull/50",
+                    body: "## Description\nDraft content.",
+                },
+            ],
+        });
+        const result = await generateNotes({}, createContext([{ hash: "abc123", subject: "feat: draft PR" }]));
+        expect(result).not.toContain("Draft content.");
+        expect(result).toContain("feat: draft PR");
+    });
+});
+
+=== 3407 src/docs/data/avatar.ts	js
+export const avatarGroup = `
+<script lang="ts">
+	import { AvatarGroup } from 'kampsy-ui';
+
+	const members = [
+		{ username: 'evilrabbit' },
+		{ username: 'severinlandolt' },
+		{ username: 'rauchg' },
+		{ username: 'christopherkindl' },
+		{ username: 'rauno' },
+		{ username: 'shuding' },
+		{ username: 'skllcrn' },
+		{ username: 'almonk' },
+	];
+</script>
+
+<div class="flex items-center gap-4">
+	<AvatarGroup members={members.slice(0, 3)} size={32} />
+	<AvatarGroup limit={4} {members} size={32} />
+</div>`;
+export const avatarGroupReverse = `
+<script lang="ts">
+	import { AvatarGroup } from 'kampsy-ui';
+
+	const members = [
+		{ username: 'evilrabbit' },
+		{ username: 'severinlandolt' },
+		{ username: 'rauchg' },
+	];
+</script>
+
+<div class="flex items-center gap-4">
+	<AvatarGroup {members} size={32} />
+	<AvatarGroup {members} size={32} reverse />
+</div>`;
+export const avatarOverlap = `
+<script lang="ts">
+	import { AvatarGroup } from 'kampsy-ui';
+
+	const members = [
+		{ username: 'evilrabbit' },
+		{ username: 'severinlandolt' },
+		{ username: 'rauchg' },
+	];
+</script>
+
+<div class="flex items-center gap-6">
+	<AvatarGroup {members} overlap="auto" size={16} />
+	<AvatarGroup {members} overlap="auto" size={24} />
+	<AvatarGroup {members} overlap="auto" size={32} />
+	<AvatarGroup {members} overlap="auto" size={48} />
+</div>`;
+export const avatarFixedOverlap = `
+<script lang="ts">
+	import { AvatarGroup } from 'kampsy-ui';
+
+	const members = [
+		{ username: 'evilrabbit' },
+		{ username: 'severinlandolt' },
+		{ username: 'rauchg' },
+	];
+</script>
+
+<div class="flex items-center gap-4">
+	<AvatarGroup {members} overlap={10} size={24} />
+	<AvatarGroup {members} overlap={6} size={24} />
+	<AvatarGroup {members} overlap={0} size={24} />
+</div>`;
+export const avatarSize = `
+<script lang="ts">
+	import { Avatar } from 'kampsy-ui';
+</script>
+
+<div class="flex items-center gap-4">
+	<Avatar size={24} username="evilrabbit" />
+	<Avatar size={32} username="evilrabbit" />
+	<Avatar size={48} username="evilrabbit" />
+</div>`;
+export const avatarWithIcon = `
+<script lang="ts">
+	import { AvatarWithIcon } from 'kampsy-ui';
+	import { ArrowUpCircle, CircleCheck, Info } from '@lucide/svelte';
+</script>
+
+<div class="flex items-center gap-4">
+	<AvatarWithIcon size={32} iconBackground role="img" aria-label="Upload avatar">
+		{#snippet icon()}<ArrowUpCircle />{/snippet}
+	</AvatarWithIcon>
+	<AvatarWithIcon size={32} iconBackground role="img" aria-label="Verified avatar">
+		{#snippet icon()}<CircleCheck />{/snippet}
+	</AvatarWithIcon>
+	<AvatarWithIcon size={32} iconBackground role="img" aria-label="Information avatar">
+		{#snippet icon()}<Info />{/snippet}
+	</AvatarWithIcon>
+</div>`;
+export const avatarLetter = `
+<script lang="ts">
+	import { Avatar } from 'kampsy-ui';
+</script>
+
+<div class="flex items-center gap-4">
+	<Avatar letter="SL" size={32} />
+	<Avatar letter="EK" size={32} />
+	<Avatar letter="CK" size={32} />
+</div>`;
+export const avatarPlaceholder = `
+<script lang="ts">
+	import { Avatar } from 'kampsy-ui';
+</script>
+
+<div>
+	<Avatar placeholder size={90} />
+</div>`;
+export const avatarBestPractices = `
+<script lang="ts">
+	import { Avatar, AvatarGroup } from 'kampsy-ui';
+</script>
+
+<div class="flex items-center gap-4">
+	<Avatar username="evilrabbit" />
+	<AvatarGroup members={[
+		{ username: 'evilrabbit' },
+		{ username: 'severinlandolt' },
+		{ username: 'rauchg' },
+	]} size={32} />
+</div>`;
+
+=== 8975 src/docs/data/badge.ts	js
+export const badgeVariants = `
+<script lang="ts">
+	import { Badge } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col gap-2">
+	<div class="flex gap-1 capitalize">
+		<Badge variant="gray" aria-label="gray">gray</Badge>
+		<Badge variant="gray" contrast="low" aria-label="gray-subtle">gray-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="blue" aria-label="blue">blue</Badge>
+		<Badge variant="blue" contrast="low" aria-label="blue-subtle">blue-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="purple" aria-label="purple">purple</Badge>
+		<Badge variant="purple" contrast="low" aria-label="purple-subtle">purple-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="amber" aria-label="amber">amber</Badge>
+		<Badge variant="amber" contrast="low" aria-label="amber-subtle">amber-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="red" aria-label="red">red</Badge>
+		<Badge variant="red" contrast="low" aria-label="red-subtle">red-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="pink" aria-label="pink">pink</Badge>
+		<Badge variant="pink" contrast="low" aria-label="pink-subtle">pink-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="green" aria-label="green">green</Badge>
+		<Badge variant="green" contrast="low" aria-label="green-subtle">green-subtle</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge variant="teal" aria-label="teal">teal</Badge>
+		<Badge variant="teal" contrast="low" aria-label="teal-subtle">teal-subtle</Badge>
+	</div>
+	<div class="flex gap-1 capitalize">
+		<Badge variant="inverted" aria-label="inverted">inverted</Badge>
+		<Badge variant="trial" aria-label="trial">Trial</Badge>
+		<Badge variant="turbo" aria-label="turbo">Turborepo</Badge>
+	</div>
+</div>`;
+export const badgeSize = `
+<script lang="ts">
+	import { Badge } from 'kampsy-ui';
+</script>
+
+<div class="flex items-center gap-2">
+
+	<div class="flex gap-1 capitalize">
+		<Badge size="sm" aria-label="small">small</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge size="md" aria-label="medium">medium</Badge>
+	</div>
+
+	<div class="flex gap-1 capitalize">
+		<Badge size="lg" aria-label="large">large</Badge>
+	</div>
+</div>`;
+export const badgeWithIcon = `
+<script lang="ts">
+	import { Badge } from 'kampsy-ui';
+	import { Shield } from '@lucide/svelte';
+</script>
+
+<div class="flex flex-col gap-2">
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="gray" aria-label="icon large gray">gray</Badge>
+		<Badge icon={Shield} size="md" variant="gray" aria-label="icon medium gray">gray</Badge>
+		<Badge icon={Shield} size="sm" variant="gray" aria-label="icon small gray">gray</Badge>
+		<Badge icon={Shield} size="sm" variant="gray" contrast="low" aria-label="icon small gray-subtle">gray</Badge>
+		<Badge icon={Shield} size="md" variant="gray" contrast="low" aria-label="icon medium gray-subtle">gray</Badge>
+		<Badge icon={Shield} size="lg" variant="gray" contrast="low" aria-label="icon large gray-subtle">gray</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="blue" aria-label="icon large blue">blue</Badge>
+		<Badge icon={Shield} size="md" variant="blue" aria-label="icon medium blue">blue</Badge>
+		<Badge icon={Shield} size="sm" variant="blue" aria-label="icon small blue">blue</Badge>
+		<Badge icon={Shield} size="sm" variant="blue" contrast="low" aria-label="icon small blue-subtle">blue</Badge>
+		<Badge icon={Shield} size="md" variant="blue" contrast="low" aria-label="icon medium blue-subtle">blue</Badge>
+		<Badge icon={Shield} size="lg" variant="blue" contrast="low" aria-label="icon large blue-subtle">blue</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="purple" aria-label="icon large purple">purple</Badge>
+		<Badge icon={Shield} size="md" variant="purple" aria-label="icon medium purple">purple</Badge>
+		<Badge icon={Shield} size="sm" variant="purple" aria-label="icon small purple">purple</Badge>
+		<Badge icon={Shield} size="sm" variant="purple" contrast="low" aria-label="icon small purple-subtle">purple</Badge>
+		<Badge icon={Shield} size="md" variant="purple" contrast="low" aria-label="icon medium purple-subtle">purple</Badge>
+		<Badge icon={Shield} size="lg" variant="purple" contrast="low" aria-label="icon large purple-subtle">purple</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="amber" aria-label="icon large amber">amber</Badge>
+		<Badge icon={Shield} size="md" variant="amber" aria-label="icon medium amber">amber</Badge>
+		<Badge icon={Shield} size="sm" variant="amber" aria-label="icon small amber">amber</Badge>
+		<Badge icon={Shield} size="sm" variant="amber" contrast="low" aria-label="icon small amber-subtle">amber</Badge>
+		<Badge icon={Shield} size="md" variant="amber" contrast="low" aria-label="icon medium amber-subtle">amber</Badge>
+		<Badge icon={Shield} size="lg" variant="amber" contrast="low" aria-label="icon large amber-subtle">amber</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="red" aria-label="icon large red">red</Badge>
+		<Badge icon={Shield} size="md" variant="red" aria-label="icon medium red">red</Badge>
+		<Badge icon={Shield} size="sm" variant="red" aria-label="icon small red">red</Badge>
+		<Badge icon={Shield} size="sm" variant="red" contrast="low" aria-label="icon small red-subtle">red</Badge>
+		<Badge icon={Shield} size="md" variant="red" contrast="low" aria-label="icon medium red-subtle">red</Badge>
+		<Badge icon={Shield} size="lg" variant="red" contrast="low" aria-label="icon large red-subtle">red</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="pink" aria-label="icon large pink">pink</Badge>
+		<Badge icon={Shield} size="md" variant="pink" aria-label="icon medium pink">pink</Badge>
+		<Badge icon={Shield} size="sm" variant="pink" aria-label="icon small pink">pink</Badge>
+		<Badge icon={Shield} size="sm" variant="pink" contrast="low" aria-label="icon small pink-subtle">pink</Badge>
+		<Badge icon={Shield} size="md" variant="pink" contrast="low" aria-label="icon medium pink-subtle">pink</Badge>
+		<Badge icon={Shield} size="lg" variant="pink" contrast="low" aria-label="icon large pink-subtle">pink</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="green">green</Badge>
+		<Badge icon={Shield} size="md" variant="green" >green</Badge>
+		<Badge icon={Shield} size="sm" variant="green">green</Badge>
+		<Badge icon={Shield} size="sm" variant="green" contrast="low">green</Badge>
+		<Badge icon={Shield} size="md" variant="green" contrast="low" >green</Badge>
+		<Badge icon={Shield} size="lg" variant="green" contrast="low">green</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="teal" aria-label="icon large teal">teal</Badge>
+		<Badge icon={Shield} size="md" variant="teal" aria-label="icon medium teal">teal</Badge>
+		<Badge icon={Shield} size="sm" variant="teal" aria-label="icon small teal">teal</Badge>
+		<Badge icon={Shield} size="sm" variant="teal" contrast="low" aria-label="icon small teal-subtle">teal</Badge>
+		<Badge icon={Shield} size="md" variant="teal" contrast="low" aria-label="icon medium teal-subtle">teal</Badge>
+		<Badge icon={Shield} size="lg" variant="teal" contrast="low" aria-label="icon large teal-subtle">teal</Badge>
+	</div>
+
+	<div class="flex items-center gap-1 capitalize">
+		<Badge icon={Shield} size="lg" variant="inverted" aria-label="icon large inverted">inverted</Badge>
+		<Badge icon={Shield} size="md" variant="inverted" aria-label="icon medium inverted">inverted</Badge>
+		<Badge icon={Shield} size="sm" variant="inverted" aria-label="icon small inverted">inverted</Badge>
+	</div>
+</div>`;
+export const badgePill = `
+<script lang="ts">
+	import { Badge } from 'kampsy-ui';
+	import { ExternalLink } from '@lucide/svelte';
+</script>
+
+<div class="flex flex-col gap-4">
+  <div class="flex items-center gap-2 capitalize">
+	  <Badge href="/badge#pill" size="sm" variant="pill" aria-label="large pill">label</Badge>
+	  <Badge href="/badge#pill" size="md" variant="pill" aria-label="medium pill">label</Badge>
+	  <Badge href="/badge#pill" size="lg" variant="pill" aria-label="small pill">label</Badge>
+  </div>
+  <div class="flex items-center gap-2 capitalize">
+	  <Badge href="/badge#pill" icon={ExternalLink} size="sm" variant="pill" aria-label="icon large pill">label</Badge>
+	  <Badge href="/badge#pill" icon={ExternalLink} size="md" variant="pill" aria-label="icon medium pill">label</Badge>
+	  <Badge href="/badge#pill" icon={ExternalLink} size="lg" variant="pill" aria-label="icon small pill">label</Badge>
+  </div>
+</div>`;
+
+=== 4391 src/docs/data/button.ts	js
+export const buttonSize = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button size="tiny" aria-label="tiny">Upload</Button>
+	<Button size="small" aria-label="small">Upload</Button>
+	<Button aria-label="medium">Upload</Button>
+	<Button size="large" aria-label="large">Upload</Button>
+</div>`;
+export const buttonVariants = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col gap-6">
+	<div class="flex items-center gap-3">
+		<Button size="small" variant="default">Upload</Button>
+		<Button size="small" variant="error">Upload</Button>
+		<Button size="small" variant="warning">Upload</Button>
+		<Button size="small" variant="secondary">Upload</Button>
+		<Button size="small" variant="tertiary">Upload</Button>
+	</div>
+	<div class="flex items-center gap-3">
+		<Button variant="default">Upload</Button>
+		<Button variant="error">Upload</Button>
+		<Button variant="warning">Upload</Button>
+		<Button variant="secondary">Upload</Button>
+		<Button variant="tertiary">Upload</Button>
+	</div>
+	<div class="flex items-center gap-3">
+		<Button size="large" variant="default">Upload</Button>
+		<Button size="large" variant="error">Upload</Button>
+		<Button size="large" variant="warning">Upload</Button>
+		<Button size="large" variant="secondary">Upload</Button>
+		<Button size="large" variant="tertiary">Upload</Button>
+	</div>
+</div>`;
+export const buttonShapes = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+	import { ArrowUp } from 'kampsy-ui/icons';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button aria-label="Upload" shape="square" size="tiny" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="square" size="small" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="square" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="square" size="large" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="circle" size="tiny" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="circle" size="small" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="circle" svgOnly>
+		<ArrowUp />
+	</Button>
+
+	<Button aria-label="Upload" shape="circle" size="large" svgOnly>
+		<ArrowUp />
+	</Button>
+</div>`;
+export const buttonPrefixAndSuffix = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+	import { ArrowLeft, ArrowRight } from 'kampsy-ui/icons';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button>
+		{#snippet prefix()}
+			<ArrowLeft />
+		{/snippet}
+		Upload
+	</Button>
+	<Button>
+		{#snippet suffix()}
+			<ArrowRight />
+		{/snippet}
+		Upload
+	</Button>
+	<Button>
+		{#snippet prefix()}
+			<ArrowLeft />
+		{/snippet}
+		{#snippet suffix()}
+			<ArrowRight />
+		{/snippet}
+		Upload
+	</Button>
+</div>`;
+export const buttonRounded = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button size="small" variant="secondary" shape="rounded" shadow>Upload</Button>
+	<Button variant="secondary" shape="rounded" shadow>Upload</Button>
+	<Button size="large" variant="secondary" shape="rounded" shadow>Upload</Button>
+</div>`;
+export const buttonLoading = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button size="small" loading>Upload</Button>
+	<Button loading>Upload</Button>
+	<Button size="large" loading>Upload</Button>
+</div>`;
+export const buttonDisabled = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button disabled size="small">Upload</Button>
+	<Button disabled>Upload</Button>
+	<Button disabled size="large">Upload</Button>
+</div>`;
+export const buttonDisabledVariants = `
+<script lang="ts">
+	import { Button } from 'kampsy-ui';
+</script>
+
+<div class="flex flex-col md:flex-row items-start gap-4 flex-initial">
+	<Button disabled>Default</Button>
+	<Button disabled variant="secondary">Secondary</Button>
+	<Button disabled variant="tertiary">Tertiary</Button>
+	<Button disabled variant="error">Error</Button>
+	<Button disabled variant="warning">Warning</Button>
+</div>`;
+
+=== 292 src/docs/data/calendar.ts	js
+export const calendarDefault = `
+<script lang="ts">
+	import { Calendar } from 'kampsy-ui';
+	import type { DateValue, RangeValue } from 'kampsy-ui';
+
+	let value = $state<DateValue | RangeValue<DateValue>>();
+</script>
+
+<div class="w-full flex justify-center">
+	<Calendar bind:value/>
+</div>`;
+
+=== 647 src/docs/data/checkbox.ts	js
+export const checkboxDefault = `
+<script lang="ts">
+	import { Checkbox } from 'kampsy-ui';
+	let checked = $state(false);
+</script>
+
+<Checkbox bind:checked>Option 1</Checkbox>`;
+export const checkboxDisabled = `
+<script lang="ts">
+	import { Checkbox } from 'kampsy-ui';
+</script>
+
+<div class="w-full space-y-4">
+    <Checkbox disabled>Disabled</Checkbox>
+    <Checkbox checked disabled>Disabled Checked</Checkbox>
+    <Checkbox disabled indeterminate>Disabled Indeterminate</Checkbox>
+</div>`;
+export const checkboxIndeterminate = `
+<script lang="ts">
+	import { Checkbox } from 'kampsy-ui';
+</script>
+
+<Checkbox indeterminate>Option 1</Checkbox>`;
+
+=== 2453 src/docs/data/choicebox.ts	js
+export const choiceboxDefault = `
+<script lang="ts">
+	import { Choicebox } from 'kampsy-ui';
+
+	let value: string | string[]  = $state('');
+</script>
+
+<div class="w-full">
+	<Choicebox.Group
+		label="select a plan"
+		type="radio"
+		bind:value
+		onchange={(v) => console.log(v)}
+	>
+		<Choicebox.Item defaultChecked description="Free for two weeks" title="Pro Trial" value="trial" />
+		<Choicebox.Item description="Get started now" title="Pro" value="pro" />
+	</Choicebox.Group>
+</div>`;
+export const choiceboxMultiselect = `
+<script lang="ts">
+	import { Choicebox } from 'kampsy-ui';
+
+	let value: string | string[] = $state([]);
+</script>
+
+<div class="w-full">
+	<Choicebox.Group
+		label="select a plan"
+		type="checkbox"
+		bind:value
+		onchange={(v) => console.log(v)}
+	>
+		<Choicebox.Item description="Free for two weeks" title="Pro Trial" value="trial" />
+		<Choicebox.Item description="Get started now" title="Pro" value="pro" />
+	</Choicebox.Group>
+</div>`;
+export const choiceboxDisabled = `
+<script lang="ts">
+	import { Choicebox } from 'kampsy-ui';
+
+	let value: string | string[] = $state('');
+	let value2: string | string[] = $state([]);
+</script>
+
+<div class="flex w-full flex-initial flex-col items-stretch justify-start gap-6">
+	<Choicebox.Group label="Choicebox group disabled" disabled type="radio" bind:value>
+		<Choicebox.Item description="Free for two weeks" title="Pro Trial" value="trial" />
+		<Choicebox.Item description="Get started now" title="Pro" value="pro" />
+	</Choicebox.Group>
+	<Choicebox.Group label="Single input disabled" type="checkbox" bind:value={value2}>
+		<Choicebox.Item description="Free for two weeks" disabled title="Pro Trial" value="trial" />
+		<Choicebox.Item description="Get started now" title="Pro" value="pro" />
+	</Choicebox.Group>
+</div>`;
+export const choiceboxCustomContent = `
+<script lang="ts">
+	import { Choicebox, Badge } from 'kampsy-ui';
+
+	let value: string | string[] = $state('');
+</script>
+
+<div class="w-full">
+	<Choicebox.Group label="select a plan" type="radio" bind:value>
+		<Choicebox.Item
+			description="Free for two weeks"
+			title="Pro Trial"
+			value="trial"
+		>
+			<div class="flex justify-center p-2">
+				<Badge variant="trial">Trial</Badge>
+			</div>
+		</Choicebox.Item>
+		<Choicebox.Item description="Get started now" title="Pro" value="pro">
+			<div class="flex justify-center p-2">
+				<Badge variant="blue">Pro</Badge>
+			</div>
+		</Choicebox.Item>
+	</Choicebox.Group>
+</div>`;
+
+=== 4467 src/docs/data/collapse.ts	js
+export const collapseDefault = `
+<script lang="ts">
+	import { Collapse } from 'kampsy-ui';
+</script>
+
+<Collapse.Root>
+	<Collapse.Item value="tab1">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab1-section"
+			aria-expanded="false">Question A</Collapse.Trigger>
+		<Collapse.Content id="tab1-section" aria-hidden="true" aria-labelledby="tab1">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+	<Collapse.Item value="tab2">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab2-section"
+			aria-expanded="false">Question B</Collapse.Trigger>
+		<Collapse.Content id="tab2-section" aria-hidden="true" aria-labelledby="tab2">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+</Collapse.Root>`;
+export const collapseExpanded = `
+<script lang="ts">
+	import { Collapse } from 'kampsy-ui';
+</script>
+
+<Collapse.Root>
+	<Collapse.Item value="tab1">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab1-section"
+			aria-expanded="false">Question A</Collapse.Trigger>
+		<Collapse.Content id="tab1-section" aria-hidden="true" aria-labelledby="tab1">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+	<Collapse.Item defaultExpanded value="tab2">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab2-section"
+			aria-expanded="false">Question B</Collapse.Trigger>
+		<Collapse.Content id="tab2-section" aria-hidden="false" aria-labelledby="tab2">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+</Collapse.Root>`;
+export const collapseMultiple = `
+<script lang="ts">
+	import { Collapse } from 'kampsy-ui';
+</script>
+
+<Collapse.Root multiple>
+	<Collapse.Item value="tab1">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab1-section"
+			aria-expanded="false">Question A</Collapse.Trigger>
+		<Collapse.Content id="tab1-section" aria-hidden="true" aria-labelledby="tab1">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+	<Collapse.Item defaultExpanded value="tab2">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab2-section"
+			aria-expanded="false">Question B</Collapse.Trigger>
+		<Collapse.Content id="tab2-section" aria-hidden="false" aria-labelledby="tab2">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+</Collapse.Root>`;
+export const collapseSize = `
+<script lang="ts">
+	import { Collapse } from 'kampsy-ui';
+</script>
+
+<Collapse.Root>
+	<Collapse.Item size="small" value="tab1">
+		<Collapse.Trigger
+			role="heading"
+			aria-level={3}
+			type="button"
+			aria-controls="tab1-section"
+			aria-expanded="false">Question A</Collapse.Trigger>
+		<Collapse.Content id="tab1-section" aria-hidden="true" aria-labelledby="tab1">
+			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+			incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud
+			exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+		</Collapse.Content>
+	</Collapse.Item>
+</Collapse.Root>`;
+
+=== 5470 src/docs/data/colors.ts	js
+export const gray = [
+    "bg-kui-light-gray-100 dark:bg-kui-dark-gray-100",
+    " bg-kui-light-gray-200 dark:bg-kui-dark-gray-200",
+    " bg-kui-light-gray-300 dark:bg-kui-dark-gray-300",
+    " bg-kui-light-gray-400 dark:bg-kui-dark-gray-400",
+    " bg-kui-light-gray-500 dark:bg-kui-dark-gray-500",
+    " bg-kui-light-gray-600 dark:bg-kui-dark-gray-600",
+    " bg-kui-light-gray-700 dark:bg-kui-dark-gray-700",
+    " bg-kui-light-gray-800 dark:bg-kui-dark-gray-800",
+    " bg-kui-light-gray-900 dark:bg-kui-dark-gray-900",
+    " bg-kui-light-gray-1000 dark:bg-kui-dark-gray-1000",
+];
+export const grayAlpha = [
+    " bg-kui-light-gray-alpha-100 dark:bg-kui-dark-gray-alpha-100",
+    " bg-kui-light-gray-alpha-200 dark:bg-kui-dark-gray-alpha-200",
+    " bg-kui-light-gray-alpha-300 dark:bg-kui-dark-gray-alpha-300",
+    " bg-kui-light-gray-alpha-400 dark:bg-kui-dark-gray-alpha-400",
+    " bg-kui-light-gray-alpha-500 dark:bg-kui-dark-gray-alpha-500",
+    " bg-kui-light-gray-alpha-600 dark:bg-kui-dark-gray-alpha-600",
+    " bg-kui-light-gray-alpha-700 dark:bg-kui-dark-gray-alpha-700",
+    " bg-kui-light-gray-alpha-800 dark:bg-kui-dark-gray-alpha-800",
+    " bg-kui-light-gray-alpha-900 dark:bg-kui-dark-gray-alpha-900",
+    " bg-kui-light-gray-alpha-1000 dark:bg-kui-dark-gray-alpha-1000",
+];
+export const blue = [
+    " bg-kui-light-blue-100 dark:bg-kui-dark-blue-100",
+    " bg-kui-light-blue-200 dark:bg-kui-dark-blue-200",
+    " bg-kui-light-blue-300 dark:bg-kui-dark-blue-300",
+    " bg-kui-light-blue-400 dark:bg-kui-dark-blue-400",
+    " bg-kui-light-blue-500 dark:bg-kui-dark-blue-500",
+    " bg-kui-light-blue-600 dark:bg-kui-dark-blue-600",
+    " bg-kui-light-blue-700 dark:bg-kui-dark-blue-700",
+    " bg-kui-light-blue-800 dark:bg-kui-dark-blue-800",
+    " bg-kui-light-blue-900 dark:bg-kui-dark-blue-900",
+    " bg-kui-light-blue-1000 dark:bg-kui-dark-blue-1000",
+];
+export const red = [
+    " bg-kui-light-red-100 dark:bg-kui-dark-red-100",
+    " bg-kui-light-red-200 dark:bg-kui-dark-red-200",
+    " bg-kui-light-red-300 dark:bg-kui-dark-red-300",
+    " bg-kui-light-red-400 dark:bg-kui-dark-red-400",
+    " bg-kui-light-red-500 dark:bg-kui-dark-red-500",
+    " bg-kui-light-red-600 dark:bg-kui-dark-red-600",
+    " bg-kui-light-red-700 dark:bg-kui-dark-red-700",
+    " bg-kui-light-red-800 dark:bg-kui-dark-red-800",
+    " bg-kui-light-red-900 dark:bg-kui-dark-red-900",
+    " bg-kui-light-red-1000 dark:bg-kui-dark-red-1000",
+];
+export const amber = [
+    " bg-kui-light-amber-100 dark:bg-kui-dark-amber-100",
+    " bg-kui-light-amber-200 dark:bg-kui-dark-amber-200",
+    " bg-kui-light-amber-300 dark:bg-kui-dark-amber-300",
+    " bg-kui-light-amber-400 dark:bg-kui-dark-amber-400",
+    " bg-kui-light-amber-500 dark:bg-kui-dark-amber-500",
+    " bg-kui-light-amber-600 dark:bg-kui-dark-amber-600",
+    " bg-kui-light-amber-700 dark:bg-kui-dark-amber-700",
+    " bg-kui-light-amber-800 dark:bg-kui-dark-amber-800",
+    " bg-kui-light-amber-900 dark:bg-kui-dark-amber-900",
+    " bg-kui-light-amber-1000 dark:bg-kui-dark-amber-1000",
+];
+export const green = [
+    " bg-kui-light-green-100 dark:bg-kui-dark-green-100",
+    " bg-kui-light-green-200 dark:bg-kui-dark-green-200",
+    " bg-kui-light-green-300 dark:bg-kui-dark-green-300",
+    " bg-kui-light-green-400 dark:bg-kui-dark-green-400",
+    " bg-kui-light-green-500 dark:bg-kui-dark-green-500",
+    " bg-kui-light-green-600 dark:bg-kui-dark-green-600",
+    " bg-kui-light-green-700 dark:bg-kui-dark-green-700",
+    " bg-kui-light-green-800 dark:bg-kui-dark-green-800",
+    " bg-kui-light-green-900 dark:bg-kui-dark-green-900",
+    " bg-kui-light-green-1000 dark:bg-kui-dark-green-1000",
+];
+export const teal = [
+    " bg-kui-light-teal-100 dark:bg-kui-dark-teal-100",
+    " bg-kui-light-teal-200 dark:bg-kui-dark-teal-200",
+    " bg-kui-light-teal-300 dark:bg-kui-dark-teal-300",
+    " bg-kui-light-teal-400 dark:bg-kui-dark-teal-400",
+    " bg-kui-light-teal-500 dark:bg-kui-dark-teal-500",
+    " bg-kui-light-teal-600 dark:bg-kui-dark-teal-600",
+    " bg-kui-light-teal-700 dark:bg-kui-dark-teal-700",
+    " bg-kui-light-teal-800 dark:bg-kui-dark-teal-800",
+    " bg-kui-light-teal-900 dark:bg-kui-dark-teal-900",
+    " bg-kui-light-teal-1000 dark:bg-kui-dark-teal-1000",
+];
+export const purple = [
+    " bg-kui-light-purple-100 dark:bg-kui-dark-purple-100",
+    " bg-kui-light-purple-200 dark:bg-kui-dark-purple-200",
+    " bg-kui-light-purple-300 dark:bg-kui-dark-purple-300",
+    " bg-kui-light-purple-400 dark:bg-kui-dark-purple-400",
+    " bg-kui-light-purple-500 dark:bg-kui-dark-purple-500",
+    " bg-kui-light-purple-600 dark:bg-kui-dark-purple-600",
+    " bg-kui-light-purple-700 dark:bg-kui-dark-purple-700",
+    " bg-kui-light-purple-800 dark:bg-kui-dark-purple-800",
+    " bg-kui-light-purple-900 dark:bg-kui-dark-purple-900",
+    " bg-kui-light-purple-1000 dark:bg-kui-dark-purple-1000",
+];
+export const pink = [
+    " bg-kui-light-pink-100 dark:bg-kui-dark-pink-100",
+    " bg-kui-light-pink-200 dark:bg-kui-dark-pink-200",
+    " bg-kui-light-pink-300 dark:bg-kui-dark-pink-300",
+    " bg-kui-light-pink-400 dark:bg-kui-dark-pink-400",
+    " bg-kui-light-pink-500 dark:bg-kui-dark-pink-500",
+    " bg-kui-light-pink-600 dark:bg-kui-dark-pink-600",
+    " bg-kui-light-pink-700 dark:bg-kui-dark-pink-700",
+    " bg-kui-light-pink-800 dark:bg-kui-dark-pink-800",
+    " bg-kui-light-pink-900 dark:bg-kui-dark-pink-900",
+    " bg-kui-light-pink-1000 dark:bg-kui-dark-pink-1000",
+];
+
+=== 161 src/docs/data/copy-button.ts	js
+export const copyButtonDefault = `
+<script lang="ts">
+	import { CopyButton } from 'kampsy-ui';
+</script>
+
+<CopyButton label="Copy text" textToCopy="lipsum" />`;
+
+=== 250 src/docs/data/description.ts	js
+export const descriptionDefault = `
+<script lang="ts">
+	import { Description } from 'kampsy-ui';
+</script>
+
+<Description
+	content="Data about this section."
+	title="Section Title"
+	tooltip="Additional context about what this section refers to."
+/>`;
+
+=== 655 src/docs/data/emptyState.ts	js
+export const emptyStateDefault = `
+<script lang="ts">
+	import { EmptyState, ChartBarPeak } from 'kampsy-ui';
+</script>
+
+<EmptyState.Root
+  description="A message conveying the state of the product."
+  icon={ChartBarPeak}
+  title="Title"
+/>`;
+export const blankStateDocs = emptyStateDefault;
+export const informationalDocs = `
+<script lang="ts">
+	import { EmptyState, ChartBarPeak, Button} from 'kampsy-ui';
+</script>
+
+<EmptyState.Root
+	description="This should detail the actions you can take on this screen, as well as why it’s valuable."
+	icon={ChartBarPeak}
+	title="Title"
+>
+	<Button variant="secondary">Primary Action</Button>
+</EmptyState.Root>
+`;
+
+=== 845 src/docs/data/error.ts	js
+export const errorDefault = `
+<script lang="ts">
+	import { Error } from 'kampsy-ui';
+</script>
+
+<Error>
+    This email address is already in use.
+</Error>`;
+export const errorCustomLabel = `
+<script lang="ts">
+	import { Error } from 'kampsy-ui';
+</script>
+
+<Error label="Email Error">
+    This email address is already in use.
+</Error>`;
+export const errorSize = `
+<script lang="ts">
+	import { Error } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex flex-wrap gap-4">
+	<Error size="sm">This email is in use.</Error>
+	<Error size="md">This email is in use.</Error>
+	<Error size="lg">This email is in use.</Error>
+</div>`;
+export const errorWithProp = `
+<script lang="ts">
+	import { Error } from 'kampsy-ui';
+</script>
+
+<Error
+	error={{
+		message: 'The request failed.',
+		action: 'Contact Us',
+		link: 'https://ui.kampsy.xyz/error'
+	}}
+/>`;
+
+=== 3715 src/docs/data/input.ts	js
+export const inputDefault = `
+<script lang="ts">
+	import { Input } from 'kampsy-ui';
+
+	let small = $state('');
+	let defaultInput = $state('');
+	let large = $state('');
+</script>
+
+<div class="w-full grid grid-cols-1 lg:grid-cols-3 gap-x-4">
+	<Input aria-labelledby="Demo input" bind:value={small} placeholder="small" size="small" />
+	<Input aria-labelledby="Demo input" bind:value={defaultInput} placeholder="default" />
+	<Input aria-labelledby="Demo input" bind:value={large} placeholder="large" size="large" />
+</div>`;
+export const inputPrefixAndSuffix = `
+<script lang="ts">
+	import { Input } from 'kampsy-ui';
+	import { ArrowCircleUp } from 'kampsy-ui/icons'
+
+	let value = $state('');
+</script>
+
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input aria-labelledby="Demo" contPrefix={ArrowCircleUp} bind:value placeholder="default" />
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input aria-labelledby="Demo" contSuffix={ArrowCircleUp} bind:value placeholder="default" />
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input aria-labelledby="Demo" contPrefix="https://" contSuffix=".com" bind:value placeholder="default" />
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input
+        aria-labelledby="Demo"
+        contPrefix={ArrowCircleUp}
+        prefixStyling={false}
+        contSuffix={ArrowCircleUp}
+        suffixStyling={false}
+        placeholder="default"
+	/>
+</div>`;
+export const inputDisabled = `
+<script lang="ts">
+	import { Input } from 'kampsy-ui';
+	import { ArrowCircleUp } from 'kampsy-ui/icons'
+</script>
+
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input aria-labelledby="Demo" placeholder="Disabled with placeholder" disabled />
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input aria-labelledby="Demo" value="Disabled with placeholder" disabled />
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input
+		aria-labelledby="Demo"
+		contPrefix={ArrowCircleUp}
+		placeholder="Disabled with prefix"
+		disabled
+	/>
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input
+		aria-labelledby="Demo"
+		contSuffix={ArrowCircleUp}
+		placeholder="Disabled with suffix"
+		disabled
+	/>
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input
+		aria-labelledby="Demo"
+		contPrefix="https://"
+		contSuffix=".com"
+		placeholder="Disabled with prefix and suffix"
+		disabled
+	/>
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+	<Input
+		aria-labelledby="Demo"
+		contPrefix={ArrowCircleUp}
+		prefixStyling={false}
+		contSuffix={ArrowCircleUp}
+		suffixStyling={false}
+		placeholder="Disabled with prefix and suffix"
+		disabled
+	/>
+</div>`;
+export const inputSearch = `
+<script lang="ts">
+	import { SearchInput } from 'kampsy-ui';
+</script>
+
+<SearchInput placeholder="Enter some text..." />`;
+export const inputError = `
+<script lang="ts">
+	import { Input } from 'kampsy-ui';
+</script>
+
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+    <Input
+	    aria-labelledby="Demo input"
+	    error="An error message."
+	    placeholder="long-error@gmail.com"
+	    size="small"
+    />
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+    <Input
+	    aria-labelledby="Demo input"
+	    error="An error message."
+	    placeholder="long-error@gmail.com"
+	/>
+</div>
+<div class="w-full grid grid-cols-1 lg:grid-cols-3">
+    <Input
+	    aria-labelledby="Demo input"
+	    error="An error message."
+	    placeholder="long-error@gmail.com"
+	    size="large"
+	    />
+</div>`;
+export const inputLabel = `
+<script lang="ts">
+	import { Input } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Input aria-labelledby="Demo input" label="Label" bind:value placeholder="Label" />`;
+
+=== 267 src/docs/data/installation.ts	js
+export const installationSveltekit = `
+npx sv create my-app`;
+export const installationKampsy = `
+pnpm i -D kampsy-ui@latest
+`;
+export const installationConfig = `
+@import 'tailwindcss';
+@import "kampsy-ui/theme.css";
+
+@source "../../node_modules/kampsy-ui/dist";
+`;
+
+=== 272 src/docs/data/keyboard-input.ts	js
+export const keyboardInputModifiers = `
+<script lang="ts">
+	import { Kbd } from 'kampsy-ui';
+</script>
+
+<div>
+    <Kbd.Group>
+    	<Kbd.Root>⌘</Kbd.Root>
+    	<Kbd.Root>⇧</Kbd.Root>
+    	<Kbd.Root>⌥</Kbd.Root>
+    	<Kbd.Root>⌃</Kbd.Root>
+    </Kbd.Group>
+</div>`;
+
+=== 3213 src/docs/data/menu.ts	js
+export const menuDefault = `
+<script lang="ts">
+	import { Menu } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Menu.Root>
+    	<Menu.Button aria-controls="menu" aria-expanded="false" aria-haspopup="true" >Actions</Menu.Button>
+    	<Menu.Content id="menu" aria-hidden="true" class="w-[200px]">
+    		<Menu.Item onClick={() => console.log('One')}>One</Menu.Item>
+            <Menu.Item onClick={() => console.log('Two')}>Two</Menu.Item>
+            <Menu.Item onClick={() => console.log('Three')}>One</Menu.Item>
+			<Menu.Link href="https://ui.kampsy.xyz">Test for Link</Menu.Link>
+            <Menu.Item onClick={() => console.log('Delete')} type="error">Delete</Menu.Item>
+    	</Menu.Content>
+    </Menu.Root>
+</div>`;
+export const menuLinkItem = `
+<script lang="ts">
+	import { Menu } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Menu.Root>
+    	<Menu.Button aria-controls="menu" aria-expanded="false" aria-haspopup="true">Actions</Menu.Button>
+    	<Menu.Content class="w-[200px]">
+    		<Menu.Link href="/menu">One</Menu.Link>
+            <Menu.Link href="#/">Two</Menu.Link>
+            <Menu.Link href="#/">One</Menu.Link>
+    	</Menu.Content>
+    </Menu.Root>
+</div>`;
+export const menuPrefixAndSuffix = `
+<script lang="ts">
+	import { Menu } from 'kampsy-ui';
+	import { MoreHorizontal,Accessibility } from 'kampsy-ui/icons';
+</script>
+
+<div class="w-full flex gap-6">
+	<Menu.Root>
+		<Menu.Button shape="square" size="small" variant="secondary" svgOnly aria-label="Actions" aria-controls="menu" aria-expanded="false" aria-haspopup="true">
+			<MoreHorizontal />
+		</Menu.Button>
+		<Menu.Content class="w-[200px]">
+			<Menu.Item prefix={Accessibility}>Left</Menu.Item>
+			<Menu.Item prefix={Accessibility}>Center</Menu.Item>
+			<Menu.Item prefix={Accessibility}>Right</Menu.Item>
+		</Menu.Content>
+	</Menu.Root>
+	<Menu.Root>
+		<Menu.Button shape="square" size="small" variant="secondary" svgOnly aria-label="Actions" aria-controls="menu" aria-expanded="false" aria-haspopup="true">
+			<MoreHorizontal />
+		</Menu.Button>
+		<Menu.Content class="w-[200px]">
+			<Menu.Item suffix={Accessibility}>Left</Menu.Item>
+			<Menu.Item suffix={Accessibility}>Center</Menu.Item>
+			<Menu.Item suffix={Accessibility}>Right</Menu.Item>
+		</Menu.Content>
+	</Menu.Root>
+</div>`;
+export const menuAlignment = `
+<script lang="ts">
+	import { Menu } from 'kampsy-ui';
+	import { MoreHorizontal,Accessibility } from 'kampsy-ui/icons';
+</script>
+
+<div class="w-full flex justify-between gap-8">
+	<Menu.Root>
+		<Menu.Button aria-controls="menu" aria-expanded="false" aria-haspopup="true">Actions</Menu.Button>
+		<Menu.Content class="w-[200px]">
+			<Menu.Item prefix={Accessibility}>Left</Menu.Item>
+			<Menu.Item prefix={Accessibility}>Center</Menu.Item>
+			<Menu.Item prefix={Accessibility}>Right</Menu.Item>
+		</Menu.Content>
+	</Menu.Root>
+	<Menu.Root alignment="right">
+		<Menu.Button aria-controls="menu" aria-expanded="false" aria-haspopup="true">Actions</Menu.Button>
+		<Menu.Content class="w-[200px]">
+			<Menu.Item suffix={Accessibility}>Left</Menu.Item>
+			<Menu.Item suffix={Accessibility}>Center</Menu.Item>
+			<Menu.Item suffix={Accessibility}>Right</Menu.Item>
+		</Menu.Content>
+	</Menu.Root>
+</div>`;
+
+=== 3419 src/docs/data/modal.ts	js
+export const modalDefault = `
+<script lang="ts">
+	import { Modal, Text } from 'kampsy-ui';
+
+	let active = $state(false);
+</script>
+
+<div>
+	<Button onclick={() => (active = true)} size="small">Open Modal</Button>
+    <Modal.Root bind:active>
+    	<Modal.Content>
+    		<Modal.Body>
+    			<Modal.Header>
+    				<Modal.Title>Create Token</Modal.Title>
+    				<Modal.Subtitle>
+                        Enter a unique name for your token to differentiate it from other tokens and
+                        then select the scope.
+    				</Modal.Subtitle>
+    			</Modal.Header>
+    			<Text size={14}>Some content contained within the modal.</Text>
+    		</Modal.Body>
+    		<Modal.Footer>
+    			<Button onclick={() => (active = false)} type="secondary">Cancel</Button>
+    			<Button onclick={() => (active = false)}>Submit</Button>
+    		</Modal.Footer>
+    	</Modal.Content>
+    </Modal.Root>
+</div>`;
+export const modalSticky = `
+<script lang="ts">
+	import { Modal, Text } from 'kampsy-ui';
+	import { ArrowLeft } from 'kampsy-ui/icons';
+
+	let active = $state(false);
+</script>
+
+<div>
+	<Button onclick={() => (active = true)} size="small">Open Modal</Button>
+    <Modal.Root bind:active sticky>
+    	<Modal.Content>
+    		<Modal.Body>
+    			<Modal.Header>
+    				<Modal.Title>Create Token</Modal.Title>
+    			</Modal.Header>
+				{#each Array(40) as _, i}
+					<Text size={14}>Some content contained within the modal.</Text>
+				{/each}
+    		</Modal.Body>
+    		<Modal.Footer>
+    			<div class="flex gap-3">
+					<Button onclick={() => (activeSticky = false)} variant="secondary">Cancel</Button>
+					<Button onclick={() => (activeSticky = false)} variant="secondary">
+						{#snippet prefix()}
+							<ArrowLeft />
+						{/snippet}
+						Previous
+					</Button>
+				</div>
+    			<Button onclick={() => (active = false)}>Submit</Button>
+    		</Modal.Footer>
+    	</Modal.Content>
+    </Modal.Root>
+</div>`;
+export const modalSingleButton = `
+<script lang="ts">
+	import { Modal, Text } from 'kampsy-ui';
+
+	let active = $state(false);
+</script>
+
+<div>
+	<Button onclick={() => (active = true)} size="small">Open Modal</Button>
+    <Modal.Root bind:active>
+    	<Modal.Content>
+    		<Modal.Body>
+    			<Modal.Header>
+    				<Modal.Title>Create Token</Modal.Title>
+    			</Modal.Header>
+    			<Text size={14}>Some content contained within the modal.</Text>
+    		</Modal.Body>
+    		<Modal.Footer>
+    			<Button onclick={() => (activeSingleButton = false)} type="secondary" class="w-full">
+                    Cancel
+                </Button>
+    		</Modal.Footer>
+    	</Modal.Content>
+    </Modal.Root>
+</div>`;
+export const modalDisabkedActions = `
+<script lang="ts">
+	import { Modal, Text } from 'kampsy-ui';
+
+	let active = $state(false);
+</script>
+
+<div>
+	<Button onclick={() => (active = true)} size="small">Open Modal</Button>
+    <Modal.Root bind:active>
+    	<Modal.Content>
+    		<Modal.Body>
+    			<Modal.Header>
+    				<Modal.Title>Create Token</Modal.Title>
+					<Modal.Subtitle>This is a modal.</Modal.Subtitle>
+    			</Modal.Header>
+    			<Text size={14}>Some content contained within the modal.</Text>
+    		</Modal.Body>
+    		<Modal.Footer>
+                <Button onclick={() => (activeDisabled = false)} type="secondary">Cancel</Button>
+    			<Button disabled onclick={() => (activeDisabled = false)}>Submit</Button>
+    		</Modal.Footer>
+    	</Modal.Content>
+    </Modal.Root>
+</div>`;
+
+=== 6455 src/docs/data/note.ts	js
+export const noteDefault = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex gap-8">
+    <Note size="small">A small note</Note>
+    <Note>A default note</Note>
+    <Note size="large">A large note</Note>
+</div>`;
+export const noteAction = `
+<script lang="ts">
+	import { Note, Button } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note action={actionSnip}>This note details some information.</Note>
+    <Note action={actionSnip}>
+    	This note details a large amount information that could potentially wrap into two or
+    	more lines, forcing the height of the Note to be larger.
+    </Note>
+</div>`;
+export const noteSuccess = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note type="success">This note details some success information.</Note>
+    <Note type="success" action={actionSnip}>
+    	This note details some success information.
+    </Note>
+    <Note type="success" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+    <Note fill type="success">This note details some success information.</Note>
+    <Note fill type="success" action={actionSnip}>
+    	This note details some success information.
+    </Note>
+    <Note fill type="success" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+</div>`;
+export const noteError = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note type="error">This note details some error information.</Note>
+    <Note type="error" action={actionSnip}>
+    	This note details some error information.
+    </Note>
+    <Note type="error" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+    <Note fill type="error">This note details some error information.</Note>
+    <Note fill type="error" action={actionSnip}>
+    	This note details some error information.
+    </Note>
+    <Note fill type="error" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+</div>`;
+export const noteWarning = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note type="warning">This note details some warning information.</Note>
+    <Note type="warning" action={actionSnip}>
+    	This note details some warning information.
+    </Note>
+    <Note type="warning" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+    <Note fill type="warning">This note details some warning information.</Note>
+    <Note fill type="warning" action={actionSnip}>
+    	This note details some warning information.
+    </Note>
+    <Note fill type="warning" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+</div>`;
+export const noteSecondary = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note type="secondary">This note details some secondary information.</Note>
+    <Note type="secondary" action={actionSnip}>
+    	This note details some secondary information.
+    </Note>
+    <Note type="secondary" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+    <Note fill type="secondary">This note details some secondary information.</Note>
+    <Note fill type="secondary" action={actionSnip}>
+    	This note details some secondary information.
+    </Note>
+    <Note fill type="secondary" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+</div>`;
+export const noteViolet = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note type="violet">This note details some violet information.</Note>
+    <Note type="violet" action={actionSnip}>
+    	This note details some violet information.
+    </Note>
+    <Note type="violet" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+    <Note fill type="violet">This note details some violet information.</Note>
+    <Note fill type="violet" action={actionSnip}>
+    	This note details some violet information.
+    </Note>
+    <Note fill type="violet" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+</div>`;
+export const noteCyan = `
+<script lang="ts">
+	import { Note } from 'kampsy-ui';
+
+	{#snippet actionSnip()}
+</script>
+
+	<Button size="small">Upgrade</Button>
+{/snippet}
+
+<div class="w-full space-y-8">
+    <Note type="cyan">This note details some cyan information.</Note>
+    <Note type="cyan" action={actionSnip}>
+    	This note details some cyan information.
+    </Note>
+    <Note type="cyan" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+    <Note fill type="cyan">This note details some cyan information.</Note>
+    <Note fill type="cyan" action={actionSnip}>
+    	This note details some cyan information.
+    </Note>
+    <Note fill type="cyan" action={actionSnip}>
+		This note details some success information. Check
+		<a href="/#" class="hover:underline ">the documentation</a> to learn more.
+	</Note>
+</div>`;
+
+=== 261 src/docs/data/pagination.ts	js
+export const paginationDefault = `
+<script lang="ts">
+	import { Pagination } from 'kampsy-ui';
+
+	const prev = {
+	  title: 'Home',
+	  href: '#',
+	};
+ 
+	const next = {
+	  title: 'Introduction',
+	  href: '#',
+	};
+</script>
+
+<Pagination previous={prev} {next} />`;
+
+=== 878 src/docs/data/progress.ts	js
+export const progressDefault = `
+<script lang="ts">
+	import { Progress } from 'kampsy-ui';
+</script>
+
+<Progress value={80} />`;
+export const progressDynamicColors = `
+<script lang="ts">
+	import { Progress } from 'kampsy-ui';
+</script>
+
+<Progress value={dynamic} />
+
+<div class="flex items-center gap-4">
+	<Button
+		onclick={() => {
+			if (dynamic < 100) {
+				dynamic = dynamic + 10;
+			}
+		}}
+		size="small">Increase</Button>
+	<Button
+		onclick={() => {
+			if (dynamic > 0) {
+				dynamic = dynamic - 10;
+			}
+		}}
+		size="small"
+		type="secondary">Decrease</Button>
+</div>`;
+export const progressThemed = `
+<script lang="ts">
+	import { Progress } from 'kampsy-ui';
+</script>
+
+<div class="w-full space-y-6">
+	<Progress type="success" value={100} />
+	<Progress type="error" value={10} />
+	<Progress type="warning" value={40} />
+	<Progress type="secondary" value={70} />
+</div>`;
+
+=== 1416 src/docs/data/project-banner.ts	js
+export const projectBannerSuccess = `
+<script lang="ts">
+	import { ProjectBanner } from 'kampsy-ui';
+	import { ShieldCheck } from 'kampsy-ui/icons';
+</script>
+
+<div class="w-full">
+	<ProjectBanner
+		icon={ShieldCheck}
+		callToAction={{
+			label: 'Disable',
+			href: '/project-banner'
+		}}
+		label="Attack Challenge Mode is enabled for this project"
+		variant="success"
+	/>
+</div>`;
+export const projectBannerWarning = `
+<script lang="ts">
+	import { ProjectBanner, Tooltip } from 'kampsy-ui';
+	import { RotateCounterClockWise } from 'kampsy-ui/icons';
+
+	{#snippet labelSnip()}
+	This project was rolled back by
+</script>
+
+	<Tooltip
+		class="underline decoration-dashed underline-offset-[5px]"
+		text="Yesterday for project marketing-website"
+	>
+		@johnphamous
+	</Tooltip>
+{/snippet}
+
+<div class="w-full">
+	<ProjectBanner
+		icon={RotateCounterClockWise}
+		callToAction={{
+			label: 'Undo Rollback',
+			onClick: () => {
+				alert('Button clicked');
+			}
+		}}
+		label={labelSnip}
+		variant="warning"
+	/>
+</div>`;
+export const projectBannerError = `
+<script lang="ts">
+	import { ProjectBanner } from 'kampsy-ui';
+	import { Warning } from 'kampsy-ui/icons';
+</script>
+
+<div class="w-full">
+	<ProjectBanner
+		icon={Warning}
+		callToAction={{
+			label: 'Add Credit Card',
+			href: '/project-banner'
+		}}
+		label="Payment failed, update credit card information before your account is shut down"
+		variant="error"
+	/>
+</div>`;
+
+=== 3677 src/docs/data/select.ts	js
+export const selectDefault = `
+<script lang="ts">
+	import { Select } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Select.Root bind:value class="w-full lg:w-auto" >
+	<Select.Trigger class="w-full lg:w-[200px]">
+		<Select.Value placeholder="select a friuit" />
+	</Select.Trigger>
+	<Select.Content>
+		<Select.Item value="apple">apple</Select.Item>
+		<Select.Item value="banana">banana</Select.Item>
+		<Select.Item value="orange">orange</Select.Item>
+		<Select.Item value="pineapple">pineapple</Select.Item>
+	</Select.Content>
+</Select.Root>`;
+export const selectSize = `
+<script lang="ts">
+	import { Select } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+	<Select.Root size="small" bind:value class="w-full lg:w-auto">
+		<Select.Trigger class="w-full lg:w-[200px]">
+			<Select.Value placeholder="select a fruit" />
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="apple">apple</Select.Item>
+			<Select.Item value="banana">banana</Select.Item>
+			<Select.Item value="orange">orange</Select.Item>
+			<Select.Item value="pineapple">pineapple</Select.Item>
+		</Select.Content>
+	</Select.Root>
+
+	<Select.Root bind:value class="w-full lg:w-auto" >
+		<Select.Trigger class="w-full lg:w-[200px]">
+			<Select.Value placeholder="select a friuit" />
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="apple">apple</Select.Item>
+			<Select.Item value="banana">banana</Select.Item>
+			<Select.Item value="orange">orange</Select.Item>
+			<Select.Item value="pineapple">pineapple</Select.Item>
+		</Select.Content>
+	</Select.Root>
+
+	<Select.Root size="large" bind:value class="w-full lg:w-auto" >
+		<Select.Trigger class="w-full lg:w-[200px]">
+			<Select.Value placeholder="select a friuit" />
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="apple">apple</Select.Item>
+			<Select.Item value="banana">banana</Select.Item>
+			<Select.Item value="orange">orange</Select.Item>
+			<Select.Item value="pineapple">pineapple</Select.Item>
+		</Select.Content>
+	</Select.Root>
+</div>`;
+export const selectError = `
+<script lang="ts">
+	import { Select } from 'kampsy-ui';
+
+	let value = $state('');
+	let error = $state('Please select a value.');
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+	<Select.Root bind:error size="small" bind:value class="w-full lg:w-auto">
+		<Select.Trigger class="w-full lg:w-[200px]">
+			<Select.Value placeholder="select a friuit" />
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="apple">apple</Select.Item>
+			<Select.Item value="banana">banana</Select.Item>
+			<Select.Item value="orange">orange</Select.Item>
+			<Select.Item value="pineapple">pineapple</Select.Item>
+		</Select.Content>
+	</Select.Root>
+
+	<Select.Root bind:error bind:value class="w-full lg:w-auto" >
+		<Select.Trigger class="w-full lg:w-[200px]">
+			<Select.Value placeholder="select a friuit" />
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="apple">apple</Select.Item>
+			<Select.Item value="banana">banana</Select.Item>
+			<Select.Item value="orange">orange</Select.Item>
+			<Select.Item value="pineapple">pineapple</Select.Item>
+		</Select.Content>
+	</Select.Root>
+
+	<Select.Root bind:error size="large" bind:value class="w-full lg:w-auto" >
+		<Select.Trigger class="w-full lg:w-[200px]">
+			<Select.Value placeholder="select a friuit" />
+		</Select.Trigger>
+		<Select.Content>
+			<Select.Item value="apple">apple</Select.Item>
+			<Select.Item value="banana">banana</Select.Item>
+			<Select.Item value="orange">orange</Select.Item>
+			<Select.Item value="pineapple">pineapple</Select.Item>
+		</Select.Content>
+	</Select.Root>
+</div>`;
+
+=== 195 src/docs/data/showMore.ts	js
+export const showMoreDefault = `
+<script lang="ts">
+	import { ShowMore } from 'kampsy-ui';
+
+	let isActive = $state(false);
+</script>
+
+<div class="w-full">
+    <ShowMore bind:isActive />
+</div>`;
+
+=== 1364 src/docs/data/snippet.ts	js
+export const snippetDefault = `
+<script lang="ts">
+	import { CodeSnippet } from 'kampsy-ui';
+</script>
+
+<CodeSnippet text="npm init next-app" class="w-full lg:w-[300px]"/>`;
+export const snippetInverted = `
+<script lang="ts">
+	import { CodeSnippet } from 'kampsy-ui';
+</script>
+
+<CodeSnippet type="inverted" text="npm init next-app" class="w-full lg:w-[300px]"/>`;
+export const snippetMultiline = `
+<script lang="ts">
+	import { CodeSnippet } from 'kampsy-ui';
+</script>
+
+<CodeSnippet text={['cd project', 'now']} class="w-full"/>`;
+export const snippetNoPrompt = `
+<script lang="ts">
+	import { CodeSnippet } from 'kampsy-ui';
+</script>
+
+<CodeSnippet prompt={false} text="npm init next-app" class="w-full lg:w-[300px]"/>`;
+export const snippetCallback = `
+<script lang="ts">
+	import { CodeSnippet } from 'kampsy-ui';
+</script>
+
+<CodeSnippet
+	onCopy={() => alert('You copied the text!')}
+	text="npm init next-app"
+	class="w-full lg:w-[300px]"
+/>`;
+export const snippetVariants = `
+<script lang="ts">
+	import { CodeSnippet } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex flex-col gap-3 flex-wrap">
+	<CodeSnippet type="success" text="npm init next-app" class="w-full lg:w-[300px]" />
+	<CodeSnippet type="error" text="npm init next-app" class="w-full lg:w-[300px]" />
+	<CodeSnippet type="warning" text="npm init next-app" class="w-full lg:w-[300px]" />
+</div>`;
+
+=== 329 src/docs/data/spinner.ts	js
+export const spinnerDefault = `
+<script lang="ts">
+	import { Spinner } from 'kampsy-ui';
+</script>
+
+<Spinner />`;
+export const spinnerCustom = `
+<script lang="ts">
+	import { Spinner } from 'kampsy-ui';
+</script>
+
+<div class="flex items-center gap-8">
+	<Spinner size={12} />
+	<Spinner size={32} />
+	<Spinner size={40} />
+</div>`;
+
+=== 3590 src/docs/data/split-button.ts	js
+export const splitButtonDefault = `
+<script lang="ts">
+	import { SplitButton } from 'kampsy-ui';
+
+	const sizes: Array<'tiny' | 'small' | 'medium' | 'large'> = ['small', 'medium', 'large'];
+</script>
+
+<div class="space-y-8">
+	<div class="flex flex-wrap gap-4 lg:gap-8">
+		{#each sizes as size}
+			<SplitButton.Root>
+				<SplitButton.Button onclick={() => alert('Clicked save')} {size}>save</SplitButton.Button>
+				<SplitButton.Content class="w-[264px]">
+					<SplitButton.Item
+						onClick={() => alert('Clicked save')}
+						title="Save"
+						description="Save changes"
+					/>
+					<SplitButton.Item
+						onClick={() => alert('Clicked save + Redeploy')}
+						title="Save + Redeploy"
+						description="Save changes and create a new production deployment"
+					/>
+				</SplitButton.Content>
+			</SplitButton.Root>
+		{/each}
+    </div>
+	<div class="flex flex-wrap gap-4 lg:gap-8">
+		{#each sizes as size}
+			<SplitButton.Root>
+				<SplitButton.Button onclick={() => alert('Clicked save')} {size} type="secondary">save</SplitButton.Button>
+				<SplitButton.Content class="w-[264px]">
+					<SplitButton.Item
+						onClick={() => alert('Clicked save')}
+						title="Save"
+						description="Save changes"
+					/>
+					<SplitButton.Item
+						onClick={() => alert('Clicked save + Redeploy')}
+						title="Save + Redeploy"
+						description="Save changes and create a new production deployment"
+					/>
+				</SplitButton.Content>
+			</SplitButton.Root>
+		{/each}
+    </div>
+</div>`;
+export const splitButtonTypes = `
+<script lang="ts">
+	import { SplitButton } from 'kampsy-ui';
+
+	const sbTypes: Array<'primary' | 'secondary' | 'tertiary' | 'error' | 'warning'> = [
+	'primary',
+	'secondary',
+	'tertiary',
+	'error',
+	'warning'
+	];
+</script>
+
+<div class="flex flex-wrap gap-4 lg:gap-10">
+	{#each sbTypes as sbType}
+		<SplitButton.Root>
+			<SplitButton.Button onclick={() => alert('Clicked save')} type={sbType}>save</SplitButton.Button>
+			<SplitButton.Content class="w-[264px]">
+				<SplitButton.Item
+					onClick={() => alert('Clicked save')}
+					title="Save"
+					description="Save changes"
+				/>
+				<SplitButton.Item
+					onClick={() => alert('Clicked save + Redeploy')}
+					title="Save + Redeploy"
+					description="Save changes and create a new production deployment"
+				/>
+			</SplitButton.Content>
+		</SplitButton.Root>
+	{/each}
+</div>`;
+export const splitButtonMenuAlignment = `
+<script lang="ts">
+	import { SplitButton } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex gap-10">
+    <SplitButton.Root>
+    	<SplitButton.Button onclick={() => alert('Clicked save')}>save</SplitButton.Button>
+    	<SplitButton.Content class="w-[264px]">
+    		<SplitButton.Item
+    			onClick={() => alert('Clicked save')}
+    			title="Save"
+    			description="Save changes"
+    		/>
+    		<SplitButton.Item
+    			onClick={() => alert('Clicked save + Redeploy')}
+    			title="Save + Redeploy"
+    			description="Save changes and create a new production deployment"
+    		/>
+    	</SplitButton.Content>
+    </SplitButton.Root>
+
+    <SplitButton.Root alignment="right">
+    	<SplitButton.Button onclick={() => alert('Clicked save')}>save</SplitButton.Button>
+    	<SplitButton.Content class="w-[264px]">
+    		<SplitButton.Item
+    			onClick={() => alert('Clicked save')}
+    			title="Save"
+    			description="Save changes"
+    		/>
+    		<SplitButton.Item
+    			onClick={() => alert('Clicked save + Redeploy')}
+    			title="Save + Redeploy"
+    			description="Save changes and create a new production deployment"
+    		/>
+    	</SplitButton.Content>
+    </SplitButton.Root>
+</div>`;
+
+=== 606 src/docs/data/status-dot.ts	js
+export const statusDotDefault = `
+<script lang="ts">
+	import { StatusDot } from 'kampsy-ui';
+</script>
+
+<div class="space-y-6">
+	<StatusDot state="QUEUED" />
+	<StatusDot state="BUILDING" />
+	<StatusDot state="ERROR" />
+	<StatusDot state="READY" />
+	<StatusDot state="CANCELED" />
+</div>`;
+export const statusDotLabel = `
+<script lang="ts">
+	import { StatusDot } from 'kampsy-ui';
+</script>
+
+<div class="space-y-6">
+	<StatusDot label state="QUEUED" />
+	<StatusDot label state="BUILDING" />
+	<StatusDot label state="ERROR" />
+	<StatusDot label state="READY" />
+	<StatusDot label state="CANCELED" />
+</div>`;
+
+=== 2965 src/docs/data/switch.ts	js
+export const switchDefault = `
+<script lang="ts">
+	import { Switch } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Switch.Root bind:value name="default">
+	<Switch.Control defaultChecked label="Source" value="source" />
+	<Switch.Control label="Output" value="output" />
+</Switch.Root>`;
+export const switchDisabled = `
+<script lang="ts">
+	import { Switch } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Switch.Root bind:value name="default">
+	<Switch.Control defaultChecked disabled label="Source" value="source" />
+	<Switch.Control disabled label="Output" value="output" />
+</Switch.Root>`;
+export const switchSize = `
+<script lang="ts">
+	import { Switch } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+	<Switch.Root bind:value name="size-small" size="small">
+		<Switch.Control defaultChecked disabled label="Source" value="source" />
+		<Switch.Control disabled label="Output" value="output" />
+	</Switch.Root>
+
+	<Switch.Root bind:value name="default">
+		<Switch.Control defaultChecked disabled label="Source" value="source" />
+		<Switch.Control disabled label="Output" value="output" />
+	</Switch.Root>
+
+	<Switch.Root bind:value name="size-large" size="large">
+		<Switch.Control defaultChecked disabled label="Source" value="source" />
+		<Switch.Control disabled label="Output" value="output" />
+	</Switch.Root>
+</div>`;
+export const switchFullWidth = `
+<script lang="ts">
+	import { Switch } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Switch.Root bind:value name="size-large" size="large" fullWidth>
+	<Switch.Control defaultChecked disabled label="Source" value="source" />
+	<Switch.Control disabled label="Output" value="output" />
+</Switch.Root>`;
+export const switchTooltip = `
+<script lang="ts">
+	import { Switch, Tooltip } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Switch.Root bind:value>
+	<Tooltip text="View Source">
+		<Switch.Control defaultChecked label="Source" value="source" />
+	</Tooltip>
+	<Tooltip text="View Output">
+		<Switch.Control label="Output" value="output" />
+	</Tooltip>
+</Switch.Root>`;
+export const switchIcon = `
+<script lang="ts">
+	import { Switch } from 'kampsy-ui';
+	import { GridSquare, ListUnordered } from 'kampsy-ui/icons';
+
+	let value = $state('');
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+	<Switch.Root bind:value name="size-small" size="small">
+		<Switch.Control defaultChecked icon={GridSquare} value="source" />
+		<Switch.Control icon={ListUnordered} value="output" />
+	</Switch.Root>
+
+	<Switch.Root bind:value name="size-default">
+		<Switch.Control defaultChecked icon={GridSquare} value="source" />
+		<Switch.Control icon={ListUnordered} value="output" />
+	</Switch.Root>
+
+	<Switch.Root bind:value name="size-large" size="large">
+		<Switch.Control defaultChecked icon={GridSquare} value="source" />
+		<Switch.Control icon={ListUnordered} value="output" />
+	</Switch.Root>
+</div>`;
+
+=== 5621 src/docs/data/table.ts	js
+export const tableDefault = `
+<script lang="ts">
+	import { Table } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Table.Root>
+		<Table.Header>
+            <Table.Row>
+        	    <Table.Head>Col 1</Table.Head>
+        	    <Table.Head>Col 2</Table.Head>
+        	    <Table.Head>Col 3</Table.Head>
+            </Table.Row>
+        </Table.Header>
+        <Table.Body>
+            <Table.Row>
+                <Table.Cell>Value 1.1</Table.Cell>
+                <Table.Cell>Value 1.2</Table.Cell>
+                <Table.Cell>Value 1.3</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+                <Table.Cell>Value 2.1</Table.Cell>
+                <Table.Cell>Value 2.2</Table.Cell>
+                <Table.Cell>Value 2.3</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+                <Table.Cell>Value 3.1</Table.Cell>
+                <Table.Cell>Value 3.2</Table.Cell>
+                <Table.Cell>Value 3.3</Table.Cell>
+            </Table.Row>
+        </Table.Body>
+    </Table.Root>
+</div>`;
+export const tableStriped = `
+<script lang="ts">
+	import { Table } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Table.Root>
+		<Table.Header>
+            <Table.Row>
+        	    <Table.Head>Col 1</Table.Head>
+        	    <Table.Head>Col 2</Table.Head>
+        	    <Table.Head>Col 3</Table.Head>
+            </Table.Row>
+        </Table.Header>
+        <Table.Body striped>
+            <Table.Row>
+                <Table.Cell>Value 1.1</Table.Cell>
+                <Table.Cell>Value 1.2</Table.Cell>
+                <Table.Cell>Value 1.3</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+                <Table.Cell>Value 2.1</Table.Cell>
+                <Table.Cell>Value 2.2</Table.Cell>
+                <Table.Cell>Value 2.3</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+                <Table.Cell>Value 3.1</Table.Cell>
+                <Table.Cell>Value 3.2</Table.Cell>
+                <Table.Cell>Value 3.3</Table.Cell>
+            </Table.Row>
+        </Table.Body>
+    </Table.Root>
+</div>`;
+export const tableInteractive = `
+<script lang="ts">
+	import { Table } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Table.Root>
+		<Table.Header>
+            <Table.Row>
+        	    <Table.Head>Col 1</Table.Head>
+        	    <Table.Head>Col 2</Table.Head>
+        	    <Table.Head>Col 3</Table.Head>
+            </Table.Row>
+        </Table.Header>
+        <Table.Body interactive>
+            <Table.Row>
+                <Table.Cell>Value 1.1</Table.Cell>
+                <Table.Cell>Value 1.2</Table.Cell>
+                <Table.Cell>Value 1.3</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+                <Table.Cell>Value 2.1</Table.Cell>
+                <Table.Cell>Value 2.2</Table.Cell>
+                <Table.Cell>Value 2.3</Table.Cell>
+            </Table.Row>
+            <Table.Row>
+                <Table.Cell>Value 3.1</Table.Cell>
+                <Table.Cell>Value 3.2</Table.Cell>
+                <Table.Cell>Value 3.3</Table.Cell>
+            </Table.Row>
+        </Table.Body>
+    </Table.Root>
+</div>`;
+export const tableFull = `
+<script lang="ts">
+	import { Table } from 'kampsy-ui';
+
+	const formatter = new Intl.NumberFormat('en-US', {
+	style: 'currency',
+	maximumFractionDigits: 2,
+	currency: 'usd'
+	});
+
+	function formatCurrency(amount: number): string {
+	return formatter.format(amount);
+	}
+
+	const items = [
+	    {
+	    	product: 'Brake Pads Set',
+	    	usage: '100 sets',
+	    	price: '$50 per set',
+	    	charge: 5000
+	    },
+	    {
+	    	product: 'Oil Filters',
+	    	usage: '200 filters',
+	    	price: '$10 per filter',
+	    	charge: 2000
+	    },
+	    {
+	    	product: 'Car Batteries',
+	    	usage: '50 batteries',
+	    	price: '$100 per battery',
+	    	charge: 5000
+	    },
+	    {
+	    	product: 'Headlight Bulbs',
+	    	usage: '300 bulbs',
+	    	price: '$15 per bulb',
+	    	charge: 4500
+	    },
+	    {
+	    	product: 'Windshield Wipers',
+	    	usage: '250 pairs',
+	    	price: '$20 per pair',
+	    	charge: 5000
+	    },
+	    {
+	    	product: 'Spark Plugs',
+	    	usage: '500 sets',
+	    	price: '$5 per set',
+	    	charge: 2500
+	    }
+	];
+</script>
+
+<div class="w-full">
+    <Table.Root>
+        <Table.Colgroup>
+            <Table.Col class="w-[44%]" />
+            <Table.Col class="w-[22%]" />
+            <Table.Col class="w-[22%]" />
+            <Table.Col class="w-[11%]" />
+        </Table.Colgroup>
+        <Table.Header>
+            <Table.Row>
+                <Table.Head>Product</Table.Head>
+                <Table.Head>Usage</Table.Head>
+                <Table.Head>Price</Table.Head>
+                <Table.Head>Charge</Table.Head>
+            </Table.Row>
+        </Table.Header>
+        <Table.Body interactive striped>
+            {#each items as item}
+                <Table.Row>
+                    <Table.Cell>{item.product}</Table.Cell>
+                    <Table.Cell>{item.usage}</Table.Cell>
+                    <Table.Cell>{item.price}</Table.Cell>
+                    <Table.Cell>{formatCurrency(item.charge)}</Table.Cell>
+                </Table.Row>
+            {/each}
+        </Table.Body>
+        <Table.Footer>
+            <Table.Row>
+                <Table.Cell class="text-gray-1000 font-medium">Subtotal</Table.Cell>
+                <Table.Cell></Table.Cell>
+                <Table.Cell></Table.Cell>
+                <Table.Cell class="text-gray-1000 font-medium">
+                    {formatCurrency(items.reduce((sum, val) => sum + val.charge, 0))}
+                </Table.Cell>
+            </Table.Row>
+        </Table.Footer>
+    </Table.Root>
+</div>`;
+
+=== 1668 src/docs/data/tabs.ts	js
+export const tabsDefault = `
+<script lang="ts">
+	import { Tabs } from 'kampsy-ui';
+
+	let selected = $state('apple');
+</script>
+
+<Tabs
+	bind:selected
+	tabs={[
+		{ title: 'Apple', value: 'apple' },
+		{ title: 'Orange', value: 'orange' },
+		{ title: 'Mango', value: 'mango' }
+	]}
+/>`;
+export const tabsDisabled = `
+<script lang="ts">
+	import { Tabs } from 'kampsy-ui';
+
+	let selected = $state('apple');
+</script>
+
+<Tabs
+    disabled
+	bind:selected
+	tabs={[
+		{ title: 'Apple', value: 'apple' },
+		{ title: 'Orange', value: 'orange' },
+		{ title: 'Mango', value: 'mango' }
+	]}
+/>`;
+export const tabsDisabledSpecific = `
+<script lang="ts">
+	import { Tabs } from 'kampsy-ui';
+
+	let selected = $state('apple');
+</script>
+
+<Tabs
+	bind:selected
+	tabs={[
+		{ title: 'Apple', value: 'apple' },
+		{ title: 'Orange', value: 'orange' },
+		{ title: 'Mango', value: 'mango' ,disabled: true, tooltip: 'Mangos are not allowed'}
+	]}
+/>`;
+export const tabsWithIcons = `
+<script lang="ts">
+	import { Tabs } from 'kampsy-ui';
+	import { LogoGithub, LogoGitlab, LogoBitbucketColor } from 'kampsy-ui/icons';
+
+	let selected = $state('github');
+</script>
+
+<Tabs
+	bind:selected
+	tabs={[
+		{ title: 'Github', value: 'github', icon: LogoGithub },
+		{ title: 'Gitlab', value: 'gitlab', icon: LogoGitlab },
+		{ title: 'Bitbucket', value: 'bitbucket', icon: LogoBitbucketColor }
+	]}
+/>`;
+export const tabsSecondary = `
+<script lang="ts">
+	import { Tabs } from 'kampsy-ui';
+
+	let selected = $state('github');
+</script>
+
+<Tabs
+	bind:selected
+	tabs={[
+		{ title: 'Github', value: 'github'},
+		{ title: 'Gitlab', value: 'gitlab'},
+		{ title: 'Bitbucket', value: 'bitbucket'}
+	]}
+    type="secondary"
+/>`;
+
+=== 2822 src/docs/data/text.ts	js
+export const textSize = `
+<script lang="ts">
+	import { Text } from 'kampsy-ui';
+</script>
+
+<div class="w-full space-y-2">
+    <Text size={48}>The Evil Rabbit jumps.</Text>
+    <Text size={32}>The Evil Rabbit jumps.</Text>
+    <Text size={24}>The Evil Rabbit jumps.</Text>
+    <Text size={20}>The Evil Rabbit jumps.</Text>
+    <Text size={16}>The Evil Rabbit jumps.</Text>
+    <Text size={14}>The Evil Rabbit jumps.</Text>
+    <Text size={12}>The Evil Rabbit jumps.</Text>
+    <Text size={10}>The Evil Rabbit jumps.</Text>
+</div>`;
+export const textResponsive = `
+<script lang="ts">
+	import { Text } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Text size={{ sm: 24, md: 32, lg: 48 }}>The Evil Rabbit jumps.</Text>
+</div>`;
+export const textVariants = `
+<script lang="ts">
+	import { Text } from 'kampsy-ui';
+
+	type VariantOption =
+	    | 'copy-13'
+	    | 'copy-14'
+	    | 'copy-16'
+	    | 'copy-18'
+	    | 'copy-20'
+	    | 'copy-24'
+	    | 'label-12'
+	    | 'label-13'
+	    | 'label-14'
+	    | 'label-16'
+	    | 'label-18'
+	    | 'label-20'
+	    | 'button-12'
+	    | 'button-14'
+	    | 'button-16'
+	    | 'heading-16'
+	    | 'heading-20'
+	    | 'heading-24'
+	    | 'heading-32'
+	    | 'heading-40'
+	    | 'heading-48'
+	    | 'heading-56'
+	    | 'heading-64'
+	    | 'heading-72';
+
+	const variants: Array<VariantOption> = [
+	    'heading-72',
+	    'heading-64',
+	    'heading-56',
+	    'heading-48',
+	    'heading-40',
+	    'heading-32',
+	    'heading-24',
+	    'heading-20',
+	    'heading-16',
+	    'button-16',
+	    'button-14',
+	    'button-12',
+	    'label-20',
+	    'label-18',
+	    'label-16',
+	    'label-14',
+	    'label-13',
+	    'label-12',
+	    'copy-24',
+	    'copy-20',
+	    'copy-18',
+	    'copy-16',
+	    'copy-14',
+	    'copy-13'
+	];
+</script>
+
+<div class="w-full space-y-2">
+	{#each variants as variant}
+		<Text class="capitalize" {variant}>
+			{variant.replace('-', ' ')}
+		</Text>
+	{/each}
+</div>`;
+export const textResponsiveVariant = `
+<script lang="ts">
+	import { Text } from 'kampsy-ui';
+</script>
+
+<div class="w-full space-y-6">
+	<Text variant={{ sm: 'heading-24', md: 'heading-32', lg: 'heading-48' }}>
+		Responsive Heading
+	</Text>
+	<Text variant={{ sm: 'copy-14', md: 'copy-16', lg: 'copy-20' }}>
+		Responsive Copy, Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+	</Text>
+</div>`;
+export const textModifiers = `
+<script lang="ts">
+	import { Text } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Text size={16}>
+        The <strong>Evil Rabbit</strong> <em>jumps</em>
+        over the <s>quick brown fox</s> <u>Lawful Meerkat</u>.
+    </Text>
+</div>`;
+export const textTruncate = `
+<script lang="ts">
+	import { Text } from 'kampsy-ui';
+</script>
+
+<div class="w-full">
+    <Text size={16} class="max-w-[100px]" truncate>
+        The Evil Rabbit jumps.
+    </Text>
+</div>`;
+
+=== 2699 src/docs/data/textarea.ts	js
+export const textareaDefault = `
+<script lang="ts">
+	import { Textarea } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Textarea
+	bind:value
+	placeholder="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+/>`;
+export const textareaDisabled = `
+<script lang="ts">
+	import { Textarea } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Textarea
+	bind:value
+	disabled
+	placeholder="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+/>`;
+export const textareaWithLabel = `
+<script lang="ts">
+	import { Textarea } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<Textarea
+	bind:value
+	label="Label"
+	placeholder="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+/>`;
+export const textareError = `
+<script lang="ts">
+	import { Textarea } from 'kampsy-ui';
+
+	let value = $state('');
+</script>
+
+<div class="w-full space-y-6">
+	<Textarea
+		bind:value
+		defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequa"
+		error="There has been an error."
+		size="tiny"
+	/>
+	<Textarea
+		bind:value
+		defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequa"
+		error="There has been an error."
+		size="small"
+	/>
+	<Textarea
+		bind:value
+		defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequa"
+		error="There has been an error."
+		size="medium"
+	/>
+	<Textarea
+		bind:value
+		defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequa"
+		error="There has been an error."
+		size="large"
+	/>
+</div>`;
+
+=== 132 src/docs/data/theme-switcher.ts	js
+export const themeSwitcherDefault = `
+<script lang="ts">
+	import { ThemeSwitcher } from 'kampsy-ui';
+</script>
+
+<ThemeSwitcher />`;
+
+=== 3758 src/docs/data/toggle.ts	js
+export const toggleDefault = `
+<script lang="ts">
+	import { Toggle } from 'kampsy-ui';
+
+	let checked = $state(false);
+	let checked2 = $state(true);
+</script>
+
+<div class="space-y-4">
+	<div class="w-full">
+		<Toggle aria-label="Enable Firewall" {checked} />
+	</div>
+	<div class="w-full">
+		<Toggle aria-label="Enable Firewall" checked={checked2} />
+	</div>
+</div>`;
+export const toggleSizes = `
+<script lang="ts">
+	import { Toggle } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex">
+	<div class="w-4/12">
+		<Toggle aria-label="Enable Firewall" checked={false} />
+	</div>
+	<div class="w-4/12">
+		<Toggle aria-label="Enable Firewall" checked={false} size="large" />
+	</div>
+</div>`;
+export const toggleCustomColors = `
+import { Toggle } from 'kampsy-ui';
+import { LockClosedSmall, LockOpenSmall } from 'kampsy-ui/icons';
+
+let checked = $state(false);
+
+
+<div class="w-full space-y-4">
+	<div class="w-full">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={checked}
+			color="purple"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}
+		/>
+	</div>
+	<div class="w-full">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={checked}
+			color="amber"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}
+		/>
+	</div>
+	<div class="w-full">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={checked}
+			color="red"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}
+		/>
+	</div>
+	<div class="w-full">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={checked}
+			color="pink"
+			size="large"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}
+		/>
+	</div>
+	<div class="w-full">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={checked}
+			color="green"
+			size="large"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}
+		/>
+	</div>
+	<div class="w-full">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={checked}
+			color="teal"
+			size="large"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}
+		/>
+	</div>
+</div>`;
+export const toggleWithLabel = `
+import { Toggle } from 'kampsy-ui';
+import { LockClosedSmall, LockOpenSmall } from 'kampsy-ui/icons';
+
+let withLabel = $state(false);
+
+<div class="w-full space-y-4">
+	<div class="w-full flex items-center gap-6">
+		<Toggle aria-label="Enable Firewall" bind:checked={withLabel}>Enable Firewall</Toggle>
+		<Toggle aria-label="Enable Firewall" bind:checked={withLabel} direction="switch-first">Enable Firewall</Toggle>
+	</div>
+	<div class="w-full flex items-center gap-6">
+		<Toggle aria-label="Enable Firewall" size="large" bind:checked={withLabel}>Enable Firewall</Toggle>
+		<Toggle
+			aria-label="Enable Firewall"
+			size="large"
+			direction="switch-first"
+			bind:checked={withLabel}>Enable Firewall</Toggle>
+	</div>
+	<div class="w-full flex items-center gap-6">
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={withLabel}
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}>Enable Firewall</Toggle>
+
+		<Toggle
+			aria-label="Enable Firewall"
+			bind:checked={withLabel}
+			direction="switch-first"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}>Enable Firewall</Toggle>
+	</div>
+	<div class="w-full flex items-center gap-6">
+		<Toggle
+			aria-label="Enable Firewall"
+			size="large"
+			bind:checked={withLabel}
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}>Enable Firewall</Toggle>
+
+		<Toggle
+			aria-label="Enable Firewall"
+			size="large"
+			bind:checked={withLabel}
+			direction="switch-first"
+			icon={{
+				checked: LockClosedSmall,
+				unchecked: LockOpenSmall
+			}}>Enable Firewall</Toggle>
+	</div>
+</div>`;
+
+=== 2112 src/docs/data/tooltip.ts	js
+export const toolTipDefault = `
+<script lang="ts">
+	import { Tooltip } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="top">
+            <span>Top</span>
+        </Tooltip>
+	</div>
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="bottom">
+            <span>Bottom</span>
+        </Tooltip>
+	</div>
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="right">
+            <span>Right</span>
+        </Tooltip>
+	</div>
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="left">
+            <span>Left</span>
+        </Tooltip>
+	</div>
+</div>`;
+export const toolTipCustomType = `
+<script lang="ts">
+	import { Tooltip } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="top" type="success">
+            <span>Top</span>
+        </Tooltip>
+	</div>
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="bottom" type="error">
+            <span>Bottom</span>
+        </Tooltip>
+	</div>
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="right" type="warning">
+            <span>Right</span>
+        </Tooltip>
+	</div>
+    <div>
+		<Tooltip text="The Evil Rabbit Jumped over the Fence" position="left" type="violet">
+            <span>Left</span>
+        </Tooltip>
+	</div>
+</div>`;
+export const tooltipComponents = `
+<script lang="ts">
+	import { Tooltip } from 'kampsy-ui';
+</script>
+
+<div class="w-full flex flex-wrap gap-4 justify-between">
+  <div>
+	  <Tooltip position="bottom" text="The Evil Rabbit Jumped over the Fence">
+      <Button size="small">Bottom</Button>
+    </Tooltip>
+  </div>
+
+  <div>
+	  <Tooltip position="right" text="The Evil Rabbit Jumped over the Fence">
+      <Spinner />
+    </Tooltip>
+  </div>
+
+  <div>
+	  <Tooltip position="left" text="The Evil Rabbit Jumped over the Fence">
+      <Badge size="sm">LEFT</Badge>
+    </Tooltip>
+  </div>
+</div>`;
+
+=== 259 src/docs/ui/analytics/analytics.ts	js
+import { browser } from "$app/environment";
+export const googleTag = (event, eventName, param) => {
+    if (browser) {
+        // oxlint-disable-next-line typescript/ban-ts-comment
+        // @ts-ignore
+        window?.gtag(event, eventName, param);
+    }
+};
+
+=== 11 src/docs/ui/analytics/googleTagEvents.ts	js
+export {};
+
+=== 11 src/docs/ui/types.ts	js
+export {};
+
+=== 4828 src/docs/utils/data.ts	js
+export const asideData = [
+    {
+        title: {
+            name: "foundations",
+        },
+        ul: [
+            {
+                name: "introduction",
+                url: "/",
+            },
+            {
+                name: "installation",
+                url: "/installation",
+            },
+            {
+                name: "colors",
+                url: "/colors",
+            },
+        ],
+    },
+    {
+        title: {
+            name: "resources",
+        },
+        ul: [
+            {
+                name: "changelog",
+                url: "/",
+                badge: {
+                    name: "coming soon",
+                    variant: "inverted",
+                },
+            },
+        ],
+    },
+    {
+        title: {
+            name: "components",
+        },
+        ul: [
+            {
+                name: "avatar",
+                url: "/avatar",
+                badge: {
+                    name: "updated",
+                    variant: "purple",
+                },
+            },
+            {
+                name: "badge",
+                url: "/badge",
+                badge: {
+                    name: "updated",
+                    variant: "purple",
+                },
+            },
+            {
+                name: "button",
+                url: "/button",
+                badge: {
+                    name: "updated",
+                    variant: "purple",
+                },
+            },
+            {
+                name: "calendar",
+                url: "/calendar",
+            },
+            {
+                name: "checkbox",
+                url: "/checkbox",
+                badge: {
+                    name: "updated",
+                    variant: "purple",
+                },
+            },
+            {
+                name: "choicebox",
+                url: "/choicebox",
+                badge: {
+                    name: "updated",
+                    variant: "purple",
+                },
+            },
+            {
+                name: "collapse",
+                url: "/collapse",
+            },
+            {
+                name: "copy button",
+                url: "/copy-button",
+                badge: {
+                    name: "new",
+                    variant: "green",
+                },
+            },
+            {
+                name: "description",
+                url: "/description",
+            },
+            {
+                name: "empty state",
+                url: "/empty-state",
+            },
+            {
+                name: "error",
+                url: "/error",
+            },
+            {
+                name: "input",
+                url: "/input",
+            },
+            {
+                name: "keyboard input",
+                url: "/keyboard-input",
+            },
+            {
+                name: "menu",
+                url: "/menu",
+            },
+            {
+                name: "modal",
+                url: "/modal",
+            },
+            {
+                name: "note",
+                url: "/note",
+            },
+            {
+                name: "pagination",
+                url: "/pagination",
+            },
+            {
+                name: "pill",
+                url: "/badge#pill",
+            },
+            {
+                name: "progress",
+                url: "/progress",
+            },
+            {
+                name: "project banner",
+                url: "/project-banner",
+            },
+            {
+                name: "select",
+                url: "/select",
+            },
+            {
+                name: "show more",
+                url: "/show-more",
+            },
+            {
+                name: "spinner",
+                url: "/spinner",
+            },
+            {
+                name: "snippet",
+                url: "/snippet",
+            },
+            {
+                name: "split button",
+                url: "/split-button",
+            },
+            {
+                name: "status dot",
+                url: "/status-dot",
+            },
+            {
+                name: "switch",
+                url: "/switch",
+            },
+            {
+                name: "table",
+                url: "/table",
+            },
+            {
+                name: "tabs",
+                url: "/tabs",
+            },
+            {
+                name: "text",
+                url: "/text",
+            },
+            {
+                name: "textarea",
+                url: "/textarea",
+            },
+            {
+                name: "theme switcher",
+                url: "/theme-switcher",
+            },
+            {
+                name: "toggle",
+                url: "/toggle",
+            },
+            {
+                name: "tooltip",
+                url: "/tooltip",
+            },
+        ],
+    },
+];
+
+=== 159 src/index.test.ts	js
+import { describe, it, expect } from "vitest";
+describe("sum test", () => {
+    it("adds 1 + 2 to equal 3", () => {
+        expect(1 + 2).toBe(3);
+    });
+});
+
+=== 360 src/lib/avatar/index.ts	js
+export { default as Avatar } from "./avatar.svelte";
+export { default as AvatarGroup } from "./avatar-group.svelte";
+export { default as AvatarWithIcon } from "./avatar-with-icon.svelte";
+export { resolveAvatarSrc, resolveOverlapPx, normalizeLetter, resolveTitle } from "./utils.js";
+export { resolveAvatarClass, sizeStyle, fontSizeStyle } from "./styles.js";
+
+=== 1003 src/lib/avatar/styles.test.ts	js
+import { describe, it, expect } from "vitest";
+import { sizeStyle, fontSizeStyle, resolveAvatarClass, avatarBase } from "./styles.js";
+describe("sizeStyle", () => {
+    it("returns width and height px", () => {
+        expect(sizeStyle(32)).toBe("width: 32px; height: 32px;");
+    });
+});
+describe("fontSizeStyle", () => {
+    it("scales with size with a floor", () => {
+        expect(fontSizeStyle(32)).toBe("font-size: 13px;");
+        expect(fontSizeStyle(90)).toBe("font-size: 36px;");
+        expect(fontSizeStyle(16)).toBe("font-size: 10px;");
+    });
+});
+describe("resolveAvatarClass", () => {
+    it("includes base and inline size", () => {
+        const result = resolveAvatarClass({ size: 48 });
+        expect(result).toEqual(expect.arrayContaining([avatarBase, sizeStyle(48)]));
+    });
+    it("appends consumer class", () => {
+        const result = resolveAvatarClass({ size: 32, class: "border-red" });
+        expect(result).toEqual(expect.arrayContaining(["border-red"]));
+    });
+});
+
+=== 1359 src/lib/avatar/styles.ts	js
+export const avatarBase = "inline-flex items-center justify-center rounded-full overflow-hidden border border-kui-light-gray-200 dark:border-kui-dark-gray-200 shrink-0";
+export const avatarImageBase = "h-full w-full object-cover";
+export const letterBase = "flex items-center justify-center rounded-full bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 font-semibold select-none uppercase";
+export const placeholderBase = "rounded-full bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 border border-kui-light-gray-200 dark:border-kui-dark-gray-200 animate-pulse";
+export const overflowBase = "flex items-center justify-center rounded-full bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 font-semibold border border-kui-light-gray-200 dark:border-kui-dark-gray-400";
+export const avatarIconBase = "flex items-center justify-center rounded-full bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 text-kui-light-gray-900 dark:text-kui-dark-gray-900";
+export function sizeStyle(size) {
+    return `width: ${size}px; height: ${size}px;`;
+}
+export function fontSizeStyle(size) {
+    return `font-size: ${Math.max(10, Math.round(size / 2.5))}px;`;
+}
+export function resolveAvatarClass({ size, class: klass, }) {
+    return [avatarBase, sizeStyle(size), klass];
+}
+
+=== 11 src/lib/avatar/types.ts	js
+export {};
+
+=== 2499 src/lib/avatar/utils.test.ts	js
+import { describe, it, expect } from "vitest";
+import { resolveAvatarSrc, normalizeLetter, resolveOverlapPx, vercelAvatarUrl, shouldShowImage, } from "./utils.js";
+describe("vercelAvatarUrl", () => {
+    it("returns pravatar URL with size", () => {
+        expect(vercelAvatarUrl("evil rabbit", 64)).toBe("https://i.pravatar.cc/64");
+    });
+});
+describe("resolveAvatarSrc", () => {
+    it("prefers explicit src", () => {
+        expect(resolveAvatarSrc({ src: "https://example.com/a.png", username: "evilrabbit" }, 32)).toBe("https://example.com/a.png");
+    });
+    it("falls back to pravatar URL from username", () => {
+        expect(resolveAvatarSrc({ username: "evilrabbit" }, 32)).toBe("https://i.pravatar.cc/32");
+    });
+    it("returns undefined when nothing provided", () => {
+        expect(resolveAvatarSrc({}, 32)).toBeUndefined();
+    });
+});
+describe("normalizeLetter", () => {
+    it("keeps first two uppercase letters", () => {
+        expect(normalizeLetter("SL")).toBe("SL");
+        expect(normalizeLetter("sam")).toBe("SA");
+    });
+    it("strips emoji and punctuation", () => {
+        expect(normalizeLetter("S?L")).toBe("SL");
+        expect(normalizeLetter("👍AB")).toBe("AB");
+    });
+    it("returns undefined for empty strings", () => {
+        expect(normalizeLetter("")).toBeUndefined();
+        expect(normalizeLetter("???")).toBeUndefined();
+    });
+});
+describe("resolveOverlapPx", () => {
+    it("returns fixed number when provided", () => {
+        expect(resolveOverlapPx(32, 10)).toBe(10);
+    });
+    it("auto scales with size", () => {
+        expect(resolveOverlapPx(32, "auto")).toBe(9);
+        expect(resolveOverlapPx(64, "auto")).toBe(18);
+    });
+});
+describe("shouldShowImage", () => {
+    it("shows image when a source is present and has not errored", () => {
+        expect(shouldShowImage("https://example.com/a.png", undefined)).toBe(true);
+    });
+    it("hides image when the current source is the one that failed", () => {
+        expect(shouldShowImage("https://example.com/a.png", "https://example.com/a.png")).toBe(false);
+    });
+    it("shows a replacement source after a previous source failed", () => {
+        expect(shouldShowImage("https://example.com/b.png", "https://example.com/a.png")).toBe(true);
+    });
+    it("hides image when no source is available", () => {
+        expect(shouldShowImage(undefined, undefined)).toBe(false);
+        expect(shouldShowImage(undefined, "https://example.com/a.png")).toBe(false);
+    });
+});
+
+=== 1200 src/lib/avatar/utils.ts	js
+export const DEFAULT_SIZE = 32;
+/** Avatar placeholder service. */
+export function vercelAvatarUrl(username, size) {
+    return `https://i.pravatar.cc/${size}`;
+}
+export function resolveAvatarSrc({ src, username, }, size) {
+    if (src)
+        return src;
+    if (username)
+        return vercelAvatarUrl(username, size);
+    return undefined;
+}
+/** Keep only the first two uppercase characters, strip emoji/punctuation. */
+export function normalizeLetter(letter) {
+    if (!letter)
+        return undefined;
+    const cleaned = letter
+        .replace(/[^a-zA-Z\s]/g, "")
+        .replace(/\s+/g, "")
+        .slice(0, 2)
+        .toUpperCase();
+    return cleaned || undefined;
+}
+export function resolveTitle(member) {
+    return member.title || member.username;
+}
+export function resolveOverlapPx(size, overlap) {
+    if (typeof overlap === "number")
+        return overlap;
+    // auto gives a generous, evenly-spaced cluster scaled with size
+    return Math.round(size / 3.5);
+}
+/** Decide whether the image branch should render, scoping failures to the source that failed. */
+export function shouldShowImage(resolvedSrc, erroredSrc) {
+    return !!resolvedSrc && resolvedSrc !== erroredSrc;
+}
+
+=== 115 src/lib/badge/index.ts	js
+export { default as Badge } from "./badge.svelte";
+export { resolveBadgeClass, badgeVariants } from "./styles.js";
+
+=== 2245 src/lib/badge/styles.test.ts	js
+import { describe, it, expect } from "vitest";
+import { resolveBadgeClass, badgeVariants, variantStyles, sizeStyles, badgeBase, } from "./styles.js";
+describe("resolveBadgeClass", () => {
+    it("includes base, default variant, and default size classes", () => {
+        const result = resolveBadgeClass({});
+        expect(result).toEqual(expect.arrayContaining([badgeBase, variantStyles.gray.high, sizeStyles.md]));
+    });
+    it("uses subtle contrast classes when contrast is low", () => {
+        const result = resolveBadgeClass({ variant: "blue", contrast: "low" });
+        expect(result).toEqual(expect.arrayContaining([variantStyles.blue.low]));
+        expect(result).not.toEqual(expect.arrayContaining([variantStyles.blue.high]));
+    });
+    it("maps size aliases to size styles", () => {
+        expect(resolveBadgeClass({ size: "sm" })).toEqual(expect.arrayContaining([sizeStyles.sm]));
+        expect(resolveBadgeClass({ size: "lg" })).toEqual(expect.arrayContaining([sizeStyles.lg]));
+    });
+    it("appends consumer class value", () => {
+        const result = resolveBadgeClass({ class: "w-full" });
+        expect(result).toEqual(expect.arrayContaining(["w-full"]));
+    });
+    it("renders trial and turbo variants", () => {
+        expect(resolveBadgeClass({ variant: "trial" })).toEqual(expect.arrayContaining([variantStyles.trial.high]));
+        expect(resolveBadgeClass({ variant: "turbo" })).toEqual(expect.arrayContaining([variantStyles.turbo.high]));
+    });
+    it("applies turbo brand gradient and white text", () => {
+        const result = resolveBadgeClass({ variant: "turbo" });
+        expect(result).toEqual(expect.arrayContaining([
+            "bg-linear-to-r from-[#ff0080] via-[#7928ca] to-[#0070f3] text-white",
+        ]));
+    });
+});
+describe("badgeVariants", () => {
+    it("returns a space-joined class string", () => {
+        const result = badgeVariants({ variant: "green", contrast: "low", size: "lg" });
+        expect(result).toBe([badgeBase, variantStyles.green.low, sizeStyles.lg].join(" "));
+    });
+    it("defaults to gray/high/md", () => {
+        const result = badgeVariants({});
+        expect(result).toBe([badgeBase, variantStyles.gray.high, sizeStyles.md].join(" "));
+    });
+});
+
+=== 3926 src/lib/badge/styles.ts	js
+export const badgeBase = "inline-flex items-center justify-center rounded-full font-medium text-wrap";
+/** High/low contrast classes per variant. `low` is Geist's `-subtle`. */
+export const variantStyles = {
+    gray: {
+        high: "bg-kui-light-gray-900 text-kui-light-bg dark:bg-kui-dark-gray-500 dark:text-kui-light-bg",
+        low: "bg-kui-light-gray-200 text-kui-light-gray-1000 dark:bg-kui-dark-gray-200 dark:text-kui-dark-gray-1000",
+    },
+    blue: {
+        high: "bg-kui-light-blue-800 text-kui-light-bg dark:bg-kui-dark-blue-800 dark:text-kui-light-bg",
+        low: "bg-kui-light-blue-200 text-kui-light-blue-900 dark:bg-kui-dark-blue-200 dark:text-kui-dark-blue-900",
+    },
+    purple: {
+        high: "bg-kui-light-purple-900 text-kui-light-bg dark:bg-kui-dark-purple-500 dark:text-kui-light-bg",
+        low: "bg-kui-light-purple-200 text-kui-light-purple-900 dark:bg-kui-dark-purple-200 dark:text-kui-dark-purple-900",
+    },
+    amber: {
+        high: "bg-kui-light-amber-700 text-black dark:bg-kui-dark-amber-700",
+        low: "bg-kui-light-amber-200 text-kui-light-amber-900 dark:bg-kui-dark-amber-200 dark:text-kui-dark-amber-900",
+    },
+    red: {
+        high: "bg-kui-light-red-900 text-kui-light-bg dark:bg-kui-dark-red-800 dark:text-kui-light-bg",
+        low: "bg-kui-light-red-200 text-kui-light-red-900 dark:bg-kui-dark-red-200 dark:text-kui-dark-red-900",
+    },
+    pink: {
+        high: "bg-kui-light-pink-900 text-kui-light-bg dark:bg-kui-dark-pink-600 dark:text-kui-light-bg",
+        low: "bg-kui-light-pink-200 text-kui-light-pink-900 dark:bg-kui-dark-pink-200 dark:text-kui-dark-pink-900",
+    },
+    green: {
+        high: "bg-kui-light-green-900 text-kui-light-bg dark:bg-kui-dark-green-600 dark:text-kui-light-bg",
+        low: "bg-kui-light-green-200 text-kui-light-green-900 dark:bg-kui-dark-green-200 dark:text-kui-dark-green-900",
+    },
+    teal: {
+        high: "bg-kui-light-teal-900 text-kui-light-bg dark:bg-kui-dark-teal-600 dark:text-kui-light-bg",
+        low: "bg-kui-light-teal-300 text-kui-light-teal-900 dark:bg-kui-dark-teal-300 dark:text-kui-dark-teal-900",
+    },
+    inverted: {
+        high: "bg-kui-light-gray-1000 text-kui-light-gray-100 dark:bg-kui-dark-gray-1000 dark:text-kui-dark-gray-100",
+        low: "bg-kui-light-gray-1000 text-kui-light-gray-100 dark:bg-kui-dark-gray-1000 dark:text-kui-dark-gray-100",
+    },
+    trial: {
+        high: "bg-kui-light-purple-700 text-kui-light-bg dark:bg-kui-dark-purple-700 dark:text-kui-light-bg",
+        low: "bg-kui-light-purple-200 text-kui-light-purple-900 dark:bg-kui-dark-purple-200 dark:text-kui-dark-purple-900",
+    },
+    turbo: {
+        high: "bg-linear-to-r from-[#ff0080] via-[#7928ca] to-[#0070f3] text-white",
+        low: "bg-linear-to-r from-[#ff0080] via-[#7928ca] to-[#0070f3] text-white",
+    },
+    pill: {
+        high: "cursor-pointer border border-kui-light-gray-200 dark:border-kui-dark-gray-400 hover:bg-kui-light-gray-100 dark:hover:bg-kui-dark-gray-100",
+        low: "cursor-pointer border border-kui-light-gray-200 dark:border-kui-dark-gray-400 hover:bg-kui-light-gray-100 dark:hover:bg-kui-dark-gray-100",
+    },
+};
+export const sizeStyles = {
+    sm: "h-5 px-1.5 py-0 text-[11px] font-medium",
+    md: "h-6 px-2.5 py-0 text-[12px] font-medium",
+    lg: "h-8 px-3 py-0 text-[14px] font-medium",
+};
+export const iconSizeStyles = {
+    sm: "w-2.75 h-2.75",
+    md: "w-3.5 h-3.5",
+    lg: "w-4 h-4",
+};
+export const iconGapStyles = {
+    sm: "first:gap-x-0.75",
+    md: "first:gap-x-1",
+    lg: "first:gap-x-1.5",
+};
+export function resolveBadgeClass({ variant = "gray", contrast = "high", size = "md", class: klass, }) {
+    return [badgeBase, variantStyles[variant][contrast], sizeStyles[size], klass];
+}
+export function badgeVariants({ variant = "gray", contrast = "high", size = "md", }) {
+    return [badgeBase, variantStyles[variant][contrast], sizeStyles[size]].join(" ");
+}
+
+=== 11 src/lib/badge/types.ts	js
+export {};
+
+=== 118 src/lib/button/index.ts	js
+export { default as Button } from "./button.svelte";
+export { resolveButtonClass, resolveRadius } from "./styles.js";
+
+=== 3449 src/lib/button/styles.test.ts	js
+import { describe, it, expect } from "vitest";
+import { resolveButtonClass, resolveRadius, variantStyles, disabledVariantStyles, loadingStyles, interactiveCursorStyles, disabledCursorStyles, shadowStyles, shapeSizeStyles, sizeStyles, } from "./styles.js";
+describe("resolveRadius", () => {
+    it("returns full radius for circle shape", () => {
+        expect(resolveRadius("medium", "circle")).toBe("rounded-full");
+    });
+    it("returns full radius for rounded shape", () => {
+        expect(resolveRadius("tiny", "rounded")).toBe("rounded-full");
+    });
+    it("returns size radius for square shape", () => {
+        expect(resolveRadius("large", "square")).toBe("rounded-lg");
+    });
+    it("returns size radius when shape is omitted", () => {
+        expect(resolveRadius("medium")).toBe("rounded-md");
+    });
+});
+describe("resolveButtonClass", () => {
+    it("includes base size and default variant classes", () => {
+        const result = resolveButtonClass({});
+        expect(result).toEqual(expect.arrayContaining([sizeStyles.medium, variantStyles.default, "rounded-md"]));
+    });
+    it("uses shape size map when svgOnly is set", () => {
+        const result = resolveButtonClass({ svgOnly: true, shape: "square", size: "small" });
+        expect(result).toEqual(expect.arrayContaining([shapeSizeStyles.small]));
+        expect(result).not.toEqual(expect.arrayContaining([sizeStyles.small]));
+    });
+    it("keeps text size styles for rounded shape without svgOnly", () => {
+        const result = resolveButtonClass({ shape: "rounded", size: "small" });
+        expect(result).toEqual(expect.arrayContaining([sizeStyles.small, "rounded-full"]));
+    });
+    it("applies disabled variant styles when disabled", () => {
+        const result = resolveButtonClass({ disabled: true, variant: "error" });
+        expect(result).toEqual(expect.arrayContaining([disabledVariantStyles.error]));
+        expect(result).not.toEqual(expect.arrayContaining([variantStyles.error]));
+    });
+    it("keeps variant styles and adds loading styles when loading", () => {
+        const result = resolveButtonClass({ loading: true, variant: "secondary" });
+        expect(result).toEqual(expect.arrayContaining([variantStyles.secondary, loadingStyles]));
+    });
+    it("adds shadow styles when shadow is set", () => {
+        const result = resolveButtonClass({ shadow: true, shape: "rounded" });
+        expect(result).toEqual(expect.arrayContaining([shadowStyles, "rounded-full"]));
+    });
+    it("appends consumer class value", () => {
+        const result = resolveButtonClass({ class: "w-full" });
+        expect(result).toEqual(expect.arrayContaining(["w-full"]));
+    });
+    it("uses pointer cursor when interactive", () => {
+        const result = resolveButtonClass({});
+        expect(result).toEqual(expect.arrayContaining([interactiveCursorStyles]));
+    });
+    it("uses not-allowed cursor when disabled", () => {
+        const result = resolveButtonClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([disabledCursorStyles]));
+        expect(result).not.toEqual(expect.arrayContaining([interactiveCursorStyles]));
+    });
+    it("uses wait cursor when loading", () => {
+        const result = resolveButtonClass({ loading: true });
+        expect(result).toEqual(expect.arrayContaining([loadingStyles]));
+        expect(result).not.toEqual(expect.arrayContaining([interactiveCursorStyles]));
+    });
+});
+
+=== 4114 src/lib/button/styles.ts	js
+export const buttonBase = `inline-flex items-center justify-center font-medium transition-colors duration-200 
+	outline-none select-none focus-visible:ring-2 focus-visible:ring-kui-light-gray-500 focus-visible:ring-offset-2
+	focus-visible:ring-offset-kui-light-bg dark:focus-visible:ring-kui-dark-gray-500
+	dark:focus-visible:ring-offset-kui-dark-bg`;
+export const interactiveCursorStyles = "cursor-pointer hover:cursor-pointer";
+export const disabledCursorStyles = "cursor-not-allowed";
+export const sizeStyles = {
+    tiny: "h-6 gap-1 px-1.5 text-xs leading-3",
+    small: "h-8 gap-1.5 px-1.5 text-sm leading-4",
+    medium: "h-10 gap-2 px-2.5 text-sm leading-5",
+    large: "h-12 gap-2 px-3.5 text-base leading-6",
+};
+export const shapeSizeStyles = {
+    tiny: "size-6",
+    small: "size-8",
+    medium: "size-10",
+    large: "size-12",
+};
+export const iconSizeStyles = {
+    tiny: "size-3.5 shrink-0",
+    small: "size-4 shrink-0",
+    medium: "size-4 shrink-0",
+    large: "size-6 shrink-0",
+};
+export const radiusStyles = {
+    tiny: "rounded-sm",
+    small: "rounded-md",
+    medium: "rounded-md",
+    large: "rounded-lg",
+};
+export const variantStyles = {
+    default: `text-white dark:text-kui-dark-bg bg-kui-light-gray-1000 dark:bg-kui-dark-gray-1000
+		hover:bg-kui-light-gray-900 dark:hover:bg-kui-dark-gray-900
+		active:bg-kui-light-gray-800 dark:active:bg-kui-dark-gray-800`,
+    secondary: `text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 bg-kui-light-bg dark:bg-kui-dark-bg
+		border border-kui-light-gray-200 dark:border-kui-dark-gray-400
+		hover:bg-kui-light-gray-100 dark:hover:bg-kui-dark-gray-100
+		active:bg-kui-light-gray-200 dark:active:bg-kui-dark-gray-200`,
+    tertiary: `text-kui-light-gray-1000 dark:text-kui-dark-gray-1000
+		hover:bg-kui-light-gray-200 dark:hover:bg-kui-dark-gray-200
+		active:bg-kui-light-gray-300 dark:active:bg-kui-dark-gray-300`,
+    error: `text-white bg-kui-light-red-800 dark:bg-kui-dark-red-800
+		hover:bg-kui-light-red-900 dark:hover:bg-kui-dark-red-900
+		active:bg-kui-light-red-1000 dark:active:bg-kui-dark-red-1000`,
+    warning: `text-kui-light-gray-1000 dark:text-kui-dark-gray-100 bg-kui-light-amber-700 dark:bg-kui-dark-amber-700
+		hover:bg-kui-light-amber-800 dark:hover:bg-kui-dark-amber-800
+		active:bg-kui-light-amber-900 dark:active:bg-kui-dark-amber-900`,
+};
+/** Muted, still variant-tinted disabled appearance */
+export const disabledVariantStyles = {
+    default: `text-kui-light-gray-700 dark:text-kui-dark-gray-700 bg-kui-light-gray-100 dark:bg-kui-dark-gray-100
+		border border-kui-light-gray-400/40 dark:border-kui-dark-gray-400/40`,
+    secondary: `text-kui-light-gray-700 dark:text-kui-dark-gray-700 bg-kui-light-gray-100 dark:bg-kui-dark-gray-100
+		border border-kui-light-gray-400 dark:border-kui-dark-gray-400`,
+    tertiary: `text-kui-light-gray-1000/40 dark:text-kui-dark-gray-1000/40 bg-kui-light-gray-100/50 dark:bg-kui-dark-gray-100/50`,
+    error: `text-kui-light-gray-700 dark:text-kui-dark-gray-700 bg-kui-light-gray-100 dark:bg-kui-dark-gray-100`,
+    warning: `text-kui-light-gray-700 dark:text-kui-dark-gray-700 bg-kui-light-gray-100
+	 dark:bg-kui-dark-gray-100`,
+};
+export const loadingStyles = "opacity-70 cursor-wait";
+export const shadowStyles = "shadow-sm";
+export function resolveRadius(size, shape) {
+    if (shape === "circle" || shape === "rounded")
+        return "rounded-full";
+    return radiusStyles[size];
+}
+export function resolveButtonClass({ size = "medium", variant = "default", shape, svgOnly = false, shadow = false, disabled = false, loading = false, class: klass, }) {
+    const sizeClass = svgOnly ? shapeSizeStyles[size] : sizeStyles[size];
+    const toneClass = disabled ? disabledVariantStyles[variant] : variantStyles[variant];
+    const cursorClass = disabled
+        ? disabledCursorStyles
+        : loading
+            ? undefined
+            : interactiveCursorStyles;
+    return [
+        buttonBase,
+        sizeClass,
+        toneClass,
+        resolveRadius(size, shape),
+        cursorClass,
+        loading && loadingStyles,
+        shadow && shadowStyles,
+        klass,
+    ];
+}
+
+=== 11 src/lib/button/types.ts	js
+export {};
+
+=== 160 src/lib/checkbox/index.ts	js
+export { default as Checkbox } from "./checkbox.svelte";
+export { resolveBoxClass, resolveIconClass, resolveLabelClass, resolveRootClass, } from "./styles.js";
+
+=== 3719 src/lib/checkbox/styles.test.ts	js
+import { describe, it, expect } from "vitest";
+import { resolveBoxClass, resolveIconClass, resolveLabelClass, resolveRootClass, boxBase, boxUnchecked, boxChecked, boxIndeterminate, boxDisabledUnchecked, boxDisabledChecked, boxDisabledIndeterminate, iconBase, iconChecked, iconIndeterminate, iconDisabledIndeterminate, iconUnchecked, labelBase, labelDefault, labelDisabled, rootBase, focusStyles, } from "./styles.js";
+describe("resolveBoxClass", () => {
+    it("returns unchecked styles by default", () => {
+        const result = resolveBoxClass({});
+        expect(result).toEqual(expect.arrayContaining([boxBase, boxUnchecked, focusStyles]));
+    });
+    it("returns checked styles when checked", () => {
+        const result = resolveBoxClass({ checked: true });
+        expect(result).toEqual(expect.arrayContaining([boxBase, boxChecked, focusStyles]));
+    });
+    it("returns indeterminate styles when indeterminate", () => {
+        const result = resolveBoxClass({ indeterminate: true });
+        expect(result).toEqual(expect.arrayContaining([boxBase, boxIndeterminate, focusStyles]));
+    });
+    it("prefers disabled unchecked styles when disabled and unchecked", () => {
+        const result = resolveBoxClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([boxBase, boxDisabledUnchecked, focusStyles]));
+    });
+    it("prefers disabled checked styles when disabled and checked", () => {
+        const result = resolveBoxClass({ disabled: true, checked: true });
+        expect(result).toEqual(expect.arrayContaining([boxBase, boxDisabledChecked, focusStyles]));
+    });
+    it("prefers disabled indeterminate styles when disabled and indeterminate", () => {
+        const result = resolveBoxClass({ disabled: true, indeterminate: true });
+        expect(result).toEqual(expect.arrayContaining([boxBase, boxDisabledIndeterminate, focusStyles]));
+    });
+});
+describe("resolveIconClass", () => {
+    it("returns transparent icon when unchecked", () => {
+        const result = resolveIconClass({});
+        expect(result).toEqual(expect.arrayContaining([iconBase, iconUnchecked]));
+    });
+    it("returns checked icon when checked", () => {
+        const result = resolveIconClass({ checked: true });
+        expect(result).toEqual(expect.arrayContaining([iconBase, iconChecked]));
+    });
+    it("returns indeterminate icon when indeterminate", () => {
+        const result = resolveIconClass({ indeterminate: true });
+        expect(result).toEqual(expect.arrayContaining([iconBase, iconIndeterminate]));
+    });
+    it("returns disabled indeterminate icon when disabled and indeterminate", () => {
+        const result = resolveIconClass({ disabled: true, indeterminate: true });
+        expect(result).toEqual(expect.arrayContaining([iconBase, iconDisabledIndeterminate]));
+    });
+});
+describe("resolveLabelClass", () => {
+    it("returns default label color", () => {
+        const result = resolveLabelClass({});
+        expect(result).toEqual(expect.arrayContaining([labelBase, labelDefault]));
+    });
+    it("returns muted label color when disabled", () => {
+        const result = resolveLabelClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([labelBase, labelDisabled]));
+    });
+});
+describe("resolveRootClass", () => {
+    it("returns pointer cursor by default", () => {
+        const result = resolveRootClass({});
+        expect(result).toEqual(expect.arrayContaining([rootBase, "cursor-pointer"]));
+    });
+    it("returns not-allowed cursor when disabled", () => {
+        const result = resolveRootClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([rootBase, "cursor-not-allowed"]));
+    });
+});
+
+=== 3101 src/lib/checkbox/styles.ts	js
+export const boxBase = "w-4 h-4 rounded-sm box-border flex items-center justify-center gap-1 border transition-colors duration-200";
+export const iconBase = "w-2 h-2 transition-colors duration-200";
+export const labelBase = "text-sm select-none first-letter:capitalize";
+export const rootBase = "inline-flex items-center gap-2";
+export const focusStyles = `peer-focus-visible:ring-2 peer-focus-visible:ring-kui-light-gray-500
+	peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-kui-light-bg
+	dark:peer-focus-visible:ring-kui-dark-gray-500 dark:peer-focus-visible:ring-offset-kui-dark-bg`;
+export const boxUnchecked = `border-kui-light-gray-500 dark:border-kui-dark-gray-500 
+hover:bg-kui-light-gray-100 dark:hover:bg-kui-dark-gray-100`;
+export const boxChecked = "border-kui-dark-bg-secondary dark:border-kui-light-bg bg-kui-dark-bg-secondary dark:bg-kui-light-bg";
+export const boxIndeterminate = "border-kui-light-gray-900 dark:border-kui-dark-gray-900";
+export const boxDisabledUnchecked = "border-kui-light-gray-500 dark:border-kui-dark-gray-500 bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 cursor-not-allowed";
+export const boxDisabledChecked = "border-kui-light-gray-600 dark:border-kui-dark-gray-600 bg-kui-light-gray-600 dark:bg-kui-dark-gray-600 cursor-not-allowed";
+export const boxDisabledIndeterminate = "border-kui-light-gray-600 dark:border-kui-dark-gray-600 bg-kui-light-gray-100 dark:bg-kui-dark-gray-100 cursor-not-allowed";
+export const iconChecked = "text-kui-light-bg dark:text-kui-black";
+export const iconIndeterminate = "text-kui-light-gray-900 dark:text-kui-dark-gray-900";
+export const iconDisabledIndeterminate = "text-kui-light-gray-600 dark:text-kui-dark-gray-600";
+export const iconUnchecked = "text-transparent";
+export const labelDisabled = "text-kui-light-gray-500 dark:text-kui-dark-gray-500";
+export const labelDefault = "text-kui-light-gray-900 dark:text-kui-dark-gray-900";
+export function resolveBoxClass({ checked = false, indeterminate = false, disabled = false, }) {
+    if (disabled) {
+        if (indeterminate)
+            return [boxBase, boxDisabledIndeterminate, focusStyles];
+        if (checked)
+            return [boxBase, boxDisabledChecked, focusStyles];
+        return [boxBase, boxDisabledUnchecked, focusStyles];
+    }
+    if (indeterminate)
+        return [boxBase, boxIndeterminate, focusStyles];
+    if (checked)
+        return [boxBase, boxChecked, focusStyles];
+    return [boxBase, boxUnchecked, focusStyles];
+}
+export function resolveIconClass({ checked = false, indeterminate = false, disabled = false, }) {
+    if (disabled && indeterminate)
+        return [iconBase, iconDisabledIndeterminate];
+    if (indeterminate)
+        return [iconBase, iconIndeterminate];
+    if (checked)
+        return [iconBase, iconChecked];
+    return [iconBase, iconUnchecked];
+}
+export function resolveLabelClass({ disabled = false }) {
+    return [labelBase, disabled ? labelDisabled : labelDefault];
+}
+export function resolveRootClass({ disabled = false }) {
+    return [rootBase, disabled ? "cursor-not-allowed" : "cursor-pointer"];
+}
+
+=== 11 src/lib/checkbox/types.ts	js
+export {};
+
+=== 1036 src/lib/choicebox/group.svelte.ts	js
+/**
+ * Creates a state manager for a Choicebox.Group component.
+ *
+ * The state manager is stored in the global state with the key 'choicebox'.
+ *
+ * @param {Object} initial the initial state of the Choicebox.Group
+ * @param {string | Array<string>} initial.selected the initially selected value of the Choicebox.Group
+ * @param {string} initial.name the name of the Choicebox.Group
+ * @param {'radio' | 'checkbox'} initial.type the type of the Choicebox.Group
+ * @param {boolean} initial.disabledParent whether the Choicebox.Group is disabled
+ * @returns {Object} an object with a getter and setter for the selected value of the Choicebox.Group
+ */
+export function createGroupState(initial) {
+    let selected = $state(initial.selected);
+    function get() {
+        return selected;
+    }
+    function set(value) {
+        selected = value;
+        initial.onchange?.(value);
+    }
+    return {
+        name: initial.name,
+        type: initial.type,
+        disabledParent: initial.disabledParent,
+        get,
+        set,
+    };
+}
+
+=== 100 src/lib/choicebox/index.ts	js
+export { default as Group } from "./group.svelte";
+export { default as Item } from "./item.svelte";
+
+=== 5685 src/lib/choicebox/styles.test.ts	js
+import { describe, it, expect } from "vitest";
+import { resolveItemLabelClass, resolveTitleClass, resolveDescriptionClass, resolveRadioContClass, resolveRadioDotClass, resolveCheckboxContClass, resolveCheckboxCheckClass, resolveGroupLabelClass, itemLabelBase, itemLabelDisabled, itemLabelSelected, itemLabelDefault, titleBase, titleDisabled, titleSelected, titleDefault, descriptionBase, descriptionDisabled, descriptionSelected, descriptionDefault, radioContBase, radioContDisabled, radioContSelected, radioContDefault, radioDotBase, radioDotSelected, radioDotDefault, checkboxContBase, checkboxContDisabled, checkboxContSelected, checkboxContDefault, checkboxCheckBase, checkboxCheckSelected, checkboxCheckDefault, legendBase, legendDisabled, legendDefault, focusStyles, } from "./styles.js";
+describe("resolveItemLabelClass", () => {
+    it("returns default label styles", () => {
+        const result = resolveItemLabelClass({});
+        expect(result).toEqual(expect.arrayContaining([itemLabelBase, itemLabelDefault, focusStyles]));
+    });
+    it("returns selected label styles", () => {
+        const result = resolveItemLabelClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([itemLabelBase, itemLabelSelected, focusStyles]));
+    });
+    it("returns disabled label styles", () => {
+        const result = resolveItemLabelClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([itemLabelBase, itemLabelDisabled, focusStyles]));
+    });
+});
+describe("resolveTitleClass", () => {
+    it("returns default title styles", () => {
+        const result = resolveTitleClass({});
+        expect(result).toEqual(expect.arrayContaining([titleBase, titleDefault]));
+    });
+    it("returns selected title styles", () => {
+        const result = resolveTitleClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([titleBase, titleSelected]));
+    });
+    it("returns disabled title styles", () => {
+        const result = resolveTitleClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([titleBase, titleDisabled]));
+    });
+});
+describe("resolveDescriptionClass", () => {
+    it("returns default description styles", () => {
+        const result = resolveDescriptionClass({});
+        expect(result).toEqual(expect.arrayContaining([descriptionBase, descriptionDefault]));
+    });
+    it("returns selected description styles", () => {
+        const result = resolveDescriptionClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([descriptionBase, descriptionSelected]));
+    });
+    it("returns disabled description styles", () => {
+        const result = resolveDescriptionClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([descriptionBase, descriptionDisabled]));
+    });
+});
+describe("resolveRadioContClass", () => {
+    it("returns default radio container styles", () => {
+        const result = resolveRadioContClass({});
+        expect(result).toEqual(expect.arrayContaining([radioContBase, radioContDefault]));
+    });
+    it("returns selected radio container styles", () => {
+        const result = resolveRadioContClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([radioContBase, radioContSelected]));
+    });
+    it("returns disabled radio container styles", () => {
+        const result = resolveRadioContClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([radioContBase, radioContDisabled]));
+    });
+});
+describe("resolveRadioDotClass", () => {
+    it("returns transparent dot by default", () => {
+        const result = resolveRadioDotClass({});
+        expect(result).toEqual(expect.arrayContaining([radioDotBase, radioDotDefault]));
+    });
+    it("returns selected dot styles", () => {
+        const result = resolveRadioDotClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([radioDotBase, radioDotSelected]));
+    });
+});
+describe("resolveCheckboxContClass", () => {
+    it("returns default checkbox container styles", () => {
+        const result = resolveCheckboxContClass({});
+        expect(result).toEqual(expect.arrayContaining([checkboxContBase, checkboxContDefault]));
+    });
+    it("returns selected checkbox container styles", () => {
+        const result = resolveCheckboxContClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([checkboxContBase, checkboxContSelected]));
+    });
+    it("returns disabled checkbox container styles", () => {
+        const result = resolveCheckboxContClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([checkboxContBase, checkboxContDisabled]));
+    });
+});
+describe("resolveCheckboxCheckClass", () => {
+    it("returns transparent check by default", () => {
+        const result = resolveCheckboxCheckClass({});
+        expect(result).toEqual(expect.arrayContaining([checkboxCheckBase, checkboxCheckDefault]));
+    });
+    it("returns selected check styles", () => {
+        const result = resolveCheckboxCheckClass({ selected: true });
+        expect(result).toEqual(expect.arrayContaining([checkboxCheckBase, checkboxCheckSelected]));
+    });
+});
+describe("resolveGroupLabelClass", () => {
+    it("returns default group label styles", () => {
+        const result = resolveGroupLabelClass({});
+        expect(result).toEqual(expect.arrayContaining([legendBase, legendDefault]));
+    });
+    it("returns disabled group label styles", () => {
+        const result = resolveGroupLabelClass({ disabled: true });
+        expect(result).toEqual(expect.arrayContaining([legendBase, legendDisabled]));
+    });
+});
+
+=== 5487 src/lib/choicebox/styles.ts	js
+// Group
+export const groupRootBase = "w-full border-0 m-0 p-0 min-w-0";
+export const legendBase = "mb-2 text-[13px] first-letter:capitalize";
+export const legendDisabled = "text-kui-light-gray-900 dark:text-kui-dark-gray-900";
+export const legendDefault = "text-kui-light-gray-1000 dark:text-kui-dark-gray-1000";
+export const listBase = "flex w-full gap-x-4";
+// Item label (tile)
+export const itemLabelBase = "group flex w-full rounded-md border transition-colors ease-in";
+export const itemLabelDisabled = "cursor-not-allowed border-kui-light-gray-200 dark:border-kui-dark-gray-400";
+export const itemLabelSelected = `cursor-pointer bg-kui-light-blue-200 dark:bg-kui-dark-blue-200
+	border-kui-light-blue-600 dark:border-kui-dark-blue-600
+	hover:border-kui-light-blue-700 dark:hover:border-kui-dark-blue-700`;
+export const itemLabelDefault = `cursor-pointer hover:bg-kui-light-gray-200 dark:hover:bg-kui-dark-gray-200
+	border-kui-light-gray-200 dark:border-kui-dark-gray-400
+	hover:border-kui-light-gray-500 dark:hover:border-kui-dark-gray-500`;
+export const focusStyles = `peer-focus-visible:ring-2 peer-focus-visible:ring-kui-light-gray-500
+	peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-kui-light-bg
+	dark:peer-focus-visible:ring-kui-dark-gray-500 dark:peer-focus-visible:ring-offset-kui-dark-bg`;
+// Title
+export const titleBase = "transition-colors text-sm ease-in first-letter:capitalize leading-6 font-medium";
+export const titleDisabled = "text-kui-light-gray-500 dark:text-kui-dark-gray-500";
+export const titleSelected = "text-kui-light-blue-900 dark:text-kui-dark-blue-900";
+export const titleDefault = "text-kui-light-gray-1000 dark:text-kui-dark-gray-1000";
+// Description
+export const descriptionBase = "transition-colors text-sm ease-in first-letter:capitalize leading-6 font-normal";
+export const descriptionDisabled = "text-kui-light-gray-500 dark:text-kui-dark-gray-500";
+export const descriptionSelected = "text-kui-light-blue-900 dark:text-kui-dark-blue-900";
+export const descriptionDefault = "text-kui-light-gray-900 dark:text-kui-dark-gray-900";
+// Radio
+export const radioContBase = "flex h-4 w-4 items-center justify-center rounded-full border p-px transition-colors ease-in";
+export const radioContDisabled = "border-kui-light-gray-200 dark:border-kui-dark-gray-400";
+export const radioContSelected = "border-kui-light-blue-900 dark:border-kui-dark-blue-900";
+export const radioContDefault = `border-kui-light-gray-200 dark:border-kui-dark-gray-200
+	group-hover:border-kui-light-gray-500 dark:group-hover:border-kui-dark-gray-500
+	group-hover:bg-kui-light-bg dark:group-hover:bg-kui-dark-bg`;
+export const radioDotBase = "h-2 w-2 rounded-full transition-colors ease-in";
+export const radioDotSelected = "bg-kui-light-blue-900 dark:bg-kui-dark-blue-900";
+export const radioDotDefault = "bg-transparent";
+// Checkbox
+export const checkboxContBase = "flex h-4 w-4 items-center justify-center rounded-sm border p-px transition-colors ease-in";
+export const checkboxContDisabled = "border-kui-light-gray-200 dark:border-kui-dark-gray-400";
+export const checkboxContSelected = "border-kui-light-blue-900 dark:border-kui-dark-blue-900 bg-kui-light-blue-900 dark:bg-kui-dark-blue-900";
+export const checkboxContDefault = `border-kui-light-gray-200 dark:border-kui-dark-gray-200
+	group-hover:border-kui-light-gray-500 dark:group-hover:border-kui-dark-gray-500
+	group-hover:bg-kui-light-bg dark:group-hover:bg-kui-dark-bg`;
+export const checkboxCheckBase = "h-2.5 w-2.5 transition-colors ease-in";
+export const checkboxCheckSelected = "text-white dark:text-black font-bold";
+export const checkboxCheckDefault = "text-transparent font-bold";
+export function resolveItemLabelClass({ disabled = false, selected = false, }) {
+    if (disabled)
+        return [itemLabelBase, itemLabelDisabled, focusStyles];
+    if (selected)
+        return [itemLabelBase, itemLabelSelected, focusStyles];
+    return [itemLabelBase, itemLabelDefault, focusStyles];
+}
+export function resolveTitleClass({ disabled = false, selected = false, }) {
+    if (disabled)
+        return [titleBase, titleDisabled];
+    if (selected)
+        return [titleBase, titleSelected];
+    return [titleBase, titleDefault];
+}
+export function resolveDescriptionClass({ disabled = false, selected = false, }) {
+    if (disabled)
+        return [descriptionBase, descriptionDisabled];
+    if (selected)
+        return [descriptionBase, descriptionSelected];
+    return [descriptionBase, descriptionDefault];
+}
+export function resolveRadioContClass({ disabled = false, selected = false, }) {
+    if (disabled)
+        return [radioContBase, radioContDisabled];
+    if (selected)
+        return [radioContBase, radioContSelected];
+    return [radioContBase, radioContDefault];
+}
+export function resolveRadioDotClass({ selected = false }) {
+    return [radioDotBase, selected ? radioDotSelected : radioDotDefault];
+}
+export function resolveCheckboxContClass({ disabled = false, selected = false, }) {
+    if (disabled)
+        return [checkboxContBase, checkboxContDisabled];
+    if (selected)
+        return [checkboxContBase, checkboxContSelected];
+    return [checkboxContBase, checkboxContDefault];
+}
+export function resolveCheckboxCheckClass({ selected = false, }) {
+    return [checkboxCheckBase, selected ? checkboxCheckSelected : checkboxCheckDefault];
+}
+export function resolveGroupLabelClass({ disabled = false, }) {
+    return [legendBase, disabled ? legendDisabled : legendDefault];
+}
+
+=== 208 src/lib/collapse/index.ts	js
+export { default as Root } from "./root.svelte";
+export { default as Item } from "./item.svelte";
+export { default as Trigger } from "./trigger.svelte";
+export { default as Content } from "./content.svelte";
+
+=== 1139 src/lib/collapse/root.svelte.ts	js
+/**
+ * Creates a state manager that returns an object with a getter and
+ * setter for the collapse state.
+ *
+ * The collapse state is stored in the global state with the key 'collapse'.
+ *
+ * @param {Object} initial the initial state of the collapse
+ * @param {boolean} initial.multiple the initial multiple value
+ * @param {string} initial.item the initial collapsed item value
+ * @returns {Object} an object with 'get' and 'set' methods
+ */
+export function createCollapseState(initial) {
+    let multiple = $state(initial.multiple);
+    let item = $state(initial.item);
+    function getMultiple() {
+        return multiple;
+    }
+    function setMultiple(value) {
+        multiple = value;
+    }
+    function getItem() {
+        return item;
+    }
+    function setItem(value) {
+        if (!item.includes(value)) {
+            item.push(value);
+        }
+    }
+    function deleteItem(value) {
+        item = item.filter(i => i !== value);
+    }
+    function clearItems() {
+        item = [];
+    }
+    return {
+        getMultiple,
+        setMultiple,
+        getItem,
+        setItem,
+        deleteItem,
+        clearItems,
+    };
+}
+
+=== 62 src/lib/copyButton/index.ts	js
+export { default as CopyButton } from "./copy-button.svelte";
+
+=== 49 src/lib/emptyState/index.ts	js
+export { default as Root } from "./root.svelte";
+
+=== 3295 src/lib/icons/index.ts	js
+export { default as ArrowLeft } from "./arrow-left.svelte";
+export { default as ArrowRight } from "./arrow-right.svelte";
+export { default as ArrowCircleUp } from "./arrow-circle-up.svelte";
+export { default as Moon } from "./moon.svelte";
+export { default as ChevronLeft } from "./chevron-left.svelte";
+export { default as ChevronLeftSmall } from "./chevron-left-small.svelte";
+export { default as ChevronRight } from "./chevron-right.svelte";
+export { default as ChevronRightSmall } from "./chevron-right-small.svelte";
+export { default as ChevronUpSmall } from "./chevron-up-small.svelte";
+export { default as ChevronDown } from "./chevron-down.svelte";
+export { default as ChevronDownSmall } from "./chevron-down-small.svelte";
+export { default as Sun } from "./sun.svelte";
+export { default as Shield } from "./shield.svelte";
+export { default as ShieldGlobe } from "./shield-globe.svelte";
+export { default as ShieldCheck } from "./shield-check.svelte";
+export { default as Error } from "./error.svelte";
+export { default as LoaderCircle } from "./loader-circle.svelte";
+export { default as GridSquare } from "./grid-square.svelte";
+export { default as ListUnordered } from "./list-unordered.svelte";
+export { default as Check } from "./check.svelte";
+export { default as CheckSquare } from "./check-square.svelte";
+export { default as CheckSquareFill } from "./check-square-fill.svelte";
+export { default as Hook } from "./hook.svelte";
+export { default as Webhook } from "./webhook.svelte";
+export { default as InformationFillSmall } from "./information-fill-small.svelte";
+export { default as RotateCounterClockWise } from "./rotate-counter-clockwise.svelte";
+export { default as UserPlus } from "./user-plus.svelte";
+export { default as Information } from "./information.svelte";
+export { default as CheckCircle } from "./check-circle.svelte";
+export { default as Warning } from "./warning.svelte";
+export { default as LogoFacebook } from "./logo-facebook.svelte";
+export { default as LogoTwitterX } from "./logo-twitter-x.svelte";
+export { default as LogoTwitterXSmall } from "./logo-twitter-x-small.svelte";
+export { default as LogoGithub } from "./logo-github.svelte";
+export { default as LogoGitlab } from "./logo-gitlab.svelte";
+export { default as LogoBitbucketColor } from "./logo-bitbucket-color.svelte";
+export { default as MagnifyingGlass } from "./magnifying-glass.svelte";
+export { default as LockClosed } from "./lock-closed.svelte";
+export { default as LockOpen } from "./lock-open.svelte";
+export { default as LockClosedSmall } from "./lock-closed-small.svelte";
+export { default as LockOpenSmall } from "./lock-open-small.svelte";
+export { default as MoreHorizontal } from "./more-horizontal.svelte";
+export { default as Accessibility } from "./accessibility.svelte";
+export { default as MenuAlt } from "./menu-alt.svelte";
+export { default as Cross } from "./cross.svelte";
+export { default as Star } from "./star.svelte";
+export { default as StarFill } from "./star-fill.svelte";
+export { default as Minus } from "./minus.svelte";
+export { default as LogoSlackColor } from "./logo-slack-color.svelte";
+export { default as Link } from "./link.svelte";
+export { default as ChartBarPeak } from "./chart-bar-peak.svelte";
+export { default as Copy } from "./copy.svelte";
+
+=== 2487 src/lib/index.ts	js
+/*The types */
+export * from "./types/index.js";
+// Avatar
+export * from "./avatar/index.js";
+// Badge
+export { Badge, badgeVariants } from "./badge/index.js";
+// Button
+export { default as Button } from "./button/button.svelte";
+// Calendar
+export { default as Calendar } from "./calendar/calendar.svelte";
+// Checkbox
+export { Checkbox } from "./checkbox/index.js";
+// Choicebox
+export * as Choicebox from "./choicebox/index.js";
+// Collapse
+export * as Collapse from "./collapse/index.js";
+// Copy Button
+export { CopyButton } from "./copyButton/index.js";
+// Description
+export { default as Description } from "./description/description.svelte";
+//Text
+export { default as TextGradient } from "./text/textGradient.svelte";
+// EmptyState
+export * as EmptyState from "./emptyState/index.js";
+// Error
+export { default as Error } from "./error/error.svelte";
+// Input
+export { default as Input } from "./input/input.svelte";
+// Keyboard Input
+export * as Kbd from "./keyboardInput/index.js";
+// SearchInput
+export { default as SearchInput } from "./input/searchInput.svelte";
+// Menu
+export * as Menu from "./menu/index.js";
+// Modal
+export * as Modal from "./modal/index.js";
+// Note
+export { default as Note } from "./note/note.svelte";
+// Pagination
+export { default as Pagination } from "./pagination/pagination.svelte";
+// Progress
+export { default as Progress } from "./progress/progress.svelte";
+// ProjectBanner
+export { default as ProjectBanner } from "./projectBanner/banner.svelte";
+// Select
+export * as Select from "./select/index.js";
+// Show more
+export { default as ShowMore } from "./showMore/showMore.svelte";
+// Snippet
+export { default as CodeSnippet } from "./snippet/snippet.svelte";
+// Spinner
+export { default as Spinner } from "./spinner/spinner.svelte";
+// Split Button
+export * as SplitButton from "./splitButton/index.js";
+// Status Dot
+export { default as StatusDot } from "./statusDot/statusDot.svelte";
+// Switch
+export * as Switch from "./switch/index.js";
+// Table
+export * as Table from "./table/index.js";
+// Tabs
+export { default as Tabs } from "./tabs/tabs.svelte";
+// Text
+export { default as Text } from "./text/text.svelte";
+// Textarea
+export { default as Textarea } from "./textarea/textarea.svelte";
+// Theme Switcher
+export { default as ThemeSwitcher } from "./themeSwitcher/themeSwitcher.svelte";
+// Toggle
+export { default as Toggle } from "./toggle/toggle.svelte";
+// Tooltip
+export { default as Tooltip } from "./tooltip/tooltip.svelte";
+
+=== 100 src/lib/keyboardInput/index.ts	js
+export { default as Group } from "./group.svelte";
+export { default as Root } from "./root.svelte";
+
+=== 255 src/lib/menu/index.ts	js
+export { default as Root } from "./root.svelte";
+export { default as Button } from "./button.svelte";
+export { default as Content } from "./content.svelte";
+export { default as Item } from "./item.svelte";
+export { default as Link } from "./link.svelte";
+
+=== 995 src/lib/menu/root.svelte.ts	js
+export function createRootState(initial) {
+    let isMobile = $state(initial.isMobile);
+    let isActive = $state(initial.isActive);
+    let contentPosition = $state(initial.contentPosition);
+    let transY = $state(initial.transY);
+    function getIsMobile() {
+        return isMobile;
+    }
+    function setIsMobile(value) {
+        isMobile = value;
+    }
+    function getIsActive() {
+        return isActive;
+    }
+    function setIsActive(value) {
+        isActive = value;
+    }
+    function getContentPosition() {
+        return contentPosition;
+    }
+    function setContentPosition(value) {
+        contentPosition = value;
+    }
+    function setTransY(value) {
+        transY = value;
+    }
+    function getTransY() {
+        return transY;
+    }
+    return {
+        alignment: initial.alignment,
+        getIsMobile,
+        setIsMobile,
+        getIsActive,
+        setIsActive,
+        getContentPosition,
+        setContentPosition,
+        getTransY,
+        setTransY,
+    };
+}
+
+=== 420 src/lib/modal/index.ts	js
+export { default as Root } from "./root.svelte";
+export { default as Body } from "./body.svelte";
+export { default as Content } from "./content.svelte";
+export { default as Header } from "./header.svelte";
+export { default as Title } from "./title.svelte";
+export { default as Subtitle } from "./subtitle.svelte";
+export { default as Footer } from "./footer.svelte";
+export { default as Action } from "./action.svelte";
+
+=== 524 src/lib/modal/root.svelte.ts	js
+export function createModalState(initial) {
+    let isMobile = $state(initial.isMobile);
+    let isActive = $state(initial.isActive);
+    function getIsMobile() {
+        return isMobile;
+    }
+    function setIsMobile(value) {
+        isMobile = value;
+    }
+    function getIsActive() {
+        return isActive;
+    }
+    function setIsActive(value) {
+        isActive = value;
+    }
+    return {
+        sticky: initial.sticky,
+        getIsMobile,
+        setIsMobile,
+        getIsActive,
+        setIsActive,
+    };
+}
+
+=== 259 src/lib/select/index.ts	js
+export { default as Root } from "./root.svelte";
+export { default as Trigger } from "./trigger.svelte";
+export { default as Value } from "./value.svelte";
+export { default as Content } from "./content.svelte";
+export { default as Item } from "./item.svelte";
+
+=== 2196 src/lib/select/root.svelte.ts	js
+/**
+ * @param {Object} initial - Initial state Select.Root.
+ * @param {boolean} initial.isMobile - Whether the device is mobile.
+ * @param {string} initial.error - Error state.
+ * @param {boolean} initial.loading - Loading state.
+ * @param {string} initial.selected - Selected value.
+ * @param {boolean} initial.isActive - Whether the select is active.
+ * @param {string} initial.contentPosition - Content position.
+ * @param {'tiny' | 'small' | 'medium' | 'large'} initial.size - Size of the select.
+ * @param {number} initial.transY - Translation Y value.
+ * @returns {Object} - Root state object.
+ */
+export function createRootState(initial) {
+    let isMobile = $state(initial.isMobile);
+    let error = $state(initial.error);
+    let loading = $state(initial.loading);
+    let selected = $state(initial.selected);
+    let isActive = $state(initial.isActive);
+    let contentPosition = $state(initial.contentPosition);
+    let transY = $state(initial.transY);
+    function getIsMobile() {
+        return isMobile;
+    }
+    function setIsMobile(value) {
+        isMobile = value;
+    }
+    function getError() {
+        return error;
+    }
+    function setError(value) {
+        error = value;
+    }
+    function getLoading() {
+        return loading;
+    }
+    function setLoading(value) {
+        loading = value;
+    }
+    function getSelected() {
+        return selected;
+    }
+    function setSelected(value) {
+        selected = value;
+    }
+    function getIsActive() {
+        return isActive;
+    }
+    function setIsActive(value) {
+        isActive = value;
+    }
+    function getContentPosition() {
+        return contentPosition;
+    }
+    function setContentPosition(value) {
+        contentPosition = value;
+    }
+    function setTransY(value) {
+        transY = value;
+    }
+    function getTransY() {
+        return transY;
+    }
+    return {
+        size: initial.size,
+        getIsMobile,
+        setIsMobile,
+        getError,
+        setError,
+        getLoading,
+        setLoading,
+        getSelected,
+        setSelected,
+        getIsActive,
+        setIsActive,
+        getContentPosition,
+        setContentPosition,
+        getTransY,
+        setTransY,
+    };
+}
+
+=== 206 src/lib/splitButton/index.ts	js
+export { default as Root } from "./root.svelte";
+export { default as Button } from "./button.svelte";
+export { default as Content } from "./content.svelte";
+export { default as Item } from "./item.svelte";
+
+=== 104 src/lib/switch/index.ts	js
+export { default as Root } from "./root.svelte";
+export { default as Control } from "./control.svelte";
+
+=== 978 src/lib/switch/root.svelte.ts	js
+/**
+ * Creates a state manager for a switch component.
+ *
+ * @param {Object} initial - The initial state of the switch component.
+ * @param {string} initial.selected - The initially selected value of the switch component.
+ * @param {string} initial.name - The name of the switch component.
+ * @param {('small' | 'medium' | 'large')} initial.size - The size of the switch component.
+ * @param {boolean} initial.fullWidth - Whether the switch component should take up the full width of its container.
+ * @returns {Object} An object with methods to get and set the selected value of the switch component.
+ */
+export function createRootState(initial) {
+    let selected = $state(initial.selected);
+    function getSelected() {
+        return selected;
+    }
+    function setSelected(value) {
+        selected = value;
+    }
+    return {
+        name: initial.name,
+        size: initial.size,
+        fullWidth: initial.fullWidth,
+        getSelected,
+        setSelected,
+    };
+}
+
+=== 509 src/lib/table/index.ts	js
+export { default as Root } from "./table.svelte";
+export { default as Caption } from "./caption.svelte";
+export { default as Colgroup } from "./colgroup.svelte";
+export { default as Col } from "./col.svelte";
+export { default as Header } from "./header.svelte";
+export { default as Head } from "./head.svelte";
+export { default as Row } from "./row.svelte";
+export { default as Cell } from "./cell.svelte";
+export { default as Body } from "./body.svelte";
+export { default as Footer } from "./footer.svelte";
+
+=== 500 src/lib/themeSwitcher/themeSwitcher.svelte.ts	js
+/**
+ * Creates a theme manager that returns an object with a getter and
+ * setter for the theme state.
+ *
+ * The theme state is stored in the global state with the key 'system'.
+ *
+ * @returns An object with 'theme' property and 'setTheme' method.
+ */
+function createTheme() {
+    let theme = $state("system");
+    return {
+        get theme() {
+            return theme;
+        },
+        setTheme: (value) => {
+            theme = value;
+        },
+    };
+}
+export const switcher = createTheme();
+
+=== 11 src/lib/types/general.ts	js
+export {};
+
+=== 30 src/lib/types/index.ts	js
+export * from "./general.js";
+
+=== 5562 src/lib/utils/calendar.test.ts	js
+import { describe, it, expect } from "vitest";
+import { nextMonth, prevMonth, getMonthDateRange, generateCalendar } from "./calendar.js";
+describe("nextMonth", () => {
+    it("should return February for January", () => {
+        const date = new Date("2022-01-01T00:00:00.000Z");
+        const result = nextMonth(date);
+        expect(result.getMonth()).toBe(1); // February
+        expect(result.getDate()).toBe(1);
+    });
+    it("should return January for December", () => {
+        const date = new Date("2022-12-01T00:00:00.000Z");
+        const result = nextMonth(date);
+        expect(result.getFullYear()).toBe(2023); // Next year
+        expect(result.getMonth()).toBe(0); // January
+        expect(result.getDate()).toBe(1);
+    });
+    it("should return July for June", () => {
+        const date = new Date("2022-06-01T00:00:00.000Z");
+        const result = nextMonth(date);
+        expect(result.getMonth()).toBe(6); // July
+        expect(result.getDate()).toBe(1);
+    });
+});
+describe("prevMonth function", () => {
+    it("should return December for January", () => {
+        const date = new Date("2022-01-01T00:00:00.000Z");
+        const expectedDate = new Date("2021-12-01T00:00:00.000Z");
+        expect(prevMonth(date)).toEqual(expectedDate);
+    });
+    it("should return previous month for a random month", () => {
+        const date = new Date("2022-06-15T00:00:00.000Z");
+        const expectedDate = new Date("2022-05-01T00:00:00.000Z");
+        expect(prevMonth(date)).toEqual(expectedDate);
+    });
+    it("should return November for December", () => {
+        const date = new Date("2022-12-01T00:00:00.000Z");
+        const expectedDate = new Date("2022-11-01T00:00:00.000Z");
+        expect(prevMonth(date)).toEqual(expectedDate);
+    });
+});
+describe("getMonthDateRange", () => {
+    it("should return 31 days for January", () => {
+        const dateProp = new Date("2022-01-01T00:00:00.000Z");
+        const monthEnd = new Date("2022-01-31T00:00:00.000Z");
+        const result = getMonthDateRange(dateProp, monthEnd);
+        expect(result.length).toBe(31);
+    });
+    it("should return 28 days for February (non-leap year)", () => {
+        const dateProp = new Date("2022-02-01T00:00:00.000Z");
+        const monthEnd = new Date("2022-02-28T00:00:00.000Z");
+        const result = getMonthDateRange(dateProp, monthEnd);
+        expect(result.length).toBe(28);
+    });
+    it("should return 29 days for February (leap year)", () => {
+        const dateProp = new Date("2020-02-01T00:00:00.000Z");
+        const monthEnd = new Date("2020-02-29T00:00:00.000Z");
+        const result = getMonthDateRange(dateProp, monthEnd);
+        expect(result.length).toBe(29);
+    });
+    it("should return 30 days for April", () => {
+        const dateProp = new Date("2022-04-01T00:00:00.000Z");
+        const monthEnd = new Date("2022-04-30T00:00:00.000Z");
+        const result = getMonthDateRange(dateProp, monthEnd);
+        expect(result.length).toBe(30);
+    });
+});
+describe("generateCalendar", () => {
+    it("should return a calendar with dates starting from Monday", () => {
+        const dateList = [
+            { day: 1, dateObj: new Date("2022-01-03") },
+            { day: 2, dateObj: new Date("2022-01-04") },
+            { day: 3, dateObj: new Date("2022-01-05") },
+        ];
+        expect(generateCalendar(dateList)).toEqual([
+            { day: "", dateObj: null },
+            { day: 1, dateObj: new Date("2022-01-03") },
+            { day: 2, dateObj: new Date("2022-01-04") },
+            { day: 3, dateObj: new Date("2022-01-05") },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+        ]);
+    });
+    it("should return an empty calendar with an empty date list", () => {
+        const dateList = [];
+        expect(generateCalendar(dateList)).toEqual([]);
+    });
+    it("should return a calendar with a single date", () => {
+        const dateList = [{ day: 1, dateObj: new Date("2022-01-03") }];
+        expect(generateCalendar(dateList)).toEqual([
+            { day: "", dateObj: null },
+            { day: 1, dateObj: new Date("2022-01-03") },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+        ]);
+    });
+    it("should return a calendar with multiple dates spanning multiple weeks", () => {
+        const dateList = [
+            { day: 1, dateObj: new Date("2022-01-03") },
+            { day: 2, dateObj: new Date("2022-01-04") },
+            { day: 3, dateObj: new Date("2022-01-05") },
+            { day: 8, dateObj: new Date("2022-01-10") },
+            { day: 9, dateObj: new Date("2022-01-11") },
+            { day: 10, dateObj: new Date("2022-01-12") },
+        ];
+        expect(generateCalendar(dateList)).toEqual([
+            { day: "", dateObj: null },
+            { day: 1, dateObj: new Date("2022-01-03") },
+            { day: 2, dateObj: new Date("2022-01-04") },
+            { day: 3, dateObj: new Date("2022-01-05") },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: 8, dateObj: new Date("2022-01-10") },
+            { day: 9, dateObj: new Date("2022-01-11") },
+            { day: 10, dateObj: new Date("2022-01-12") },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+            { day: "", dateObj: null },
+        ]);
+    });
+});
+
+=== 9887 src/lib/utils/calendar.ts	js
+/**
+ * Returns a Date object representing 1970-01-01T00:00:00.000Z.
+ *
+ * @return {Date} A Date object representing 1970-01-01T00:00:00.000Z.
+ */
+export const getZeroDate = () => {
+    return new Date(Date.UTC(1970, 0, 1));
+};
+/**
+ * Returns true if the given Date object represents the date 1970-01-01T00:00:00.000Z, false otherwise.
+ *
+ * @param {Date} date - The date to check.
+ * @return {boolean} True if the date is 1970-01-01T00:00:00.000Z, false otherwise.
+ */
+export const isZeroDate = (date) => {
+    return date.getUTCFullYear() === 1970 && date.getUTCMonth() === 0 && date.getUTCDate() === 1;
+};
+/**
+ * Returns a new Date object representing the month before the given date.
+ *
+ * @param {Date} fnDate - The date from which to calculate the previous month.
+ * @return {Date} A new Date object representing the first day of the previous month.
+ */
+export const prevMonth = (fnDate) => {
+    return new Date(fnDate.setMonth(fnDate.getMonth() - 1));
+};
+/**
+ * Returns a new Date object representing the month after the given date.
+ *
+ * @param {Date} fnDate - The date from which to calculate the next month.
+ * @return {Date} A new Date object representing the first day of the next month.
+ */
+export const nextMonth = (fnDate) => {
+    return new Date(fnDate.setMonth(fnDate.getMonth() + 1));
+};
+/**
+ * Returns the first and last day of the month for a given date.
+ *
+ * @param {Date} date - The date object from which to derive the month and year.
+ * @return {[Date, Date]} An array containing the first and last day of the month.
+ */
+export const getFirstAndLastDay = (date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    return [monthStart, monthEnd];
+};
+/**
+ * Returns the first and last day of the month for a given date, using UTC date calculations.
+ *
+ * @param {Date} date - The date object from which to derive the month and year.
+ * @return {[Date, Date]} An array containing the first and last day of the month.
+ */
+export const getFirstAndLastDayUTC = (date) => {
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth();
+    const monthStart = new Date(Date.UTC(year, month, 1));
+    const monthEnd = new Date(Date.UTC(year, month + 1, 0));
+    return [monthStart, monthEnd];
+};
+/**
+ * Generates an array of numbers over a specified range.
+ *
+ * @param {number} [start=0] - The starting number of the range (inclusive).
+ * @param {number} [end=0] - The ending number of the range (exclusive).
+ * @param {number} [step=1] - The difference between each number in the range.
+ * @return {number[]} An array of numbers from `start` to `end` with the specified `step`.
+ */
+export const arrayRange = (start = 0, end = 0, step = 1) => {
+    end = Number(end) - 1;
+    if (end < start)
+        return [];
+    if (step === 0)
+        step = 1;
+    // Used Math.floor for safer handling of non-integer ranges
+    const length = Math.floor((end - start) / step) + 1;
+    return Array.from({ length }, (_, i) => start + i * step);
+};
+/**
+ * Generates an array of objects representing the days in a month.
+ *
+ * @param {Date} dateProp - The date object from which to derive the month and year.
+ * @param {Date} monthEnd - The date object representing the last day of the month.
+ * @return {Object[]} An array of objects containing the day of the month and a corresponding date object.
+ */
+export const getMonthDateRange = (dateProp, monthEnd) => {
+    const daysInMonth = monthEnd.getDate();
+    return arrayRange(1, daysInMonth + 1, 1).map(date => ({
+        day: date,
+        dateObj: new Date(dateProp.getFullYear(), dateProp.getMonth(), date),
+    }));
+};
+/**
+ * Generates an array of objects representing the days in a month, using UTC date calculations.
+ *
+ * @param {Date} dateProp - The date object from which to derive the month and year.
+ * @param {Date} monthEnd - The date object representing the last day of the month.
+ * @return {Object[]} An array of objects containing the day of the month and a corresponding date object.
+ */
+export const getMonthDateRangeUTC = (dateProp, monthEnd) => {
+    const daysInMonth = monthEnd.getUTCDate();
+    return arrayRange(1, daysInMonth + 1, 1).map(date => ({
+        day: date,
+        dateObj: new Date(Date.UTC(dateProp.getUTCFullYear(), dateProp.getUTCMonth(), date)),
+    }));
+};
+/**
+ * Generates a calendar array based on the provided date list.
+ *
+ * @param {Array<Object>} dateList - A list of objects containing the day and date object.
+ * @return {Array<Object>} An array of objects representing the days in a calendar format.
+ */
+export const generateCalendar = (dateList) => {
+    // Get the day of the week of the first date
+    const firstDateObj = dateList[0].dateObj;
+    const firstDayOfWeek = firstDateObj.getDay(); // Sunday = 0, Saturday = 6
+    // zero date
+    const zero = getZeroDate();
+    // Start filling the first week with empty objects until the first date
+    const currentRow = new Array(firstDayOfWeek).fill({ day: "", dateObj: zero });
+    // Fill the current row with the dates from the date list
+    dateList.forEach(date => {
+        currentRow.push({ day: date.day, dateObj: date.dateObj });
+    });
+    // Fill the rest of the rows with empty objects
+    if (currentRow.length > 0) {
+        while (currentRow.length < 7) {
+            currentRow.push({ day: "", dateObj: zero });
+        }
+    }
+    return currentRow;
+};
+/**
+ * Returns true if the given dates have the same time.
+ *
+ * @param first - The first date to compare.
+ * @param second - The second date to compare.
+ * @return True if the given dates have the same time, false otherwise.
+ */
+export const isTimeEqual = (first, second) => {
+    return first.getTime() == second.getTime();
+};
+/**
+ * Returns true if the given start date is greater that the end date.
+ *
+ * @param start - The start date to compare.
+ * @param end - The end date to compare.
+ * @return True if the given start date is greater than the end date.
+ */
+export const isStartDateGreaterThanEndDate = (start, end) => {
+    return start.getTime() > end.getTime();
+};
+/**
+ * Returns true if the given date falls within the given start and end dates,
+ * ignoring the time component of the dates.
+ *
+ * @param date - The date to check.
+ * @param startDate - The start date of the range.
+ * @param endDate - The end date of the range.
+ * @return True if the given date is in the given range, false otherwise.
+ */
+export const isInDateRange = (date, startDate, endDate) => {
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    return date.getTime() >= startDate.getTime() && date.getTime() <= endDate.getTime();
+};
+/**
+ * Returns true if the given date falls within the given start and end dates,
+ * ignoring the time component of the dates and using UTC date calculations.
+ *
+ * @param date - The date to check.
+ * @param startDate - The start date of the range.
+ * @param endDate - The end date of the range.
+ * @return True if the given date is in the given range, false otherwise.
+ */
+export const isInDateRangeUTC = (date, startDate, endDate) => {
+    startDate.setUTCHours(0, 0, 0, 0);
+    endDate.setUTCHours(0, 0, 0, 0);
+    date.setUTCHours(0, 0, 0, 0);
+    return date.getTime() >= startDate.getTime() && date.getTime() <= endDate.getTime();
+};
+/**
+ * Returns true if the given date is a Saturday or Sunday.
+ *
+ * @param date - The date to check.
+ * @returns True if the given date is a Saturday or Sunday.
+ */
+export const isWeekend = (date) => {
+    return date.getDay() === 0 || date.getDay() === 6;
+};
+/**
+ * Formats a date range into a string, handling different cases for single day,
+ * same month, and different month/year.
+ *
+ * @param startDate - The start date of the range.
+ * @param endDate - The end date of the range.
+ * @return A string representing the date range.
+ */
+export const formatDateRange = (startDate, endDate) => {
+    const options = { month: "short", day: "numeric" };
+    const startDay = startDate.getDate();
+    const startMonth = startDate.toLocaleString("en-US", { month: "short" });
+    const startYear = startDate.getFullYear();
+    const endDay = endDate.getDate();
+    const endMonth = endDate.toLocaleString("en-US", { month: "short" });
+    const endYear = endDate.getFullYear();
+    if (startYear === endYear && startMonth === endMonth && startDay === endDay) {
+        // Same day
+        return startDate.toLocaleDateString("en-US", { weekday: "short", ...options });
+    }
+    else if (startMonth === endMonth && startYear === endYear) {
+        // Same month and year
+        return `${startMonth} ${startDay} - ${endDay}`;
+    }
+    else {
+        // Different month or year
+        return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
+    }
+};
+/**
+ * Returns the value of the date selection.
+ *
+ * If the start and end dates are the same, the function returns the DateValue.
+ * If the start and end dates are different, the function returns the RangeValue<DateValue>.
+ *
+ * @param startDate - The start date of the range.
+ * @param endDate - The end date of the range.
+ * @return The value of the date range selection.
+ */
+export const selectedValue = (startDate, endDate) => {
+    const startDay = startDate.getDate();
+    const startMonth = startDate.toLocaleString("en-US", { month: "short" });
+    const startYear = startDate.getFullYear();
+    const endDay = endDate.getDate();
+    const endMonth = endDate.toLocaleString("en-US", { month: "short" });
+    const endYear = endDate.getFullYear();
+    if (startYear === endYear && startMonth === endMonth && startDay === endDay) {
+        // Same day, return the DateValue
+        return startDate;
+    }
+    else {
+        // Different day, return the RangeValue<DateValue>
+        return { start: startDate, end: endDate };
+    }
+};
+
+=== 3502 src/lib/utils/event.ts	js
+/**
+ * Attaches a click event listener to the document body that triggers the provided function
+ * when a click event occurs outside of the specified node.
+ *
+ * @param {HTMLElement} node - The element to check for outside clicks.
+ * @param {F} fn - The function to be triggered when a click occurs outside of the node.
+ * @return {Object} An object with a `destroy` method to remove the event listener.
+ */
+export const clickOutside = (node, fn) => {
+    const handleClick = (event) => {
+        if (node && !node.contains(event.target) && !event.defaultPrevented) {
+            fn(event);
+        }
+    };
+    document.body.addEventListener("click", handleClick, true);
+    return {
+        destroy() {
+            document.body.removeEventListener("click", handleClick, true);
+        },
+    };
+};
+/**
+ * Given an event, determines whether the component should be placed at the top
+ * or bottom of the viewport. The algorithm works by comparing the position of
+ * the target element from the top of the viewport to the position of the target
+ * element from the bottom of the viewport. The position with the greater value
+ * indicates which direction the component should be placed.
+ *
+ * @param {Event} evt - The event from which to determine the component position.
+ * @return {string} 'top' or 'bottom'
+ */
+export const componentPosition = (evt) => {
+    const target = evt.currentTarget;
+    const { top, bottom } = target.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const positionFromTop = top;
+    const positionFromBottom = viewportHeight - bottom;
+    return positionFromTop > positionFromBottom ? "bottom" : "top";
+};
+/**
+ * Returns a function that will only run the provided function once, and
+ * then replace itself with a no-op function.
+ *
+ * @param {function(event: T): void | null} fn - The function to be run once.
+ * @return {function(event: T): void} - A new function that will run the provided function once, and then do nothing.
+ */
+export function runOnce(fn) {
+    return function (event) {
+        if (fn) {
+            fn(event); // Directly calling `fn` without `call` as `this` is usually not needed.
+            fn = null; // Ensure the function only runs once.
+        }
+    };
+}
+/**
+ * Returns a function that will prevent the default action of the event, and
+ * then calls the provided function if it exists.
+ *
+ * @param {function(event: T): void | null} fn - The function to be called after preventing the default action.
+ * @return {function(event: T): void} - A new function that will prevent the default action and then call the provided function if it exists.
+ */
+export function preventDefault(fn) {
+    return function (event) {
+        if (fn) {
+            event.preventDefault();
+            fn(event); // Directly calling `fn` without `call` since `this` is usually not needed.
+        }
+    };
+}
+/**
+ * Returns a function that will stop the propagation of the event, and
+ * then calls the provided function if it exists.
+ *
+ * @param {function(event: T): void | null} fn - The function to be called after stopping the event propagation.
+ * @return {function(event: T): void} - A new function that will stop the event propagation and then call the provided function if it exists.
+ */
+export function stopPropagation(fn) {
+    return function (event) {
+        if (fn) {
+            event.stopPropagation();
+            fn(event); // Directly calling `fn` without `call` since `this` is usually not needed.
+        }
+    };
+}
+
+=== 1945 src/lib/utils/general.ts	js
+/**
+ * Detects the operating system of the user, given a user agent string.
+ *
+ * @returns The name of the operating system, or "unknown" if it could not be determined.
+ */
+export function detectOperatingSystem() {
+    if (typeof window === "undefined")
+        return "unknown";
+    const userAgent = navigator.userAgent;
+    // Check for iOS devices
+    if (/iPad|iPhone|iPod/.test(userAgent) ||
+        (userAgent.includes("Mac") && "ontouchend" in document)) {
+        return "iOS";
+    }
+    // List of common OS platforms to check
+    const osList = ["Windows", "Android", "Unix", "Mac", "Linux", "BlackBerry"];
+    // Find and return the matching OS
+    const detectedOS = osList.find(os => new RegExp(os, "i").test(userAgent));
+    return detectedOS || "unknown";
+}
+export const androidDisableScrolling = () => {
+    document.body.style.overflowY = "hidden";
+};
+export const androidEnableScrolling = () => {
+    document.body.style.overflowY = "scroll";
+};
+export const androidEnableDisableScrolling = (isOpen) => {
+    if (isOpen) {
+        androidDisableScrolling();
+    }
+    else {
+        androidEnableScrolling();
+    }
+};
+//TODO: the scrolling flickers on iOS when scrolling replace with a better solution.
+export const iosDisableScrolling = () => {
+    const x = window.scrollX;
+    const y = window.scrollY;
+    window.onscroll = function () {
+        window.scrollTo(x, y);
+    };
+};
+export const iosEnableScrolling = () => {
+    window.onscroll = function () { };
+};
+export const iosEnableDisableScrolling = (isOpen) => {
+    if (isOpen) {
+        iosDisableScrolling();
+    }
+    else {
+        iosEnableScrolling();
+    }
+};
+export const preventScroll = (isOpen) => {
+    const os = detectOperatingSystem();
+    if (os === "iOS" || os === "Mac") {
+        iosEnableDisableScrolling(isOpen);
+    }
+    else if (os === "Android" || os === "Linux" || os === "Windows") {
+        androidEnableDisableScrolling(isOpen);
+    }
+};
+
+=== 1251 src/lib/utils/random.test.ts	js
+import { describe, it, expect } from "vitest";
+import { randomString } from "./random.js";
+describe("randomString function", () => {
+    it("returns a string of the correct length", () => {
+        const length = 10;
+        const result = randomString(length);
+        expect(result.length).toBe(length);
+    });
+    it("returns a string containing only the specified characters", () => {
+        const length = 10;
+        const result = randomString(length);
+        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        for (let i = 0; i < result.length; i++) {
+            expect(characters.includes(result[i])).toBe(true);
+        }
+    });
+    it("returns a different string each time it is called", () => {
+        const length = 10;
+        const result1 = randomString(length);
+        const result2 = randomString(length);
+        expect(result1).not.toBe(result2);
+    });
+    it("throws an error when the length is less than 0", () => {
+        const length = -1;
+        expect(() => randomString(length)).toThrowError();
+    });
+    it("throws an error when the length is not an integer", () => {
+        const length = 10.5;
+        expect(() => randomString(length)).toThrowError();
+    });
+});
+
+=== 488 src/lib/utils/random.ts	js
+/**
+ * Generates a random string of the specified length.
+ *
+ * @param {number} length - The length of the random string to generate.
+ * @return {string} The randomly generated string.
+ */
+export function randomString(length) {
+    let result = "";
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
+
+=== 881 src/lib/utils/text.ts	js
+/**
+ * Calculates the width of a string in pixels using a specified font.
+ *
+ * @param {string} text - The text to measure the width of.
+ * @param {string} [font='12px Inter'] - The font to use for measuring the width. Defaults to '12px Inter'.
+ * @return {number} The width of the text in pixels. Returns 250 if context or the browser is not available.
+ */
+export const getStringWidth = (text, font = "12px Inter") => {
+    // Create a temporary canvas element
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (context) {
+        // Set the font to the context, this must match the font used in the UI
+        context.font = font;
+        // Measure the width of the text
+        const width = context.measureText(text).width;
+        const numStr = width.toFixed(0);
+        return Number(numStr);
+    }
+    return 250;
+};
+
+=== 941 tests/checkbox.test.ts	js
+import { expect, test } from "@playwright/test";
+test("indeterminate checkbox does not change on click", async ({ page }) => {
+    await page.goto("/checkbox");
+    const indeterminateCheckbox = page.getByRole("checkbox", { name: "Option 1" }).nth(1);
+    await expect(indeterminateCheckbox).toHaveJSProperty("indeterminate", true);
+    await expect(indeterminateCheckbox).not.toBeChecked();
+    await page.getByText("Option 1").nth(1).click();
+    await expect(indeterminateCheckbox).toHaveJSProperty("indeterminate", true);
+    await expect(indeterminateCheckbox).not.toBeChecked();
+});
+test("unchecked checkbox still toggles on click", async ({ page }) => {
+    await page.goto("/checkbox");
+    const defaultCheckbox = page.getByRole("checkbox", { name: "Option 1" }).first();
+    await expect(defaultCheckbox).not.toBeChecked();
+    await page.getByText("Option 1").first().click();
+    await expect(defaultCheckbox).toBeChecked();
+});
+
+=== 187 tests/test.ts	js
+import { expect, test } from "@playwright/test";
+test("home page has expected h1", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("h1")).toBeVisible();
+});
+
+=== 255 vite.config.ts	js
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vitest/config";
+export default defineConfig({
+    plugins: [sveltekit()],
+    test: {
+        include: ["src/**/*.{test,spec}.{js,ts}", "scripts/**/*.test.{js,ts}"],
+    },
+});
+
