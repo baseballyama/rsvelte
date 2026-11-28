@@ -31,6 +31,12 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
             Some(frame) => (place_of(frame, kind), Some(frame.kind)),
             None => (self.root, None),
         };
+        if let AstKind::ExportDefaultDeclaration(export) = kind
+            && self.error.is_none()
+            && let Err(error) = self.check_default_export(export)
+        {
+            self.error = Some(error);
+        }
         let rune = if self.error.is_none() {
             self.check(kind, parent, place).unwrap_or_else(|error| {
                 self.error = Some(error);

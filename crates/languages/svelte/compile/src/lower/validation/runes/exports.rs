@@ -1,7 +1,8 @@
 //! Upstream's `ExportNamedDeclaration` checks of an exported variable declaration.
 
 use oxc_ast::ast::{
-    ExportDeclaration, ExportNamedDeclaration, ModuleExportName, VariableDeclarationKind,
+    ExportDeclaration, ExportDefaultDeclaration, ExportDefaultDeclarationKind,
+    ExportNamedDeclaration, ModuleExportName, VariableDeclarationKind,
 };
 use oxc_semantic::SymbolId;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -11,6 +12,7 @@ use rsvelte_typescript_tree::node_span;
 use super::RuneWalk;
 use crate::lower::invalid;
 use crate::lower::paths::bound_names;
+use crate::lower::validation::Unit;
 
 impl RuneWalk<'_> {
     /// Upstream raises these after it visits the declaration: an exported derived, an exported
@@ -63,6 +65,27 @@ impl RuneWalk<'_> {
             if let Some((code, message)) = symbol.and_then(|symbol| self.invalid_export(symbol)) {
                 return invalid(code, message, node_span(specifier));
             }
+        }
+        Ok(())
+    }
+
+    /// Upstream's `ExportDefaultDeclaration`, before it visits the export: in a module file,
+    /// `export default name` checks the binding as an exported declaration does.
+    pub(super) fn check_default_export(
+        &self,
+        export: &ExportDefaultDeclaration<'_>,
+    ) -> Result<(), Diagnostic> {
+        let ExportDefaultDeclarationKind::Identifier(name) = &export.declaration else {
+            return Ok(());
+        };
+        if self.unit != Unit::Module {
+            return Ok(());
+        }
+        let scoping = self.res.scoping();
+        let symbol = (name.reference_id.get())
+            .and_then(|reference| scoping.get_reference(reference).symbol_id());
+        if let Some((code, message)) = symbol.and_then(|symbol| self.invalid_export(symbol)) {
+            return invalid(code, message, node_span(export));
         }
         Ok(())
     }
