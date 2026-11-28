@@ -1,4 +1,4 @@
-# svelte.lint/default: 40997 match
+# svelte.lint/default: 41002 match
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	unexpected
 svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	js-equivalent
@@ -8,7 +8,6 @@ svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/a22d6c3178e84
 svelte/rsvelte-mutants/eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	mismatch
 svelte/rsvelte-mutants/language-tools/duplicate-attribute/declaration_duplicate/14a274839779d4b7.svelte	mismatch
 svelte/rsvelte-mutants/language-tools/duplicate-attribute/declaration_duplicate/f2387ee60051463c.svelte	mismatch
-svelte/rsvelte-mutants/svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	mismatch
 svelte/rsvelte-mutants/svelte-eslint-parser/duplicate-attribute/declaration_duplicate/d3c6daadd11cfea8.svelte	mismatch
 svelte/rsvelte-mutants/svelte-eslint-parser/duplicate-attribute/declaration_duplicate/da8d54d13a6ba686.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	js-equivalent
@@ -580,11 +579,7 @@ svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-ta
 svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
 svelte/svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	js-equivalent
-svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
 svelte/test262/expressions/assignmenttargettype/simple-basic-identifierreference-await.svelte.js	mismatch
 svelte/test262/expressions/await/await-BindingIdentifier-in-global.svelte.js	mismatch
 svelte/test262/expressions/await/await-in-global.svelte.js	mismatch

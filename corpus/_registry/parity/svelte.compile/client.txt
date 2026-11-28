@@ -1,4 +1,4 @@
-# svelte.compile/client: 35067 match
+# svelte.compile/client: 35072 match
 svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	js-equivalent
 svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	js-equivalent
 svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	mismatch
@@ -8,7 +8,6 @@ svelte/rsvelte-mutants/cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.sve
 svelte/rsvelte-mutants/eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	mismatch
 svelte/rsvelte-mutants/language-tools/duplicate-attribute/declaration_duplicate/14a274839779d4b7.svelte	mismatch
 svelte/rsvelte-mutants/language-tools/duplicate-attribute/declaration_duplicate/f2387ee60051463c.svelte	mismatch
-svelte/rsvelte-mutants/svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	mismatch
 svelte/rsvelte-mutants/svelte-eslint-parser/duplicate-attribute/declaration_duplicate/d3c6daadd11cfea8.svelte	mismatch
 svelte/rsvelte-mutants/svelte-eslint-parser/duplicate-attribute/declaration_duplicate/da8d54d13a6ba686.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_in_a_statement_that_already_parsed_is_not_the_stopping_point/293aa2c2a9e79787.svelte	js-equivalent
@@ -606,8 +605,4 @@ svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-ta
 svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
 svelte/svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	js-equivalent
-svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
