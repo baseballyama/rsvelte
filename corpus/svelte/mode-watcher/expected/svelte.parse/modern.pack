@@ -1,0 +1,40 @@
+# rsvelte pack 1
+=== 65 docs/src/lib/components/logos/mode-watcher-dark.svelte	ast.sha256
+4e14f063ea103be4a94e346083eefa652292887f5b00706a79220fe3ea122fdb
+
+=== 65 docs/src/lib/components/logos/mode-watcher-light.svelte	ast.sha256
+73337bd85208ecb2a935bf00f61c3d3436e459926076831ad59e332f951e14cb
+
+=== 65 docs/src/routes/(docs)/+layout.svelte	ast.sha256
+9e0328bdc37bd732501ee59ade3f8025dc8a76e82162c3fb1f8ecf0d9ba7a3c0
+
+=== 65 docs/src/routes/(docs)/docs/+page.svelte	ast.sha256
+889c7164d805509c5e49c0d387d4923a51eb781c1a46fc0e2108d323de4f0ca1
+
+=== 65 docs/src/routes/(landing)/+page.svelte	ast.sha256
+e0b6a70cfaa1e636919fe03c662c4698ba8eacd3c2ba5c28d336a011c785631b
+
+=== 65 docs/src/routes/+layout.svelte	ast.sha256
+873d4cbc90faee0a0c002f0bf4fbc556bcf80ac19c50e720e5689cbeebb45a39
+
+=== 65 packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	ast.sha256
+608d1f22291be0f8f3e04f349406212c66316022863251c054f005271476a98a
+
+=== 65 packages/mode-watcher/src/lib/components/mode-watcher-lite.svelte	ast.sha256
+15a50fce72b59ac7ee1e504d876882d5a2a1437ffb3dde0e97d0e97628fe4229
+
+=== 65 packages/mode-watcher/src/lib/components/mode-watcher.svelte	ast.sha256
+6c76bf773013f1ab10a4407fea7aa4d00e0edbbdaf8cd7b83b88c0042cfe0331
+
+=== 65 packages/mode-watcher/src/routes/+layout.svelte	ast.sha256
+d1ef26414164d5804de5d0a67cbb890b54a25f5306707b616fd2541655fda19f
+
+=== 65 packages/mode-watcher/src/routes/+page.svelte	ast.sha256
+065ad0ff4abb96dc4a7c41239038743b6f690e3d481ef1279f17b1dd0bbbe6c6
+
+=== 65 packages/mode-watcher/src/tests/Mode.svelte	ast.sha256
+b9fc41014d8205abd957dee565637527da822198456f00e0f2dc74f7c7af644b
+
+=== 65 packages/mode-watcher/src/tests/StealthMode.svelte	ast.sha256
+676533a520dd2cea092ba8d2cdb5e02d02adc0738b0c98481b4a036eed5268cd
+

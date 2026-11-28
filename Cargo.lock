@@ -2352,6 +2352,7 @@ dependencies = [
  "rsvelte_kernel",
  "serde",
  "serde_json",
+ "sha2",
  "toml",
 ]
 
@@ -2475,6 +2476,8 @@ dependencies = [
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
+ "oxc_data_structures",
+ "oxc_estree",
  "oxc_parser",
  "oxc_semantic",
  "oxc_span",
@@ -2485,6 +2488,7 @@ dependencies = [
  "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_stylesheet_compile",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_test_harness",

@@ -1,0 +1,128 @@
+# rsvelte pack 1
+=== 65 example/src/routes/+page.svelte	ast.sha256
+f44070de307872bd5e51c92c2905703a6453c6889e08d1b5b36393500577d3b1
+
+=== 266 src/lib/Splitpanes.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1203,
+		"column": 4,
+		"character": 40365
+	},
+	"end": {
+		"line": 1203,
+		"column": 4,
+		"character": 40365
+	}
+}
+
+=== 65 src/lib/internal/GatheringRound.svelte	ast.sha256
+4ddf51f93d9b04aa4783314a48025a8a81232a144ba8cf36dc8f7365a2aa4509
+
+=== 65 src/routes/+layout.svelte	ast.sha256
+3f175ac9e5475164fe5429f511f29163deb9b3e61833491bc92d68c056ffb3c3
+
+=== 65 src/routes/+page.svelte	ast.sha256
+07c3bb4ab2b68026aa36d46efd93e347f5e42adf213bb00719e52b3e4fcdbf2a
+
+=== 65 src/routes/examples/add-remove-panes/+page.svelte	ast.sha256
+aa9536c942c97116b637390dbc0e10dc5d33601be0bfb3ec10de8916aa9dbb4f
+
+=== 65 src/routes/examples/change-orientation/+page.svelte	ast.sha256
+63abb51393e91074fab5ce6500ba64fd9641f3d3366811074104e6eae9af4e58
+
+=== 65 src/routes/examples/change-orientation/code.svelte	ast.sha256
+3e313a56c37a771f58ca671f11f4f75a6862f550336e5e1f1268e81ae565fa28
+
+=== 65 src/routes/examples/default-size/+page.svelte	ast.sha256
+3f3024a60194ccccbaf05854c7574bf497fda0d7cc8bf06da47c26b6e029db32
+
+=== 65 src/routes/examples/default-size/code.svelte	ast.sha256
+a148abbc9e2a5ce5a9df784a5e0a677ea8f1da7d28df98ef48478dfcbfc0ed62
+
+=== 65 src/routes/examples/disable-dbl-click/+page.svelte	ast.sha256
+21ac42ad3b29b09666f5ba0351c3211305fb1635fbac7512bc2d94c6dbfc3d91
+
+=== 65 src/routes/examples/disable-dbl-click/code.svelte	ast.sha256
+931822035bf8dda973ccde1f106f9fa07d7ea96efea9d39e7d4fc85270ad2d8d
+
+=== 65 src/routes/examples/listen-to-events/+page.svelte	ast.sha256
+4ffacbfef6f5e9f05bbe6cfa955e0648ac12ec6902d226fc98205addcd2f41d5
+
+=== 65 src/routes/examples/listen-to-events/code.svelte	ast.sha256
+395064634a5c3f7cfd5e1ba8bec229434da10f41ceb61421161d59f49c634ff9
+
+=== 65 src/routes/examples/lock-layout/+page.svelte	ast.sha256
+c93861969a8db65157c5359cbd06bb171ca8d5d0de0e2f880353ad7e2d443f42
+
+=== 65 src/routes/examples/lock-layout/code.svelte	ast.sha256
+73b8ce77df05cdc5e34e369a0e10bb94ff96f230467bf1eb689e3dc134ab8ef4
+
+=== 65 src/routes/examples/min-max/+page.svelte	ast.sha256
+eb6c7798692e3a3028cf35b5a7924da52927c619125f3a76ef89be818cee8c0c
+
+=== 65 src/routes/examples/min-max/code.svelte	ast.sha256
+4b9f626f8e896470aaf98348fbc5d37afed3563bdaee4576f33fb73aa453d81d
+
+=== 65 src/routes/examples/prog-resize/+page.svelte	ast.sha256
+748db5721d9baa00938457f28ba773e3dc458b2a7ff7f8d664bcd1a20c825fb0
+
+=== 65 src/routes/examples/prog-resize/code.svelte	ast.sha256
+48db5e814e00a3634911bce0e546e845b256eef8aa52780e07f8512548f65c2f
+
+=== 65 src/routes/examples/push-other-panes/+page.svelte	ast.sha256
+f14e260376c12e22fabc4d12393a0a109d7c284502ea136238490f6f38d1dbd9
+
+=== 65 src/routes/examples/push-other-panes/code.svelte	ast.sha256
+2e1a6a62391e49a8843a123a740d1d75aa8e6d08834dffd6218ccd208c8366b5
+
+=== 65 src/routes/examples/reordering-panes/+page.svelte	ast.sha256
+96a845302878443c8ecc414e87baaf8b559e5cc2ee52fd4e083248f082357df6
+
+=== 65 src/routes/examples/reordering-panes/code.svelte	ast.sha256
+32517a2a47df402d618f8698f84ae6356e11b0c85385c8d3351ce9d818796e0b
+
+=== 65 src/routes/examples/snap/middle/+page.svelte	ast.sha256
+dc748577b86a6480ac5aafef7de0226488531ae0ffe81bdeafa4cb839acd8e29
+
+=== 65 src/routes/examples/snap/middle/code.svelte	ast.sha256
+a0c56a294aff5a3b231da53733e4c59fa348f10003e89b3aaf9714d68c5b6540
+
+=== 65 src/routes/examples/snap/min-max/+page.svelte	ast.sha256
+f423eefa550af09262225e4505d93cdaed5fc53f92016707d5cbb17d97ec787f
+
+=== 65 src/routes/examples/snap/min-max/code.svelte	ast.sha256
+da592ddc827a38a351b42d538ebb720e2c31dd287d8d427b064398deb0a43fe4
+
+=== 65 src/routes/examples/snap/simple/+page.svelte	ast.sha256
+4a2cff845522faf3471b2ad9ae76063b2ec653fd9b56836592b3ad9fce67e329
+
+=== 65 src/routes/examples/snap/simple/code.svelte	ast.sha256
+c4166accbc0111b1c48246acb592a16f4373239403292e27e7569a98b1205491
+
+=== 65 src/routes/examples/styling/app-layout/+page.svelte	ast.sha256
+d0304a299887e92f2a87463013b60f59725c9d9765448c49169ff3b656ee1716
+
+=== 65 src/routes/examples/styling/app-layout/code.svelte	ast.sha256
+7987903af1ec8c0bdf7b5df2b71e23144fabae19d9e42791ea0fc7b59215c1f1
+
+=== 65 src/routes/examples/styling/splitters/+page.svelte	ast.sha256
+f2157b576a2398ec6b283843de5fbae4d1a89dc9b9e7a2a85e921ea791809dbd
+
+=== 65 src/routes/examples/styling/splitters/code.svelte	ast.sha256
+861aa3d5502cec2f55ae9f37e02278fb4a1aec03a515b8d65936d580d127d26d
+
+=== 65 src/routes/examples/toggle-panes/+page.svelte	ast.sha256
+28283e491eb641f0a49824f4d99aeebeb5d4a100df772696940bb885b66e5e73
+
+=== 65 src/routes/examples/toggle-panes/code.svelte	ast.sha256
+387b362a172d5b9660e5fabc1ae8798174c526150c5df3033f9df8b615f9f42d
+
+=== 65 src/routes/minified-size/+page.svelte	ast.sha256
+217c0d89b6d7217a77c997c87502a53b8e4495c1f0ff218c8cc2a7effe44876e
+
+=== 65 src/routes/test/+page.svelte	ast.sha256
+1d2ba19d35662057097516699921717172e656646373035467ebe5383a914c41
+

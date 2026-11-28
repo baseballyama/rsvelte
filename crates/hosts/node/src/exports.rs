@@ -34,6 +34,13 @@ pub fn compile_module(
     compiler::compile_module(&source, options).map_err(napi::Error::from_reason)
 }
 
+/// Parses a component into its modern AST.
+#[napi]
+#[must_use]
+pub fn parse(source: String) -> compiler::Parsed {
+    compiler::parse(&source)
+}
+
 /// Runs the `rsvelte` command with `arguments`, its other programs in the directory `programs`,
 /// and returns its exit status.
 #[napi]

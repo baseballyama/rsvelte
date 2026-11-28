@@ -50,6 +50,9 @@ name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
+dependencies = [
+ "serde_core",
+]
 
 [[package]]
 name = "bumpalo"
@@ -106,6 +109,7 @@ dependencies = [
  "castaway",
  "cfg-if",
  "itoa",
+ "serde",
  "static_assertions",
  "zmij",
 ]
@@ -480,7 +484,9 @@ dependencies = [
  "allocator-api2",
  "hashbrown",
  "oxc_data_structures",
+ "oxc_estree",
  "rustc-hash",
+ "serde",
 ]
 
 [[package]]
@@ -602,6 +608,11 @@ dependencies = [
 name = "oxc_estree"
 version = "0.160.0"
 source = "git+https://github.com/baseballyama/oxc?rev=01d259b836ea0c42ca43f4e96a1ce3675f568682#01d259b836ea0c42ca43f4e96a1ce3675f568682"
+dependencies = [
+ "itoa",
+ "oxc_data_structures",
+ "zmij_ecma",
+]
 
 [[package]]
 name = "oxc_index"
@@ -696,6 +707,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_ast_macros",
  "oxc_estree",
+ "serde",
 ]
 
 [[package]]
@@ -709,6 +721,7 @@ dependencies = [
  "oxc_allocator",
  "oxc_estree",
  "oxc_span",
+ "serde",
 ]
 
 [[package]]
@@ -726,6 +739,7 @@ dependencies = [
  "oxc_span",
  "oxc_str",
  "phf",
+ "serde",
  "unicode-id-start",
  "zmij_ecma",
 ]
@@ -996,6 +1010,9 @@ dependencies = [
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",
+ "oxc_data_structures",
+ "oxc_estree",
+ "oxc_parser",
  "oxc_semantic",
  "oxc_span",
  "oxc_str",
@@ -1005,6 +1022,7 @@ dependencies = [
  "rsvelte_markup_syntax",
  "rsvelte_plugin_interface",
  "rsvelte_stylesheet_compile",
+ "rsvelte_stylesheet_syntax",
  "rsvelte_svelte_semantic",
  "rsvelte_svelte_syntax",
  "rsvelte_typescript_compile",

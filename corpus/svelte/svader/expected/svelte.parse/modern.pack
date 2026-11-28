@@ -1,0 +1,64 @@
+# rsvelte pack 1
+=== 65 packages/logo/src/routes/+page.svelte	ast.sha256
+820fea13bca15a39394f0ea37eea70694f6fe503587871fb4125071fc3628f5b
+
+=== 65 packages/test-site/src/invalid.svelte	ast.sha256
+88b0428b736619940374b6a871ad304afe1b7fb09560fb822f2cf39b937a36a8
+
+=== 65 packages/test-site/src/routes/+page.svelte	ast.sha256
+82bcc3b38d34de42fea5f6c4df6c6b44cfe5dd9808cdde00d21fb2bc97a364d6
+
+=== 65 packages/test-site/src/routes/hello-world/+page.svelte	ast.sha256
+2aa633716d99421b2ee78af6812a533ce991833100d238dcb7a489421c45e3e9
+
+=== 65 packages/test-site/src/routes/hello-world/webgl/+page.svelte	ast.sha256
+fa30981fe4b149085b7273a2601af6157aaaf877ea3ee8c03903c10de1b3bf78
+
+=== 65 packages/test-site/src/routes/hello-world/webgpu/+page.svelte	ast.sha256
+0f6b73d7b3202cd4ef0591ff79c9f5781b101fe98e456acc874c74a400105829
+
+=== 65 packages/test-site/src/routes/landing-page-bubbles/+page.svelte	ast.sha256
+8f067874b1319a7cb1346205f1d1867b475c1ceb7d2d8dc41522a32c0ea1b351
+
+=== 65 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	ast.sha256
+d2015ddaa805d973c40fa3c32cabdebb065316d2df6fa136f6336ad1d00fc127
+
+=== 65 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	ast.sha256
+c0b0ce5a8b0cbda64456a66a2ac9767ff0b8cb6fa27b3c50448530ec7793919c
+
+=== 65 packages/test-site/src/routes/landing-page-halo/+page.svelte	ast.sha256
+e398a905781d83872a641cd3f3a6a420eac3bfccc6a8845679c54ca13614c238
+
+=== 65 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	ast.sha256
+b4232c19d0b92daaa96858a8823df3b320283b97aea2cee259aacf716a54b00c
+
+=== 65 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	ast.sha256
+db049975f01c6111339b2df1538608389629428e4cbf289782786ddc5bf8fba8
+
+=== 65 packages/test-site/src/routes/oversized-canvas/+page.svelte	ast.sha256
+64550c9b9007e41a26f3ddc6bc763814fc15dfbafbfcd7fab492bc99ca427fe2
+
+=== 65 packages/test-site/src/routes/oversized-canvas/webgl/+page.svelte	ast.sha256
+9e5f628bab14fd95745c7f4ef38f314237a13702a8d64a020a4b4c007ff46b6f
+
+=== 65 packages/test-site/src/routes/oversized-canvas/webgpu/+page.svelte	ast.sha256
+3d1a1f22b16bed79044fc98235b3949db494442fffcd5065f8b8c6386d07bc5b
+
+=== 65 packages/test-site/src/routes/remount/+page.svelte	ast.sha256
+2c35216398e7a732b6e77d63b8a7fe6206db36b846a3d0d1fe6bf1a3c8b2d71b
+
+=== 65 packages/test-site/src/routes/remount/webgl/+page.svelte	ast.sha256
+06ccd928c6abb43d4f36521e9b6cc420128c581b73604abf43d5051d05fb3f61
+
+=== 65 packages/test-site/src/routes/remount/webgpu/+page.svelte	ast.sha256
+185a1594cad20887df12f4fdbb7320bf3a5f05abd651dd33a8b446f939c5bd6f
+
+=== 65 packages/test-site/src/routes/slider/+page.svelte	ast.sha256
+c5e8933e710ecd5083d5fc978f6af4d731d7dd874dd805382e2b41ba68d56f75
+
+=== 65 packages/test-site/src/routes/slider/webgl/+page.svelte	ast.sha256
+6ce93e7cfdf902e832e917d1114553c944a2f786b39d596f5a34466cccbfb0f7
+
+=== 65 packages/test-site/src/routes/slider/webgpu/+page.svelte	ast.sha256
+0129cf923f21db58813bf5ad6513948a93805272d7f8c7ba57c27c4cf70993c9
+

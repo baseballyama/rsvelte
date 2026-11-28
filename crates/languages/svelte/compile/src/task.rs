@@ -55,7 +55,8 @@ pub fn register(registry: &mut Registry) {
         .task(crate::CompileModule {
             target: Target::Server,
         })
-        .task(crate::Warn);
+        .task(crate::Warn)
+        .task(Parse);
 }
 
 pub fn register_with_configuration(registry: &mut Registry, configuration: crate::Configuration) {
@@ -66,6 +67,30 @@ pub fn register_with_configuration(registry: &mut Registry, configuration: crate
         rsvelte_svelte_syntax::matches,
         move |_| std::sync::Arc::clone(&configuration),
     );
+}
+
+/// The modern AST, as `parse` writes it.
+#[derive(Debug)]
+pub(crate) struct Parse;
+
+impl Task for Parse {
+    fn identifier(&self) -> &'static str {
+        "svelte.parse/modern"
+    }
+
+    fn applies(&self, document: &Document) -> bool {
+        rsvelte_svelte_syntax::matches(document)
+    }
+
+    fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
+        match rsvelte_svelte_syntax::fully_parsed(context) {
+            Ok(component) => out.file(
+                "ast.json",
+                crate::parse::print(context.source_text(), component),
+            ),
+            Err(diagnostic) => out.diagnostics.push(diagnostic.clone()),
+        }
+    }
 }
 
 #[derive(Debug)]

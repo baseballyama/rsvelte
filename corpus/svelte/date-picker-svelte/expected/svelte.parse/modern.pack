@@ -1,0 +1,121 @@
+# rsvelte pack 1
+=== 264 src/lib/DateInput.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 262,
+		"column": 11,
+		"character": 7510
+	},
+	"end": {
+		"line": 262,
+		"column": 11,
+		"character": 7510
+	}
+}
+
+=== 266 src/lib/DatePicker.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 363,
+		"column": 10,
+		"character": 10923
+	},
+	"end": {
+		"line": 363,
+		"column": 10,
+		"character": 10923
+	}
+}
+
+=== 264 src/lib/TimePicker.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 207,
+		"column": 12,
+		"character": 5612
+	},
+	"end": {
+		"line": 207,
+		"column": 12,
+		"character": 5612
+	}
+}
+
+=== 264 src/routes/+layout.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 100,
+		"column": 12,
+		"character": 3091
+	},
+	"end": {
+		"line": 100,
+		"column": 12,
+		"character": 3091
+	}
+}
+
+=== 65 src/routes/+page.svelte	ast.sha256
+012d4eedec7cd0800a8593025a20208b9732e05e77cbb0d50317b8c13c180c3c
+
+=== 65 src/routes/404/+page.svelte	ast.sha256
+640d8713c86353e5e57aa19c814d347458f5e1cea1ffab9cf0ba819912e54b74
+
+=== 65 src/routes/DemoDateInput.svelte	ast.sha256
+1eccd554f559fb550feab30b1587a1887c92a9c77ba47091b8b08f3730992c3a
+
+=== 65 src/routes/DemoDatePicker.svelte	ast.sha256
+a67b1350eeb83e417cf0f99a949d85d9a22461a1e8ac855efbaad7b00ea5feb6
+
+=== 65 src/routes/bug/+page.svelte	ast.sha256
+9b763fbbab7437d6492cc8206fa3f549247fb74f5018a0d03874ec0fde0014d7
+
+=== 65 src/routes/bug/isdisableddate/+page.svelte	ast.sha256
+188b02ab6e91f24a5749614a42ce8633ee71199ca235fd3df6874c56e4317f26
+
+=== 65 src/routes/bug/timeprecision/+page.svelte	ast.sha256
+04616ca1391788c851a524096cc6a88cfd7b05c4252d673f7ce81f87f055ab6c
+
+=== 65 src/routes/demo/+page.svelte	ast.sha256
+86e3262bf7ad54bd5098eb44db0b15754278674bcccbdcd580850b517fe46de8
+
+=== 262 src/routes/prop.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 76,
+		"column": 10,
+		"character": 1901
+	},
+	"end": {
+		"line": 76,
+		"column": 10,
+		"character": 1901
+	}
+}
+
+=== 260 src/routes/split.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 16,
+		"column": 10,
+		"character": 298
+	},
+	"end": {
+		"line": 16,
+		"column": 10,
+		"character": 298
+	}
+}
+
