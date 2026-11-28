@@ -1,5 +1,5 @@
 {
-	"name": "@rsvelte-experimental/rsvelte",
+	"name": "@rsvelte/rsvelte",
 	"private": true,
 	"description": "rsvelte's JavaScript API and command: rsvelte/compiler, the official svelte/compiler API over rsvelte's compiler, and the rsvelte command",
 	"bin": {

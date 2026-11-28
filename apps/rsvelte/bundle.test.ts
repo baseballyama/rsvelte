@@ -23,7 +23,7 @@ import { pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
 import { build as vite } from 'vite';
 
-import * as rsvelte from '@rsvelte-experimental/rsvelte/compiler';
+import * as rsvelte from '@rsvelte/rsvelte/compiler';
 
 const SOURCE = '<p>{1 + 1}</p>';
 
@@ -33,7 +33,7 @@ const SOURCE = '<p>{1 + 1}</p>';
  */
 const app = mkdtempSync(join(tmpdir(), 'rsvelte-bundle-'));
 after(() => rmSync(app, { recursive: true, force: true }));
-const installed = join(app, 'node_modules/@rsvelte-experimental/rsvelte');
+const installed = join(app, 'node_modules/@rsvelte/rsvelte');
 const { files } = JSON.parse(readFileSync(join(import.meta.dirname, 'package.json'), 'utf8'));
 for (const file of [...files, 'package.json']) {
 	cpSync(join(import.meta.dirname, file), join(installed, file), { recursive: true });
@@ -44,7 +44,7 @@ writeFileSync(join(app, 'package.json'), '{ "type": "module" }');
 writeFileSync(join(app, 'index.html'), '<script type="module" src="./main.js"></script>');
 writeFileSync(
 	join(app, 'main.js'),
-	`import { compile } from '@rsvelte-experimental/rsvelte/compiler';
+	`import { compile } from '@rsvelte/rsvelte/compiler';
 globalThis.compiled = compile(${JSON.stringify(SOURCE)}, { filename: 'App.svelte' }).js.code;`,
 );
 
