@@ -11,7 +11,7 @@ Commands:
   lint [<oxlint arguments>...]   Lint files as oxlint does, Svelte files included
   format [<oxfmt arguments>...]  Format files as oxfmt does, Svelte files included
   typecheck                      Type check the project of a tsconfig.json
-  lsp                            Serve an editor the lint, its fixes and the format
+  lsp                            Serve an editor the lint, its fixes, the format and the type check
   version                        Print the versions of the tools rsvelte matches and is built on
   help [<command>]               Print this help, or the guide to one command
 
@@ -61,8 +61,9 @@ Usage: rsvelte lsp [--stdio]
 Serves an editor over the Language Server Protocol, on standard input and output. For the text
 in the editor, it reports what rsvelte lint reports and offers its fixes, as oxlint's language
 server does with the configuration oxlint reads, and it formats as rsvelte format formats the
-file when run in the workspace folder. It does not type check. --stdio, which language clients
-add, is accepted.
+file when run in the workspace folder. After each change, it reports the errors that rsvelte
+typecheck run in the workspace folder finds in every file of the project, with the editor's
+unsaved texts. --stdio, which language clients add, is accepted.
 ";
 
 pub(super) const HELP: &str = "\

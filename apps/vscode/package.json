@@ -3,7 +3,7 @@
 	"displayName": "rsvelte",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Lint, fix and format Svelte 5, TypeScript and JavaScript files with the rsvelte a project installs",
+	"description": "Lint, fix, format and type check Svelte 5, TypeScript and JavaScript files with the rsvelte a project installs",
 	"categories": [
 		"Formatters",
 		"Linters"
