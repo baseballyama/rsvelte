@@ -1,5 +1,31 @@
 # @rsvelte/cli
 
+## 0.8.0
+
+### Minor Changes
+
+- f38d283: The `svelte.compile.sourcemap/client` and `svelte.compile.sourcemap/server` tasks write a component's module with its source map, `js.map`.
+- 2603cc8: `rsvelte lsp` now also reports type errors: after each change, the errors `rsvelte typecheck` run in the workspace folder finds in every file of the project, with the editor's unsaved texts.
+- 0d0511e: `rsvelte lsp` now offers TypeScript's features in Svelte components, such as hover and completion, from the TypeScript 7.1 that `rsvelte typecheck` runs. `--no-typescript` turns them off. The Visual Studio Code extension leaves them to the Svelte extension where you install that one, unless `rsvelte.typescript` says otherwise.
+
+### Patch Changes
+
+- a612427: `rsvelte typecheck` resolves an import of a component that svelte2tsx rejects even where it checks no other component of the project, as svelte-check does. Before, the import reported TS2307.
+- 6d2736d: The compiler now rejects the attributes svelte rejects. An element's attribute name such as `3aa` or `+` fails with `attribute_invalid_name`. An unquoted value with text and an expression, such as `title=a{b}`, fails with `attribute_unquoted_sequence`. A script fails on a reserved attribute such as `server`, on `module` with a value, and on a `context` other than `"module"`.
+- 9f0f531: `rsvelte compile` of a TypeScript file writes the second dot after a number where TypeScript does. That includes a byte order mark, a next line character or a zero width space before the dot.
+- 9a35ba1: TypeScript emit now writes the second dot TypeScript writes after an integer that a property access follows, as in `1..toString()`.
+- 8dbb177: `rsvelte typecheck` types a `let:` value that a component forwards from a generic component by the generics' constraints, as svelte-check does. Before, the value was `any`.
+- bf61e27: `compileModule` now leaves an undeclared `$name` in a `.svelte.js` or `.svelte.ts` module alone, as svelte does, instead of reading it as a store subscription. `promise.then($DONE)` no longer becomes `promise.then($DONE())`.
+- eccdc13: `rsvelte typecheck` reports nothing for a component that declares its `$$Slots` interface inside a function, as svelte-check does. Before, it reported a `check_unmapped` error.
+- 8d329d3: `typecheck` reads a component that svelte2tsx rejects as its instance script, else its module script, as svelte-check does. An import of the component now reports a missing default export and the types of the script's exports, instead of TS2306. A script that neither imports nor exports declares no names for the rest of the project, unlike in svelte-check.
+- b68da07: `rsvelte typecheck` reports a `<slot>` that misses a required slot prop at the slot's tag. Before, it reported a `check_unmapped` error at the start of the file.
+- 17ebcea: `rsvelte compile` of a TypeScript file keeps the parentheses TypeScript keeps. Those are the source's, except around a type assertion, plus the ones TypeScript adds at the start of a statement, an arrow body or a default export.
+- 9e3f302: `rsvelte typecheck` types a component's untyped `$props()` as svelte-check does, as `$$ComponentProps`. A missing or unknown prop now gets the error and message that svelte-check reports, in both JavaScript and TypeScript components.
+- 6d33d0a: The TypeScript compile writes the `"use strict"` prologue TypeScript writes at the top of a file that is not a module.
+- a1d6180: The Vue Vapor translation now reports the error svelte reports for a component svelte rejects, such as `<svelte:element />`, instead of panicking.
+- 88df103: `vuelte.compile` imports `shallowRef` once for a component with an `{#await}` block and a prop that keeps its own cell, where its client output imported it twice and did not parse.
+- 0befc5f: `vuelte.compile` erases the TypeScript declarations at the top level of a script, which it used to print into its JavaScript: `type`, `interface`, `declare` and namespaces of types. It refuses the TypeScript that Svelte refuses.
+
 ## 0.7.6
 
 ### Patch Changes
