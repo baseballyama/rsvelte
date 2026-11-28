@@ -136,6 +136,20 @@ fn a_module_exports_no_derived_and_no_state_it_reassigns() {
     let mutated =
         compiled("export const a = $state({ b: 1 });\nexport function f() { a.b = 2; }\n");
     assert!(mutated.starts_with("import"), "{mutated}");
+    let default_derived =
+        compiled("let a = $state(0);\nconst b = $derived(a * 2);\nexport default b;\n");
+    assert!(
+        default_derived.contains("derived_invalid_export"),
+        "{default_derived}"
+    );
+    let default_state =
+        compiled("let a = $state(0);\nexport function f() { a = 1; }\nexport default a;\n");
+    assert!(
+        default_state.contains("state_invalid_export"),
+        "{default_state}"
+    );
+    let default_mutated = compiled("const a = $state({ b: 1 });\nexport default a;\n");
+    assert!(default_mutated.starts_with("import"), "{default_mutated}");
 }
 
 #[test]
