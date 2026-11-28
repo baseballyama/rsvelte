@@ -10,7 +10,7 @@ const SOURCE = path.join(
 );
 const load = createRequire(import.meta.url);
 
-/** A document of the server, which reads its HTML when it is created. */
+/** A document of the server, which reads its HTML when it is opened. */
 export interface ServerDocument {
 	readonly brand: unique symbol;
 }
@@ -21,12 +21,29 @@ interface FoldingRange {
 	kind?: string;
 }
 
+interface Position {
+	line: number;
+	character: number;
+}
+
+interface HtmlSymbol {
+	name: string;
+	containerName: string;
+	location: { range: { start: Position; end: Position } };
+}
+
 interface HtmlPlugin {
 	getFoldingRanges(document: ServerDocument): FoldingRange[];
+	getDocumentSymbols(document: ServerDocument): HtmlSymbol[];
+}
+
+interface Documents {
+	openClientDocument(item: { uri: string; text: string }): ServerDocument;
+	closeDocument(uri: string): void;
 }
 
 interface Modules {
-	Document: new (url: string, text: string, skipConfigLoading: boolean) => ServerDocument;
+	documents: Documents;
 	html: HtmlPlugin;
 }
 
@@ -36,15 +53,17 @@ let modules: Modules | undefined;
 function server(): Modules {
 	if (modules) return modules;
 	const { Document, DocumentManager } = load(path.join(SOURCE, 'lib/documents/index.js')) as {
-		Document: Modules['Document'];
-		DocumentManager: new (create: unknown) => unknown;
+		Document: new (url: string, text: string, skipConfigLoading: boolean) => ServerDocument;
+		DocumentManager: new (
+			create: (item: { uri: string; text: string }) => ServerDocument,
+		) => Documents;
 	};
 	const { LSConfigManager } = load(path.join(SOURCE, 'ls-config.js')) as {
 		LSConfigManager: new () => { updateClientCapabilities(capabilities: unknown): void };
 	};
 	const { HTMLPlugin } = load(path.join(SOURCE, 'plugins/html/HTMLPlugin.js')) as {
 		HTMLPlugin: new (
-			documents: unknown,
+			documents: Documents,
 			config: unknown,
 			files: undefined,
 			folders: unknown[],
@@ -52,17 +71,24 @@ function server(): Modules {
 	};
 	const config = new LSConfigManager();
 	config.updateClientCapabilities({ textDocument: { foldingRange: { lineFoldingOnly: true } } });
-	const html = new HTMLPlugin(new DocumentManager(() => undefined), config, undefined, []);
-	modules = { Document, html };
+	// Without a Svelte configuration, which the server would look for beside the file.
+	const documents = new DocumentManager((item) => new Document(item.uri, item.text, true));
+	modules = { documents, html: new HTMLPlugin(documents, config, undefined, []) };
 	return modules;
 }
 
-/** `text` as the server's document at `filename`, without a Svelte configuration. */
-export function document(filename: string, text: string): ServerDocument {
-	return new (server().Document)(`file:///${filename}`, text, true);
-}
-
-/** Where the server's HTML plugin folds `opened`. */
-export function foldingRanges(opened: ServerDocument): FoldingRange[] {
-	return server().html.getFoldingRanges(opened);
+/** What `read` gets of the server's plugins on `text` opened at `filename`. */
+export function withDocument<T>(
+	filename: string,
+	text: string,
+	read: (html: HtmlPlugin, opened: ServerDocument) => T,
+): T {
+	const { documents, html } = server();
+	const uri = `file:///${filename}`;
+	const opened = documents.openClientDocument({ uri, text });
+	try {
+		return read(html, opened);
+	} finally {
+		documents.closeDocument(uri);
+	}
 }

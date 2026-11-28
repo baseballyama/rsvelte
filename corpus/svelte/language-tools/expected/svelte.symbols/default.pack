@@ -1,0 +1,985 @@
+# rsvelte pack 1
+=== 112 packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 108 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action-rel.svelte	symbols.json
+[{"name":"a","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":70}}}]
+=== 108 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action.svelte	symbols.json
+[{"name":"a","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":55}}}]
+=== 438 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action-ts.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"img","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":5}}},{"name":"a","containerName":"","range":{"start":{"line":10,"character":4},"end":{"line":10,"character":11}}},{"name":"a","containerName":"","range":{"start":{"line":12,"character":4},"end":{"line":14,"character":14}}}]
+=== 436 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action.svelte	symbols.json
+[{"name":"img","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":5}}},{"name":"a","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":11}}},{"name":"a","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":7,"character":14}}},{"name":"script","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":14,"character":9}}}]
+=== 437 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-correct-script-placement.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":7}}},{"name":"script","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":8,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":7}}}]
+=== 336 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Events","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":61}}},{"name":"Events","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":58}}}]
+=== 227 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":14,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":31}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$generic-filter-out-unused/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 680 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props-usage/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"Props","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":63}}},{"name":"PropsInvalid3","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":34}}},{"name":"Props","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":44}}},{"name":"Props","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":64}}},{"name":"Props","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":9}}}]
+=== 227 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Props.abc","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":27}}}]
+=== 338 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Slots","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":13,"character":8}}},{"name":"div","containerName":"Slots","range":{"start":{"line":8,"character":4},"end":{"line":12,"character":10}}}]
+=== 673 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}},{"name":"slot","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":49}}},{"name":"slot","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":42}}},{"name":"slot","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":60}}},{"name":"slot","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":53}}},{"name":"slot","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":35}}}]
+=== 226 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$bindable-reassign.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":43}}}]
+=== 1024 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-bind/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":36}}},{"name":"Component","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":34}}},{"name":"div","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":43}}},{"name":"Component","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":41}}},{"name":"div","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":38}}},{"name":"Component","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":36}}},{"name":"div","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":45}}},{"name":"Component","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":43}}}]
+=== 224 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-control-flow/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":31,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-undefined/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":13,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-uninitialized/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":9,"character":9}}}]
+=== 446 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":19,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":22,"character":0},"end":{"line":22,"character":45}}},{"name":"div","containerName":"","range":{"start":{"line":25,"character":0},"end":{"line":25,"character":41}}},{"name":"div","containerName":"","range":{"start":{"line":26,"character":0},"end":{"line":26,"character":50}}}]
+=== 340 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"input","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":36}}},{"name":"Component","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":34}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/Runes.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/RunesGeneric.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 1607 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":14,"character":9}}},{"name":"Legacy","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":29}}},{"name":"Legacy","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":21}}},{"name":"Legacy","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":18}}},{"name":"Legacy","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":26}}},{"name":"Runes","containerName":"","range":{"start":{"line":21,"character":0},"end":{"line":21,"character":23}}},{"name":"Runes","containerName":"","range":{"start":{"line":22,"character":0},"end":{"line":22,"character":20}}},{"name":"Runes","containerName":"","range":{"start":{"line":23,"character":0},"end":{"line":23,"character":20}}},{"name":"Runes","containerName":"","range":{"start":{"line":26,"character":0},"end":{"line":26,"character":23}}},{"name":"Runes","containerName":"","range":{"start":{"line":27,"character":0},"end":{"line":27,"character":24}}},{"name":"Runes","containerName":"","range":{"start":{"line":28,"character":0},"end":{"line":28,"character":21}}},{"name":"RunesGeneric","containerName":"","range":{"start":{"line":30,"character":0},"end":{"line":30,"character":30}}},{"name":"RunesGeneric","containerName":"","range":{"start":{"line":31,"character":0},"end":{"line":31,"character":31}}},{"name":"RunesGeneric","containerName":"","range":{"start":{"line":32,"character":0},"end":{"line":32,"character":28}}}]
+=== 227 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/boolean-literal-props/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":18}}}]
+=== 1612 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-js/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":12}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":33}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":78}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":62}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":12}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":33}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":62}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":27}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":59}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":65}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":27}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":59}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":65}}}]
+=== 1612 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-ts/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":12}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":33}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":78}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":62}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":12}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":33}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":62}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":27}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":59}}},{"name":"ImportTs","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":65}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":27}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":59}}},{"name":"ImportJs","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":65}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/each-anytype/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 109 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs/no-script-tag/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":6}}}]
+=== 107 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	symbols.json
+[{"name":"p","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":9}}}]
+=== 1772 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"Works","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":9}}},{"name":"Imported","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":12}}},{"name":"Works2","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":10,"character":9}}},{"name":"Works3","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":10}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":33}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":15,"character":19}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":34}}},{"name":"DoesntWork","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":14}}},{"name":"Imported","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":35}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":21,"character":0},"end":{"line":21,"character":38}}},{"name":"DoesntWork","containerName":"","range":{"start":{"line":24,"character":0},"end":{"line":26,"character":13}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":27,"character":0},"end":{"line":29,"character":19}}},{"name":"Works4","containerName":"","range":{"start":{"line":32,"character":0},"end":{"line":32,"character":20}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":33,"character":0},"end":{"line":33,"character":44}}}]
+=== 346 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-slot-prop-in-snippet.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"Button","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":9,"character":9}}},{"name":"ButtonBadge","containerName":"Button","range":{"start":{"line":7,"character":8},"end":{"line":7,"character":48}}}]
+=== 448 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag-if/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":13,"character":4},"end":{"line":13,"character":62}}},{"name":"button","containerName":"","range":{"start":{"line":15,"character":4},"end":{"line":15,"character":79}}},{"name":"div","containerName":"","range":{"start":{"line":25,"character":4},"end":{"line":25,"character":56}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 1734 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/custom-types/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":28}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":48}}},{"name":"own-element","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":31}}},{"name":"own-element-from-old","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":40}}},{"name":"div","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":21}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":41}}},{"name":"own-element","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":33}}},{"name":"own-element","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":34}}},{"name":"div","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":23}}},{"name":"div","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":30}}},{"name":"div","containerName":"","range":{"start":{"line":21,"character":0},"end":{"line":21,"character":43}}},{"name":"div","containerName":"","range":{"start":{"line":22,"character":0},"end":{"line":22,"character":50}}},{"name":"own-element-from-old","containerName":"","range":{"start":{"line":24,"character":0},"end":{"line":24,"character":42}}},{"name":"own-element-from-old","containerName":"","range":{"start":{"line":25,"character":0},"end":{"line":25,"character":43}}}]
+=== 332 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/declaration-tag.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":14,"character":4},"end":{"line":14,"character":46}}},{"name":"div","containerName":"","range":{"start":{"line":15,"character":4},"end":{"line":18,"character":10}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/deprecated-unused-hints/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 779 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/each/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":13,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":17,"character":2},"end":{"line":17,"character":26}}},{"name":"div","containerName":"","range":{"start":{"line":20,"character":2},"end":{"line":20,"character":26}}},{"name":"div","containerName":"","range":{"start":{"line":25,"character":2},"end":{"line":25,"character":70}}},{"name":"div","containerName":"","range":{"start":{"line":30,"character":2},"end":{"line":30,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":34,"character":2},"end":{"line":34,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":39,"character":2},"end":{"line":39,"character":26}}}]
+=== 556 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-attributes/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":31}}},{"name":"div.{bar}","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":19}}},{"name":"div","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":23}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":13}}}]
+=== 788 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":47}}},{"name":"svelte:window","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":57}}},{"name":"svelte:body","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":55}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":29}}}]
+=== 480 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/exports-map-svelte/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"DefaultSvelteWithTS","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":23}}},{"name":"SubWithDTS","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":14}}},{"name":"SubWithoutDTSAndNotTS","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":25}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/ValueComponent.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 354 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"ValueComponent","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":47}}},{"name":"ValueComponent","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":43}}}]
+=== 458 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Generics","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":7,"character":11}}},{"name":"Generics","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":12,"character":11}}},{"name":"Generics","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":16,"character":11}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 222 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/diagnostics-if-control-flow-imported.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"slot","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":22}}}]
+=== 225 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}},{"name":"Comp","containerName":"","range":{"start":{"line":28,"character":8},"end":{"line":35,"character":15}}}]
+=== 225 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}},{"name":"Comp","containerName":"","range":{"start":{"line":33,"character":8},"end":{"line":40,"character":15}}}]
+=== 223 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ignore-generated-code/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Comp","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":20,"character":2}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/SnippetParent.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 232 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"SnippetParent","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":10,"character":16}}}]
+=== 329 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}},{"name":"B","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":5}}},{"name":"D","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":5}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/invalid-import/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 225 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/js-untyped/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Untyped","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":71}}}]
+=== 113 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/modulescript-boolean-not-assignable-to-string/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":73}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/no-typechecks-for-js/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/other.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/paths/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 1153 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/props-untyped/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":56}}},{"name":"Component","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":46}}},{"name":"Component","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":46}}},{"name":"Component","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":44}}},{"name":"Component","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":50}}},{"name":"Component","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":70}}},{"name":"Component","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":76}}},{"name":"Component","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":80}}},{"name":"Component","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":80}}}]
+=== 227 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"template","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":10,"character":11}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/script-boolean-not-assignable-to-string/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":56}}}]
+=== 448 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/slot-typechecks/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Slots","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":19,"character":8}}},{"name":"p","containerName":"Slots","range":{"start":{"line":7,"character":2},"end":{"line":11,"character":6}}},{"name":"p","containerName":"Slots","range":{"start":{"line":13,"character":2},"end":{"line":18,"character":6}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 221 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-scope.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":10,"character":6}}}]
+=== 348 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"StrictEvents","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":50}}},{"name":"StrictEvents","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":32}}}]
+=== 224 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":31}}}]
+=== 1214 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":19}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":24}}},{"name":"div","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":37}}},{"name":"div","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":32}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":35}}},{"name":"div","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":19}}},{"name":"div","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":27}}}]
+=== 845 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":13,"character":9}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":29}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":49}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":73}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":92}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":22,"character":0},"end":{"line":22,"character":55}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":23,"character":0},"end":{"line":23,"character":47}}}]
+=== 843 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	symbols.json
+[{"name":"page","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":7}}},{"name":"label.info","containerName":"page","range":{"start":{"line":1,"character":4},"end":{"line":6,"character":12}}},{"name":"formattedString","containerName":"label.info","range":{"start":{"line":2,"character":8},"end":{"line":5,"character":26}}},{"name":"span.fas","containerName":"formattedString","range":{"start":{"line":3,"character":12},"end":{"line":3,"character":48}}},{"name":"span","containerName":"formattedString","range":{"start":{"line":4,"character":12},"end":{"line":4,"character":38}}},{"name":"div","containerName":"page","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":18}}},{"name":"script","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":12,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 221 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings-arrow/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Page","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":8}}}]
+=== 222 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"Page","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":13}}}]
+=== 684 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/tags-without-attrs/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":11}}},{"name":"svg","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":11}}},{"name":"svelte:window","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":31}}},{"name":"svelte:body","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":27}}},{"name":"svelte:head","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":27}}}]
+=== 223 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":40}}}]
+=== 220 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":7,"character":7}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 355 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/undeclared-component/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":27}}},{"name":"Component","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":13}}},{"name":"SomeLongComponentName","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":25}}}]
+=== 217 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-catch/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":28}}}]
+=== 435 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-peding-catch/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":36}}},{"name":"h1","containerName":"","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":10,"character":4},"end":{"line":10,"character":36}}}]
+=== 109 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-only/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":20}}}]
+=== 653 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then-catch/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":37}}},{"name":"h1","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":36}}},{"name":"h1","containerName":"","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":12,"character":4},"end":{"line":12,"character":37}}},{"name":"h1","containerName":"","range":{"start":{"line":15,"character":4},"end":{"line":15,"character":36}}}]
+=== 217 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":36}}}]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch-shorthand/input.svelte	symbols.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch/input.svelte	symbols.json
+[]
+=== 217 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":28}}}]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-block/input.svelte	symbols.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-else/input.svelte	symbols.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-keyed/input.svelte	symbols.json
+[]
+=== 653 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/if-block/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":26}}},{"name":"h2","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":26}}},{"name":"h3","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":24}}},{"name":"h2","containerName":"","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":24}}},{"name":"h2","containerName":"","range":{"start":{"line":13,"character":4},"end":{"line":13,"character":15}}},{"name":"h3","containerName":"","range":{"start":{"line":15,"character":4},"end":{"line":15,"character":18}}}]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/key-block/input.svelte	symbols.json
+[]
+=== 112 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 335 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$$slots/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":17}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":28}}},{"name":"slot","containerName":"div","range":{"start":{"line":3,"character":9},"end":{"line":3,"character":22}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$store/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 336 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/action/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":28}}},{"name":"button","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":39}}}]
+=== 221 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/animation/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":28}}}]
+=== 342 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":32}}},{"name":"Component","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":46}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-argument-name-match/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-type-name-match/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/each/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 336 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/element-handler/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":26}}},{"name":"button","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":40}}}]
+=== 227 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":37}}}]
+=== 112 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/property-declaration/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 111 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/snippet.v5/input.svelte	symbols.json
+[{"name":"Test","containerName":"","range":{"start":{"line":2,"character":4},"end":{"line":2,"character":12}}}]
+=== 548 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/transition/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":33}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":26}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":53}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/another-ref-format-date.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/call-hierarchy-import.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}}]
+=== 240 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/outgoing-component.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}},{"name":"AnotherRefFormatDate","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":24}}}]
+=== 242 packages/language-server/test/plugins/typescript/testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte	symbols.json
+[{"name":"FixAllImported","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":18}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":19}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 222 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Empty","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":9}}}]
+=== 353 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"FixAllImported","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":18}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":19}}}]
+=== 233 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":19}}}]
+=== 354 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component3.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":19}}},{"name":"FixAllImported3","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":36}}}]
+=== 353 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"FixAllImported","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":18}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":19}}}]
+=== 353 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component5.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"FixAllImported","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":18}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":19}}}]
+=== 353 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component6.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"FixAllImported","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":18}}},{"name":"FixAllImported2","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":19}}}]
+=== 339 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}},{"name":"Empty","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":41}}}]
+=== 224 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":33}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-import-all-remove.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-leading-comment.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":5,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged1.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 332 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-with-module.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":8,"character":9}}},{"name":"A","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":10}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":63}}}]
+=== 228 packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"References","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":25}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/codelens/references.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/completions/ScndImport.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":17}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/UpperCase/dirCasing.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 467 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"ComponentDef","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":32}}},{"name":"ComponentDef","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":33}}},{"name":"ComponentDef2","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":34}}}]
+=== 330 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"CEI","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":21}}},{"name":"CED","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":12}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-event-dispatcher.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-interface.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 355 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"ComponentPropsRune","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":22}}},{"name":"ComponentDef5","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":17}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-rune.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	symbols.json
+[{"name":"button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":24}}}]
+=== 224 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Button","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":18}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-new-line.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 550 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":6,"character":7}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":11}}},{"name":"Comp","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":9,"character":8}}},{"name":"Comp","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":13}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":8,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions8.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions9.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 794 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"Components.ComponentDef3","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":63}}},{"name":"Components2.ComponentDef3","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":65}}},{"name":"Components2.ComponentDef6","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":65}}},{"name":"Components.Namespace2.ComponentDef4","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":85}}},{"name":"Components.Namespace2.ComponentDef7","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":92}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":15,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/ts-directive-comment.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/declaration-map/import-from-base64-sourcemap.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/declaration-map/importing.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 230 packages/language-server/test/plugins/typescript/testfiles/definition/definition-rune.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"ImportedRune","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":29}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/definition/imported-rune.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 233 packages/language-server/test/plugins/typescript/testfiles/definitions.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}},{"name":"ImportedFile","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":29}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics-imported-js-update.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":56}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/document-highlight/document-highlight.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/documentation.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-no-final-newline.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Test1","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":15}}}]
+=== 590 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-snippets.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":16,"character":12}}},{"name":"Child","containerName":"Component","range":{"start":{"line":14,"character":8},"end":{"line":14,"character":25}}},{"name":"Component","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":22,"character":12}}},{"name":"Child","containerName":"Component","range":{"start":{"line":20,"character":8},"end":{"line":20,"character":24}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 587 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":16,"character":9}}},{"name":"Component1","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":14}}},{"name":"Component1","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":23,"character":13}}},{"name":"p","containerName":"Component1","range":{"start":{"line":21,"character":2},"end":{"line":21,"character":13}}},{"name":"p","containerName":"Component1","range":{"start":{"line":22,"character":2},"end":{"line":22,"character":13}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 241 packages/language-server/test/plugins/typescript/testfiles/find-file-references-parent.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"FindFileReferencesChild","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":51}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/find-references-$store-other.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 223 packages/language-server/test/plugins/typescript/testfiles/find-references-$store.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":8,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/find-references-ignore-generated.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/hover/hover-$store.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/hover/hover-events-interface.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":12,"character":9}}}]
+=== 363 packages/language-server/test/plugins/typescript/testfiles/hover/hoverinfo.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}},{"name":"HoverEventsInterface","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":42}}},{"name":"custom-element","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":43}}}]
+=== 707 packages/language-server/test/plugins/typescript/testfiles/performance.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":14,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":19,"character":6}}},{"name":"p","containerName":"div","range":{"start":{"line":17,"character":4},"end":{"line":17,"character":22}}},{"name":"slot","containerName":"div","range":{"start":{"line":18,"character":4},"end":{"line":18,"character":12}}},{"name":"NonExistentComponent","containerName":"","range":{"start":{"line":21,"character":0},"end":{"line":29,"character":23}}},{"name":"p","containerName":"NonExistentComponent","range":{"start":{"line":28,"character":4},"end":{"line":28,"character":24}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/preferences/imports.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 225 packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"Imports","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":19}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/preferences/with-context-module.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 346 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes-importer.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"RenameRunes","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":30}}},{"name":"RenameRunes","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":40}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 219 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-events-importer.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"A","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":51}}}]
+=== 219 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-let.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"A","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":31}}}]
+=== 450 packages/language-server/test/plugins/typescript/testfiles/rename/rename2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"Rename","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":34}}},{"name":"Rename3","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":42}}},{"name":"div.foo","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":19}}}]
+=== 451 packages/language-server/test/plugins/typescript/testfiles/rename/rename4.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"main","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":9,"character":7}}},{"name":"Child","containerName":"main","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":38}}},{"name":"Child","containerName":"main","range":{"start":{"line":8,"character":4},"end":{"line":8,"character":13}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/rename/rename5.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 221 packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":26}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range-import.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 222 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"style","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":8}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/semantic-tokens/jsToken.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 113 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":16,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/typedefinition/typedefinition.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/update-imports/+page.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/language-server/test/plugins/typescript/testfiles/update-imports/updateimports.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 227 packages/language-server/test/plugins/typescript/testfiles/workspace-symbols/workspace-symbols.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":23}}}]
+=== 334 packages/svelte-check/test-error/Index.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":12,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":14}}},{"name":"Jsdoc","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":9}}}]
+=== 112 packages/svelte-check/test-success/Index.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte-vscode/test/grammar/samples/action/input.svelte	symbols.json
+[{"name":"input","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":18}}}]
+=== 217 packages/svelte-vscode/test/grammar/samples/animation/input.svelte	symbols.json
+[{"name":"li","containerName":"","range":{"start":{"line":1,"character":1},"end":{"line":1,"character":29}}},{"name":"li","containerName":"","range":{"start":{"line":5,"character":1},"end":{"line":5,"character":46}}}]
+=== 2 packages/svelte-vscode/test/grammar/samples/await-block/input.svelte	symbols.json
+[]
+=== 334 packages/svelte-vscode/test/grammar/samples/bind/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"input","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":18}}},{"name":"Input","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":20}}}]
+=== 219 packages/svelte-vscode/test/grammar/samples/class-directive/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":24}}},{"name":"div","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":34}}}]
+=== 2 packages/svelte-vscode/test/grammar/samples/component-docs/input.svelte	symbols.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/const/input.svelte	symbols.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/debug/input.svelte	symbols.json
+[]
+=== 219 packages/svelte-vscode/test/grammar/samples/each-block/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":21}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":15}}}]
+=== 217 packages/svelte-vscode/test/grammar/samples/element-namespace/input.svelte	symbols.json
+[{"name":"svg","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":29}}},{"name":"a","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":24}}}]
+=== 1223 packages/svelte-vscode/test/grammar/samples/elements/input.svelte	symbols.json
+[{"name":"input","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":9}}},{"name":"Component","containerName":"","range":{"start":{"line":0,"character":9},"end":{"line":0,"character":32}}},{"name":"input","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":9},"end":{"line":1,"character":20}}},{"name":"slot","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":8}}},{"name":"Component","containerName":"","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":31}}},{"name":"Component","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":23}}},{"name":"Component","containerName":"","range":{"start":{"line":3,"character":23},"end":{"line":3,"character":46}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":11}}},{"name":"p","containerName":"","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":18}}},{"name":"A","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":7}}}]
+=== 225 packages/svelte-vscode/test/grammar/samples/handler/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":46}}},{"name":"Component","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":56}}}]
+=== 110 packages/svelte-vscode/test/grammar/samples/if-block/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":20}}}]
+=== 2 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	symbols.json
+[]
+=== 729 packages/svelte-vscode/test/grammar/samples/namespaced-component/input.svelte	symbols.json
+[{"name":"Hi.Input","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":21}}},{"name":"Hello.World.Input","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":39}}},{"name":"Hello._World123.Input","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":47}}},{"name":"hi.input","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":21}}},{"name":"hello.world.input","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":39}}},{"name":"hello._world123.input","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":47}}}]
+=== 1668 packages/svelte-vscode/test/grammar/samples/props/input.svelte	symbols.json
+[{"name":"input","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":17}}},{"name":"input","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":17}}},{"name":"input","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":15}}},{"name":"input","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":19}}},{"name":"input","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":18}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":22}}},{"name":"div","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":22}}},{"name":"Input","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":19}}},{"name":"Input","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":19}}},{"name":"Input","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":17}}},{"name":"div","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":18,"character":33}}},{"name":"Input","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":32}}}]
+=== 112 packages/svelte-vscode/test/grammar/samples/script-coffee/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte-vscode/test/grammar/samples/script-context-lang/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte-vscode/test/grammar/samples/script-type-no-semicolon/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 225 packages/svelte-vscode/test/grammar/samples/script-type-single-line/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":55}}},{"name":"script","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":27}}}]
+=== 328 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":37}}},{"name":"div","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":26}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":37}}}]
+=== 111 packages/svelte-vscode/test/grammar/samples/style-less/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":8}}}]
+=== 111 packages/svelte-vscode/test/grammar/samples/style-postcss/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":8}}}]
+=== 116 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":44}}}]
+=== 111 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":8}}}]
+=== 112 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":37}}}]
+=== 111 packages/svelte-vscode/test/grammar/samples/style/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":8}}}]
+=== 115 packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	symbols.json
+[{"name":"template","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":11}}}]
+=== 328 packages/svelte-vscode/test/grammar/samples/transition/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":19}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":20}}}]
+=== 330 packages/svelte2tsx/repl/index.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":20}}}]
+=== 112 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 222 packages/svelte2tsx/test/emitDts/samples/javascript/src/TestNoScript.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":6}}},{"name":"slot","containerName":"div","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":12}}}]
+=== 219 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":17}}}]
+=== 112 packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/svelte2tsx/test/emitDts/samples/typescript-runes.v5/src/TestRunes2.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 113 packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/action-bare/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":24}}}]
+=== 561 packages/svelte2tsx/test/htmlx2jsx/samples/action-nested/input.svelte	symbols.json
+[{"name":"svg","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":5,"character":6}}},{"name":"input","containerName":"div","range":{"start":{"line":2,"character":2},"end":{"line":2,"character":22}}},{"name":"p","containerName":"div","range":{"start":{"line":3,"character":2},"end":{"line":3,"character":21}}},{"name":"unknownTag","containerName":"div","range":{"start":{"line":4,"character":2},"end":{"line":4,"character":45}}}]
+=== 325 packages/svelte2tsx/test/htmlx2jsx/samples/action-params/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":32}}},{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":34}}},{"name":"h1","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":34}}}]
+=== 118 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	symbols.json
+[{"name":"svelte:body","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":25}}}]
+=== 439 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":23}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":34}}},{"name":"Comp","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":25}}},{"name":"Comp","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":36}}}]
+=== 340 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-bare/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":25}}},{"name":"input","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":16}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":19}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-data/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":47}}}]
+=== 328 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-element/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":27}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":29}}},{"name":"div","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":45}}}]
+=== 237 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":47}}},{"name":"someelement","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":40}}}]
+=== 658 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	symbols.json
+[{"name":"Comp","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"Comp","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":3,"character":9}}},{"name":"Comp","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":18}}},{"name":"div","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":9,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":11,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":14,"character":18}}}]
+=== 120 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-nullish-coalescing/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":45}}}]
+=== 229 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-number/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":30}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":73}}}]
+=== 120 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-optional-chaining/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":41}}}]
+=== 239 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-quoted/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":36}}},{"name":"SomeComponent","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":36}}}]
+=== 120 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-shorthand/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":29}}}]
+=== 120 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-text/input.svelte	symbols.json
+[{"name":"SomeComponent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":42}}}]
+=== 578 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-value-escape/input.svelte	symbols.json
+[{"name":"div.a\\00a0","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":26}}},{"name":"div.a\\xz","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":24}}},{"name":"div.a\\uz","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":24}}},{"name":"div.a\\","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":22}}},{"name":"div.\\x0000","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":26}}}]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic-catch/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":29}}},{"name":"h2","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":28}}}]
+=== 325 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":29}}},{"name":"h1","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":23}}},{"name":"h1","containerName":"","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":29}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-array/input.svelte	symbols.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-default/input.svelte	symbols.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-object/input.svelte	symbols.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-rest/input.svelte	symbols.json
+[]
+=== 328 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-no-then/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":2},"end":{"line":5,"character":23}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":2},"end":{"line":7,"character":25}}}]
+=== 325 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-parentheses/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":29}}},{"name":"h1","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":23}}},{"name":"h1","containerName":"","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":29}}}]
+=== 325 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending-catch/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":37}}},{"name":"h1","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":36}}}]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"h1","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":37}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch-no-var/input.svelte	symbols.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch/input.svelte	symbols.json
+[]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-then-no-var/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":29}}}]
+=== 663 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	symbols.json
+[{"name":"input","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":31}}},{"name":"input","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":50}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":36}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":36}}},{"name":"Input","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":31}}},{"name":"Input","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":50}}}]
+=== 116 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":59}}}]
+=== 441 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-get-set.v5/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":33}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":48}}},{"name":"Input","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":37}}},{"name":"Input","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":52}}}]
+=== 118 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-body/input.svelte	symbols.json
+[{"name":"svelte:body","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":35}}}]
+=== 123 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-component/input.svelte	symbols.json
+[{"name":"svelte:component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":49}}}]
+=== 118 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-self/input.svelte	symbols.json
+[{"name":"svelte:self","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":39}}}]
+=== 112 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	symbols.json
+[{"name":"input","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":55}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	symbols.json
+[]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/class-bare/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":27}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/class-parentheses/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":46}}}]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/class/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":44}}},{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":46}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/comment/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":14}}}]
+=== 335 packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}},{"name":"span","containerName":"div","range":{"start":{"line":2,"character":6},"end":{"line":2,"character":23}}},{"name":"span","containerName":"div","range":{"start":{"line":4,"character":6},"end":{"line":4,"character":27}}}]
+=== 116 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-empty/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":55}}}]
+=== 233 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let-destructure/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":12}}},{"name":"h1","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":24}}}]
+=== 233 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":12}}},{"name":"h1","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":30}}}]
+=== 233 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":12}}},{"name":"h1","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":18}}}]
+=== 814 packages/svelte2tsx/test/htmlx2jsx/samples/component-multi-slot/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":12}}},{"name":"h1","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":28}}},{"name":"div","containerName":"Component","range":{"start":{"line":2,"character":4},"end":{"line":4,"character":10}}},{"name":"h2","containerName":"div","range":{"start":{"line":3,"character":8},"end":{"line":3,"character":33}}},{"name":"div","containerName":"Component","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":68}}},{"name":"div","containerName":"Component","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":78}}},{"name":"p","containerName":"Component","range":{"start":{"line":7,"character":4},"end":{"line":9,"character":8}}}]
+=== 253 packages/svelte2tsx/test/htmlx2jsx/samples/component-name-dot/input.svelte	symbols.json
+[{"name":"Dotted.ComponentName","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":24}}},{"name":"Dotted.ComponentName","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":45}}}]
+=== 354 packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte	symbols.json
+[{"name":"Parent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"Component","containerName":"Parent","range":{"start":{"line":1,"character":4},"end":{"line":3,"character":16}}},{"name":"Component","containerName":"Parent","range":{"start":{"line":4,"character":4},"end":{"line":6,"character":16}}}]
+=== 231 packages/svelte2tsx/test/htmlx2jsx/samples/component-no-slots/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":39}}},{"name":"Component","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":28}}}]
+=== 479 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-attribute-as-prop.v5/input.svelte	symbols.json
+[{"name":"Parent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"ButtonBadge","containerName":"Parent","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":36}}},{"name":"Component","containerName":"Parent","range":{"start":{"line":3,"character":8},"end":{"line":5,"character":20}}},{"name":"Slotted","containerName":"Component","range":{"start":{"line":4,"character":12},"end":{"line":4,"character":46}}}]
+=== 348 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	symbols.json
+[{"name":"Parent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"Component","containerName":"Parent","range":{"start":{"line":1,"character":4},"end":{"line":3,"character":16}}},{"name":"div","containerName":"Parent","range":{"start":{"line":4,"character":4},"end":{"line":6,"character":10}}}]
+=== 475 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":18,"character":12}}},{"name":"p","containerName":"Component","range":{"start":{"line":13,"character":4},"end":{"line":13,"character":53}}},{"name":"Sub","containerName":"Component","range":{"start":{"line":15,"character":4},"end":{"line":15,"character":86}}},{"name":"Sub","containerName":"Component","range":{"start":{"line":17,"character":4},"end":{"line":17,"character":74}}}]
+=== 121 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	symbols.json
+[{"name":"custom-element","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":89}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":98}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/debug-block/input.svelte	symbols.json
+[]
+=== 335 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	symbols.json
+[{"name":"html","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":5,"character":7}}},{"name":"body","containerName":"html","range":{"start":{"line":2,"character":0},"end":{"line":4,"character":7}}},{"name":"h1","containerName":"body","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":19}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic-sequence/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":21}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":21}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-index/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":24}}}]
+=== 219 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key-else/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":24}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":23}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":24}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-nullish-coalescing/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":21}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-optional-chaining/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":21}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	symbols.json
+[]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":14}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-bare/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":23}}}]
+=== 116 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-bare/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":22}}}]
+=== 117 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-infer-props/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":196}}}]
+=== 116 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":73}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-customname/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":62}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-modifiers/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":62}}}]
+=== 225 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-quoted/input.svelte	symbols.json
+[{"name":"button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":40}}},{"name":"button","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":40}}}]
+=== 123 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-svelte-component/input.svelte	symbols.json
+[{"name":"svelte:component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":61}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":86}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/expression-nullish-coalescing-optional-chaining/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":40}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/html-block/input.svelte	symbols.json
+[]
+=== 325 packages/svelte2tsx/test/htmlx2jsx/samples/if-block-const/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":2,"character":4},"end":{"line":2,"character":26}}},{"name":"h1","containerName":"","range":{"start":{"line":5,"character":4},"end":{"line":5,"character":26}}},{"name":"h1","containerName":"","range":{"start":{"line":8,"character":4},"end":{"line":8,"character":26}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/if-block/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":21}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/if-comma-block/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":21}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block-nested/input.svelte	symbols.json
+[]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":25}}},{"name":"h2","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":25}}}]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-block/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":26}}},{"name":"h2","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":26}}}]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-nullish-coalescing/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":26}}},{"name":"h2","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":26}}}]
+=== 217 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-optional-chaining/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":26}}},{"name":"h2","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":26}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte	symbols.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block/input.svelte	symbols.json
+[]
+=== 446 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block-shadowed/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":29}}},{"name":"div","containerName":"","range":{"start":{"line":23,"character":12},"end":{"line":23,"character":28}}},{"name":"div","containerName":"","range":{"start":{"line":31,"character":12},"end":{"line":31,"character":35}}},{"name":"div","containerName":"","range":{"start":{"line":35,"character":12},"end":{"line":35,"character":30}}}]
+=== 552 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":28}}},{"name":"div","containerName":"","range":{"start":{"line":6,"character":12},"end":{"line":6,"character":29}}},{"name":"p","containerName":"","range":{"start":{"line":8,"character":12},"end":{"line":8,"character":21}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":12},"end":{"line":12,"character":32}}},{"name":"div","containerName":"","range":{"start":{"line":16,"character":12},"end":{"line":16,"character":29}}}]
+=== 1961 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let-shadowed/input.svelte	symbols.json
+[{"name":"Comp","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":41,"character":11}}},{"name":"Comp","containerName":"Comp","range":{"start":{"line":3,"character":8},"end":{"line":7,"character":15}}},{"name":"Comp","containerName":"Comp","range":{"start":{"line":8,"character":8},"end":{"line":12,"character":15}}},{"name":"svelte:fragment","containerName":"Comp","range":{"start":{"line":13,"character":8},"end":{"line":17,"character":26}}},{"name":"p","containerName":"Comp","range":{"start":{"line":18,"character":8},"end":{"line":22,"character":12}}},{"name":"Comp","containerName":"Comp","range":{"start":{"line":23,"character":8},"end":{"line":27,"character":15}}},{"name":"Comp","containerName":"Comp","range":{"start":{"line":29,"character":12},"end":{"line":33,"character":19}}},{"name":"Comp","containerName":"Comp","range":{"start":{"line":34,"character":12},"end":{"line":39,"character":19}}},{"name":"Comp","containerName":"","range":{"start":{"line":43,"character":8},"end":{"line":45,"character":15}}},{"name":"Comp","containerName":"","range":{"start":{"line":47,"character":8},"end":{"line":51,"character":15}}},{"name":"div","containerName":"Comp","range":{"start":{"line":48,"character":12},"end":{"line":50,"character":18}}},{"name":"Comp","containerName":"","range":{"start":{"line":53,"character":8},"end":{"line":57,"character":15}}},{"name":"div","containerName":"Comp","range":{"start":{"line":54,"character":12},"end":{"line":56,"character":18}}},{"name":"Comp","containerName":"","range":{"start":{"line":61,"character":0},"end":{"line":97,"character":7}}},{"name":"svelte:fragment","containerName":"Comp","range":{"start":{"line":69,"character":4},"end":{"line":77,"character":22}}},{"name":"p","containerName":"Comp","range":{"start":{"line":78,"character":4},"end":{"line":86,"character":8}}},{"name":"p","containerName":"Comp","range":{"start":{"line":87,"character":4},"end":{"line":96,"character":8}}}]
+=== 676 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let/input.svelte	symbols.json
+[{"name":"Comp","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":3,"character":11}}},{"name":"Comp","containerName":"","range":{"start":{"line":5,"character":8},"end":{"line":7,"character":15}}},{"name":"Comp","containerName":"","range":{"start":{"line":9,"character":8},"end":{"line":13,"character":15}}},{"name":"div","containerName":"Comp","range":{"start":{"line":10,"character":12},"end":{"line":12,"character":18}}},{"name":"Comp","containerName":"","range":{"start":{"line":15,"character":8},"end":{"line":19,"character":15}}},{"name":"div","containerName":"Comp","range":{"start":{"line":16,"character":12},"end":{"line":18,"character":18}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	symbols.json
+[]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/namespaced-attributes/input.svelte	symbols.json
+[{"name":"use","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":27}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/nested-if-else-if-and-each-block/input.svelte	symbols.json
+[]
+=== 228 packages/svelte2tsx/test/htmlx2jsx/samples/nested-snippet.v5/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":27,"character":0},"end":{"line":30,"character":6}}},{"name":"Component","containerName":"","range":{"start":{"line":32,"character":0},"end":{"line":35,"character":12}}}]
+=== 231 packages/svelte2tsx/test/htmlx2jsx/samples/quotes-inside-quotes/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":51}}},{"name":"Component","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":51}}}]
+=== 108 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-noscroll/input.svelte	symbols.json
+[{"name":"a","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":23}}}]
+=== 108 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-prefetch/input.svelte	symbols.json
+[{"name":"a","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":23}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/simple-expression/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":21}}}]
+=== 1133 packages/svelte2tsx/test/htmlx2jsx/samples/snippet.v5/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":1,"character":1},"end":{"line":1,"character":18}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":1},"end":{"line":5,"character":15}}},{"name":"div","containerName":"","range":{"start":{"line":13,"character":1},"end":{"line":13,"character":18}}},{"name":"Component","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":25,"character":12}}},{"name":"div","containerName":"Component","range":{"start":{"line":21,"character":1},"end":{"line":21,"character":17}}},{"name":"div","containerName":"Component","range":{"start":{"line":23,"character":2},"end":{"line":23,"character":19}}},{"name":"List","containerName":"","range":{"start":{"line":27,"character":0},"end":{"line":34,"character":7}}},{"name":"List","containerName":"","range":{"start":{"line":36,"character":0},"end":{"line":38,"character":7}}},{"name":"List","containerName":"","range":{"start":{"line":40,"character":0},"end":{"line":48,"character":7}}},{"name":"p","containerName":"List","range":{"start":{"line":44,"character":1},"end":{"line":44,"character":29}}}]
+=== 1313 packages/svelte2tsx/test/htmlx2jsx/samples/style-directive/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":32}}},{"name":"div","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":35}}},{"name":"div","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":36}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":37}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":36}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":34}}},{"name":"div","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":43}}},{"name":"div","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":41}}},{"name":"div","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":43}}},{"name":"div","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":49}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":50}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":23}}}]
+=== 383 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-boundary.v5/input.svelte	symbols.json
+[{"name":"svelte:boundary","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":18}}},{"name":"ComponentThatFails","containerName":"svelte:boundary","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":26}}},{"name":"p","containerName":"svelte:boundary","range":{"start":{"line":3,"character":8},"end":{"line":3,"character":25}}}]
+=== 1249 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-fragment/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":12}}},{"name":"svelte:fragment","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":3,"character":22}}},{"name":"p","containerName":"svelte:fragment","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":17}}},{"name":"svelte:fragment","containerName":"Component","range":{"start":{"line":5,"character":4},"end":{"line":7,"character":22}}},{"name":"p","containerName":"svelte:fragment","range":{"start":{"line":6,"character":8},"end":{"line":6,"character":17}}},{"name":"Component","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":18,"character":12}}},{"name":"svelte:fragment","containerName":"Component","range":{"start":{"line":11,"character":4},"end":{"line":13,"character":22}}},{"name":"p","containerName":"svelte:fragment","range":{"start":{"line":12,"character":8},"end":{"line":12,"character":26}}},{"name":"svelte:fragment","containerName":"Component","range":{"start":{"line":15,"character":4},"end":{"line":17,"character":22}}},{"name":"p","containerName":"svelte:fragment","range":{"start":{"line":16,"character":8},"end":{"line":16,"character":26}}}]
+=== 240 packages/svelte2tsx/test/htmlx2jsx/samples/sveltehead-title/input.svelte	symbols.json
+[{"name":"svelte:head","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":14}}},{"name":"title","containerName":"svelte:head","range":{"start":{"line":1,"character":1},"end":{"line":1,"character":20}}}]
+=== 763 packages/svelte2tsx/test/htmlx2jsx/samples/sveltekit-anchor-attrs/input.svelte	symbols.json
+[{"name":"a","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":32}}},{"name":"a","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":31}}},{"name":"a","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":35}}},{"name":"a","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":35}}},{"name":"a","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":29}}},{"name":"a","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":35}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":70}}}]
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/svg-attributes/input.svelte	symbols.json
+[{"name":"svg","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":54}}}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	symbols.json
+[]
+=== 325 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":31}}},{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":23}}},{"name":"h1","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":24}}}]
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/transition-modifiers/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":6}}}]
+=== 541 packages/svelte2tsx/test/htmlx2jsx/samples/transition-params/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":56}}},{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":48}}},{"name":"h1","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":49}}},{"name":"h1","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":51}}},{"name":"h1","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":51}}}]
+=== 1534 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	symbols.json
+[{"name":"area","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":6}}},{"name":"base","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":6}}},{"name":"br","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":4}}},{"name":"col","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":5}}},{"name":"embed","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":7}}},{"name":"hr","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":4}}},{"name":"img","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":5}}},{"name":"input","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":7}}},{"name":"link","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":6}}},{"name":"meta","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":6}}},{"name":"param","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":7}}},{"name":"source","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":8}}},{"name":"track","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":7}}},{"name":"wbr","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":5}}}]
+=== 1235 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	symbols.json
+[{"name":"li","containerName":"","range":{"start":{"line":1,"character":1},"end":{"line":1,"character":34}}},{"name":"li","containerName":"","range":{"start":{"line":5,"character":1},"end":{"line":5,"character":43}}},{"name":"li","containerName":"","range":{"start":{"line":9,"character":1},"end":{"line":9,"character":33}}},{"name":"li","containerName":"","range":{"start":{"line":13,"character":1},"end":{"line":13,"character":51}}},{"name":"span","containerName":"li","range":{"start":{"line":13,"character":5},"end":{"line":13,"character":22}}},{"name":"MyComponent","containerName":"li","range":{"start":{"line":13,"character":22},"end":{"line":13,"character":46}}},{"name":"li","containerName":"","range":{"start":{"line":17,"character":1},"end":{"line":17,"character":55}}},{"name":"span","containerName":"li","range":{"start":{"line":17,"character":5},"end":{"line":17,"character":22}}},{"name":"MyComponent","containerName":"li","range":{"start":{"line":17,"character":22},"end":{"line":17,"character":50}}},{"name":"p","containerName":"","range":{"start":{"line":21,"character":1},"end":{"line":21,"character":19}}},{"name":"p","containerName":"","range":{"start":{"line":23,"character":1},"end":{"line":23,"character":23}}}]
+=== 113 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	symbols.json
+[{"name":"button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":31}}}]
+=== 109 packages/svelte2tsx/test/sourcemaps/samples/simple-element/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":20}}}]
+=== 116 packages/svelte2tsx/test/sourcemaps/samples/slot-let/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":12}}}]
+=== 440 packages/svelte2tsx/test/sourcemaps/samples/slots/input.svelte	symbols.json
+[{"name":"slot","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":8}}},{"name":"slot","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":32}}},{"name":"slot","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":53}}},{"name":"slot","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":10,"character":7}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":21,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/$store-prop-init/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 229 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	symbols.json
+[{"name":"element","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":65}}},{"name":"Component","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":40}}}]
+=== 219 packages/svelte2tsx/test/svelte2tsx/samples/await-with-$store/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":6,"character":1},"end":{"line":6,"character":15}}}]
+=== 1203 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":65,"character":9}}},{"name":"style","containerName":"","range":{"start":{"line":67,"character":0},"end":{"line":99,"character":8}}},{"name":"div.controls","containerName":"","range":{"start":{"line":101,"character":0},"end":{"line":104,"character":6}}},{"name":"button","containerName":"div.controls","range":{"start":{"line":102,"character":1},"end":{"line":102,"character":73}}},{"name":"button","containerName":"div.controls","range":{"start":{"line":103,"character":1},"end":{"line":103,"character":91}}},{"name":"svg","containerName":"","range":{"start":{"line":106,"character":0},"end":{"line":117,"character":6}}},{"name":"circle","containerName":"svg","range":{"start":{"line":108,"character":2},"end":{"line":115,"character":4}}},{"name":"div.adjuster","containerName":"","range":{"start":{"line":120,"character":1},"end":{"line":123,"character":7}}},{"name":"p","containerName":"div.adjuster","range":{"start":{"line":121,"character":2},"end":{"line":121,"character":66}}},{"name":"input","containerName":"div.adjuster","range":{"start":{"line":122,"character":2},"end":{"line":122,"character":59}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/commented-out-script/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 333 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":5,"character":6}}},{"name":"slot","containerName":"div","range":{"start":{"line":4,"character":4},"end":{"line":4,"character":28}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-constant/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-dispatcher/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":13,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-string-literals/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/component-events-strictEvents/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":27}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/component-events-type/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 559 packages/svelte2tsx/test/svelte2tsx/samples/component-multiple-slots/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":9,"character":6}}},{"name":"slot","containerName":"div","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":28}}},{"name":"slot","containerName":"div","range":{"start":{"line":7,"character":4},"end":{"line":7,"character":39}}},{"name":"slot","containerName":"div","range":{"start":{"line":8,"character":4},"end":{"line":8,"character":36}}}]
+=== 453 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":15,"character":6}}},{"name":"slot","containerName":"div","range":{"start":{"line":13,"character":4},"end":{"line":13,"character":18}}},{"name":"slot","containerName":"div","range":{"start":{"line":14,"character":4},"end":{"line":14,"character":27}}}]
+=== 453 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-type/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":15,"character":6}}},{"name":"slot","containerName":"div","range":{"start":{"line":13,"character":4},"end":{"line":13,"character":18}}},{"name":"slot","containerName":"div","range":{"start":{"line":14,"character":4},"end":{"line":14,"character":27}}}]
+=== 333 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-crazy-attributes/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":5,"character":6}}},{"name":"slot","containerName":"div","range":{"start":{"line":4,"character":4},"end":{"line":4,"character":54}}}]
+=== 444 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-fallback/input.svelte	symbols.json
+[{"name":"slot","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":40}}},{"name":"div","containerName":"slot","range":{"start":{"line":0,"character":6},"end":{"line":0,"character":33}}},{"name":"slot","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":3,"character":7}}},{"name":"p","containerName":"slot","range":{"start":{"line":2,"character":4},"end":{"line":2,"character":19}}}]
+=== 228 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-forward-with-props/input.svelte	symbols.json
+[{"name":"Parent","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"slot","containerName":"Parent","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":18}}}]
+=== 331 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-await/input.svelte	symbols.json
+[{"name":"slot","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":32}}},{"name":"slot","containerName":"","range":{"start":{"line":3,"character":4},"end":{"line":3,"character":43}}},{"name":"slot","containerName":"","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":42}}}]
+=== 221 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-each/input.svelte	symbols.json
+[{"name":"slot","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":31}}},{"name":"slot","containerName":"","range":{"start":{"line":4,"character":4},"end":{"line":4,"character":40}}}]
+=== 347 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward-named-slot/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":12}}},{"name":"div","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":3,"character":10}}},{"name":"slot","containerName":"div","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":25}}}]
+=== 235 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":12}}},{"name":"slot","containerName":"Component","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":30}}}]
+=== 448 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-nest-scope/input.svelte	symbols.json
+[{"name":"slot","containerName":"","range":{"start":{"line":2,"character":8},"end":{"line":2,"character":30}}},{"name":"slot","containerName":"","range":{"start":{"line":4,"character":4},"end":{"line":4,"character":37}}},{"name":"Component","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":34}}},{"name":"slot","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":34}}}]
+=== 334 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-no-space/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":32}}},{"name":"Test","containerName":"div","range":{"start":{"line":4,"character":5},"end":{"line":4,"character":26}}}]
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	symbols.json
+[{"name":"slot","containerName":"","range":{"start":{"line":1,"character":4},"end":{"line":1,"character":32}}}]
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/component-with-documentation/input.svelte	symbols.json
+[{"name":"main","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":2,"character":37}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/component-with-indented-multiline-documentation/input.svelte	symbols.json
+[{"name":"main","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":37}}}]
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/component-with-multiline-documentation/input.svelte	symbols.json
+[{"name":"main","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":37}}}]
+=== 230 packages/svelte2tsx/test/svelte2tsx/samples/creates-no-script-dts/input.svelte	symbols.json
+[{"name":"button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":34}}},{"name":"slot","containerName":"button","range":{"start":{"line":0,"character":17},"end":{"line":0,"character":25}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"input","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":18}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-multi/input.svelte	symbols.json
+[{"name":"Button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":26}}},{"name":"Radio","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":24}}}]
+=== 116 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-with-props/input.svelte	symbols.json
+[{"name":"Component","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":77}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component/input.svelte	symbols.json
+[{"name":"Button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":26}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-element/input.svelte	symbols.json
+[{"name":"button","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":26}}}]
+=== 237 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-svelte-element/input.svelte	symbols.json
+[{"name":"svelte:body","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":36}}},{"name":"svelte:window","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":41}}}]
+=== 227 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events-alias/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":12,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":54}}}]
+=== 227 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":12,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":54}}}]
+=== 226 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatchers/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":26}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/export-class/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/export-const-array-destructuring/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/export-const-object-destructuring/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":13,"character":9}}}]
+=== 233 packages/svelte2tsx/test/svelte2tsx/samples/export-list-runes.v5/input.svelte	symbols.json
+[{"name":"svelte:options","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":24}}},{"name":"script","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":18,"character":9}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":16,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/generics-attribute.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/import-leading-comment/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 222 packages/svelte2tsx/test/svelte2tsx/samples/import-single-quote/input.svelte	symbols.json
+[{"name":"Test","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":20}}},{"name":"script","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":3,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/js-jsdoc-before-first-import/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-runes.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-sveltekit-autotypes-runes.v5/+page.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 335 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-various.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":35}}},{"name":"slot","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":13}}}]
+=== 333 packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}},{"name":"Icon","containerName":"","range":{"start":{"line":9,"character":2},"end":{"line":9,"character":20}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-not-$props-init.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-spread.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 232 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	symbols.json
+[{"name":"svelte:options","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":24}}},{"name":"script","containerName":"","range":{"start":{"line":2,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 338 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":18,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":28,"character":15}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/runes-best-effort-types.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable-reserved-name.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/runes-looking-like-stores.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/runes-only-export.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 222 packages/svelte2tsx/test/svelte2tsx/samples/runes-with-slots.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"slot","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":16}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/runes.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 699 packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	symbols.json
+[{"name":"div","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":6}}},{"name":"script","containerName":"div","range":{"start":{"line":1,"character":2},"end":{"line":1,"character":43}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}},{"name":"svelte:head","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":13,"character":14}}},{"name":"link","containerName":"svelte:head","range":{"start":{"line":9,"character":2},"end":{"line":9,"character":60}}},{"name":"script","containerName":"svelte:head","range":{"start":{"line":10,"character":2},"end":{"line":12,"character":11}}}]
+=== 222 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":8}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/script-with-src/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":32}}},{"name":"style","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":30}}}]
+=== 222 packages/svelte2tsx/test/svelte2tsx/samples/self-closing-component/input.svelte	symbols.json
+[{"name":"Test","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":14}}},{"name":"script","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":4,"character":9}}}]
+=== 109 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":14}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 1225 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-1.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":7,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":4},"end":{"line":10,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":14,"character":4},"end":{"line":14,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":18,"character":4},"end":{"line":18,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":22,"character":4},"end":{"line":22,"character":20}}},{"name":"button","containerName":"","range":{"start":{"line":26,"character":4},"end":{"line":26,"character":43}}},{"name":"div","containerName":"","range":{"start":{"line":30,"character":4},"end":{"line":30,"character":23}}},{"name":"div","containerName":"","range":{"start":{"line":34,"character":4},"end":{"line":34,"character":25}}},{"name":"div","containerName":"","range":{"start":{"line":38,"character":4},"end":{"line":38,"character":23}}},{"name":"div","containerName":"","range":{"start":{"line":51,"character":4},"end":{"line":51,"character":20}}}]
+=== 332 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-2.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":20}}},{"name":"div","containerName":"","range":{"start":{"line":10,"character":4},"end":{"line":10,"character":20}}}]
+=== 442 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-4.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}},{"name":"div","containerName":"","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":20}}},{"name":"h1","containerName":"","range":{"start":{"line":21,"character":1},"end":{"line":21,"character":18}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-5.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-6.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-7.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/store-derived-import/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 441 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":9,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":16}}},{"name":"p","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":16}}}]
+=== 433 packages/svelte2tsx/test/svelte2tsx/samples/store-import/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":16}}},{"name":"p","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":16}}},{"name":"p","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":16}}}]
+=== 1094 packages/svelte2tsx/test/svelte2tsx/samples/store-property-access/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":11,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":15}}},{"name":"p","containerName":"","range":{"start":{"line":13,"character":0},"end":{"line":13,"character":20}}},{"name":"p","containerName":"","range":{"start":{"line":14,"character":0},"end":{"line":14,"character":23}}},{"name":"p","containerName":"","range":{"start":{"line":15,"character":0},"end":{"line":15,"character":32}}},{"name":"p","containerName":"","range":{"start":{"line":16,"character":0},"end":{"line":16,"character":35}}},{"name":"p","containerName":"","range":{"start":{"line":17,"character":0},"end":{"line":17,"character":35}}},{"name":"p","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":38}}},{"name":"p","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":33}}},{"name":"p","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":34}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/stores-looking-like-runes/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	symbols.json
+[{"name":"iframe","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":17}}},{"name":"style","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":5,"character":8}}}]
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute-bare/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":8}}}]
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":8}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/style-in-script/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-script-comment-with-real-style/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"style","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":27}}}]
+=== 111 packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	symbols.json
+[{"name":"style","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":8}}}]
+=== 832 packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":29}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":29}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":41}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":49}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":50}}},{"name":"svelte:element","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":87}}}]
+=== 231 packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"svelte:self","containerName":"","range":{"start":{"line":10,"character":4},"end":{"line":10,"character":38}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune-no-changes.v5/+page.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune.v5/+page.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 332 packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"p","containerName":"","range":{"start":{"line":14,"character":4},"end":{"line":14,"character":28}}},{"name":"div","containerName":"","range":{"start":{"line":15,"character":4},"end":{"line":18,"character":10}}}]
+=== 227 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":17,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":54}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-generics.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":19,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":11,"character":9}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-4.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":14,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-6.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-7.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":12,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-8.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":9,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":12,"character":9}}}]
+=== 113 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":12,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-13.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":12,"character":9}}}]
+=== 224 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":1,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":10,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":8,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-3.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":7,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":7,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":7,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":9,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 222 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"slot","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":16}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes.v5/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}}]
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":2,"character":9}}},{"name":"script","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":6,"character":9}}}]
+=== 112 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":4,"character":9}}}]
+=== 549 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":3,"character":9}}},{"name":"h1","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":15}}},{"name":"slot","containerName":"","range":{"start":{"line":6,"character":0},"end":{"line":6,"character":19}}},{"name":"slot","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":27}}},{"name":"slot","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":8}}}]
+=== 546 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots/input.svelte	symbols.json
+[{"name":"h1","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":0,"character":22}}},{"name":"h1","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":1,"character":33}}},{"name":"slot","containerName":"","range":{"start":{"line":3,"character":0},"end":{"line":3,"character":19}}},{"name":"slot","containerName":"","range":{"start":{"line":4,"character":0},"end":{"line":4,"character":27}}},{"name":"slot","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":5,"character":8}}}]
+=== 114 packages/svelte2tsx/test/svelte2tsx/samples/uses-$property/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":10,"character":11}}}]
+=== 1481 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-assignment-operators/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":16,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":18,"character":0},"end":{"line":18,"character":53}}},{"name":"button","containerName":"","range":{"start":{"line":19,"character":0},"end":{"line":19,"character":58}}},{"name":"button","containerName":"","range":{"start":{"line":20,"character":0},"end":{"line":20,"character":58}}},{"name":"button","containerName":"","range":{"start":{"line":21,"character":0},"end":{"line":21,"character":56}}},{"name":"button","containerName":"","range":{"start":{"line":22,"character":0},"end":{"line":22,"character":59}}},{"name":"button","containerName":"","range":{"start":{"line":23,"character":0},"end":{"line":23,"character":53}}},{"name":"button","containerName":"","range":{"start":{"line":24,"character":0},"end":{"line":24,"character":60}}},{"name":"button","containerName":"","range":{"start":{"line":25,"character":0},"end":{"line":25,"character":61}}},{"name":"button","containerName":"","range":{"start":{"line":26,"character":0},"end":{"line":26,"character":71}}},{"name":"button","containerName":"","range":{"start":{"line":27,"character":0},"end":{"line":27,"character":53}}},{"name":"button","containerName":"","range":{"start":{"line":28,"character":0},"end":{"line":28,"character":53}}},{"name":"button","containerName":"","range":{"start":{"line":29,"character":0},"end":{"line":29,"character":52}}}]
+=== 448 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-increments/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":7,"character":46}}},{"name":"button","containerName":"","range":{"start":{"line":8,"character":0},"end":{"line":8,"character":51}}},{"name":"button","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":46}}}]
+=== 566 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-unary-operators/input.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":7,"character":9}}},{"name":"button","containerName":"","range":{"start":{"line":9,"character":0},"end":{"line":9,"character":45}}},{"name":"button","containerName":"","range":{"start":{"line":10,"character":0},"end":{"line":10,"character":45}}},{"name":"button","containerName":"","range":{"start":{"line":11,"character":0},"end":{"line":11,"character":45}}},{"name":"button","containerName":"","range":{"start":{"line":12,"character":0},"end":{"line":12,"character":45}}}]
+=== 487 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	symbols.json
+[{"name":"svelte:self","containerName":"","range":{"start":{"line":1,"character":0},"end":{"line":3,"character":14}}},{"name":"slot","containerName":"svelte:self","range":{"start":{"line":2,"character":4},"end":{"line":2,"character":19}}},{"name":"svelte:component","containerName":"","range":{"start":{"line":5,"character":0},"end":{"line":7,"character":19}}},{"name":"slot","containerName":"svelte:component","range":{"start":{"line":6,"character":4},"end":{"line":6,"character":19}}}]

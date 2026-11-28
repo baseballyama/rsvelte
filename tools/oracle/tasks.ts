@@ -6,6 +6,7 @@ import svelteCheck from './tasks/svelte-check.ts';
 import svelteCompile from './tasks/svelte-compile.ts';
 import svelteCompileModule from './tasks/svelte-compile-module.ts';
 import svelteFolding from './tasks/svelte-folding.ts';
+import svelteSymbols from './tasks/svelte-symbols.ts';
 import svelteFormat from './tasks/svelte-format.ts';
 import svelteLint from './tasks/svelte-lint.ts';
 import vueCheck from './tasks/vue-check.ts';
@@ -21,6 +22,7 @@ export const TASKS: Task[] = [
 	svelteCompile,
 	svelteCompileModule,
 	svelteFolding,
+	svelteSymbols,
 	svelteFormat,
 	svelteLint,
 	svueCompile,

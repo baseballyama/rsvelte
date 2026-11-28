@@ -201,6 +201,14 @@
 			"svelte/valid-style-parse"
 		]
 	},
+	"svelte.symbols": {
+		"canonicalizer": {
+			"acorn": "8.19.0"
+		},
+		"oracles": {
+			"svelte-language-server": "0.18.6"
+		}
+	},
 	"svue.compile": {
 		"canonicalizer": {
 			"acorn": "8.19.0"

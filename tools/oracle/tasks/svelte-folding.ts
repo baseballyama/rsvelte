@@ -1,5 +1,5 @@
 import type { Task } from '../types.ts';
-import { document, foldingRanges } from './language-server.ts';
+import { withDocument } from './language-server.ts';
 
 const task: Task = {
 	id: 'svelte.folding',
@@ -7,7 +7,7 @@ const task: Task = {
 	variants: [{ id: 'default', options: {} }],
 	appliesTo: (unit) => unit.lang === 'svelte',
 	run(unit, src) {
-		const ranges = foldingRanges(document(unit.path, src));
+		const ranges = withDocument(unit.path, src, (html, opened) => html.getFoldingRanges(opened));
 		return { folding: { text: JSON.stringify(ranges), ext: 'folding.json', compare: 'json' } };
 	},
 };

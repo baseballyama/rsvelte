@@ -1,0 +1,3 @@
+# rsvelte pack 1
+=== 589 src/routes/+layout.svelte	symbols.json
+[{"name":"script","containerName":"","range":{"start":{"line":0,"character":0},"end":{"line":5,"character":9}}},{"name":"svelte:head","containerName":"","range":{"start":{"line":7,"character":0},"end":{"line":19,"character":14}}},{"name":"script","containerName":"svelte:head","range":{"start":{"line":9,"character":4},"end":{"line":9,"character":90}}},{"name":"script","containerName":"svelte:head","range":{"start":{"line":10,"character":4},"end":{"line":17,"character":13}}},{"name":"slot","containerName":"","range":{"start":{"line":21,"character":0},"end":{"line":21,"character":8}}}]
