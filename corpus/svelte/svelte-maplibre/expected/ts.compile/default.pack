@@ -1,0 +1,942 @@
+# rsvelte pack 1
+=== 206 playwright.config.ts	js
+const config = {
+    webServer: {
+        command: 'npm run build && npm run preview',
+        port: 4173,
+    },
+    testDir: 'tests',
+    testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+};
+export default config;
+
+=== 159 src/index.test.ts	js
+import { describe, it, expect } from 'vitest';
+describe('sum test', () => {
+    it('adds 1 + 2 to equal 3', () => {
+        expect(1 + 2).toBe(3);
+    });
+});
+
+=== 541 src/lib/compare.ts	js
+export function diffApplier(cb) {
+    let last = undefined;
+    return (current) => {
+        if (current) {
+            for (let key in current) {
+                let lastValue = last?.[key];
+                let newValue = current[key];
+                if (lastValue !== newValue) {
+                    cb(key, newValue, lastValue);
+                }
+            }
+        }
+        else if (last) {
+            for (let key in last) {
+                cb(key, undefined, last[key]);
+            }
+        }
+        last = current;
+    };
+}
+
+=== 5927 src/lib/context.svelte.ts	js
+import { getContext, setContext } from 'svelte';
+import { SvelteSet } from 'svelte/reactivity';
+// Choose current time instead of 0 to avoid possible reuse during HMR.
+export let nextId = Date.now();
+/** Return an ID to use for a source or layer, in case you don't care about
+ * the name. */
+export function getId(prefix) {
+    return `${prefix}-${nextId++}`;
+}
+export class Box {
+    value = $state();
+    constructor(initialValue) {
+        this.value = initialValue;
+    }
+}
+export class MapContext {
+    map = $state();
+    loaded = $state(false);
+    // cluster: Box<ClusterOptions | undefined>;
+    /** A list of images that have been successfully loaded. */
+    loadedImages = new SvelteSet();
+    minzoom = $state(0);
+    maxzoom = $state(24);
+    // Information about every layer in the system.
+    layerInfo = new Map();
+    eventTracker = new WeakMap();
+    _eventTopMost(event) {
+        let id = this.eventTracker.get(event.originalEvent);
+        if (id !== undefined) {
+            return id;
+        }
+        let features = event.target.queryRenderedFeatures(event.point);
+        let topId = features.find((f) => this.layerInfo.get(f.layer.id)?.interactive)?.layer.id;
+        this.eventTracker.set(event.originalEvent, topId);
+        return topId;
+    }
+    eventTopMost;
+    /** Subscribe to marker clicks globally. Marker clicks intentionally do not propagate their events
+     * to the map, but some internal components such as Popups need to know when any click happens, on the
+     * map or on a marker, and MarkerClickManager facilitates that functionality. */
+    markerClickManager = new MarkerClickManager();
+    constructor() {
+        // Do it this way so that we can destructure the MapContext and still use eventTopMost
+        this.eventTopMost = this._eventTopMost.bind(this);
+    }
+}
+export class ZoomRange {
+    minzoomSetting = $state();
+    maxzoomSetting = $state();
+    parent;
+    minzoom;
+    maxzoom;
+    constructor(minzoom, maxzoom, parent) {
+        this.minzoomSetting = minzoom;
+        this.maxzoomSetting = maxzoom;
+        this.parent = parent;
+        const minzoomD = $derived(this.minzoomSetting ?? this.parent?.minzoom ?? 0);
+        const maxzoomD = $derived(this.maxzoomSetting ?? this.parent?.maxzoom ?? 24);
+        this.minzoom = minzoomD;
+        this.maxzoom = maxzoomD;
+    }
+}
+export function setLayer(value) {
+    setContext(LAYER_KEY, value);
+}
+export function getLayer() {
+    return getContext(LAYER_KEY);
+}
+export function setSource(value) {
+    setContext(SOURCE_KEY, value);
+}
+export function getSource() {
+    return getContext(SOURCE_KEY);
+}
+export function setPopupTarget(value) {
+    setContext(POPUP_TARGET_KEY, value);
+}
+export function getPopupTarget() {
+    return getContext(POPUP_TARGET_KEY);
+}
+export function setCluster(value) {
+    setContext(CLUSTER_KEY, value);
+}
+export function getCluster() {
+    return getContext(CLUSTER_KEY);
+}
+export function setZoomLimits(min, max) {
+    const existing = getZoomLimits();
+    return setContext(ZOOM_KEY, new ZoomRange(min, max, existing));
+}
+export function getZoomLimits() {
+    return getContext(ZOOM_KEY) || getMapContext();
+}
+export function getLayerEvent() {
+    return getContext(LAYER_EVENT_KEY);
+}
+export function setLayerEvent(value) {
+    setContext(LAYER_EVENT_KEY, value);
+}
+export function setLngLatContext(value) {
+    setContext(LNG_LAT_KEY, value);
+}
+export function getLngLatContext() {
+    return getContext(LNG_LAT_KEY);
+}
+const MAP_CONTEXT_KEY = Symbol.for('svelte-maplibre');
+const POPUP_TARGET_KEY = Symbol.for('svelte-maplibre.popup-target');
+const LAYER_KEY = Symbol.for('svelte-maplibre.layer');
+const SOURCE_KEY = Symbol.for('svelte-maplibre.source');
+const CLUSTER_KEY = Symbol.for('svelte-maplibre.cluster');
+const ZOOM_KEY = Symbol.for('svelte-maplibre.zoom');
+const LAYER_EVENT_KEY = Symbol.for('svelte-maplibre.layer-event');
+const LNG_LAT_KEY = Symbol.for('svelte-maplibre.lng-lat');
+export function getMapContext() {
+    return getContext(MAP_CONTEXT_KEY);
+}
+export function createMapContext() {
+    return setContext(MAP_CONTEXT_KEY, new MapContext());
+}
+export function updatedSourceContext() {
+    const source = new Box(undefined);
+    const cluster = new Box(undefined);
+    setSource(source);
+    setCluster(cluster);
+    return {
+        source,
+        cluster,
+    };
+}
+export function updatedLayerContext(interactive = true) {
+    const layer = new Box(undefined);
+    const layerEvent = new Box(undefined);
+    setLayer(layer);
+    if (interactive) {
+        setPopupTarget(layer);
+        setLayerEvent(layerEvent);
+    }
+    return {
+        layer,
+        layerEvent,
+    };
+}
+export function updatedDeckGlContext() {
+    const layer = new Box(undefined);
+    const layerEvent = new Box(undefined);
+    setLayer(layer);
+    setLayerEvent(layerEvent);
+    return {
+        layer,
+        layerEvent,
+    };
+}
+export function updatedMarkerContext() {
+    const marker = new Box(undefined);
+    const layerEvent = new Box(undefined);
+    setPopupTarget(marker);
+    setLayerEvent(layerEvent);
+    return {
+        marker,
+        layerEvent,
+    };
+}
+export function updatedZoomRangeContext(minzoom, maxzoom) {
+    let currentZoom = getZoomLimits();
+    minzoom ??= currentZoom.minzoom;
+    maxzoom ??= currentZoom.maxzoom;
+    setZoomLimits(minzoom, maxzoom);
+    return {
+        originalMinZoom: currentZoom.minzoom,
+        originalMaxZoom: currentZoom.maxzoom,
+        minzoom,
+        maxzoom,
+    };
+}
+export function isDeckGlMouseEvent(event) {
+    return 'layerType' in event && event.layerType === 'deckgl';
+}
+class MarkerClickManager {
+    _handlers = new Set();
+    add(markerClickInfo) {
+        this._handlers.add(markerClickInfo);
+    }
+    remove(markerClickInfo) {
+        this._handlers.delete(markerClickInfo);
+    }
+    handleClick(event) {
+        for (const handler of this._handlers) {
+            handler(event);
+        }
+    }
+}
+
+=== 527 src/lib/expressions.ts	js
+/** Use an image loaded into the map, falling back to another image if it does not exist. */
+export function imageWithFallback(imageId, fallbackId) {
+    return ['coalesce', ['image', imageId], ['image', fallbackId]];
+}
+/** Create an interpolation that changes with the map's zoom level. */
+export function zoomTransition(start, startValue, end, endValue) {
+    // let actualStart = typeof startValue === 'number' ? ['literal', startValue];
+    return ['interpolate', ['linear'], ['zoom'], start, startValue, end, endValue];
+}
+
+=== 1655 src/lib/filters.ts	js
+export function combineFilters(join, ...filters) {
+    let outputFilters = [join];
+    for (let fil of filters) {
+        if (!fil) {
+            continue;
+        }
+        else if (Array.isArray(fil)) {
+            if (fil[0] === join) {
+                // Simplify the filter if this filter is already a join of the same type.
+                outputFilters.push(...fil.slice(1));
+            }
+            else {
+                outputFilters.push(fil);
+            }
+        }
+        else {
+            outputFilters.push(fil);
+        }
+    }
+    if (outputFilters.length === 1) {
+        return undefined;
+    }
+    else if (outputFilters.length === 2) {
+        return outputFilters[1];
+    }
+    return outputFilters;
+}
+/** Return an expression that returns a value based on whether the feature is a cluster or an individual point. */
+export function isClusterFilter(matchClusters) {
+    return matchClusters === true
+        ? ['has', 'point_count']
+        : matchClusters === false
+            ? ['!', ['has', 'point_count']]
+            : undefined;
+}
+/** Return an expression that returns a value based on whether the feature is hovered. Requires manageHoverState to be enabled for the layer. */
+export function hoverStateFilter(defaultValue, hoverValue) {
+    return ['case', ['boolean', ['feature-state', 'hover'], false], hoverValue, defaultValue];
+}
+/** A function that returns if a layer is a text layer, and optionally if it belongs to a particular source. */
+export function isTextLayer(layer, source) {
+    return (layer.type === 'symbol' &&
+        (!source || layer.source === source) &&
+        !!layer.layout?.['text-field']);
+}
+
+=== 306 src/lib/flush.ts	js
+/**
+ * Removes all undefined values from an object
+ * @param obj The object to flush undefined values from
+ * @returns A new object with the same shape but without undefined values
+ */
+export function flush(obj) {
+    return Object.fromEntries(Object.entries(obj).filter(([_, value]) => value != null));
+}
+
+=== 1048 src/lib/hash.ts	js
+// Adapted from https://github.com/maplibre/maplibre-gl-js/blob/5d7e6d52000a8569ac2308a9aef14c98933eb0d8/src/ui/hash.ts
+export function getViewportHash(map) {
+    let center = map.getCenter();
+    let zoom = Math.round(map.getZoom() * 100) / 100;
+    // derived from equation: 512px * 2^z / 360 / 10^d < 0.5px
+    let precision = Math.ceil((zoom * Math.LN2 + Math.log(512 / 360 / 0.5)) / Math.LN10);
+    let m = Math.pow(10, precision);
+    let lat = Math.round(center.lat * m) / m;
+    let lng = Math.round(center.lng * m) / m;
+    let hash = `${zoom}/${lat}/${lng}`;
+    let bearing = map.getBearing();
+    let pitch = map.getPitch();
+    if (bearing || pitch) {
+        hash += `/${Math.round(bearing * 10) / 10}`;
+    }
+    if (pitch) {
+        hash += `/${Math.round(pitch)}`;
+    }
+    return `#${hash}`;
+}
+// Returns [zoom, center lat, center lng, optionally bearing, optionally pitch]
+export function parseViewportHash(hash) {
+    const parts = hash.replace('#', '').split('/').map(parseFloat);
+    return parts.some(isNaN) ? [] : parts;
+}
+
+=== 2433 src/lib/index.ts	js
+export { default as AttributionControl } from './AttributionControl.svelte';
+export { default as BackgroundLayer } from './BackgroundLayer.svelte';
+export { default as CircleLayer } from './CircleLayer.svelte';
+export { default as Control } from './Control.svelte';
+export { default as ControlButton } from './ControlButton.svelte';
+export { default as ControlGroup } from './ControlGroup.svelte';
+export { default as DeckGlLayer } from './DeckGlLayer.svelte';
+export { default as DefaultMarker } from './DefaultMarker.svelte';
+export { default as FillExtrusionLayer } from './FillExtrusionLayer.svelte';
+export { default as FillLayer } from './FillLayer.svelte';
+export { default as FullscreenControl } from './FullscreenControl.svelte';
+export { default as GeoJSON } from './GeoJSON.svelte';
+export { default as GeolocateControl } from './GeolocateControl.svelte';
+export { default as HeatmapLayer } from './HeatmapLayer.svelte';
+export { default as HillshadeLayer } from './HillshadeLayer.svelte';
+export { default as ImageSource } from './ImageSource.svelte';
+export { default as JoinedData } from './JoinedData.svelte';
+export { default as Layer } from './Layer.svelte';
+export { default as LineLayer } from './LineLayer.svelte';
+export { default as MapEvents } from './MapEvents.svelte';
+export { default as MapLibre } from './MapLibre.svelte';
+export { default as Marker } from './Marker.svelte';
+export { default as MarkerLayer } from './MarkerLayer.svelte';
+export { default as NavigationControl } from './NavigationControl.svelte';
+export { default as Popup } from './Popup.svelte';
+export { default as RasterLayer } from './RasterLayer.svelte';
+export { default as RasterDEMTileSource } from './RasterDEMTileSource.svelte';
+export { default as RasterTileSource } from './RasterTileSource.svelte';
+export { default as ScaleControl } from './ScaleControl.svelte';
+export { default as SymbolLayer } from './SymbolLayer.svelte';
+export { default as Terrain } from './Terrain.svelte';
+export { default as TerrainControl } from './TerrainControl.svelte';
+export { default as TopoJSON } from './TopoJSON.svelte';
+export { default as VectorTileSource } from './VectorTileSource.svelte';
+export { default as ZoomRange } from './ZoomRange.svelte';
+export * from './context.svelte.js';
+export * from './expressions.js';
+export * from './filters.js';
+export { addSource, removeSource } from './source.js';
+export * from './types.js';
+
+=== 2932 src/lib/source.ts	js
+import { tick } from 'svelte';
+/**
+ * Add a source to the map.
+ *
+ * @param map - The map instance
+ * @param sourceId - The ID of the source to add
+ * @param source - The source specification object
+ * @param okToAdd - Callback to check if the source should still be added
+ * @param cb - Callback when the source has been added
+ *
+ * This properly handles the case where an old source with the same ID is still being removed.
+ */
+export function addSource(map, sourceId, source, okToAdd, cb) {
+    // If there was an old source with the same ID, then remove it. This can happen when removing a source
+    // and adding a new source in quick succession.
+    let removed = false;
+    if (map.getSource(sourceId)) {
+        removed = true;
+        map.removeSource(sourceId);
+    }
+    const doAddSource = () => {
+        if (!okToAdd(sourceId)) {
+            // in case the component was destroyed or the id changed while waiting to call this
+            return;
+        }
+        map.addSource(sourceId, source);
+        cb();
+    };
+    if (removed) {
+        // Source removal happens quickly but asynchronously, and we have no way to really interlock on when it happens,
+        // so just loop until it does.
+        const waitForRemoval = () => {
+            if (!sourceId) {
+                return;
+            }
+            if (map.getSource(sourceId)) {
+                // The source hasn't been removed yet, so keep waiting.
+                setTimeout(waitForRemoval, 1);
+            }
+            else {
+                doAddSource();
+            }
+        };
+        waitForRemoval();
+    }
+    else {
+        // If we don't have an existing source to remove (i.e. the normal case) then
+        // just add the source right away.
+        doAddSource();
+    }
+}
+/**
+ * A helper function that removes a source from the map after all of the layers inside it have
+ * had a chance to remove themselves.
+ *
+ * @param {Readable<Map|undefined>} mapStore - The store containing the Map instance
+ * @param {string} sourceId - The ID of the source to remove
+ * @param {unknown} sourceObj - The source object that was originally added
+ *
+ * Waits one tick to ensure layers have a chance to be removed, then checks if the
+ * source with the given ID is still the same object as was originally added.
+ *
+ * If so, it removes the source from the map. This avoids removing a source that was
+ * already replaced by another source reusing the same ID.
+ */
+export function removeSource(map, sourceId, sourceObj) {
+    tick().then(() => {
+        // Wait a tick so that the layers inside this source can all be removed.
+        // But make sure that the source wasn't already replaced with another source with the same ID.
+        if (!map.loaded()) {
+            return;
+        }
+        let remainingSource = map.getSource(sourceId);
+        if (remainingSource === sourceObj) {
+            map.removeSource(sourceId);
+        }
+    });
+}
+
+=== 1351 src/lib/types.test.ts	js
+import { describe, it, expect } from 'vitest';
+import { convertBoundsToUserFormat } from './types';
+import { LngLat, LngLatBounds } from 'maplibre-gl';
+describe('convertBoundsToUserFormat', () => {
+    const sw = new LngLat(-10, -20);
+    const ne = new LngLat(10, 20);
+    const bounds = new LngLatBounds(sw, ne);
+    it('returns flat array when input is flat array', () => {
+        const result = convertBoundsToUserFormat(bounds, [-10, -20, 10, 20]);
+        expect(result).toEqual([-10, -20, 10, 20]);
+    });
+    it('returns array of LngLat when input is array of LngLat', () => {
+        const result = convertBoundsToUserFormat(bounds, [sw, ne]);
+        expect(result).toEqual([sw, ne]);
+    });
+    it('returns nested array when input is nested array', () => {
+        const result = convertBoundsToUserFormat(bounds, [
+            [-10, -20],
+            [10, 20],
+        ]);
+        expect(result).toEqual([
+            [-10, -20],
+            [10, 20],
+        ]);
+    });
+    it('returns original bounds when input is undefined', () => {
+        const result = convertBoundsToUserFormat(bounds, undefined);
+        expect(result).toBe(bounds);
+    });
+    it('returns original bounds when input is LngLatBounds', () => {
+        const result = convertBoundsToUserFormat(bounds, bounds);
+        expect(result).toBe(bounds);
+    });
+});
+
+=== 1593 src/lib/types.ts	js
+import { LngLat, LngLatBounds, } from 'maplibre-gl';
+function compareFloat(a, b) {
+    return Math.abs(a - b) < 0.000001;
+}
+export function boundsEqual(param, mapBounds) {
+    let paramBounds = LngLatBounds.convert(param);
+    if (!mapBounds) {
+        return { equal: false, bounds: paramBounds };
+    }
+    let abNe = paramBounds.getNorthEast();
+    let bbNe = mapBounds.getNorthEast();
+    if (!compareFloat(abNe.lat, bbNe.lat) || !compareFloat(abNe.wrap().lng, bbNe.wrap().lng)) {
+        return { equal: false, bounds: paramBounds };
+    }
+    let abSw = paramBounds.getSouthWest();
+    let bbSw = mapBounds.getSouthWest();
+    if (!compareFloat(abSw.lat, bbSw.lat) || !compareFloat(abSw.wrap().lng, bbSw.wrap().lng)) {
+        return { equal: false, bounds: paramBounds };
+    }
+    return { equal: true, bounds: paramBounds };
+}
+export function convertBoundsToUserFormat(bounds, param) {
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    if (Array.isArray(param)) {
+        if (param.length === 4) {
+            // Flat array of numbers
+            return [sw.lng, sw.lat, ne.lng, ne.lat];
+        }
+        else if (param.length === 2) {
+            if (param[0] instanceof LngLat) {
+                // Array of LngLat objects
+                return [sw, ne];
+            }
+            else {
+                // Nested array of numbers
+                return [
+                    [sw.lng, sw.lat],
+                    [ne.lng, ne.lat],
+                ];
+            }
+        }
+    }
+    // param is not set, or it's a LngLatBounds
+    return bounds;
+}
+
+=== 70 src/routes/examples/+layout.ts	js
+export const load = () => {
+    return {
+        title: '',
+    };
+};
+
+=== 82 src/routes/examples/3d_buildings/+page.ts	js
+export const load = () => {
+    return {
+        title: '3D Buildings',
+    };
+};
+
+=== 80 src/routes/examples/3d_terrain/+page.ts	js
+export const load = () => {
+    return {
+        title: '3D Terrain',
+    };
+};
+
+=== 86 src/routes/examples/background/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Background Layer',
+    };
+};
+
+=== 79 src/routes/examples/basic/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Plain Map',
+    };
+};
+
+=== 96 src/routes/examples/changing_basemap_style/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Changing the basemap style',
+    };
+};
+
+=== 11 src/routes/examples/cluster_feature_properties.ts	js
+export {};
+
+=== 89 src/routes/examples/clusters/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Clusters and Popups',
+    };
+};
+
+=== 78 src/routes/examples/controls/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Controls',
+    };
+};
+
+=== 90 src/routes/examples/cooperative_gestures/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Cooperative Gestures',
+    };
+};
+
+=== 83 src/routes/examples/custom_marker/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Custom Marker',
+    };
+};
+
+=== 98 src/routes/examples/custom_marker_clusters/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Custom Markers with Clusters',
+    };
+};
+
+=== 91 src/routes/examples/data_join/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Client Side Data Join',
+    };
+};
+
+=== 88 src/routes/examples/deckgl-arcs/+page.ts	js
+export const load = () => {
+    return {
+        title: 'deck.gl Arc Layers',
+    };
+};
+
+=== 93 src/routes/examples/draggable_custom_marker/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Custom draggable Marker',
+    };
+};
+
+=== 84 src/routes/examples/draw/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Drawing Plugin',
+    };
+};
+
+=== 87 src/routes/examples/geojson_extrusion/+page.ts	js
+export const load = () => {
+    return {
+        title: 'GeoJSON Extrusion',
+    };
+};
+
+=== 81 src/routes/examples/geojson_line_layer/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Styled Line',
+    };
+};
+
+=== 85 src/routes/examples/geojson_polygon/+page.ts	js
+export const load = () => {
+    return {
+        title: 'GeoJSON Polygon',
+    };
+};
+
+=== 75 src/routes/examples/globe/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Globe',
+    };
+};
+
+=== 77 src/routes/examples/heatmap/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Heatmap',
+    };
+};
+
+=== 82 src/routes/examples/image_source/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Image Source',
+    };
+};
+
+=== 83 src/routes/examples/image_symbols/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Symbol Images',
+    };
+};
+
+=== 85 src/routes/examples/marker/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Default Markers',
+    };
+};
+
+=== 82 src/routes/examples/marker_layer/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Marker Layer',
+    };
+};
+
+=== 89 src/routes/examples/marker_on_click/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Add Marker on Click',
+    };
+};
+
+=== 94 src/routes/examples/overlapping_layer_events/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Overlapping Layer Events',
+    };
+};
+
+=== 83 src/routes/examples/pmtile_source/+page.ts	js
+export const load = () => {
+    return {
+        title: 'PMTile Source',
+    };
+};
+
+=== 87 src/routes/examples/popup_remote/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Remote Popup Data',
+    };
+};
+
+=== 462 src/routes/examples/popup_remote/[id]/+server.ts	js
+import { json } from '@sveltejs/kit';
+export const config = {
+    runtime: 'edge',
+};
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/**
+ * This is a very contrived example.
+ */
+export async function GET({ params }) {
+    const { id } = params;
+    // make this request take one second
+    await sleep(1000);
+    // return some meaningless data
+    return json({
+        id,
+        width: 10 * id.length,
+        height: 12 * id.length,
+    });
+}
+
+=== 83 src/routes/examples/raster_source/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Raster Source',
+    };
+};
+
+=== 354 src/routes/examples/styles.ts	js
+import { PUBLIC_MAPTILER_KEY } from '$env/static/public';
+export const hasMaptilerKey = PUBLIC_MAPTILER_KEY && PUBLIC_MAPTILER_KEY !== 'key';
+export const streetsStyle = `https://api.maptiler.com/maps/streets-v2/style.json?key=${PUBLIC_MAPTILER_KEY}`;
+export const mapClasses = 'relative w-full aspect-[9/16] max-h-[70vh] sm:max-h-full sm:aspect-video';
+
+=== 88 src/routes/examples/vector_source/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Vector Tile Source',
+    };
+};
+
+=== 97 src/routes/examples/zoom_transition/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Transition Layers with Zoom',
+    };
+};
+
+=== 92 src/routes/tests/change_center_zoom/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Change center and zoom',
+    };
+};
+
+=== 91 src/routes/tests/map-style-update/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Map Style Update Test',
+    };
+};
+
+=== 94 src/routes/tests/marker-class-update/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Marker Class Update Test',
+    };
+};
+
+=== 84 src/routes/tests/marker-z-index/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Marker Z-Index',
+    };
+};
+
+=== 88 src/routes/tests/replace_source/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Replacing a Source',
+    };
+};
+
+=== 86 src/routes/tests/standalone-popup/+page.ts	js
+export const load = () => {
+    return {
+        title: 'Standalone Popup',
+    };
+};
+
+=== 1132 src/site/colors.ts	js
+import { lab } from 'd3-color';
+export function contrastingColor(color) {
+    const colorLab = lab(color);
+    const MIN_DIFF = 50;
+    const MAX_DIFF = 90;
+    let l = colorLab.l;
+    let output = 100 - l;
+    let contrast = Math.abs(l - output);
+    let textColor;
+    let hoverBgColor;
+    let textOutlineColor;
+    if (l < output) {
+        if (contrast < MIN_DIFF) {
+            output = l + MIN_DIFF;
+        }
+        else if (contrast > MAX_DIFF) {
+            output = l + MAX_DIFF;
+        }
+        textColor = lab(output, colorLab.a, colorLab.b);
+        textOutlineColor = 'rgba(0, 0, 0, 0.5)';
+        hoverBgColor = colorLab.brighter();
+    }
+    else {
+        if (contrast < MIN_DIFF) {
+            output = l - MIN_DIFF;
+        }
+        else if (contrast > MAX_DIFF) {
+            output = l - MAX_DIFF;
+        }
+        textColor = lab(output, colorLab.a, colorLab.b);
+        textOutlineColor = 'rgba(255, 255, 255, 0.5)';
+        hoverBgColor = colorLab.darker();
+    }
+    return {
+        textColor: textColor.formatRgb(),
+        textOutlineColor,
+        hoverBgColor: hoverBgColor.formatRgb(),
+    };
+}
+
+=== 111 src/site/components/ui/button/index.ts	js
+import Root, { buttonVariants, } from './button.svelte';
+export { Root, 
+//
+Root as Button, buttonVariants, };
+
+=== 777 src/site/components/ui/sheet/index.ts	js
+import Root from './sheet.svelte';
+import Portal from './sheet-portal.svelte';
+import Trigger from './sheet-trigger.svelte';
+import Close from './sheet-close.svelte';
+import Overlay from './sheet-overlay.svelte';
+import Content from './sheet-content.svelte';
+import Header from './sheet-header.svelte';
+import Footer from './sheet-footer.svelte';
+import Title from './sheet-title.svelte';
+import Description from './sheet-description.svelte';
+export { Root, Close, Trigger, Portal, Overlay, Content, Header, Footer, Title, Description, 
+//
+Root as Sheet, Close as SheetClose, Trigger as SheetTrigger, Portal as SheetPortal, Overlay as SheetOverlay, Content as SheetContent, Header as SheetHeader, Footer as SheetFooter, Title as SheetTitle, Description as SheetDescription, };
+
+=== 139 src/site/utils.ts	js
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+export function cn(...inputs) {
+    return twMerge(clsx(inputs));
+}
+
+=== 444 tests/basic.spec.ts	js
+import { test, expect } from '@playwright/test';
+import { getMapContainer, getMapCanvas } from './util';
+test.describe('Basic', async () => {
+    test('render basic map', async ({ page }) => {
+        await page.goto('/examples/basic');
+        const mapContainer = getMapContainer(page);
+        await expect(mapContainer).toBeVisible();
+        const mapCanvas = getMapCanvas(page);
+        await expect(mapCanvas).toBeVisible();
+    });
+});
+
+=== 385 tests/marker.spec.ts	js
+import { test, expect } from '@playwright/test';
+import { getMap } from './util';
+test.describe('Default Markers', async () => {
+    test('render 6 markers', async ({ page }) => {
+        await page.goto('/examples/marker');
+        const map = getMap(page);
+        const markers = await map.locator('div.maplibregl-marker');
+        await expect(markers).toHaveCount(6);
+    });
+});
+
+=== 274 tests/util.ts	js
+import {} from '@playwright/test';
+export function getMapContainer(page) {
+    return page.getByTestId('map-container');
+}
+export function getMap(page) {
+    return page.getByTestId('map');
+}
+export function getMapCanvas(page) {
+    return page.getByTestId('map-canvas');
+}
+
+=== 286 vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vitest/config';
+import tailwindcss from '@tailwindcss/vite';
+export default defineConfig({
+    plugins: [tailwindcss(), sveltekit()],
+    test: {
+        include: ['src/**/*.{test,spec}.{js,ts}'],
+    },
+});
+

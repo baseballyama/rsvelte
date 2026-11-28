@@ -61,26 +61,60 @@ pub enum Unprojected<'a> {
 
 /// What the checker reads for a component that has no projection.
 ///
-/// When svelte2tsx throws, svelte-check reads the bare instance script, else the module script,
-/// which declares globals for the whole project when it neither imports nor exports. Otherwise
-/// it is [`STAND_IN`] after the module script, so an import still reads the module's exports with
-/// their types.
+/// When svelte2tsx throws, svelte-check reads the bare instance script, else the module script.
+/// One that neither imports nor exports it reads as a global script, which declares its names for
+/// the whole project; that is not followed here, so such a script reads as an empty file, which is
+/// equally not a module. Otherwise it is [`STAND_IN`] after the module script, so an import still
+/// reads the module's exports with their types.
 #[must_use]
 pub fn unprojected(source: &str, why: Unprojected<'_>) -> String {
     match why {
-        Unprojected::Thrown => rsvelte_svelte_syntax::parse::parse_without_scripts(source)
-            .ok()
-            .and_then(|component| {
-                let script = component.instance.as_ref().or(component.module.as_ref())?;
-                Some(script.content.text(source).to_owned())
-            })
-            .unwrap_or_default(),
+        // svelte-check reads the scripts whether or not Svelte's parser accepts the component.
+        Unprojected::Thrown => {
+            let script =
+                (rsvelte_svelte_syntax::parse::checked_scripts(source).content).unwrap_or_default();
+            // The marker keeps the script a module where TypeScript's recovery reads it otherwise.
+            if is_module(script) {
+                format!("{script}\n;\nexport {{}};\n")
+            } else {
+                String::new()
+            }
+        }
         // The `;` ends a module whose last statement has none.
         Unprojected::Unsupported(component) => component.module.as_ref().map_or_else(
             || STAND_IN.to_owned(),
             |module| format!("{}\n;\n{STAND_IN}", module.content.text(source)),
         ),
     }
+}
+
+/// Whether TypeScript reads `script` as a module (`isExternalModule`): a top-level import or
+/// export declaration other than `export as namespace`, an `import … = require(…)`, or an
+/// `import.meta` anywhere. A top-level `await` alone does not make one. A script oxc cannot
+/// parse is not one here.
+fn is_module(script: &str) -> bool {
+    use oxc_ast::ast::{ModuleDeclaration, Statement, TSModuleReference};
+    let allocator = oxc_allocator::Allocator::default();
+    let parsed = oxc_parser::Parser::new(&allocator, script, oxc_span::SourceType::ts()).parse();
+    // oxc keeps nothing of a script that does not parse, where TypeScript's recovery reads on.
+    if !parsed.diagnostics.is_empty() && parsed.program.body.is_empty() {
+        return false;
+    }
+    !parsed.module_record.import_metas.is_empty()
+        || parsed.program.body.iter().any(|statement| match statement {
+            Statement::TSImportEqualsDeclaration(declaration) => matches!(
+                declaration.module_reference,
+                TSModuleReference::ExternalModuleReference(_)
+            ),
+            _ => statement
+                .as_module_declaration()
+                .is_some_and(|declaration| {
+                    !matches!(
+                        declaration,
+                        ModuleDeclaration::TSNamespaceExportDeclaration(_)
+                    )
+                }),
+        })
 }
 
 /// Takes no options.

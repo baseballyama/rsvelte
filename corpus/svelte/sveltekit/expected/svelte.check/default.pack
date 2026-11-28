@@ -2396,6 +2396,22 @@
 === 3 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	json
 []
 
+=== 198 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 0,
+			"character": 4
+		},
+		"end": {
+			"line": 0,
+			"character": 4
+		}
+	}
+]
+
 === 3 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	json
 []
 

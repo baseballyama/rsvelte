@@ -182,6 +182,15 @@ fn svelte_refuses_the_namespace_around_an_import_equals_and_an_ambient_one_with_
     }
 }
 
+/// What the emit starts a declaration's file with: a file without an export is not a module.
+fn prologue(declaration: &str) -> &'static str {
+    if declaration.starts_with("export") {
+        ""
+    } else {
+        "\"use strict\";\n"
+    }
+}
+
 #[test]
 fn numbers_print_as_typescripts_emit_prints_them() {
     // TypeScript 6.0.3's `transpileModule`: `canUseOriginalText`'s cases, in a module and a script.
@@ -202,8 +211,104 @@ fn numbers_print_as_typescripts_emit_prints_them() {
             let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
             let words = |text: &str| text.split_whitespace().collect::<String>();
-            let expected = words(&format!("{declaration} = [{printed}];"));
+            let expected = words(&format!(
+                "{}{declaration} = [{printed}];",
+                prologue(declaration)
+            ));
             assert_eq!(words(&emit(&parsed.program)), expected, "{source_text}");
+        }
+    }
+}
+
+#[test]
+fn a_number_a_property_access_follows_prints_as_typescripts_emit_prints_it() {
+    // TypeScript 6.0.3's `transpileModule`, which writes `mayNeedDotDotForPropertyAccess`'s dot.
+    for (written, printed) in [
+        ("1 .toString()", "1..toString()"),
+        ("1_0 .x", "1_0..x"),
+        ("10 .x", "10..x"),
+        ("0 .x", "0..x"),
+        ("1..toString()", "1..toString()"),
+        ("1.0.toString()", "1.0.toString()"),
+        ("1.5.x", "1.5.x"),
+        (".5.x", ".5.x"),
+        ("5..x", "5..x"),
+        ("1e3.x", "1e3.x"),
+        ("1E3.x", "1E3.x"),
+        ("0x10.x", "0x10.x"),
+        ("0X10.x", "0X10.x"),
+        ("0b1.x", "0b1.x"),
+        ("0o7.x", "0o7.x"),
+        ("1n.x", "1n.x"),
+        ("08 .x", "8..x"),
+        ("010 .x", "8..x"),
+        ("1 ?.x", "1?.x"),
+        ("1 [\"x\"]", "1[\"x\"]"),
+        ("1 .x()", "1..x()"),
+        ("-1 .x", "-1..x"),
+        ("1 .x.y", "1..x.y"),
+    ] {
+        for declaration in ["export const a", "const a"] {
+            let allocator = Allocator::default();
+            let source_text = format!("{declaration} = {written};\n");
+            let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
+            assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+            let expected = format!("{}{declaration} = {printed};\n", prologue(declaration));
+            assert_eq!(emit(&parsed.program), expected, "{source_text}");
+        }
+    }
+}
+
+/// A source written around a number.
+type Shape = fn(&str) -> String;
+
+#[test]
+fn a_number_in_parentheses_or_before_a_comment_or_a_line_break_gets_no_second_dot() {
+    // TypeScript 6.0.3's `transpileModule`: `shouldEmitDotDot` writes the second dot after each
+    // of these numbers only where nothing but white space that is not a line break comes before
+    // the dot.
+    let numbers = [
+        "1",
+        "0",
+        "9007199254740993",
+        "1_000",
+        "010",
+        "08",
+        "100000000000000000000",
+    ];
+    let shapes: [(Shape, bool); 17] = [
+        (|n| format!("({n}).x"), false),
+        (|n| format!("({n} ).x"), false),
+        (|n| format!("{n}\n.x"), false),
+        (|n| format!("{n}\r.x"), false),
+        (|n| format!("{n}\r\n.x"), false),
+        (|n| format!("{n}\u{2028}.x"), false),
+        (|n| format!("{n}\u{2029}.x"), false),
+        (|n| format!("{n} /*c*/ .x"), false),
+        (|n| format!("{n} // c\n.x"), false),
+        (|n| format!("{n}\t.x"), true),
+        (|n| format!("{n}\u{b}.x"), true),
+        (|n| format!("{n}\u{c}.x"), true),
+        (|n| format!("{n}\u{a0}.x"), true),
+        (|n| format!("{n}\u{feff}.x"), true),
+        (|n| format!("{n}\u{3000}.x"), true),
+        (|n| format!("{n}\u{85}.x"), true),
+        (|n| format!("{n}\u{200b}.x"), true),
+    ];
+    for number in numbers {
+        for (shape, dotted) in shapes {
+            for declaration in ["export const a", "const a"] {
+                let allocator = Allocator::default();
+                let source_text = format!("{declaration} = {};\n", shape(number));
+                let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
+                assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+                let emitted = emit(&parsed.program);
+                assert_eq!(
+                    emitted.contains(".."),
+                    dotted,
+                    "{source_text:?} {emitted:?}"
+                );
+            }
         }
     }
 }

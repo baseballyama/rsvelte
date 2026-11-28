@@ -19,6 +19,7 @@ pub(super) fn typescript_view(
     context: &DocumentContext<'_>,
     env: Option<&Result<Arc<TypeScriptEnv>, String>>,
 ) -> Result<TypeScriptDocument, Diagnostic> {
+    let language = env.and_then(|env| env.as_ref().ok()).cloned();
     // Svelte's parser also rejects the template's JavaScript; svelte2tsx blanks the scripts first.
     let javascript_error =
         rsvelte_svelte_semantic::javascript_error::of_document(context, |error| {
@@ -34,19 +35,19 @@ pub(super) fn typescript_view(
     // off the script elements whether or not svelte2tsx throws.
     let source = &context.document.text;
     let typescript = read.as_ref().map_or_else(
-        |_| rsvelte_svelte_syntax::parse::scripts_checked_as_typescript(source),
+        |_| rsvelte_svelte_syntax::parse::checked_scripts(source).typescript,
         |read| read.component.checked_as_typescript(source),
     );
     let read = match read {
         Ok(read) => read,
         Err(error) => {
             let error = javascript_error.as_ref().unwrap_or(error);
-            return Ok(rejected(error, typescript));
+            return Ok(rejected(error, typescript, language));
         }
     };
     let component = read.component;
     if let Some(error) = &javascript_error {
-        return Ok(rejected(error, typescript));
+        return Ok(rejected(error, typescript, language));
     }
     let projection = match context.get::<EmittedProjection>() {
         Ok(projection) => projection,
@@ -55,10 +56,11 @@ pub(super) fn typescript_view(
                 message: thrown.message.clone(),
                 span: thrown.span,
                 javascript: !typescript,
+                env: language,
             });
         }
         // A JavaScript component the projection does not cover stays unchecked.
-        Err(_) if !typescript => return Ok(TypeScriptDocument::Unchecked),
+        Err(_) if !typescript => return Ok(TypeScriptDocument::Unchecked { env: language }),
         Err(diagnostic) => return Err(diagnostic.clone()),
     };
     let env = env_of(env)?;
@@ -169,9 +171,14 @@ fn pug_template(component: &Component, source_text: &str) -> Option<Span> {
 }
 
 /// What svelte-check reports for the parse error svelte2tsx throws.
-fn rejected(error: &Diagnostic, typescript: bool) -> TypeScriptDocument {
+fn rejected(
+    error: &Diagnostic,
+    typescript: bool,
+    env: Option<Arc<TypeScriptEnv>>,
+) -> TypeScriptDocument {
     TypeScriptDocument::Rejected {
         javascript: !typescript,
+        env,
         message: error.message.clone(),
         span: if error.has_end {
             error.span

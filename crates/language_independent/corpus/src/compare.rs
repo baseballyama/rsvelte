@@ -8,7 +8,10 @@
 
 mod comments;
 mod javascript;
+mod source_map;
+mod syntax_tree;
 
+pub(crate) use javascript::Parentheses;
 use javascript::Unparsed;
 use rsvelte_kernel::computation::task::TaskOutput;
 use serde::Deserialize;
@@ -89,6 +92,7 @@ pub(crate) struct Ours<'a> {
 pub(crate) fn verdict(
     official: &[Entry<'_>],
     ours: Option<&Ours<'_>>,
+    parentheses: Parentheses,
 ) -> Result<Option<Verdict>, String> {
     let wrote = ours.is_some_and(|o| !o.output.files.is_empty());
     let rejected = ours.is_some_and(|o| !wrote && o.diagnostics.is_some());
@@ -116,20 +120,21 @@ pub(crate) fn verdict(
         let actual = match e.attributes {
             "warnings.json" => ours.diagnostics.as_deref(),
             "lint.txt" => file(ours.output, "lint.json"),
+            "ast.sha256" => file(ours.output, "ast.json"),
             name => file(ours.output, name),
         };
         let v = match actual {
             None => Verdict::Missing,
-            Some(actual) => compare(e.attributes, e.body, actual)
+            Some(actual) => compare(e.attributes, e.body, actual, parentheses)
                 .map_err(|why| format!("official {} of {}: {why}", e.attributes, e.path))?,
         };
         worst = worst.min(v);
     }
     let paired = |name: &str| {
-        let official_name = if name == "lint.json" {
-            "lint.txt"
-        } else {
-            name
+        let official_name = match name {
+            "lint.json" => "lint.txt",
+            "ast.json" => "ast.sha256",
+            name => name,
         };
         official.iter().any(|e| e.attributes == official_name)
     };
@@ -201,6 +206,56 @@ pub(crate) fn comments_verdict(
     }
 }
 
+/// Whether rsvelte's source map gives each identifier of its JavaScript the origin the official
+/// map gives the same identifier: `Missing` when only the official map gives some an origin,
+/// `Unexpected` when only rsvelte's does, `Mismatch` when the two give one different origins or
+/// both of the others happen. `official` is the official compile's entries and `map` its
+/// `js.map`. A unit that is not compared says why; `None` when the official tool wrote no map.
+///
+/// # Errors
+///
+/// The official JavaScript or map does not parse.
+pub(crate) fn source_map_verdict(
+    official: &[Entry<'_>],
+    map: Option<&Entry<'_>>,
+    ours: Option<&TaskOutput>,
+) -> Result<Option<Verdict>, String> {
+    if official.iter().any(|e| e.attributes.starts_with("error.")) {
+        return Ok(Some(Verdict::OfficialRejected));
+    }
+    let (Some(javascript), Some(map)) = (official.iter().find(|e| e.attributes == "js"), map)
+    else {
+        return Ok(None);
+    };
+    let (Some(actual), Some(actual_map)) = (
+        ours.and_then(|o| file(o, "js")),
+        ours.and_then(|o| file(o, "js.map")),
+    ) else {
+        return Ok(Some(Verdict::Refused));
+    };
+    let expected = source_map::Mapped {
+        javascript: javascript.body,
+        map: map.body,
+    };
+    let actual = source_map::Mapped {
+        javascript: actual,
+        map: actual_map,
+    };
+    match source_map::difference(expected, actual) {
+        Ok(d) => Ok(Some(match (d.missing > 0, d.extra > 0, d.moved > 0) {
+            (false, false, false) => Verdict::Match,
+            (true, false, false) => Verdict::Missing,
+            (false, true, false) => Verdict::Unexpected,
+            _ => Verdict::Mismatch,
+        })),
+        Err(Unparsed::Actual(_)) => Ok(Some(Verdict::Unparseable)),
+        Err(Unparsed::Expected(e)) => Err(format!(
+            "official js or map of {}: does not parse: {e}",
+            javascript.path
+        )),
+    }
+}
+
 fn file<'a>(output: &'a TaskOutput, name: &str) -> Option<&'a str> {
     output
         .files
@@ -261,14 +316,23 @@ const fn same(equal: bool) -> Verdict {
 }
 
 /// `Err` when the official text itself is not what its name says.
-fn compare(name: &str, official: &str, actual: &str) -> Result<Verdict, String> {
+fn compare(
+    name: &str,
+    official: &str,
+    actual: &str,
+    parentheses: Parentheses,
+) -> Result<Verdict, String> {
     match name {
-        "js" => match javascript::same_tree(official, actual) {
+        "js" => match javascript::same_tree(official, actual, parentheses) {
             Ok(equal) => Ok(same(equal)),
             Err(Unparsed::Actual(_)) => Ok(Verdict::Unparseable),
             Err(Unparsed::Expected(e)) => Err(format!("does not parse: {e}")),
         },
         "lint.txt" => lint(official, actual),
+        // An AST that is not JSON is rsvelte's to fix.
+        "ast.sha256" => {
+            Ok(syntax_tree::same_hash(official, actual).map_or(Verdict::Unparseable, same))
+        }
         "warnings.json" => same_diagnostics(official, actual).map(same),
         _ if name.ends_with("json") => {
             same_json(official, actual).map_err(|e| format!("not JSON: {e}"))

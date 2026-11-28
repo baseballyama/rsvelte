@@ -1,15 +1,10 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { x = 1, items = [], fill = 'red' } = $props();
+	let /** @typedef {{ x?: number, items?: any[], fill?: string }} $$ComponentProps *//** @type {$$ComponentProps} */ { x = 1, items = [], fill = 'red' } = $props();
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    x: 1,
-    items: __rsvelte_array_prop(),
-    fill: 'red',
-  }, false);
   async () => {
     {
       svelteHTML.createElement("g", {
@@ -55,7 +50,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const SvgWithoutSvg__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof SvgWithoutSvg__SvelteComponent_>} SvgWithoutSvg__SvelteComponent_ */

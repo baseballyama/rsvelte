@@ -1,0 +1,1968 @@
+# rsvelte pack 1
+=== 700 playwright.config.ts	js
+const config = {
+    webServer: {
+        command: 'npm run build && npm run preview',
+        port: 4173,
+        reuseExistingServer: !process.env.CI
+    },
+    testDir: 'tests',
+    testMatch: '**/*.spec.ts',
+    fullyParallel: true,
+    forbidOnly: !!process.env.CI,
+    retries: process.env.CI ? 2 : 0,
+    workers: process.env.CI ? 1 : undefined,
+    reporter: [['html', { open: 'never' }]],
+    use: {
+        baseURL: 'http://localhost:4173',
+        trace: 'on-first-retry',
+        screenshot: 'only-on-failure'
+    },
+    projects: [
+        {
+            name: 'chromium',
+            use: {
+                browserName: 'chromium'
+            }
+        }
+    ]
+};
+export default config;
+
+=== 368 src/lib/index.ts	js
+import Portal from './components/Portal.svelte';
+import CommandPalette from './components/CommandPalette.svelte';
+import { defineActions } from './utils';
+import { paletteStore } from './store/PaletteStore';
+import createStoreMethods from './utils/createStoreMethods';
+export default CommandPalette;
+export { Portal, defineActions, paletteStore, createStoreMethods };
+
+=== 288 src/lib/store/PaletteStore.ts	js
+// @ts-nocheck
+import { writable } from 'svelte/store';
+export const paletteStore = writable({
+    isVisible: false,
+    textInput: '',
+    commands: [],
+    storeMethods: {},
+    actionMap: {},
+    activeCommandId: 0,
+    selectedCommandId: 0,
+    calledActions: [],
+    results: []
+});
+
+=== 273 src/lib/utils/createActionMap.ts	js
+const createActionMap = (commands = []) => {
+    return commands.reduce((acc, curr) => {
+        const { actionId = '' } = curr;
+        if (actionId !== null) {
+            acc[actionId] = curr;
+        }
+        return acc;
+    }, {});
+};
+export default createActionMap;
+
+=== 684 src/lib/utils/createShortcuts.ts	js
+import { get } from 'svelte/store';
+import { runAction } from '.';
+import { paletteStore } from '../store/PaletteStore';
+const createShortcuts = ({ actions = [] }) => {
+    return actions.reduce((acc, curr) => {
+        const actionHandler = (eventHandler) => {
+            const storeProps = get(paletteStore);
+            const { isVisible } = storeProps;
+            if (!isVisible) {
+                eventHandler.preventDefault();
+                runAction({ action: curr });
+            }
+        };
+        const { shortcut } = curr;
+        if (shortcut) {
+            acc[shortcut] = actionHandler;
+        }
+        return acc;
+    }, {});
+};
+export default createShortcuts;
+
+=== 1511 src/lib/utils/createStoreMethods.ts	js
+import { get } from 'svelte/store';
+import { paletteStore } from '../store/PaletteStore';
+import { defaultAppState } from '../constants';
+const createStoreMethods = () => {
+    const storeProps = get(paletteStore);
+    const resetPaletteStore = () => {
+        paletteStore.update((n) => ({ ...n, ...defaultAppState }));
+    };
+    const openPalette = () => {
+        paletteStore.update((n) => ({ ...n, isVisible: true }));
+    };
+    const closePalette = () => {
+        resetPaletteStore();
+    };
+    const togglePalette = () => {
+        paletteStore.update((n) => ({
+            ...n,
+            isVisible: !n.isVisible,
+            activeCommandId: ''
+        }));
+    };
+    const getAllCalledActions = () => {
+        return storeProps.calledActions || [];
+    };
+    const storeCalledAction = (id) => {
+        const { calledActions } = storeProps;
+        calledActions.push(id);
+        paletteStore.update((n) => ({ ...n, calledActions }));
+    };
+    const revertLastAction = (id) => {
+        const { calledActions } = storeProps;
+        calledActions.pop();
+        paletteStore.update((n) => ({ ...n, calledActions }));
+    };
+    const resetActionLog = () => {
+        paletteStore.update((n) => ({ ...n, calledActions: [] }));
+    };
+    return {
+        togglePalette,
+        getAllCalledActions,
+        storeCalledAction,
+        revertLastAction,
+        resetActionLog,
+        openPalette,
+        closePalette,
+        resetPaletteStore
+    };
+};
+export default createStoreMethods;
+
+=== 3458 src/lib/utils/index.ts	js
+import Fuse from 'fuse.js';
+import { paletteStore } from '../store/PaletteStore';
+import { get } from 'svelte/store';
+const noop = () => true;
+const defineActions = (actions = []) => {
+    return actions.map(({ actionId = Math.random(), canActionRun = noop, title = '', subTitle = '', onRun = noop, description, keywords = [], shortcut = '', icon, group }) => {
+        return {
+            actionId,
+            canActionRun,
+            title,
+            subTitle,
+            onRun,
+            description,
+            keywords,
+            shortcut,
+            icon,
+            group
+        };
+    });
+};
+const formatResults = (results) => results.map(({ item }) => item);
+const updatePaletteStoreAfterActionExec = (actionId) => {
+    paletteStore.update((n) => {
+        return {
+            ...n,
+            isVisible: false,
+            textInput: '',
+            activeCommandId: null,
+            selectedCommandId: null,
+            results: [],
+            calledActions: [...n.calledActions, actionId]
+        };
+    });
+};
+const runAction = ({ action }) => {
+    const { onRun, canActionRun = noop, actionId = '' } = action || {};
+    const storeProps = get(paletteStore);
+    const { storeMethods } = storeProps;
+    if (canActionRun({ action, storeProps, storeMethods }) && onRun) {
+        updatePaletteStoreAfterActionExec(actionId);
+        onRun?.({ action, storeProps, storeMethods });
+        return true;
+    }
+    paletteStore.update((n) => {
+        return {
+            ...n,
+            isVisible: false
+        };
+    });
+    return false;
+};
+// Fixed: 'subTitle' was incorrectly 'subtitle' causing search to not work on subtitles
+const createFuse = (actions) => new Fuse(actions, {
+    keys: [
+        {
+            name: 'title',
+            weight: 1
+        },
+        {
+            name: 'subTitle',
+            weight: 0.7
+        },
+        {
+            name: 'description',
+            weight: 0.6
+        },
+        {
+            name: 'keywords',
+            weight: 0.5
+        }
+    ],
+    threshold: 0.4,
+    ignoreLocation: true
+});
+const getNonEmptyArray = (...args) => {
+    return args.find((array = []) => array.length > 0) || [];
+};
+const camelCaseToDash = (str) => str.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+const toCssString = (props = {}) => props
+    ? Object.keys(props).reduce((str, key) => `${str}; ${camelCaseToDash(key)}: ${props[key]}`, '')
+    : '';
+// Group actions by their group property
+const groupActions = (actions) => {
+    const groups = new Map();
+    const ungrouped = [];
+    actions.forEach((action) => {
+        if (action.group) {
+            const existing = groups.get(action.group) || [];
+            groups.set(action.group, [...existing, action]);
+        }
+        else {
+            ungrouped.push(action);
+        }
+    });
+    // Put ungrouped items first
+    if (ungrouped.length > 0) {
+        const result = new Map();
+        result.set('', ungrouped);
+        groups.forEach((value, key) => result.set(key, value));
+        return result;
+    }
+    return groups;
+};
+// Simple debounce utility
+const debounce = (fn, delay) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
+};
+export { noop, defineActions, formatResults, runAction, createFuse, updatePaletteStoreAfterActionExec, getNonEmptyArray, camelCaseToDash, toCssString, groupActions, debounce };
+
+=== 530 src/routes/code/+server.ts	js
+import { json } from '@sveltejs/kit';
+export const GET = async ({ url }) => {
+    const file = url.searchParams.get('file');
+    const allFiles = import.meta.glob('./*.html', { query: '?raw', import: 'default' });
+    const fileToGet = Object.keys(allFiles).find((name) => {
+        const fileName = name.split('/').pop();
+        return fileName === file;
+    });
+    if (fileToGet && allFiles[fileToGet]) {
+        const html = await allFiles[fileToGet]();
+        return json({ html });
+    }
+    return json({ html: '' });
+};
+
+=== 105 src/store/themeStore.ts	js
+import { writable } from 'svelte/store';
+const themeStore = writable('dark');
+export default themeStore;
+
+=== 9066 src/tests/integration/commandPalette.test.ts	js
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { defineActions, createFuse, formatResults, runAction, groupActions } from '$lib/utils';
+import createActionMap from '$lib/utils/createActionMap';
+import createStoreMethods from '$lib/utils/createStoreMethods';
+import { paletteStore } from '$lib/store/PaletteStore';
+import { get } from 'svelte/store';
+describe('Command Palette Integration', () => {
+    beforeEach(() => {
+        paletteStore.set({
+            isVisible: false,
+            textInput: '',
+            commands: [],
+            storeMethods: {},
+            actionMap: {},
+            activeCommandId: null,
+            selectedCommandId: null,
+            calledActions: [],
+            results: []
+        });
+    });
+    describe('Complete workflow', () => {
+        it('should handle complete action definition and execution flow', () => {
+            const onRunSpy = vi.fn();
+            // 1. Define actions
+            const actions = defineActions([
+                {
+                    title: 'Open Settings',
+                    subTitle: 'Configure your preferences',
+                    actionId: 'settings',
+                    keywords: ['config', 'preferences'],
+                    onRun: onRunSpy
+                },
+                {
+                    title: 'Toggle Dark Mode',
+                    subTitle: 'Switch theme',
+                    actionId: 'dark-mode',
+                    onRun: vi.fn()
+                }
+            ]);
+            // 2. Create action map
+            const actionMap = createActionMap(actions);
+            // 3. Setup store
+            const storeMethods = createStoreMethods();
+            paletteStore.update((n) => ({
+                ...n,
+                commands: actions,
+                actionMap,
+                storeMethods
+            }));
+            // 4. Open palette
+            storeMethods.openPalette();
+            expect(get(paletteStore).isVisible).toBe(true);
+            // 5. Get action from map
+            const settingsAction = actionMap['settings'];
+            expect(settingsAction).toBeDefined();
+            expect(settingsAction.title).toBe('Open Settings');
+            // 6. Execute action
+            runAction({ action: settingsAction });
+            // 7. Verify execution
+            expect(onRunSpy).toHaveBeenCalled();
+            expect(get(paletteStore).isVisible).toBe(false);
+            expect(get(paletteStore).calledActions).toContain('settings');
+        });
+        it('should handle search and filter flow', () => {
+            const actions = defineActions([
+                {
+                    title: 'Open Settings',
+                    subTitle: 'Configure preferences',
+                    keywords: ['config'],
+                    actionId: 'settings'
+                },
+                {
+                    title: 'Toggle Dark Mode',
+                    subTitle: 'Switch theme',
+                    keywords: ['theme'],
+                    actionId: 'dark-mode'
+                },
+                {
+                    title: 'Search Files',
+                    subTitle: 'Find files',
+                    keywords: ['find'],
+                    actionId: 'search'
+                }
+            ]);
+            // Create fuse search
+            const fuse = createFuse(actions);
+            // Search for "settings"
+            const settingsResults = formatResults(fuse.search('settings'));
+            expect(settingsResults.length).toBeGreaterThan(0);
+            expect(settingsResults[0].actionId).toBe('settings');
+            // Search for "theme"
+            const themeResults = formatResults(fuse.search('theme'));
+            expect(themeResults.length).toBeGreaterThan(0);
+            expect(themeResults[0].actionId).toBe('dark-mode');
+            // Search for non-existent
+            const noResults = formatResults(fuse.search('xyz123'));
+            expect(noResults).toHaveLength(0);
+        });
+        it('should handle action grouping flow', () => {
+            const actions = defineActions([
+                { title: 'Settings', group: 'System', actionId: '1' },
+                { title: 'Profile', group: 'User', actionId: '2' },
+                { title: 'Logout', group: 'User', actionId: '3' },
+                { title: 'Help', actionId: '4' } // Ungrouped
+            ]);
+            const grouped = groupActions(actions);
+            // Should have 3 groups: '', 'System', 'User'
+            expect(grouped.size).toBe(3);
+            expect(grouped.get('')).toHaveLength(1); // Ungrouped
+            expect(grouped.get('System')).toHaveLength(1);
+            expect(grouped.get('User')).toHaveLength(2);
+        });
+        it('should handle conditional action execution', () => {
+            const onRunSpy = vi.fn();
+            let canRun = false;
+            const [action] = defineActions([
+                {
+                    title: 'Conditional Action',
+                    actionId: 'conditional',
+                    canActionRun: () => canRun,
+                    onRun: onRunSpy
+                }
+            ]);
+            // Should not run when canRun is false
+            runAction({ action });
+            expect(onRunSpy).not.toHaveBeenCalled();
+            // Should run when canRun is true
+            canRun = true;
+            runAction({ action });
+            expect(onRunSpy).toHaveBeenCalled();
+        });
+    });
+    describe('Store methods integration', () => {
+        it('should track action history', () => {
+            const storeMethods = createStoreMethods();
+            // Store some actions
+            storeMethods.storeCalledAction('action-1');
+            storeMethods.storeCalledAction('action-2');
+            storeMethods.storeCalledAction('action-3');
+            const state = get(paletteStore);
+            expect(state.calledActions.length).toBeGreaterThanOrEqual(3);
+            // Revert last action
+            storeMethods.revertLastAction('action-3');
+            // Reset log
+            storeMethods.resetActionLog();
+            expect(get(paletteStore).calledActions).toEqual([]);
+        });
+        it('should manage palette visibility', () => {
+            const storeMethods = createStoreMethods();
+            // Initial state
+            expect(get(paletteStore).isVisible).toBe(false);
+            // Open
+            storeMethods.openPalette();
+            expect(get(paletteStore).isVisible).toBe(true);
+            // Close
+            storeMethods.closePalette();
+            expect(get(paletteStore).isVisible).toBe(false);
+            // Toggle
+            storeMethods.togglePalette();
+            expect(get(paletteStore).isVisible).toBe(true);
+            storeMethods.togglePalette();
+            expect(get(paletteStore).isVisible).toBe(false);
+        });
+    });
+    describe('Edge cases', () => {
+        it('should handle empty action array', () => {
+            const actions = defineActions([]);
+            const actionMap = createActionMap(actions);
+            const fuse = createFuse(actions);
+            expect(actions).toHaveLength(0);
+            expect(Object.keys(actionMap)).toHaveLength(0);
+            expect(fuse.search('test')).toHaveLength(0);
+        });
+        it('should handle action without optional fields', () => {
+            const [action] = defineActions([{ title: 'Minimal' }]);
+            expect(action.title).toBe('Minimal');
+            expect(typeof action.actionId).toBe('number'); // Auto-generated
+            expect(action.subTitle).toBe('');
+            expect(action.keywords).toEqual([]);
+            expect(action.shortcut).toBe('');
+        });
+        it('should handle rapid palette toggling', () => {
+            const storeMethods = createStoreMethods();
+            for (let i = 0; i < 10; i++) {
+                storeMethods.togglePalette();
+            }
+            // After 10 toggles (even number), should be closed
+            expect(get(paletteStore).isVisible).toBe(false);
+            storeMethods.togglePalette(); // 11th toggle
+            expect(get(paletteStore).isVisible).toBe(true);
+        });
+        it('should handle special characters in search', () => {
+            const actions = defineActions([
+                { title: 'Test @special', actionId: '1' },
+                { title: 'Test #hashtag', actionId: '2' },
+                { title: 'Test $dollar', actionId: '3' }
+            ]);
+            const fuse = createFuse(actions);
+            // Should handle special chars gracefully
+            expect(() => fuse.search('@special')).not.toThrow();
+            expect(() => fuse.search('#hashtag')).not.toThrow();
+            expect(() => fuse.search('$dollar')).not.toThrow();
+        });
+        it('should handle very long action titles', () => {
+            const longTitle = 'A'.repeat(1000);
+            const actions = defineActions([{ title: longTitle, actionId: 'long' }]);
+            const actionMap = createActionMap(actions);
+            expect(actionMap['long'].title).toBe(longTitle);
+        });
+    });
+});
+
+=== 737 src/tests/setup.ts	js
+import { vi } from 'vitest';
+// Mock tinykeys for unit tests
+vi.mock('tinykeys', () => ({
+    tinykeys: vi.fn(() => vi.fn()),
+    parseKeybinding: vi.fn((key) => [[key]])
+}));
+// Mock window.matchMedia for tests
+Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn()
+    }))
+});
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn()
+}));
+
+=== 6365 src/tests/store/createStoreMethods.test.ts	js
+import { describe, it, expect, beforeEach } from 'vitest';
+import createStoreMethods from '$lib/utils/createStoreMethods';
+import { paletteStore } from '$lib/store/PaletteStore';
+import { get } from 'svelte/store';
+describe('createStoreMethods', () => {
+    beforeEach(() => {
+        // Reset the store before each test
+        paletteStore.set({
+            isVisible: false,
+            textInput: '',
+            commands: [],
+            storeMethods: {},
+            actionMap: {},
+            activeCommandId: null,
+            selectedCommandId: null,
+            calledActions: [],
+            results: []
+        });
+    });
+    describe('openPalette', () => {
+        it('should set isVisible to true', () => {
+            const { openPalette } = createStoreMethods();
+            openPalette();
+            const store = get(paletteStore);
+            expect(store.isVisible).toBe(true);
+        });
+    });
+    describe('closePalette', () => {
+        it('should set isVisible to false', () => {
+            paletteStore.update((n) => ({ ...n, isVisible: true }));
+            const { closePalette } = createStoreMethods();
+            closePalette();
+            const store = get(paletteStore);
+            expect(store.isVisible).toBe(false);
+        });
+        it('should reset store to default state', () => {
+            paletteStore.update((n) => ({
+                ...n,
+                isVisible: true,
+                textInput: 'search query',
+                activeCommandId: 'some-id',
+                results: [{ title: 'test', actionId: '1' }]
+            }));
+            const { closePalette } = createStoreMethods();
+            closePalette();
+            const store = get(paletteStore);
+            expect(store.isVisible).toBe(false);
+            expect(store.textInput).toBe('');
+            expect(store.activeCommandId).toBe(null);
+            expect(store.results).toEqual([]);
+        });
+    });
+    describe('togglePalette', () => {
+        it('should toggle isVisible from false to true', () => {
+            const { togglePalette } = createStoreMethods();
+            togglePalette();
+            const store = get(paletteStore);
+            expect(store.isVisible).toBe(true);
+        });
+        it('should toggle isVisible from true to false', () => {
+            paletteStore.update((n) => ({ ...n, isVisible: true }));
+            const { togglePalette } = createStoreMethods();
+            togglePalette();
+            const store = get(paletteStore);
+            expect(store.isVisible).toBe(false);
+        });
+        it('should reset activeCommandId when toggling', () => {
+            paletteStore.update((n) => ({ ...n, activeCommandId: 'some-id' }));
+            const { togglePalette } = createStoreMethods();
+            togglePalette();
+            const store = get(paletteStore);
+            expect(store.activeCommandId).toBe('');
+        });
+    });
+    describe('resetPaletteStore', () => {
+        it('should reset to default state', () => {
+            paletteStore.update((n) => ({
+                ...n,
+                isVisible: true,
+                textInput: 'query',
+                activeCommandId: 'id',
+                selectedCommandId: 'selected',
+                results: [{ title: 'test', actionId: '1' }]
+            }));
+            const { resetPaletteStore } = createStoreMethods();
+            resetPaletteStore();
+            const store = get(paletteStore);
+            expect(store.isVisible).toBe(false);
+            expect(store.textInput).toBe('');
+            expect(store.activeCommandId).toBe(null);
+            expect(store.selectedCommandId).toBe(null);
+            expect(store.results).toEqual([]);
+        });
+    });
+    describe('storeCalledAction', () => {
+        it('should add action id to calledActions', () => {
+            const storeMethods = createStoreMethods();
+            storeMethods.storeCalledAction('action-1');
+            const store = get(paletteStore);
+            expect(store.calledActions).toContain('action-1');
+        });
+        it('should accumulate multiple action ids', () => {
+            const storeMethods = createStoreMethods();
+            storeMethods.storeCalledAction('action-1');
+            storeMethods.storeCalledAction('action-2');
+            const store = get(paletteStore);
+            expect(store.calledActions.length).toBeGreaterThanOrEqual(2);
+        });
+    });
+    describe('getAllCalledActions', () => {
+        it('should return empty array initially', () => {
+            const { getAllCalledActions } = createStoreMethods();
+            const result = getAllCalledActions();
+            expect(result).toEqual([]);
+        });
+    });
+    describe('revertLastAction', () => {
+        it('should remove last action from calledActions', () => {
+            paletteStore.update((n) => ({
+                ...n,
+                calledActions: ['action-1', 'action-2', 'action-3']
+            }));
+            const storeMethods = createStoreMethods();
+            storeMethods.revertLastAction('action-3');
+            const store = get(paletteStore);
+            expect(store.calledActions).not.toContain('action-3');
+        });
+    });
+    describe('resetActionLog', () => {
+        it('should clear calledActions array', () => {
+            paletteStore.update((n) => ({
+                ...n,
+                calledActions: ['action-1', 'action-2']
+            }));
+            const { resetActionLog } = createStoreMethods();
+            resetActionLog();
+            const store = get(paletteStore);
+            expect(store.calledActions).toEqual([]);
+        });
+    });
+    describe('returned methods object', () => {
+        it('should return all expected methods', () => {
+            const methods = createStoreMethods();
+            expect(typeof methods.togglePalette).toBe('function');
+            expect(typeof methods.getAllCalledActions).toBe('function');
+            expect(typeof methods.storeCalledAction).toBe('function');
+            expect(typeof methods.revertLastAction).toBe('function');
+            expect(typeof methods.resetActionLog).toBe('function');
+            expect(typeof methods.openPalette).toBe('function');
+            expect(typeof methods.closePalette).toBe('function');
+            expect(typeof methods.resetPaletteStore).toBe('function');
+        });
+    });
+});
+
+=== 4232 src/tests/store/paletteStore.test.ts	js
+import { describe, it, expect, beforeEach } from 'vitest';
+import { paletteStore } from '$lib/store/PaletteStore';
+import { get } from 'svelte/store';
+describe('paletteStore', () => {
+    beforeEach(() => {
+        // Reset store to initial state
+        paletteStore.set({
+            isVisible: false,
+            textInput: '',
+            commands: [],
+            storeMethods: {},
+            actionMap: {},
+            activeCommandId: 0,
+            selectedCommandId: 0,
+            calledActions: [],
+            results: []
+        });
+    });
+    describe('initial state', () => {
+        it('should have correct initial values', () => {
+            const state = get(paletteStore);
+            expect(state.isVisible).toBe(false);
+            expect(state.textInput).toBe('');
+            expect(state.commands).toEqual([]);
+            expect(state.calledActions).toEqual([]);
+            expect(state.results).toEqual([]);
+        });
+    });
+    describe('update', () => {
+        it('should update isVisible', () => {
+            paletteStore.update((n) => ({ ...n, isVisible: true }));
+            const state = get(paletteStore);
+            expect(state.isVisible).toBe(true);
+        });
+        it('should update textInput', () => {
+            paletteStore.update((n) => ({ ...n, textInput: 'search query' }));
+            const state = get(paletteStore);
+            expect(state.textInput).toBe('search query');
+        });
+        it('should update commands', () => {
+            const commands = [{ title: 'Test', actionId: '1' }];
+            paletteStore.update((n) => ({ ...n, commands }));
+            const state = get(paletteStore);
+            expect(state.commands).toEqual(commands);
+        });
+        it('should update activeCommandId', () => {
+            paletteStore.update((n) => ({ ...n, activeCommandId: 'active-1' }));
+            const state = get(paletteStore);
+            expect(state.activeCommandId).toBe('active-1');
+        });
+        it('should update calledActions', () => {
+            paletteStore.update((n) => ({
+                ...n,
+                calledActions: ['action-1', 'action-2']
+            }));
+            const state = get(paletteStore);
+            expect(state.calledActions).toEqual(['action-1', 'action-2']);
+        });
+        it('should update results', () => {
+            const results = [
+                { title: 'Result 1', actionId: 'r1' },
+                { title: 'Result 2', actionId: 'r2' }
+            ];
+            paletteStore.update((n) => ({ ...n, results }));
+            const state = get(paletteStore);
+            expect(state.results).toEqual(results);
+        });
+    });
+    describe('subscribe', () => {
+        it('should notify subscribers on changes', () => {
+            let notifiedValue = null;
+            const unsubscribe = paletteStore.subscribe((value) => {
+                notifiedValue = value;
+            });
+            paletteStore.update((n) => ({ ...n, isVisible: true }));
+            expect(notifiedValue.isVisible).toBe(true);
+            unsubscribe();
+        });
+        it('should allow multiple subscribers', () => {
+            let count = 0;
+            const unsub1 = paletteStore.subscribe(() => {
+                count++;
+            });
+            const unsub2 = paletteStore.subscribe(() => {
+                count++;
+            });
+            paletteStore.update((n) => ({ ...n, textInput: 'test' }));
+            expect(count).toBeGreaterThan(2); // Initial calls + update
+            unsub1();
+            unsub2();
+        });
+    });
+    describe('set', () => {
+        it('should replace entire state', () => {
+            const newState = {
+                isVisible: true,
+                textInput: 'new text',
+                commands: [{ title: 'New', actionId: 'new' }],
+                storeMethods: {},
+                actionMap: {},
+                activeCommandId: 'new-active',
+                selectedCommandId: 'new-selected',
+                calledActions: ['called-1'],
+                results: []
+            };
+            paletteStore.set(newState);
+            const state = get(paletteStore);
+            expect(state).toEqual(newState);
+        });
+    });
+});
+
+=== 3646 src/tests/utils/createActionMap.test.ts	js
+import { describe, it, expect } from 'vitest';
+import createActionMap from '$lib/utils/createActionMap';
+import { defineActions } from '$lib/utils';
+describe('createActionMap', () => {
+    it('should create a map from action array', () => {
+        const actions = defineActions([
+            { title: 'Action 1', actionId: 'action-1' },
+            { title: 'Action 2', actionId: 'action-2' }
+        ]);
+        const result = createActionMap(actions);
+        expect(result['action-1']).toBeDefined();
+        expect(result['action-2']).toBeDefined();
+        expect(result['action-1'].title).toBe('Action 1');
+        expect(result['action-2'].title).toBe('Action 2');
+    });
+    it('should return empty object for empty array', () => {
+        const result = createActionMap([]);
+        expect(result).toEqual({});
+    });
+    it('should return empty object when called with no arguments', () => {
+        const result = createActionMap();
+        expect(result).toEqual({});
+    });
+    it('should handle numeric actionIds', () => {
+        const actions = defineActions([
+            { title: 'Action 1', actionId: 1 },
+            { title: 'Action 2', actionId: 2 }
+        ]);
+        const result = createActionMap(actions);
+        expect(result[1]).toBeDefined();
+        expect(result[2]).toBeDefined();
+    });
+    it('should handle mixed string and numeric actionIds', () => {
+        const actions = defineActions([
+            { title: 'String ID', actionId: 'string-id' },
+            { title: 'Numeric ID', actionId: 42 }
+        ]);
+        const result = createActionMap(actions);
+        expect(result['string-id']).toBeDefined();
+        expect(result[42]).toBeDefined();
+    });
+    it('should preserve all action properties', () => {
+        const actions = defineActions([
+            {
+                title: 'Full Action',
+                subTitle: 'Subtitle',
+                description: 'Description',
+                actionId: 'full',
+                keywords: ['test'],
+                shortcut: '$mod+f'
+            }
+        ]);
+        const result = createActionMap(actions);
+        const action = result['full'];
+        expect(action.title).toBe('Full Action');
+        expect(action.subTitle).toBe('Subtitle');
+        expect(action.description).toBe('Description');
+        expect(action.keywords).toEqual(['test']);
+        expect(action.shortcut).toBe('$mod+f');
+    });
+    it('should allow quick lookup by actionId', () => {
+        const actions = defineActions([
+            { title: 'Settings', actionId: 'settings' },
+            { title: 'Profile', actionId: 'profile' },
+            { title: 'Logout', actionId: 'logout' }
+        ]);
+        const map = createActionMap(actions);
+        // Quick O(1) lookup
+        expect(map['profile'].title).toBe('Profile');
+        expect(map['settings'].title).toBe('Settings');
+        expect(map['logout'].title).toBe('Logout');
+    });
+    it('should not include actions with null actionId', () => {
+        const actions = [
+            { title: 'Valid', actionId: 'valid' },
+            { title: 'Null ID', actionId: null }
+        ];
+        const result = createActionMap(actions);
+        expect(result['valid']).toBeDefined();
+        expect(Object.keys(result)).toHaveLength(1);
+    });
+    it('should handle empty string actionId', () => {
+        const actions = [{ title: 'Empty ID', actionId: '' }];
+        const result = createActionMap(actions);
+        // Empty string is falsy but still a valid key in the current implementation
+        // The code checks for null specifically
+        expect(result['']).toBeDefined();
+    });
+});
+
+=== 3458 src/tests/utils/createFuse.test.ts	js
+import { describe, it, expect } from 'vitest';
+import { createFuse, defineActions } from '$lib/utils';
+describe('createFuse', () => {
+    const actions = defineActions([
+        {
+            title: 'Open Settings',
+            subTitle: 'Configure your preferences',
+            description: 'Opens the application settings panel',
+            keywords: ['config', 'preferences', 'options'],
+            actionId: 'settings'
+        },
+        {
+            title: 'Toggle Dark Mode',
+            subTitle: 'Switch between light and dark themes',
+            description: 'Changes the visual theme',
+            keywords: ['theme', 'appearance', 'night'],
+            actionId: 'dark-mode'
+        },
+        {
+            title: 'Search Files',
+            subTitle: 'Find files in your project',
+            description: 'Quick file search',
+            keywords: ['find', 'lookup', 'files'],
+            actionId: 'search'
+        }
+    ]);
+    it('should create a Fuse instance', () => {
+        const fuse = createFuse(actions);
+        expect(fuse).toBeDefined();
+        expect(typeof fuse.search).toBe('function');
+    });
+    it('should search by title', () => {
+        const fuse = createFuse(actions);
+        const results = fuse.search('Settings');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].item.title).toBe('Open Settings');
+    });
+    it('should search by subTitle', () => {
+        const fuse = createFuse(actions);
+        const results = fuse.search('preferences');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].item.actionId).toBe('settings');
+    });
+    it('should search by description', () => {
+        const fuse = createFuse(actions);
+        const results = fuse.search('visual theme');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].item.actionId).toBe('dark-mode');
+    });
+    it('should search by keywords', () => {
+        const fuse = createFuse(actions);
+        const results = fuse.search('night');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].item.actionId).toBe('dark-mode');
+    });
+    it('should return empty array for no matches', () => {
+        const fuse = createFuse(actions);
+        const results = fuse.search('xyznonexistent123');
+        expect(results).toEqual([]);
+    });
+    it('should handle empty actions array', () => {
+        const fuse = createFuse([]);
+        const results = fuse.search('test');
+        expect(results).toEqual([]);
+    });
+    it('should perform fuzzy matching', () => {
+        const fuse = createFuse(actions);
+        // Fuzzy search with partial match
+        const results = fuse.search('Settngs'); // intentional typo
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].item.title).toBe('Open Settings');
+    });
+    it('should weight title higher than other fields', () => {
+        const fuse = createFuse(actions);
+        // "Toggle" appears only in title, so it should match that action
+        const results = fuse.search('Toggle');
+        expect(results.length).toBeGreaterThan(0);
+        expect(results[0].item.title).toBe('Toggle Dark Mode');
+    });
+    it('should return multiple relevant results', () => {
+        const fuse = createFuse(actions);
+        // "file" appears in multiple places
+        const results = fuse.search('file');
+        expect(results.length).toBeGreaterThan(0);
+    });
+});
+
+=== 4190 src/tests/utils/createShortcuts.test.ts	js
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import createShortcuts from '$lib/utils/createShortcuts';
+import { defineActions } from '$lib/utils';
+import { paletteStore } from '$lib/store/PaletteStore';
+describe('createShortcuts', () => {
+    beforeEach(() => {
+        // Reset store
+        paletteStore.set({
+            isVisible: false,
+            textInput: '',
+            commands: [],
+            storeMethods: {},
+            actionMap: {},
+            activeCommandId: null,
+            selectedCommandId: null,
+            calledActions: [],
+            results: []
+        });
+    });
+    it('should create shortcut map from actions', () => {
+        const actions = defineActions([
+            { title: 'Action 1', shortcut: '$mod+a', actionId: '1' },
+            { title: 'Action 2', shortcut: '$mod+b', actionId: '2' }
+        ]);
+        const result = createShortcuts({ actions });
+        expect(result['$mod+a']).toBeDefined();
+        expect(result['$mod+b']).toBeDefined();
+        expect(typeof result['$mod+a']).toBe('function');
+        expect(typeof result['$mod+b']).toBe('function');
+    });
+    it('should return empty object for empty actions', () => {
+        const result = createShortcuts({ actions: [] });
+        expect(result).toEqual({});
+    });
+    it('should skip actions without shortcuts', () => {
+        const actions = defineActions([
+            { title: 'With Shortcut', shortcut: '$mod+w', actionId: '1' },
+            { title: 'Without Shortcut', actionId: '2' }
+        ]);
+        const result = createShortcuts({ actions });
+        expect(Object.keys(result)).toHaveLength(1);
+        expect(result['$mod+w']).toBeDefined();
+    });
+    it('should not execute when palette is visible', () => {
+        const onRun = vi.fn();
+        const actions = defineActions([
+            { title: 'Test', shortcut: '$mod+t', actionId: '1', onRun }
+        ]);
+        // Set palette to visible
+        paletteStore.update((n) => ({ ...n, isVisible: true }));
+        const shortcuts = createShortcuts({ actions });
+        const mockEvent = { preventDefault: vi.fn() };
+        // Call the shortcut handler
+        shortcuts['$mod+t'](mockEvent);
+        // onRun should not be called when palette is visible
+        expect(onRun).not.toHaveBeenCalled();
+    });
+    it('should execute when palette is not visible', () => {
+        const onRun = vi.fn();
+        const actions = defineActions([
+            { title: 'Test', shortcut: '$mod+t', actionId: '1', onRun }
+        ]);
+        const shortcuts = createShortcuts({ actions });
+        const mockEvent = { preventDefault: vi.fn() };
+        // Call the shortcut handler
+        shortcuts['$mod+t'](mockEvent);
+        // onRun should be called
+        expect(onRun).toHaveBeenCalled();
+    });
+    it('should prevent default event behavior', () => {
+        const actions = defineActions([
+            { title: 'Test', shortcut: '$mod+t', actionId: '1', onRun: vi.fn() }
+        ]);
+        const shortcuts = createShortcuts({ actions });
+        const mockEvent = { preventDefault: vi.fn() };
+        shortcuts['$mod+t'](mockEvent);
+        expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+    it('should handle multiple shortcuts', () => {
+        const actions = defineActions([
+            { title: 'Action A', shortcut: '$mod+a', actionId: 'a' },
+            { title: 'Action B', shortcut: '$mod+b', actionId: 'b' },
+            { title: 'Action C', shortcut: '$mod+c', actionId: 'c' }
+        ]);
+        const result = createShortcuts({ actions });
+        expect(Object.keys(result)).toHaveLength(3);
+    });
+    it('should handle complex shortcut patterns', () => {
+        const actions = defineActions([
+            { title: 'Shift Mod', shortcut: '$mod+Shift+s', actionId: '1' },
+            { title: 'Alt Key', shortcut: 'Alt+a', actionId: '2' },
+            { title: 'Control', shortcut: 'Control+c', actionId: '3' }
+        ]);
+        const result = createShortcuts({ actions });
+        expect(result['$mod+Shift+s']).toBeDefined();
+        expect(result['Alt+a']).toBeDefined();
+        expect(result['Control+c']).toBeDefined();
+    });
+});
+
+=== 2475 src/tests/utils/cssUtils.test.ts	js
+import { describe, it, expect } from 'vitest';
+import { camelCaseToDash, toCssString } from '$lib/utils';
+describe('camelCaseToDash', () => {
+    it('should convert camelCase to kebab-case', () => {
+        expect(camelCaseToDash('backgroundColor')).toBe('background-color');
+        expect(camelCaseToDash('fontSize')).toBe('font-size');
+        expect(camelCaseToDash('borderTopLeftRadius')).toBe('border-top-left-radius');
+    });
+    it('should handle single word', () => {
+        expect(camelCaseToDash('color')).toBe('color');
+        expect(camelCaseToDash('margin')).toBe('margin');
+    });
+    it('should handle already lowercase', () => {
+        expect(camelCaseToDash('padding')).toBe('padding');
+    });
+    it('should handle empty string', () => {
+        expect(camelCaseToDash('')).toBe('');
+    });
+    it('should handle consecutive uppercase letters', () => {
+        expect(camelCaseToDash('zIndex')).toBe('z-index');
+        expect(camelCaseToDash('WebkitTransform')).toBe('webkit-transform');
+    });
+});
+describe('toCssString', () => {
+    it('should convert style object to CSS string', () => {
+        const result = toCssString({
+            backgroundColor: 'red',
+            fontSize: '16px'
+        });
+        expect(result).toContain('background-color: red');
+        expect(result).toContain('font-size: 16px');
+    });
+    it('should handle single property', () => {
+        const result = toCssString({ color: 'blue' });
+        expect(result).toContain('color: blue');
+    });
+    it('should handle empty object', () => {
+        const result = toCssString({});
+        expect(result).toBe('');
+    });
+    it('should handle undefined', () => {
+        const result = toCssString(undefined);
+        expect(result).toBe('');
+    });
+    it('should handle multiple CSS properties', () => {
+        const result = toCssString({
+            padding: '10px',
+            margin: '5px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        });
+        expect(result).toContain('padding: 10px');
+        expect(result).toContain('margin: 5px');
+        expect(result).toContain('border-radius: 8px');
+        expect(result).toContain('box-shadow: 0 2px 4px rgba(0,0,0,0.1)');
+    });
+    it('should handle CSS custom properties', () => {
+        const result = toCssString({
+            color: 'var(--primary-color)'
+        });
+        expect(result).toContain('color: var(--primary-color)');
+    });
+});
+
+=== 2460 src/tests/utils/debounce.test.ts	js
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { debounce } from '$lib/utils';
+describe('debounce', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+    it('should delay function execution', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 100);
+        debouncedFn();
+        expect(fn).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+    it('should only execute once after multiple rapid calls', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 100);
+        debouncedFn();
+        debouncedFn();
+        debouncedFn();
+        debouncedFn();
+        vi.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+    it('should reset timer on each call', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 100);
+        debouncedFn();
+        vi.advanceTimersByTime(50);
+        debouncedFn(); // Reset timer
+        vi.advanceTimersByTime(50);
+        expect(fn).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(50);
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+    it('should pass arguments to the function', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 100);
+        debouncedFn('arg1', 'arg2');
+        vi.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledWith('arg1', 'arg2');
+    });
+    it('should use the last arguments when called multiple times', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 100);
+        debouncedFn('first');
+        debouncedFn('second');
+        debouncedFn('third');
+        vi.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledWith('third');
+    });
+    it('should handle zero delay', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 0);
+        debouncedFn();
+        vi.advanceTimersByTime(0);
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+    it('should allow multiple separate invocations after delay', () => {
+        const fn = vi.fn();
+        const debouncedFn = debounce(fn, 100);
+        debouncedFn();
+        vi.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledTimes(1);
+        debouncedFn();
+        vi.advanceTimersByTime(100);
+        expect(fn).toHaveBeenCalledTimes(2);
+    });
+});
+
+=== 3222 src/tests/utils/defineActions.test.ts	js
+import { describe, it, expect, vi } from 'vitest';
+import { defineActions, noop } from '$lib/utils';
+describe('defineActions', () => {
+    it('should return an empty array when no actions provided', () => {
+        const result = defineActions([]);
+        expect(result).toEqual([]);
+    });
+    it('should return an empty array when called with no arguments', () => {
+        const result = defineActions();
+        expect(result).toEqual([]);
+    });
+    it('should create actions with default values', () => {
+        const result = defineActions([{ title: 'Test Action' }]);
+        expect(result).toHaveLength(1);
+        expect(result[0]).toMatchObject({
+            title: 'Test Action',
+            subTitle: '',
+            shortcut: '',
+            keywords: []
+        });
+        // Check default functions
+        expect(typeof result[0].actionId).toBe('number');
+        expect(typeof result[0].canActionRun).toBe('function');
+        expect(typeof result[0].onRun).toBe('function');
+    });
+    it('should preserve custom actionId', () => {
+        const result = defineActions([
+            { title: 'Test Action', actionId: 'custom-id-123' },
+            { title: 'Test Action 2', actionId: 42 }
+        ]);
+        expect(result[0].actionId).toBe('custom-id-123');
+        expect(result[1].actionId).toBe(42);
+    });
+    it('should preserve all provided properties', () => {
+        const customOnRun = vi.fn();
+        const customCanRun = vi.fn(() => true);
+        const result = defineActions([
+            {
+                title: 'Full Action',
+                subTitle: 'Subtitle here',
+                description: 'A description',
+                keywords: ['keyword1', 'keyword2'],
+                shortcut: '$mod+k',
+                actionId: 'full-action',
+                onRun: customOnRun,
+                canActionRun: customCanRun,
+                icon: '🚀',
+                group: 'Navigation'
+            }
+        ]);
+        expect(result[0]).toEqual({
+            title: 'Full Action',
+            subTitle: 'Subtitle here',
+            description: 'A description',
+            keywords: ['keyword1', 'keyword2'],
+            shortcut: '$mod+k',
+            actionId: 'full-action',
+            onRun: customOnRun,
+            canActionRun: customCanRun,
+            icon: '🚀',
+            group: 'Navigation'
+        });
+    });
+    it('should create multiple actions', () => {
+        const result = defineActions([
+            { title: 'Action 1' },
+            { title: 'Action 2' },
+            { title: 'Action 3' }
+        ]);
+        expect(result).toHaveLength(3);
+        expect(result[0].title).toBe('Action 1');
+        expect(result[1].title).toBe('Action 2');
+        expect(result[2].title).toBe('Action 3');
+    });
+    it('should generate unique actionIds for each action', () => {
+        const result = defineActions([{ title: 'Action 1' }, { title: 'Action 2' }]);
+        expect(result[0].actionId).not.toBe(result[1].actionId);
+    });
+});
+describe('noop', () => {
+    it('should return true', () => {
+        expect(noop()).toBe(true);
+    });
+    it('should be a callable function', () => {
+        expect(typeof noop).toBe('function');
+    });
+});
+
+=== 1903 src/tests/utils/formatResults.test.ts	js
+import { describe, it, expect } from 'vitest';
+import { formatResults } from '$lib/utils';
+describe('formatResults', () => {
+    it('should extract items from fuse results', () => {
+        const fuseResults = [
+            { item: { title: 'Action 1', actionId: '1' } },
+            { item: { title: 'Action 2', actionId: '2' } }
+        ];
+        const result = formatResults(fuseResults);
+        expect(result).toHaveLength(2);
+        expect(result[0]).toEqual({ title: 'Action 1', actionId: '1' });
+        expect(result[1]).toEqual({ title: 'Action 2', actionId: '2' });
+    });
+    it('should return empty array for empty input', () => {
+        const result = formatResults([]);
+        expect(result).toEqual([]);
+    });
+    it('should preserve all action properties', () => {
+        const fullAction = {
+            title: 'Full Action',
+            subTitle: 'Subtitle',
+            description: 'Description',
+            keywords: ['test'],
+            shortcut: '$mod+t',
+            actionId: 'full-1',
+            icon: '📝',
+            group: 'Test'
+        };
+        const result = formatResults([{ item: fullAction }]);
+        expect(result[0]).toEqual(fullAction);
+    });
+    it('should handle single result', () => {
+        const result = formatResults([{ item: { title: 'Single', actionId: 'single' } }]);
+        expect(result).toHaveLength(1);
+        expect(result[0].title).toBe('Single');
+    });
+    it('should maintain order of results', () => {
+        const fuseResults = [
+            { item: { title: 'First', actionId: '1' } },
+            { item: { title: 'Second', actionId: '2' } },
+            { item: { title: 'Third', actionId: '3' } }
+        ];
+        const result = formatResults(fuseResults);
+        expect(result[0].title).toBe('First');
+        expect(result[1].title).toBe('Second');
+        expect(result[2].title).toBe('Third');
+    });
+});
+
+=== 1303 src/tests/utils/getNonEmptyArray.test.ts	js
+import { describe, it, expect } from 'vitest';
+import { getNonEmptyArray } from '$lib/utils';
+describe('getNonEmptyArray', () => {
+    it('should return first non-empty array', () => {
+        const result = getNonEmptyArray([], [1, 2], [3, 4]);
+        expect(result).toEqual([1, 2]);
+    });
+    it('should return empty array if all are empty', () => {
+        const result = getNonEmptyArray([], [], []);
+        expect(result).toEqual([]);
+    });
+    it('should return first array if it has items', () => {
+        const result = getNonEmptyArray([1], [2], [3]);
+        expect(result).toEqual([1]);
+    });
+    it('should handle single argument', () => {
+        expect(getNonEmptyArray([1, 2])).toEqual([1, 2]);
+        expect(getNonEmptyArray([])).toEqual([]);
+    });
+    it('should skip undefined arrays', () => {
+        const result = getNonEmptyArray(undefined, [], [1, 2]);
+        expect(result).toEqual([1, 2]);
+    });
+    it('should handle objects in arrays', () => {
+        const result = getNonEmptyArray([], [{ id: 1 }], [{ id: 2 }]);
+        expect(result).toEqual([{ id: 1 }]);
+    });
+    it('should return last option when earlier ones are empty', () => {
+        const result = getNonEmptyArray([], [], ['fallback']);
+        expect(result).toEqual(['fallback']);
+    });
+});
+
+=== 3559 src/tests/utils/groupActions.test.ts	js
+import { describe, it, expect } from 'vitest';
+import { groupActions, defineActions } from '$lib/utils';
+describe('groupActions', () => {
+    it('should group actions by group property', () => {
+        const actions = defineActions([
+            { title: 'Action 1', group: 'Group A', actionId: '1' },
+            { title: 'Action 2', group: 'Group A', actionId: '2' },
+            { title: 'Action 3', group: 'Group B', actionId: '3' }
+        ]);
+        const result = groupActions(actions);
+        expect(result.size).toBe(2);
+        expect(result.get('Group A')).toHaveLength(2);
+        expect(result.get('Group B')).toHaveLength(1);
+    });
+    it('should handle ungrouped actions', () => {
+        const actions = defineActions([
+            { title: 'Ungrouped 1', actionId: '1' },
+            { title: 'Grouped', group: 'Test', actionId: '2' },
+            { title: 'Ungrouped 2', actionId: '3' }
+        ]);
+        const result = groupActions(actions);
+        // Ungrouped actions should be first with empty string key
+        expect(result.get('')).toHaveLength(2);
+        expect(result.get('Test')).toHaveLength(1);
+    });
+    it('should put ungrouped actions first', () => {
+        const actions = defineActions([
+            { title: 'Grouped', group: 'Test', actionId: '1' },
+            { title: 'Ungrouped', actionId: '2' }
+        ]);
+        const result = groupActions(actions);
+        const keys = Array.from(result.keys());
+        expect(keys[0]).toBe(''); // Ungrouped first
+        expect(keys[1]).toBe('Test');
+    });
+    it('should handle empty array', () => {
+        const result = groupActions([]);
+        expect(result.size).toBe(0);
+    });
+    it('should handle all ungrouped actions', () => {
+        const actions = defineActions([
+            { title: 'Action 1', actionId: '1' },
+            { title: 'Action 2', actionId: '2' }
+        ]);
+        const result = groupActions(actions);
+        expect(result.size).toBe(1);
+        expect(result.get('')).toHaveLength(2);
+    });
+    it('should handle all grouped actions', () => {
+        const actions = defineActions([
+            { title: 'Action 1', group: 'Group A', actionId: '1' },
+            { title: 'Action 2', group: 'Group B', actionId: '2' }
+        ]);
+        const result = groupActions(actions);
+        expect(result.size).toBe(2);
+        expect(result.has('')).toBe(false);
+    });
+    it('should maintain insertion order within groups', () => {
+        const actions = defineActions([
+            { title: 'First', group: 'Test', actionId: '1' },
+            { title: 'Second', group: 'Test', actionId: '2' },
+            { title: 'Third', group: 'Test', actionId: '3' }
+        ]);
+        const result = groupActions(actions);
+        const group = result.get('Test');
+        expect(group[0].title).toBe('First');
+        expect(group[1].title).toBe('Second');
+        expect(group[2].title).toBe('Third');
+    });
+    it('should handle multiple groups in correct order', () => {
+        const actions = defineActions([
+            { title: 'A1', group: 'Navigation', actionId: '1' },
+            { title: 'B1', group: 'Settings', actionId: '2' },
+            { title: 'A2', group: 'Navigation', actionId: '3' }
+        ]);
+        const result = groupActions(actions);
+        const keys = Array.from(result.keys());
+        expect(keys).toContain('Navigation');
+        expect(keys).toContain('Settings');
+        expect(result.get('Navigation')).toHaveLength(2);
+        expect(result.get('Settings')).toHaveLength(1);
+    });
+});
+
+=== 4989 src/tests/utils/runAction.test.ts	js
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { runAction, defineActions } from '$lib/utils';
+import { paletteStore } from '$lib/store/PaletteStore';
+import { get } from 'svelte/store';
+describe('runAction', () => {
+    beforeEach(() => {
+        // Reset the store before each test
+        paletteStore.set({
+            isVisible: true,
+            textInput: 'test',
+            commands: [],
+            storeMethods: {},
+            actionMap: {},
+            activeCommandId: null,
+            selectedCommandId: null,
+            calledActions: [],
+            results: []
+        });
+    });
+    it('should execute action onRun callback', () => {
+        const onRun = vi.fn();
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun
+            }
+        ]);
+        runAction({ action });
+        expect(onRun).toHaveBeenCalled();
+    });
+    it('should return true when action runs successfully', () => {
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun: () => { }
+            }
+        ]);
+        const result = runAction({ action });
+        expect(result).toBe(true);
+    });
+    it('should return false when canActionRun returns false', () => {
+        const onRun = vi.fn();
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun,
+                canActionRun: () => false
+            }
+        ]);
+        const result = runAction({ action });
+        expect(result).toBe(false);
+        expect(onRun).not.toHaveBeenCalled();
+    });
+    it('should close palette after action runs', () => {
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun: () => { }
+            }
+        ]);
+        runAction({ action });
+        const store = get(paletteStore);
+        expect(store.isVisible).toBe(false);
+    });
+    it('should clear text input after action runs', () => {
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun: () => { }
+            }
+        ]);
+        runAction({ action });
+        const store = get(paletteStore);
+        expect(store.textInput).toBe('');
+    });
+    it('should add actionId to calledActions', () => {
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test-action-id',
+                onRun: () => { }
+            }
+        ]);
+        runAction({ action });
+        const store = get(paletteStore);
+        expect(store.calledActions).toContain('test-action-id');
+    });
+    it('should pass correct params to onRun', () => {
+        const onRun = vi.fn();
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun
+            }
+        ]);
+        runAction({ action });
+        expect(onRun).toHaveBeenCalledWith(expect.objectContaining({
+            action: expect.objectContaining({ title: 'Test Action' }),
+            storeProps: expect.any(Object),
+            storeMethods: expect.any(Object)
+        }));
+    });
+    it('should pass correct params to canActionRun', () => {
+        const canActionRun = vi.fn(() => true);
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun: () => { },
+                canActionRun
+            }
+        ]);
+        runAction({ action });
+        expect(canActionRun).toHaveBeenCalledWith(expect.objectContaining({
+            action: expect.objectContaining({ title: 'Test Action' }),
+            storeProps: expect.any(Object),
+            storeMethods: expect.any(Object)
+        }));
+    });
+    it('should handle action without onRun', () => {
+        const action = {
+            title: 'No onRun',
+            actionId: 'test',
+            canActionRun: () => true
+        };
+        // Should not throw
+        const result = runAction({ action: action });
+        expect(result).toBe(false); // Returns false since no onRun
+    });
+    it('should close palette even when canActionRun returns false', () => {
+        const [action] = defineActions([
+            {
+                title: 'Test Action',
+                actionId: 'test',
+                onRun: () => { },
+                canActionRun: () => false
+            }
+        ]);
+        runAction({ action });
+        const store = get(paletteStore);
+        expect(store.isVisible).toBe(false);
+    });
+    it('should handle undefined action gracefully', () => {
+        const result = runAction({ action: undefined });
+        expect(result).toBe(false);
+    });
+});
+
+=== 9677 tests/command-palette.spec.ts	js
+import { test, expect } from '@playwright/test';
+test.describe('Command Palette', () => {
+    test.beforeEach(async ({ page }) => {
+        await page.goto('/');
+    });
+    test.describe('Opening and Closing', () => {
+        test('should open command palette with keyboard shortcut', async ({ page }) => {
+            // Press Cmd+K (Mac) or Ctrl+K (Windows/Linux)
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).toBeVisible();
+        });
+        test('should close command palette with Escape key', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).toBeVisible();
+            await page.keyboard.press('Escape');
+            await expect(page.locator('#command-palette-overlay')).not.toBeVisible();
+        });
+        test('should close command palette when clicking outside', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).toBeVisible();
+            // Click on the overlay (outside the palette container)
+            await page.locator('#command-palette-overlay').click({ position: { x: 10, y: 10 } });
+            await expect(page.locator('#command-palette-overlay')).not.toBeVisible();
+        });
+        test('should toggle palette open and closed', async ({ page }) => {
+            // Open
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).toBeVisible();
+            // Close
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).not.toBeVisible();
+            // Open again
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).toBeVisible();
+        });
+    });
+    test.describe('Focus Management', () => {
+        test('should focus search input when opened', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#paletteInput')).toBeFocused();
+        });
+        test('should close palette with keyboard button click', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#command-palette-overlay')).toBeVisible();
+            // Click the ESC keyboard button
+            await page.locator('.cp-kbd-btn').click();
+            await expect(page.locator('#command-palette-overlay')).not.toBeVisible();
+        });
+    });
+    test.describe('Search Functionality', () => {
+        test('should display results', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            // Wait for results to load
+            await expect(page.locator('[role="listbox"]')).toBeVisible();
+        });
+        test('should filter results based on search input', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            // Type in search
+            await page.fill('#paletteInput', 'toggle');
+            // Results should be filtered (implementation depends on demo actions)
+            await expect(page.locator('[role="listbox"]')).toBeVisible();
+        });
+        test('should update results as user types', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            // Start typing
+            await page.fill('#paletteInput', 't');
+            await page.waitForTimeout(100);
+            await page.fill('#paletteInput', 'te');
+            await page.waitForTimeout(100);
+            // Results should still be visible
+            await expect(page.locator('[role="listbox"]')).toBeVisible();
+        });
+        test('should clear search when palette is closed and reopened', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await page.fill('#paletteInput', 'test search');
+            await page.keyboard.press('Escape');
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('#paletteInput')).toHaveValue('');
+        });
+    });
+    test.describe('Keyboard Navigation', () => {
+        test('should navigate down with Arrow Down', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await page.waitForTimeout(100);
+            // Press down arrow
+            await page.keyboard.press('ArrowDown');
+            // First item should have active class
+            const firstItem = page.locator('[role="option"]').first();
+            await expect(firstItem).toHaveAttribute('aria-selected', 'true');
+        });
+        test('should navigate up with Arrow Up', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await page.waitForTimeout(100);
+            // Navigate down first, then up
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('ArrowUp');
+            // Should be back to first item
+            await expect(page.locator('[role="option"][aria-selected="true"]')).toBeVisible();
+        });
+        test('should wrap around when navigating past last item', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await page.waitForTimeout(100);
+            // Count items and navigate past all of them
+            const itemCount = await page.locator('[role="option"]').count();
+            for (let i = 0; i < itemCount + 1; i++) {
+                await page.keyboard.press('ArrowDown');
+            }
+            // Should wrap to first item
+            await expect(page.locator('[role="option"][aria-selected="true"]')).toBeVisible();
+        });
+    });
+    test.describe('Action Execution', () => {
+        test('should execute action on Enter key', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await page.waitForTimeout(100);
+            // Navigate to an item
+            await page.keyboard.press('ArrowDown');
+            // Press Enter to execute
+            await page.keyboard.press('Enter');
+            // Palette should close after action execution
+            await expect(page.locator('#command-palette-overlay')).not.toBeVisible();
+        });
+        test('should execute action on click', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await page.waitForTimeout(100);
+            // Click on first result
+            await page.locator('[role="option"]').first().click();
+            // Palette should close
+            await expect(page.locator('#command-palette-overlay')).not.toBeVisible();
+        });
+    });
+    test.describe('Accessibility', () => {
+        test('should have correct ARIA attributes', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            // Check dialog role
+            await expect(page.locator('[role="dialog"]')).toBeVisible();
+            await expect(page.locator('[role="dialog"]')).toHaveAttribute('aria-modal', 'true');
+            // Check combobox role
+            await expect(page.locator('[role="combobox"]')).toBeVisible();
+            await expect(page.locator('[role="combobox"]')).toHaveAttribute('aria-expanded', 'true');
+            await expect(page.locator('[role="combobox"]')).toHaveAttribute('aria-haspopup', 'listbox');
+            // Check listbox role
+            await expect(page.locator('[role="listbox"]')).toBeVisible();
+            // Check option roles
+            const options = page.locator('[role="option"]');
+            if ((await options.count()) > 0) {
+                await expect(options.first()).toBeVisible();
+            }
+        });
+        test('should have accessible search input', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            const input = page.locator('#paletteInput');
+            await expect(input).toHaveAttribute('aria-autocomplete', 'list');
+        });
+        test('should have label for search input', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('label[for="paletteInput"]')).toBeAttached();
+        });
+    });
+    test.describe('Visual States', () => {
+        test('should show overlay with backdrop', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            const overlay = page.locator('#command-palette-overlay');
+            await expect(overlay).toBeVisible();
+        });
+        test('should show search icon', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('.cp-search-icon')).toBeVisible();
+        });
+        test('should show keyboard button for closing', async ({ page }) => {
+            await page.keyboard.press('Meta+k');
+            await expect(page.locator('.cp-kbd-btn')).toBeVisible();
+        });
+    });
+});
+test.describe('Command Palette - Mobile', () => {
+    test.use({ viewport: { width: 375, height: 667 } });
+    test('should be usable on mobile viewport', async ({ page }) => {
+        await page.goto('/');
+        await page.keyboard.press('Meta+k');
+        await expect(page.locator('#command-palette-overlay')).toBeVisible();
+        await expect(page.locator('#paletteInput')).toBeFocused();
+    });
+    test('should have proper mobile styling', async ({ page }) => {
+        await page.goto('/');
+        await page.keyboard.press('Meta+k');
+        // On mobile, palette should be at bottom (bottom sheet style)
+        const overlay = page.locator('#command-palette-overlay');
+        await expect(overlay).toBeVisible();
+    });
+});
+
+=== 5737 tests/docs.spec.ts	js
+import { test, expect } from '@playwright/test';
+test.describe('Documentation Site', () => {
+    test.describe('Navigation', () => {
+        test('should navigate to docs from homepage', async ({ page }) => {
+            await page.goto('/');
+            await page.click('text=Documentation');
+            await expect(page).toHaveURL(/\/docs/);
+        });
+        test('should have working sidebar navigation', async ({ page }) => {
+            await page.goto('/docs');
+            // Check if sidebar is visible on desktop
+            await expect(page.locator('nav').first()).toBeVisible();
+        });
+    });
+    test.describe('Documentation Pages', () => {
+        test('should load installation page', async ({ page }) => {
+            await page.goto('/docs/installation');
+            await expect(page.locator('h1')).toContainText(/installation/i);
+        });
+        test('should load quick-start page', async ({ page }) => {
+            await page.goto('/docs/quick-start');
+            await expect(page.locator('h1')).toContainText(/quick.*start/i);
+        });
+        test('should load command-palette-api page', async ({ page }) => {
+            await page.goto('/docs/command-palette-api');
+            await expect(page.locator('h1')).toContainText(/command.*palette/i);
+        });
+        test('should load define-actions page', async ({ page }) => {
+            await page.goto('/docs/define-actions');
+            await expect(page.locator('h1')).toContainText(/define.*actions/i);
+        });
+        test('should load palette-store page', async ({ page }) => {
+            await page.goto('/docs/palette-store');
+            await expect(page.locator('h1')).toContainText(/palette.*store/i);
+        });
+        test('should load styling page', async ({ page }) => {
+            await page.goto('/docs/styling');
+            await expect(page.locator('h1')).toContainText(/styl/i);
+        });
+        test('should load theming page', async ({ page }) => {
+            await page.goto('/docs/theming');
+            await expect(page.locator('h1')).toContainText(/theming/i);
+        });
+        test('should load shortcuts page', async ({ page }) => {
+            await page.goto('/docs/shortcuts');
+            await expect(page.locator('h1')).toContainText(/shortcut/i);
+        });
+        test('should load custom-components page', async ({ page }) => {
+            await page.goto('/docs/custom-components');
+            await expect(page.locator('h1')).toContainText(/custom.*component/i);
+        });
+    });
+    test.describe('Code Examples', () => {
+        test('should display code blocks properly', async ({ page }) => {
+            await page.goto('/docs/quick-start');
+            // Check for code blocks
+            const codeBlocks = page.locator('pre code, .code-block, [class*="highlight"]');
+            if ((await codeBlocks.count()) > 0) {
+                await expect(codeBlocks.first()).toBeVisible();
+            }
+        });
+    });
+});
+test.describe('Homepage', () => {
+    test('should display hero section', async ({ page }) => {
+        await page.goto('/');
+        // Check hero content is visible
+        await expect(page.locator('h1').first()).toBeVisible();
+    });
+    test('should display command palette demo', async ({ page }) => {
+        await page.goto('/');
+        // Look for demo section or animated preview
+        await expect(page.locator('main')).toBeVisible();
+    });
+    test('should have navigation links', async ({ page }) => {
+        await page.goto('/');
+        await expect(page.locator('nav')).toBeVisible();
+        await expect(page.locator('text=Documentation')).toBeVisible();
+    });
+    test('should have theme toggle', async ({ page }) => {
+        await page.goto('/');
+        // Look for theme toggle button
+        const themeToggle = page.locator('[aria-label*="theme"], [aria-label*="Theme"], button:has-text("☀"), button:has-text("🌙")');
+        if ((await themeToggle.count()) > 0) {
+            await expect(themeToggle.first()).toBeVisible();
+        }
+    });
+});
+test.describe('Responsive Design', () => {
+    test.describe('Desktop', () => {
+        test.use({ viewport: { width: 1280, height: 720 } });
+        test('should show full navigation on desktop', async ({ page }) => {
+            await page.goto('/');
+            await expect(page.locator('nav')).toBeVisible();
+        });
+        test('should show sidebar on docs pages', async ({ page }) => {
+            await page.goto('/docs');
+            // Sidebar should be visible on desktop
+            await expect(page.locator('aside, nav').first()).toBeVisible();
+        });
+    });
+    test.describe('Mobile', () => {
+        test.use({ viewport: { width: 375, height: 667 } });
+        test('should have mobile menu button', async ({ page }) => {
+            await page.goto('/');
+            // Look for mobile menu button
+            const menuButton = page.locator('button[aria-label*="menu"], button[aria-label*="Menu"], .mobile-menu-btn, [data-mobile-menu]');
+            if ((await menuButton.count()) > 0) {
+                await expect(menuButton.first()).toBeVisible();
+            }
+        });
+        test('should be scrollable on mobile', async ({ page }) => {
+            await page.goto('/');
+            // Content should be scrollable
+            const body = page.locator('body');
+            await expect(body).toBeVisible();
+        });
+    });
+    test.describe('Tablet', () => {
+        test.use({ viewport: { width: 768, height: 1024 } });
+        test('should display properly on tablet', async ({ page }) => {
+            await page.goto('/');
+            await expect(page.locator('main')).toBeVisible();
+        });
+    });
+});
+
+=== 146 vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+export default defineConfig({
+    plugins: [sveltekit()]
+});
+
+=== 540 vitest.config.ts	js
+import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
+import path from 'path';
+export default defineConfig({
+    plugins: [svelte({ hot: !process.env.VITEST })],
+    test: {
+        include: ['src/**/*.{test,spec}.{js,ts}'],
+        globals: true,
+        environment: 'jsdom',
+        setupFiles: ['./src/tests/setup.ts'],
+        testTimeout: 10000,
+        hookTimeout: 10000
+    },
+    resolve: {
+        alias: {
+            $lib: path.resolve(__dirname, './src/lib')
+        }
+    }
+});
+

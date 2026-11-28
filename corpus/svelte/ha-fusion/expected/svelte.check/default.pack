@@ -398,6 +398,218 @@
 	}
 ]
 
+=== 3204 src/lib/Modal/LightModal.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 68
+		},
+		"end": {
+			"line": 1,
+			"character": 81
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/Index.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Components/LightSlider.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 25
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Components/ColorPicker.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 25
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Modal/ConfigButtons.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'svelte-ripple' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 20
+		},
+		"end": {
+			"line": 6,
+			"character": 35
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Utils' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 25
+		},
+		"end": {
+			"line": 7,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'home-assistant-js-websocket' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 46
+		},
+		"end": {
+			"line": 8,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Components/Toggle.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 20
+		},
+		"end": {
+			"line": 9,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Components/Select.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 20
+		},
+		"end": {
+			"line": 11,
+			"character": 51
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'timeout' is used before being assigned.",
+		"start": {
+			"line": 141,
+			"character": 20
+		},
+		"end": {
+			"line": 141,
+			"character": 27
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'timeout' is used before being assigned.",
+		"start": {
+			"line": 154,
+			"character": 21
+		},
+		"end": {
+			"line": 154,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'event' implicitly has an 'any' type.",
+		"start": {
+			"line": 169,
+			"character": 17
+		},
+		"end": {
+			"line": 169,
+			"character": 22
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'timeout' is used before being assigned.",
+		"start": {
+			"line": 176,
+			"character": 19
+		},
+		"end": {
+			"line": 176,
+			"character": 26
+		}
+	},
+	{
+		"code": 2454,
+		"message": "Variable 'timeout' is used before being assigned.",
+		"start": {
+			"line": 198,
+			"character": 37
+		},
+		"end": {
+			"line": 198,
+			"character": 44
+		}
+	}
+]
+
+=== 429 src/lib/Modal/PictureElements/HelpOverlay.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '@iconify/svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 18
+		},
+		"end": {
+			"line": 4,
+			"character": 35
+		}
+	}
+]
+
 === 443 src/lib/Settings/CustomJs.svelte	json
 [
 	{

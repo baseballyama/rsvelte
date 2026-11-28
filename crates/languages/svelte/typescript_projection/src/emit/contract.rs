@@ -74,6 +74,11 @@ impl Printer<'_> {
                 self.node(value);
             }
             Node::TypeLiteral(properties) => self.type_literal(properties),
+            Node::InlineTypeLiteral(properties) => {
+                self.output.push("{ ");
+                self.separated(properties, ", ");
+                self.output.push(" }");
+            }
             Node::TypeProperty {
                 name,
                 value,

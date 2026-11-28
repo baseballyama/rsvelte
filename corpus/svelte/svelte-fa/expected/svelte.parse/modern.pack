@@ -1,0 +1,34 @@
+# rsvelte pack 1
+=== 65 src/routes/+layout.svelte	ast.sha256
+90032e9420225d519d9058c185752404220dc72ab572a41b80f45cafe907e595
+
+=== 65 src/routes/+page.svelte	ast.sha256
+00953df310291a796cb26e12f04cb4ae5365e51f450f82ac20ce800f7fa166fe
+
+=== 65 src/routes/components/sections/additional-styling.svelte	ast.sha256
+ae935519c1ceecdb01f940ef771f8bfd98f5e09322875ac33d63522156df23c4
+
+=== 65 src/routes/components/sections/animating-icons.svelte	ast.sha256
+e03df008cb1a3239de66b8947c299b51a545ef51fbe4e66bdc2ab97b4edf0298
+
+=== 65 src/routes/components/sections/basic-use.svelte	ast.sha256
+71cab9ca5e5fac4aef53047400c872106e07b8639b0987489a75c83b4f678da1
+
+=== 65 src/routes/components/sections/duotone-icons.svelte	ast.sha256
+355dee7a1cfa0379741cf79329269440a4c7fb94ecdba47b1edb7fbfb6962abb
+
+=== 65 src/routes/components/sections/installation.svelte	ast.sha256
+8e7b84051cd04430fff5c84725915274530f2ffccc61735b0349dd97db9e3db2
+
+=== 65 src/routes/components/sections/layering-and-text.svelte	ast.sha256
+4a9f7a01fc3312d2319d8dc3d7da0d55a656c32dee6fd77a184b6b6f66a09c7c
+
+=== 65 src/routes/components/sections/power-transforms.svelte	ast.sha256
+05e45437f312f822c7445f0d4be349f36f3e950ec7639dc5522ca6ed453aefb1
+
+=== 65 src/routes/docs.svelte	ast.sha256
+3ef2961498f908b26e976e8c9cef295350b1c1f565a3dfcbb50ff23c2165501a
+
+=== 65 src/routes/showcase.svelte	ast.sha256
+129137c9ff9c551e9df3b8621161f4a02fe07612703c29a121eeb0356d5c0ef2
+

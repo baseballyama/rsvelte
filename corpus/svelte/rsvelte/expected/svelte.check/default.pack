@@ -872,6 +872,75 @@
 	}
 ]
 
+=== 3 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	json
+[]
+
+=== 3 errors/attribute_contenteditable_dynamic.svelte	json
+[]
+
+=== 3 errors/attribute_contenteditable_missing.svelte	json
+[]
+
+=== 209 errors/block_invalid_elseif.svelte	json
+[
+	{
+		"code": -1,
+		"message": "'elseif' should be 'else if'\nhttps://svelte.dev/e/block_invalid_elseif",
+		"start": {
+			"line": 6,
+			"character": 1
+		},
+		"end": {
+			"line": 6,
+			"character": 1
+		}
+	}
+]
+
+=== 3 errors/inspect_trace_generator.svelte	json
+[]
+
+=== 3 errors/props_invalid_identifier.svelte	json
+[]
+
+=== 3 errors/render_tag_invalid_spread_argument.svelte	json
+[]
+
+=== 261 errors/script_invalid_attribute_value.svelte	json
+[
+	{
+		"code": -1,
+		"message": "If the `module` attribute is supplied, it must be a boolean attribute\nhttps://svelte.dev/e/script_invalid_attribute_value",
+		"start": {
+			"line": 0,
+			"character": 8
+		},
+		"end": {
+			"line": 0,
+			"character": 23
+		}
+	}
+]
+
+=== 240 errors/script_reserved_attribute.svelte	json
+[
+	{
+		"code": -1,
+		"message": "The `server` attribute is reserved and cannot be used\nhttps://svelte.dev/e/script_reserved_attribute",
+		"start": {
+			"line": 0,
+			"character": 8
+		},
+		"end": {
+			"line": 0,
+			"character": 14
+		}
+	}
+]
+
+=== 3 errors/svelte_boundary_invalid_attribute_value.svelte	json
+[]
+
 === 3 lint-env/no-sveltekit/src/nav.svelte	json
 []
 
@@ -8320,6 +8389,12 @@
 []
 
 === 3 pattern/issues/3187-dollar-prefixed-still-rejected.svelte	json
+[]
+
+=== 3 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	json
+[]
+
+=== 3 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	json
 []
 
 === 3 pattern/issues/3188-boundary-snippet-params.svelte	json

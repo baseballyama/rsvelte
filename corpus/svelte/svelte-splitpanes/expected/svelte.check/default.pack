@@ -15,6 +15,142 @@
 	}
 ]
 
+=== 2491 src/lib/Splitpanes.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/index.js' or its corresponding type declarations.",
+		"start": {
+			"line": 54,
+			"character": 9
+		},
+		"end": {
+			"line": 54,
+			"character": 24
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/GatheringRound.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 55,
+			"character": 29
+		},
+		"end": {
+			"line": 55,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/env.js' or its corresponding type declarations.",
+		"start": {
+			"line": 56,
+			"character": 26
+		},
+		"end": {
+			"line": 56,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/utils/sizing.js' or its corresponding type declarations.",
+		"start": {
+			"line": 57,
+			"character": 35
+		},
+		"end": {
+			"line": 57,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/utils/position.js' or its corresponding type declarations.",
+		"start": {
+			"line": 64,
+			"character": 9
+		},
+		"end": {
+			"line": 64,
+			"character": 42
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/utils/array.js' or its corresponding type declarations.",
+		"start": {
+			"line": 65,
+			"character": 45
+		},
+		"end": {
+			"line": 65,
+			"character": 75
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/internal/utils/styling.js' or its corresponding type declarations.",
+		"start": {
+			"line": 66,
+			"character": 36
+		},
+		"end": {
+			"line": 66,
+			"character": 68
+		}
+	},
+	{
+		"code": 2503,
+		"message": "Cannot find namespace 'NodeJS'.",
+		"start": {
+			"line": 209,
+			"character": 17
+		},
+		"end": {
+			"line": 209,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter '_key' implicitly has an 'any' type.",
+		"start": {
+			"line": 256,
+			"character": 39
+		},
+		"end": {
+			"line": 256,
+			"character": 43
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'CSSStyleDeclaration | null' is not assignable to parameter of type 'CSSStyleDeclaration | undefined'.\n  Type 'null' is not assignable to type 'CSSStyleDeclaration | undefined'.",
+		"start": {
+			"line": 506,
+			"character": 24
+		},
+		"end": {
+			"line": 506,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'pane' implicitly has an 'any' type.",
+		"start": {
+			"line": 868,
+			"character": 65
+		},
+		"end": {
+			"line": 868,
+			"character": 69
+		}
+	}
+]
+
 === 3 src/lib/internal/GatheringRound.svelte	json
 []
 

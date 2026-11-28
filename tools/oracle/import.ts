@@ -76,6 +76,11 @@ function nearestLicense(
 	}
 }
 
+// A plain TypeScript unit feeds ts.compile alone, so it neither stands in for nor is shadowed by a
+// Svelte unit with the same text.
+const contentKey = (lang: string, src: string) =>
+	lang === 'ts' ? `ts:${sha256(src)}` : sha256(src);
+
 export interface ImportOptions {
 	from?: string;
 	only?: string[];
@@ -99,7 +104,8 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 		if (only && !only.includes(source.id)) {
 			// Earlier sources claim duplicates first, so a partial import dedups exactly like a full one.
 			for (const u of readSourceUnits(source.id))
-				if (!seen.has(sha256(u.src))) seen.set(sha256(u.src), `${source.id}/${u.path}`);
+				if (!seen.has(contentKey(u.lang, u.src)))
+					seen.set(contentKey(u.lang, u.src), `${source.id}/${u.path}`);
 			continue;
 		}
 		// A source without a URL is kept in this repository and has no commit to pin.
@@ -149,7 +155,7 @@ export function runImport({ from, only, acceptCommit }: ImportOptions): { orphan
 			}
 
 			const src = fs.readFileSync(file, 'utf8');
-			const hash = sha256(src);
+			const hash = contentKey(lang.id, src);
 			if (seen.has(hash)) {
 				counts.duplicate++;
 				continue;

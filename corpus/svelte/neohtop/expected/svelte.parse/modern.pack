@@ -1,0 +1,10 @@
+# rsvelte pack 1
+=== 65 src/lib/components/AppInfo.svelte	ast.sha256
+aeccf84cfd69c56ba3af11bf1fabff747dc641d83e8f7ceea77a64227853cc65
+
+=== 65 src/lib/components/TitleBar.svelte	ast.sha256
+938fa73a2eb9e6e5ded961fe5a65fc6935e3b7a2907c6289b45ce6acbd6b74a1
+
+=== 65 src/routes/+layout.svelte	ast.sha256
+bbc964ab6786a9707ad2ee2d895c3abcdbf729ffb9904e9b15f4aa857bc42928
+

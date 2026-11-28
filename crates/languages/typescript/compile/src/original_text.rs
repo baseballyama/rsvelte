@@ -3,16 +3,18 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{BigIntLiteral, NumericLiteral};
-use oxc_ast_visit::VisitMut;
+use oxc_ast::ast::{BigIntLiteral, Expression, NumericLiteral, Program, StaticMemberExpression};
+use oxc_ast_visit::{VisitMut, walk_mut};
 
 /// TypeScript's `canUseOriginalText` (6.0.3 at 050880ce59, `src/compiler/utilities.ts:2036`).
 ///
 /// Where it does not allow a literal's source text, the emit prints the text the scanner keeps.
 /// A bigint never keeps its text; a number keeps it unless `TokenFlags.IsInvalid` holds. The
-/// separators an ES2021 target allows stay.
+/// separators an ES2021 target allows stay. A number a property access follows gets the dot the
+/// emit writes after it, as `with_dot` says.
 pub struct OriginalText<'o> {
     allocator: &'o Allocator,
+    source_text: &'o str,
 }
 
 impl std::fmt::Debug for OriginalText<'_> {
@@ -24,16 +26,35 @@ impl std::fmt::Debug for OriginalText<'_> {
 impl<'o> OriginalText<'o> {
     #[must_use]
     pub const fn new(allocator: &'o Allocator) -> Self {
-        Self { allocator }
+        Self {
+            allocator,
+            source_text: "",
+        }
     }
 }
 
 impl<'o> VisitMut<'o> for OriginalText<'o> {
+    fn visit_program(&mut self, it: &mut Program<'o>) {
+        self.source_text = it.source_text;
+        walk_mut::walk_program(self, it);
+    }
+
     fn visit_numeric_literal(&mut self, it: &mut NumericLiteral<'o>) {
         // The scanner's text for an invalid number is `"" + value`, which the printer gives one
         // without a raw.
         if it.raw.is_some_and(|raw| is_invalid(&raw)) {
             it.raw = None;
+        }
+    }
+
+    fn visit_static_member_expression(&mut self, it: &mut StaticMemberExpression<'o>) {
+        walk_mut::walk_static_member_expression(self, it);
+        if !it.optional
+            && let Expression::NumericLiteral(number) = &mut it.object
+            && self.dot_follows(number.span.end, it.property.span.start)
+            && let Some(text) = with_dot(number)
+        {
+            number.raw = Some(self.allocator.alloc_str(&text).into());
         }
     }
 
@@ -69,4 +90,52 @@ fn scanned_hexadecimal(raw: &str) -> Option<Cow<'_, str>> {
             .map(|c| c.to_ascii_lowercase()),
     );
     Some(Cow::Owned(text))
+}
+
+impl OriginalText<'_> {
+    /// The rest of TypeScript's `shouldEmitDotDot` (6.0.3 at 050880ce59,
+    /// `src/compiler/emitter.ts:2647`), read from the source between a number's end and its
+    /// property, `start..end`: the emit writes no second dot after a number in parentheses, which
+    /// `mayNeedDotDotForPropertyAccess` does not see as a number, nor after a comment or a line
+    /// break it writes before the dot (`hasTrailingComment`, `hasTrailingWhitespace`). The tree
+    /// keeps none of the three, so only [`is_white_space_single_line`] may come before the dot.
+    fn dot_follows(&self, start: u32, end: u32) -> bool {
+        // A range outside the source is a node a transform built, which no comment, line break or
+        // parenthesis precedes.
+        let Some(between) = self.source_text.get(start as usize..end as usize) else {
+            return true;
+        };
+        let before_dot = between
+            .split_once('.')
+            .map_or(between, |(before, _)| before);
+        before_dot.chars().all(is_white_space_single_line)
+    }
+}
+
+/// TypeScript's `isWhiteSpaceSingleLine` (6.0.3 at 050880ce59, `src/compiler/scanner.ts:557-572`),
+/// which, unlike JavaScript's white space, includes U+0085 and U+200B.
+const fn is_white_space_single_line(c: char) -> bool {
+    matches!(
+        c,
+        ' ' | '\t' | '\u{b}' | '\u{c}' | '\u{a0}' | '\u{85}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200b}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}'
+    )
+}
+
+/// TypeScript's `mayNeedDotDotForPropertyAccess` (6.0.3 at 050880ce59,
+/// `src/compiler/emitter.ts:2668`): the text of `number`, which a property access follows, with a
+/// dot after it, where the text has no radix prefix, no dot and no exponent. The text is the raw,
+/// or for a number without one `"" + value`, which has a dot or an exponent unless it is an
+/// integer below 1e21.
+fn with_dot(number: &NumericLiteral<'_>) -> Option<String> {
+    let Some(raw) = number.raw else {
+        let integer = number.value.fract() == 0.0 && number.value.abs() < 1e21;
+        return integer.then(|| format!("{}.", number.value));
+    };
+    let prefixed = matches!(
+        raw.as_bytes(),
+        [b'0', b'x' | b'X' | b'b' | b'B' | b'o' | b'O', ..]
+    );
+    let dotted = raw.bytes().any(|b| matches!(b, b'.' | b'e' | b'E'));
+    (!prefixed && !dotted).then(|| format!("{raw}."))
 }

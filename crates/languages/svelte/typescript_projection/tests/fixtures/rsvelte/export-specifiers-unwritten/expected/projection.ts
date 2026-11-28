@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { p = 1 } = $props();
+	let /** @typedef {{ p?: number }} $$ComponentProps *//** @type {$$ComponentProps} */ { p = 1 } = $props();
 	let a = 1;
 	let s = $state(0);
 	let f = () => 1;
@@ -11,9 +11,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    p: 1,
-  }, false);
   async () => {
     {
       svelteHTML.createElement("div", {
@@ -25,7 +22,7 @@ function $$render() {
       p;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {
     a: typeof a;
     s: typeof s;
     p: typeof p;

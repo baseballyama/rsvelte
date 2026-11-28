@@ -1,4 +1,388 @@
 # rsvelte pack 1
+=== 321 packages/svelte/tests/compiler-errors/samples/dollar-binding-global-js/main.svelte.js	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$` is an illegal variable name. To reference a global variable called `$`, use `globalThis.$`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 243 packages/svelte/tests/compiler-errors/samples/effect-active-rune/main.svelte.js	error.json
+{
+	"code": "rune_renamed",
+	"message": "`$effect.active` is now `$effect.tracking`\nhttps://svelte.dev/e/rune_renamed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	}
+}
+
+=== 339 packages/svelte/tests/compiler-errors/samples/export-default-derived-state-indirect/main.svelte.js	error.json
+{
+	"code": "derived_invalid_export",
+	"message": "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 61
+	},
+	"end": {
+		"line": 5,
+		"column": 22,
+		"character": 83
+	}
+}
+
+=== 368 packages/svelte/tests/compiler-errors/samples/export-default-state-indirect/main.svelte.js	error.json
+{
+	"code": "state_invalid_export",
+	"message": "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
+	"start": {
+		"line": 7,
+		"column": 0,
+		"character": 93
+	},
+	"end": {
+		"line": 7,
+		"column": 25,
+		"character": 118
+	}
+}
+
+=== 339 packages/svelte/tests/compiler-errors/samples/export-derived-state-indirect/main.svelte.js	error.json
+{
+	"code": "derived_invalid_export",
+	"message": "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
+	"start": {
+		"line": 5,
+		"column": 9,
+		"character": 70
+	},
+	"end": {
+		"line": 5,
+		"column": 15,
+		"character": 76
+	}
+}
+
+=== 339 packages/svelte/tests/compiler-errors/samples/export-derived-state/main.svelte.js	error.json
+{
+	"code": "derived_invalid_export",
+	"message": "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 42,
+		"character": 66
+	}
+}
+
+=== 372 packages/svelte/tests/compiler-errors/samples/export-state-indirect/main.svelte.js	error.json
+{
+	"code": "state_invalid_export",
+	"message": "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
+	"start": {
+		"line": 15,
+		"column": 17,
+		"character": 211
+	},
+	"end": {
+		"line": 15,
+		"column": 26,
+		"character": 220
+	}
+}
+
+=== 367 packages/svelte/tests/compiler-errors/samples/export-state/main.svelte.js	error.json
+{
+	"code": "state_invalid_export",
+	"message": "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 46
+	},
+	"end": {
+		"line": 5,
+		"column": 40,
+		"character": 86
+	}
+}
+
+=== 244 packages/svelte/tests/compiler-errors/samples/invalid-rune-name-shadowed/main.svelte.js	error.json
+{
+	"code": "rune_invalid_name",
+	"message": "`$state.foo` is not a valid rune\nhttps://svelte.dev/e/rune_invalid_name",
+	"start": {
+		"line": 2,
+		"column": 9,
+		"character": 23
+	},
+	"end": {
+		"line": 2,
+		"column": 21,
+		"character": 35
+	}
+}
+
+=== 251 packages/svelte/tests/compiler-errors/samples/invalid-rune-name/main.svelte.js	error.json
+{
+	"code": "rune_invalid_name",
+	"message": "`$effect.imnotarune` is not a valid rune\nhttps://svelte.dev/e/rune_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	}
+}
+
+=== 367 packages/svelte/tests/compiler-errors/samples/runes-export-named-state/main.svelte.js	error.json
+{
+	"code": "state_invalid_export",
+	"message": "Cannot export state from a module if it is reassigned. Either export a function returning the state value or only mutate the state value's properties\nhttps://svelte.dev/e/state_invalid_export",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 28
+	},
+	"end": {
+		"line": 2,
+		"column": 25,
+		"character": 53
+	}
+}
+
+=== 298 packages/svelte/tests/compiler-errors/samples/runes-module-store-subscription/main.svelte.js	error.json
+{
+	"code": "store_invalid_subscription_module",
+	"message": "Cannot reference store value outside a `.svelte` file\nhttps://svelte.dev/e/store_invalid_subscription_module",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 48
+	},
+	"end": {
+		"line": 3,
+		"column": 18,
+		"character": 54
+	}
+}
+
+=== 240 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte.js	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 21
+	},
+	"end": {
+		"line": 2,
+		"column": 6,
+		"character": 27
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte.js	error.json
+{
+	"code": "bindable_invalid_location",
+	"message": "`$bindable()` can only be used inside a `$props()` declaration\nhttps://svelte.dev/e/bindable_invalid_location",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 288 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte.js	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$derived` must be called with exactly one argument\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 22,
+		"character": 22
+	}
+}
+
+=== 399 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte.js	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 11,
+		"character": 11
+	}
+}
+
+=== 283 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte.js	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$effect` must be called with exactly one argument\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	}
+}
+
+=== 281 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte.js	error.json
+{
+	"code": "effect_invalid_placement",
+	"message": "`$effect()` can only be used as an expression statement\nhttps://svelte.dev/e/effect_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 8,
+		"character": 23
+	},
+	"end": {
+		"line": 2,
+		"column": 25,
+		"character": 40
+	}
+}
+
+=== 287 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte.js	error.json
+{
+	"code": "host_invalid_placement",
+	"message": "`$host()` can only be used inside custom element component instances\nhttps://svelte.dev/e/host_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 7,
+		"character": 7
+	}
+}
+
+=== 321 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-module/main.svelte.js	error.json
+{
+	"code": "props_invalid_placement",
+	"message": "`$props()` can only be used at the top level of components as a variable declaration initializer\nhttps://svelte.dev/e/props_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	},
+	"end": {
+		"line": 1,
+		"column": 22,
+		"character": 22
+	}
+}
+
+=== 287 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte.js	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$state` must be called with zero or one arguments\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 27,
+		"character": 27
+	}
+}
+
+=== 398 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte.js	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 19
+	},
+	"end": {
+		"line": 2,
+		"column": 11,
+		"character": 28
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte.js	error.json
+{
+	"code": "rune_invalid_arguments_length",
+	"message": "`$state.raw` must be called with zero or one arguments\nhttps://svelte.dev/e/rune_invalid_arguments_length",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	}
+}
+
+=== 531 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte.js	error.json
+{
+	"code": "import_svelte_internal_forbidden",
+	"message": "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice. If you're importing from `svelte/internal/*` to work around a limitation of Svelte, please open an issue at https://github.com/sveltejs/svelte and explain your use case\nhttps://svelte.dev/e/import_svelte_internal_forbidden",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 51,
+		"character": 51
+	}
+}
+
 === 136 packages/svelte/tests/runtime-legacy/samples/state-imported-function/Data.svelte.js	js
 /* Data.svelte.js generated by Svelte v5.59.1 */
 import * as $ from 'svelte/internal/client';
@@ -213,6 +597,518 @@ const result = createAppState({ source: () => 'wrong' });
 result.onChange('right');
 
 export const expect2 = result.value === 'right';
+=== 291 packages/svelte/tests/snapshot/samples/async-const/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-const/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-each-fallback-hoisting/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-each-fallback-hoisting/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-each-hoisting/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-each-hoisting/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-if-alternate-hoisting/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-if-alternate-hoisting/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-if-chain/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-if-chain/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-if-hoisting/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-if-hoisting/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-in-derived/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-in-derived/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-top-level-group-sync-run/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-top-level-group-sync-run/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-top-level-inspect-server/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 93
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 94
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/async-top-level-inspect-server/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 50
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 51
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/await-block-scope/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/await-block-scope/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/bind-component-snippet/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/bind-component-snippet/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/bind-this/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/bind-this/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/class-state-field-constructor-assignment/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/class-state-field-constructor-assignment/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/dedupe-templates/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/dedupe-templates/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/destructured-assignments/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 62
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 63
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/destructured-assignments/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 62
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 63
+	}
+}
+
 === 336 packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js	js
 /* index.svelte.js generated by Svelte v5.59.1 */
 import * as $ from 'svelte/internal/client';
@@ -232,22 +1128,822 @@ export function update(array) {
 
 	[c, d] = array;
 }
+=== 291 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/_expected/client/main.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/_expected/server/main.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/each-index-non-null/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/each-index-non-null/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/each-string-template/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/each-string-template/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/export-state/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 62
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 63
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/export-state/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 62
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 63
+	}
+}
+
 === 140 packages/svelte/tests/snapshot/samples/export-state/index.svelte.js	js
 /* index.svelte.js generated by Svelte v5.59.1 */
 import * as $ from 'svelte/internal/client';
 
 export const object = $.proxy({ ok: true });
+=== 291 packages/svelte/tests/snapshot/samples/function-prop-no-getter/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/function-prop-no-getter/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/functional-templating/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/functional-templating/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/hello-world/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/hello-world/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/hmr/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/hmr/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/client/module.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 63
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 64
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/server/module.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 63
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 64
+	}
+}
+
 === 150 packages/svelte/tests/snapshot/samples/imports-in-modules/module.svelte.js	js
 /* module.svelte.js generated by Svelte v5.59.1 */
 import * as $ from 'svelte/internal/client';
 import { random } from './export';
 
 export { random };
+=== 291 packages/svelte/tests/snapshot/samples/nullish-coallescence-omittance/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/nullish-coallescence-omittance/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/props-identifier/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/props-identifier/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/purity/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/purity/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/client/Option.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/server/Option.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/skip-static-subtree/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/skip-static-subtree/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/state-proxy-literal/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/state-proxy-literal/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/svelte-element/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/svelte-element/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/text-nodes-deriveds/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 2,
+		"column": 12,
+		"character": 55
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 56
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/text-nodes-deriveds/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/typescript-optional-parameter/_expected/client/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 3,
+		"column": 12,
+		"character": 94
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 95
+	}
+}
+
+=== 291 packages/svelte/tests/snapshot/samples/typescript-optional-parameter/_expected/server/index.svelte.js	error.json
+{
+	"code": "dollar_binding_invalid",
+	"message": "The $ name is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_binding_invalid",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
 === 128 packages/svelte/tests/validator/samples/anonymous-declarations/function.svelte.js	js
 /* function.svelte.js generated by Svelte v5.59.1 */
 import * as $ from 'svelte/internal/client';
 
 export default function () {}
+=== 267 packages/svelte/tests/validator/samples/class-state-constructor-1/input.svelte.js	error.json
+{
+	"code": "state_field_duplicate",
+	"message": "`count` has already been declared on this class\nhttps://svelte.dev/e/state_field_duplicate",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 63
+	},
+	"end": {
+		"line": 5,
+		"column": 24,
+		"character": 85
+	}
+}
+
+=== 291 packages/svelte/tests/validator/samples/class-state-constructor-10/input.svelte.js	error.json
+{
+	"code": "state_field_invalid_assignment",
+	"message": "Cannot assign to a state field before its declaration\nhttps://svelte.dev/e/state_field_invalid_assignment",
+	"start": {
+		"line": 4,
+		"column": 3,
+		"character": 57
+	},
+	"end": {
+		"line": 4,
+		"column": 18,
+		"character": 72
+	}
+}
+
+=== 268 packages/svelte/tests/validator/samples/class-state-constructor-2/input.svelte.js	error.json
+{
+	"code": "state_field_duplicate",
+	"message": "`count` has already been declared on this class\nhttps://svelte.dev/e/state_field_duplicate",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 86
+	},
+	"end": {
+		"line": 5,
+		"column": 24,
+		"character": 108
+	}
+}
+
+=== 268 packages/svelte/tests/validator/samples/class-state-constructor-3/input.svelte.js	error.json
+{
+	"code": "state_field_duplicate",
+	"message": "`count` has already been declared on this class\nhttps://svelte.dev/e/state_field_duplicate",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 86
+	},
+	"end": {
+		"line": 5,
+		"column": 28,
+		"character": 112
+	}
+}
+
+=== 399 packages/svelte/tests/validator/samples/class-state-constructor-4/input.svelte.js	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 4,
+		"column": 16,
+		"character": 70
+	},
+	"end": {
+		"line": 4,
+		"column": 25,
+		"character": 79
+	}
+}
+
+=== 268 packages/svelte/tests/validator/samples/class-state-constructor-5/input.svelte.js	error.json
+{
+	"code": "state_field_duplicate",
+	"message": "`count` has already been declared on this class\nhttps://svelte.dev/e/state_field_duplicate",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 84
+	},
+	"end": {
+		"line": 5,
+		"column": 27,
+		"character": 109
+	}
+}
+
+=== 267 packages/svelte/tests/validator/samples/class-state-constructor-6/input.svelte.js	error.json
+{
+	"code": "state_field_duplicate",
+	"message": "`count` has already been declared on this class\nhttps://svelte.dev/e/state_field_duplicate",
+	"start": {
+		"line": 4,
+		"column": 2,
+		"character": 62
+	},
+	"end": {
+		"line": 4,
+		"column": 27,
+		"character": 87
+	}
+}
+
+=== 399 packages/svelte/tests/validator/samples/class-state-constructor-7/input.svelte.js	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 16,
+		"character": 80
+	},
+	"end": {
+		"line": 5,
+		"column": 25,
+		"character": 89
+	}
+}
+
+=== 291 packages/svelte/tests/validator/samples/class-state-constructor-8/input.svelte.js	error.json
+{
+	"code": "state_field_invalid_assignment",
+	"message": "Cannot assign to a state field before its declaration\nhttps://svelte.dev/e/state_field_invalid_assignment",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 42
+	},
+	"end": {
+		"line": 3,
+		"column": 17,
+		"character": 57
+	}
+}
+
+=== 253 packages/svelte/tests/validator/samples/class-state-constructor-9/input.svelte.js	error.json
+{
+	"code": "duplicate_class_field",
+	"message": "`count` has already been declared\nhttps://svelte.dev/e/duplicate_class_field",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 74
+	},
+	"end": {
+		"line": 5,
+		"column": 24,
+		"character": 96
+	}
+}
+
 === 273 packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js	js
 /* input.svelte.js generated by Svelte v5.59.1 */
 import * as $ from 'svelte/internal/client';

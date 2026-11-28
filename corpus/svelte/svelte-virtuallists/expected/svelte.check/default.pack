@@ -89,6 +89,58 @@
 === 3 src/comp/ToggleButton.svelte	json
 []
 
+=== 790 src/lib/VirtualListNew.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '.' or its corresponding type declarations.",
+		"start": {
+			"line": 46,
+			"character": 9
+		},
+		"end": {
+			"line": 46,
+			"character": 12
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'clsx' or its corresponding type declarations.",
+		"start": {
+			"line": 48,
+			"character": 19
+		},
+		"end": {
+			"line": 48,
+			"character": 25
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 183,
+			"character": 25
+		},
+		"end": {
+			"line": 183,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'index' implicitly has an 'any' type.",
+		"start": {
+			"line": 183,
+			"character": 31
+		},
+		"end": {
+			"line": 183,
+			"character": 36
+		}
+	}
+]
+
 === 1091 src/routes/+layout.svelte	json
 [
 	{

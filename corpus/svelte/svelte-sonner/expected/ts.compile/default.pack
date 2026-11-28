@@ -1,0 +1,1107 @@
+# rsvelte pack 1
+=== 204 playwright.config.ts	js
+const config = {
+    webServer: {
+        command: 'npm run build && npm run preview',
+        port: 4173
+    },
+    testDir: 'tests',
+    testMatch: /(.+\.)?(test|spec)\.[jt]s/
+};
+export default config;
+
+=== 3640 scripts/setupTest.ts	js
+// setupTest.ts
+import '@testing-library/svelte/vitest';
+import '@testing-library/jest-dom/vitest';
+import * as matchers from '@testing-library/jest-dom/matchers';
+import { expect, vi } from 'vitest';
+import { readable } from 'svelte/store';
+import * as environment from '$app/environment';
+import * as navigation from '$app/navigation';
+import * as stores from '$app/stores';
+import { configure } from '@testing-library/dom';
+// Add custom jest matchers
+expect.extend(matchers);
+configure({
+    asyncUtilTimeout: 1500
+});
+// Mock SvelteKit runtime module $app/environment
+vi.mock('$app/environment', () => ({
+    browser: false,
+    dev: true,
+    building: false,
+    version: 'any'
+}));
+// Mock SvelteKit runtime module $app/navigation
+vi.mock('$app/navigation', () => ({
+    afterNavigate: () => { },
+    beforeNavigate: () => { },
+    disableScrollHandling: () => { },
+    goto: () => Promise.resolve(),
+    invalidate: () => Promise.resolve(),
+    invalidateAll: () => Promise.resolve(),
+    preloadData: () => Promise.resolve({
+        type: 'loaded',
+        status: 200,
+        data: {}
+    }),
+    preloadCode: () => Promise.resolve(),
+    onNavigate: () => { },
+    pushState: () => { },
+    replaceState: () => { }
+}));
+// Mock SvelteKit runtime module $app/stores
+vi.mock('$app/stores', () => {
+    const getStores = () => {
+        const navigating = readable(null);
+        const page = readable({
+            url: new URL('http://localhost'),
+            params: {},
+            route: {
+                id: null
+            },
+            status: 200,
+            error: null,
+            data: {},
+            form: undefined,
+            state: {}
+        });
+        const updated = { subscribe: readable(false).subscribe, check: async () => false };
+        return { navigating, page, updated };
+    };
+    const page = {
+        subscribe(fn) {
+            return getStores().page.subscribe(fn);
+        }
+    };
+    const navigating = {
+        subscribe(fn) {
+            return getStores().navigating.subscribe(fn);
+        }
+    };
+    const updated = {
+        subscribe(fn) {
+            return getStores().updated.subscribe(fn);
+        },
+        check: async () => false
+    };
+    return {
+        getStores,
+        navigating,
+        page,
+        updated
+    };
+});
+Element.prototype.scrollIntoView = () => { };
+// jsdom doesn't implement the pointer capture API
+Element.prototype.setPointerCapture = () => { };
+Element.prototype.releasePointerCapture = () => { };
+Element.prototype.hasPointerCapture = () => false;
+export const mediaQueryState = {
+    matches: false
+};
+const listeners = [];
+Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn().mockImplementation((query) => ({
+        matches: mediaQueryState.matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((type, callback) => {
+            if (type === 'change') {
+                listeners.push(callback);
+            }
+        }),
+        removeEventListener: vi.fn((type, callback) => {
+            const index = listeners.indexOf(callback);
+            if (index !== -1) {
+                listeners.splice(index, 1);
+            }
+        }),
+        dispatchEvent: vi.fn((event) => {
+            if (event.type === 'change') {
+                for (const callback of listeners) {
+                    callback({
+                        matches: mediaQueryState.matches,
+                        media: '(prefers-color-scheme: light)'
+                    });
+                }
+            }
+        })
+    }))
+});
+
+=== 451 src/components/code-snippets.ts	js
+export function getOtherCodeSnippet(snippet, richColorsActive, closeButtonActive) {
+    return `<script>
+  ${snippet || ''}
+</script>
+
+<!-- ... -->
+
+<Toaster ${richColorsActive ? 'richColors ' : ''} ${closeButtonActive ? 'closeButton ' : ''}/>`;
+}
+export const usageSnippet = `<script>
+  import { Toaster, toast } from 'svelte-sonner'
+</script>
+
+<!-- ... -->
+
+<Toaster />
+<button onclick={() => toast('My first toast')}>
+  Give me a toast
+</button>`;
+
+=== 206 src/lib/index.ts	js
+import Icon from './Icon.svelte';
+import Loader from './Loader.svelte';
+import Toaster from './Toaster.svelte';
+export { toast, useSonner } from './toast-state.svelte.js';
+export { Icon, Loader, Toaster };
+
+=== 214 src/lib/internal/ctx.ts	js
+import { SonnerState } from '$lib/toast-state.svelte.js';
+import { Context } from 'runed';
+export const richColorsContext = new Context('richColorsContext');
+export const sonnerContext = new Context('<Toaster/>');
+
+=== 139 src/lib/internal/helpers.ts	js
+export function cn(...classes) {
+    return classes.filter(Boolean).join(' ');
+}
+export const isBrowser = typeof document !== 'undefined';
+
+=== 58 src/lib/internal/index.ts	js
+export * from './types.js';
+export * from './helpers.js';
+
+=== 11 src/lib/internal/types.ts	js
+export {};
+
+=== 378 src/lib/internal/use-document-hidden.svelte.ts	js
+import { on } from 'svelte/events';
+export function useDocumentHidden() {
+    let current = $state(typeof document !== 'undefined' ? document.hidden : false);
+    $effect(() => {
+        return on(document, 'visibilitychange', () => {
+            current = document.hidden;
+        });
+    });
+    return {
+        get current() {
+            return current;
+        }
+    };
+}
+
+=== 11331 src/lib/toast-state.svelte.ts	js
+import { isBrowser } from './internal/helpers.js';
+import { sonnerContext } from './internal/ctx.js';
+import { untrack } from 'svelte';
+let toastsCounter = 0;
+// A toast keeps the id it was given, otherwise it gets the next one from the counter.
+// `custom` needs the same id `create` would pick, as it hands it to the component.
+function getToastId(data) {
+    return typeof data?.id === 'number' || (typeof data?.id === 'string' && data.id.length > 0)
+        ? data.id
+        : toastsCounter++;
+}
+class ToastState {
+    toasts = $state([]);
+    heights = $state([]);
+    // Removals whose exit animation is running but whose entry hasn't been removed yet
+    #pendingRemovals = new Map();
+    #findToastIdx = (id) => {
+        const idx = this.toasts.findIndex((toast) => toast.id === id);
+        if (idx === -1)
+            return null;
+        return idx;
+    };
+    #findHeightIdx = (toastId) => this.heights.findIndex((height) => height.toastId === toastId);
+    addToast = (data) => {
+        if (!isBrowser)
+            return;
+        this.toasts.unshift(data);
+    };
+    updateToast = ({ id, data, type, message }) => {
+        const toastIdx = this.toasts.findIndex((toast) => toast.id === id);
+        const toastToUpdate = this.toasts[toastIdx];
+        this.toasts[toastIdx] = {
+            ...toastToUpdate,
+            ...data,
+            id,
+            title: message,
+            type,
+            // A dismissal that hasn't been processed yet gets cancelled: the toast is
+            // still on screen, so this is an update of it rather than a new toast.
+            dismiss: false,
+            delete: false,
+            updated: true
+        };
+    };
+    // Flags a toast that was dismissed from inside the Toast component (close button,
+    // swipe, action/cancel click, auto-close) so `create` treats an id reuse as a new
+    // toast instead of merging the old props into it.
+    markDismissed = (id) => {
+        const toastIdx = this.#findToastIdx(id);
+        if (toastIdx === null)
+            return;
+        const toast = this.toasts[toastIdx];
+        if (!toast)
+            return;
+        if (!toast.dismiss || !toast.delete) {
+            this.toasts[toastIdx] = { ...toast, dismiss: true, delete: true };
+        }
+    };
+    scheduleRemoval = (id, delay) => {
+        this.cancelRemoval(id);
+        this.#pendingRemovals.set(id, setTimeout(() => {
+            this.#pendingRemovals.delete(id);
+            this.remove(id);
+        }, delay));
+    };
+    cancelRemoval = (id) => {
+        const timeout = this.#pendingRemovals.get(id);
+        if (timeout !== undefined) {
+            clearTimeout(timeout);
+            this.#pendingRemovals.delete(id);
+        }
+    };
+    create = (data) => {
+        const { message, ...rest } = data;
+        const id = getToastId(data);
+        // Support deprecated `dismissable` as a fallback for backwards compatibility
+        const dismissible = data.dismissible !== undefined
+            ? data.dismissible
+            : data.dismissable !== undefined
+                ? data.dismissable
+                : true;
+        const type = data.type === undefined ? 'default' : data.type;
+        untrack(() => {
+            // A removal that hasn't run yet gets cancelled: this create() supersedes it,
+            // otherwise the old toast's unmount timeout would remove the new one.
+            this.cancelRemoval(id);
+            const alreadyExists = this.toasts.find((toast) => toast.id === id);
+            if (alreadyExists?.dismiss || alreadyExists?.delete) {
+                // The previous toast with this id was dismissed, so this is a brand new
+                // toast. Drop the old one instead of merging into it, otherwise its
+                // props (e.g. `action`) leak into the new one. `updated` makes the still
+                // mounted component reset its auto-close timer: when the recreate happens
+                // in the same tick as the dismissal, the keyed each reuses the component
+                // before it ever processed the dismissal, so the old timer would
+                // otherwise keep running.
+                this.remove(id);
+                this.addToast({
+                    ...rest,
+                    id,
+                    title: message,
+                    dismissible,
+                    type,
+                    updated: true
+                });
+            }
+            else if (alreadyExists) {
+                this.updateToast({ id, data, type, message, dismissible });
+            }
+            else {
+                this.addToast({ ...rest, id, title: message, dismissible, type });
+            }
+        });
+        return id;
+    };
+    dismiss = (id) => {
+        untrack(() => {
+            if (id === undefined) {
+                // we're dismissing all the active toasts
+                this.toasts = this.toasts.map((toast) => toast.dismiss ? toast : { ...toast, dismiss: true });
+                return;
+            }
+            // we're dismissing a specific toast
+            const toastIdx = this.toasts.findIndex((toast) => toast.id === id);
+            if (this.toasts[toastIdx]) {
+                this.toasts[toastIdx] = { ...this.toasts[toastIdx], dismiss: true };
+            }
+        });
+        return id;
+    };
+    remove = (id) => {
+        if (id === undefined) {
+            // remove all toasts
+            this.toasts = [];
+            return;
+        }
+        // remove a specific toast
+        const toastIdx = this.#findToastIdx(id);
+        if (toastIdx === null)
+            return;
+        this.toasts.splice(toastIdx, 1);
+        return id;
+    };
+    message = (message, data) => {
+        return this.create({ ...data, type: 'default', message });
+    };
+    error = (message, data) => {
+        return this.create({ ...data, type: 'error', message });
+    };
+    success = (message, data) => {
+        return this.create({ ...data, type: 'success', message });
+    };
+    info = (message, data) => {
+        return this.create({ ...data, type: 'info', message });
+    };
+    warning = (message, data) => {
+        return this.create({ ...data, type: 'warning', message });
+    };
+    loading = (message, data) => {
+        return this.create({ ...data, type: 'loading', message });
+    };
+    promise = (promise, data) => {
+        if (!data) {
+            // Nothing to show
+            return;
+        }
+        let id = undefined;
+        if (data.loading !== undefined) {
+            id = this.create({
+                ...data,
+                promise,
+                type: 'loading',
+                message: typeof data.loading === 'string' ? data.loading : data.loading()
+            });
+        }
+        const p = promise instanceof Promise ? promise : promise();
+        let shouldDismiss = id !== undefined;
+        p.then((response) => {
+            if (typeof response === 'object' &&
+                response &&
+                'ok' in response &&
+                typeof response.ok === 'boolean' &&
+                !response.ok) {
+                shouldDismiss = false;
+                const message = constructPromiseErrorMessage(response);
+                this.create({ id, type: 'error', message });
+            }
+            else if (data.success !== undefined) {
+                shouldDismiss = false;
+                const message = typeof data.success === 'function' ? data.success(response) : data.success;
+                this.create({ id, type: 'success', message });
+            }
+        })
+            .catch((error) => {
+            if (data.error !== undefined) {
+                shouldDismiss = false;
+                const message = typeof data.error === 'function' ? data.error(error) : data.error;
+                this.create({ id, type: 'error', message });
+            }
+        })
+            .finally(() => {
+            if (shouldDismiss) {
+                // Toast is still in load state (and will be indefinitely — dismiss it)
+                this.dismiss(id);
+                id = undefined;
+            }
+            data.finally?.();
+        });
+        return id;
+    };
+    custom = (component, data) => {
+        const id = getToastId(data);
+        this.create({ component, ...data, id });
+        return id;
+    };
+    removeHeight = (id) => {
+        this.heights = this.heights.filter((height) => height.toastId !== id);
+    };
+    setHeight = (data) => {
+        // untrack: setHeight runs inside a $effect; a tracked read of this.heights
+        // would re-trigger it on the write below (effect_update_depth_exceeded).
+        untrack(() => {
+            const heightIdx = this.#findHeightIdx(data.toastId);
+            if (heightIdx !== -1) {
+                this.heights[heightIdx] = data;
+                return;
+            }
+            // The offset math and --front-toast-height assume heights share the
+            // newest-first order of `toasts`, so insert at the matching position.
+            // With batched mounts (several toasts created in one tick, or created
+            // before the Toaster mounted) the components mount newest-first and a
+            // plain unshift would reverse them.
+            const order = new Map(this.toasts.map((toast, idx) => [toast.id, idx]));
+            const toastOrder = order.get(data.toastId) ?? -1;
+            const insertIdx = this.heights.findIndex((height) => (order.get(height.toastId) ?? Infinity) > toastOrder);
+            if (insertIdx === -1) {
+                this.heights.push(data);
+            }
+            else {
+                this.heights.splice(insertIdx, 0, data);
+            }
+        });
+    };
+    reset = () => {
+        this.toasts = [];
+        this.heights = [];
+        this.#pendingRemovals.forEach((timeout) => clearTimeout(timeout));
+        this.#pendingRemovals.clear();
+    };
+}
+function constructPromiseErrorMessage(response) {
+    if (response && typeof response === 'object' && 'status' in response) {
+        return `HTTP error! Status: ${response.status}`;
+    }
+    return `Error! ${response}`;
+}
+export const toastState = new ToastState();
+function toastFunction(message, data) {
+    return toastState.message(message, data);
+}
+export class SonnerState {
+    /**
+     * A derived state of the toasts that are not dismissed.
+     */
+    #activeToasts = $derived(toastState.toasts.filter((toast) => !toast.dismiss));
+    get toasts() {
+        return this.#activeToasts;
+    }
+}
+/**
+ * A hook to get a reference to the sonner toast state.
+ *
+ * Returns a class instance a getter for the `toasts` array.
+ *
+ * @example
+ * ```svelte
+ * <script lang="ts">
+ *   import { useSonner } from 'svelte-sonner';
+ *
+ *   const sonner = useSonner();
+ *
+ *   // Reactive access to the toasts
+ *   $effect(() => console.log(sonner.toasts))
+ * </script>
+ * ```
+ */
+export function useSonner() {
+    return sonnerContext.get();
+}
+const basicToast = toastFunction;
+export const toast = Object.assign(basicToast, {
+    success: toastState.success,
+    info: toastState.info,
+    warning: toastState.warning,
+    error: toastState.error,
+    custom: toastState.custom,
+    message: toastState.message,
+    promise: toastState.promise,
+    dismiss: toastState.dismiss,
+    loading: toastState.loading,
+    getActiveToasts: () => {
+        return toastState.toasts.filter((toast) => !toast.dismiss);
+    }
+});
+
+=== 76 src/lib/types.ts	js
+export function isAction(action) {
+    return action.label !== undefined;
+}
+
+=== 171 src/routes/test/+page.ts	js
+// Client-only so query params drive the page and `toast()` calls made during
+// component init exercise the real pre-mount path in the browser.
+export const ssr = false;
+
+=== 6782 src/tests/toast-lifecycle.spec.ts	js
+import { describe, it } from 'vitest';
+import PropsToastTest from './PropsToastTest.svelte';
+import TestIcon from './TestIcon.svelte';
+import { render, waitFor } from '@testing-library/svelte';
+import { userEvent } from '@testing-library/user-event';
+import { toast, toastState } from '$lib/toast-state.svelte.js';
+import { sleep } from './utils.js';
+function setup(props) {
+    const user = userEvent.setup();
+    const returned = render(PropsToastTest, { props });
+    const trigger = returned.getByTestId('trigger');
+    return {
+        trigger,
+        user,
+        ...returned
+    };
+}
+describe('Toast lifecycle', () => {
+    beforeEach(() => {
+        toastState.reset();
+    });
+    it('renders a custom icon only once in a settled promise toast', async () => {
+        let resolve;
+        const promise = new Promise((res) => {
+            resolve = res;
+        });
+        const { user, trigger, getAllByTestId, getByText } = setup({
+            cb: (toast) => {
+                toast.promise(promise, {
+                    loading: 'Loading...',
+                    success: 'Loaded',
+                    icon: TestIcon
+                });
+            }
+        });
+        await user.click(trigger);
+        expect(getByText('Loading...')).toBeVisible();
+        resolve('done');
+        await waitFor(() => expect(getByText('Loaded')).toBeVisible());
+        expect(getAllByTestId('custom-icon').length).toBe(1);
+    });
+    it('hides default icons from assistive technology', async () => {
+        const { user, trigger, container } = setup({
+            cb: (toast) => toast.success('Success toast', { closeButton: true })
+        });
+        await user.click(trigger);
+        const typeIcon = container.querySelector('[data-sonner-toast] [data-icon] svg');
+        expect(typeIcon).toHaveAttribute('aria-hidden', 'true');
+        const closeIcon = container.querySelector('[data-sonner-toast] [data-close-button] svg');
+        expect(closeIcon).toHaveAttribute('aria-hidden', 'true');
+    });
+    it('clears the loading state when toast() reuses the id of a loading toast', async () => {
+        const { user, trigger, container, getByText } = setup({
+            cb: (toast) => {
+                const id = toast.loading('Loading forever');
+                setTimeout(() => toast('Done', { id }), 100);
+            }
+        });
+        await user.click(trigger);
+        expect(container.querySelector('[data-sonner-toast]')).toHaveAttribute('data-type', 'loading');
+        await sleep(200);
+        expect(getByText('Done')).toBeVisible();
+        expect(container.querySelector('[data-sonner-toast]')).toHaveAttribute('data-type', 'default');
+    });
+    it('clears the loading state when toast.custom() reuses the id of a loading toast', async () => {
+        const { user, trigger, container } = setup({
+            cb: (toast) => {
+                const id = toast.loading('Loading forever');
+                setTimeout(() => toast.custom(TestIcon, { id }), 100);
+            }
+        });
+        await user.click(trigger);
+        expect(container.querySelector('[data-sonner-toast]')).toHaveAttribute('data-type', 'loading');
+        await sleep(200);
+        expect(container.querySelector('[data-sonner-toast]')).not.toHaveAttribute('data-type', 'loading');
+    });
+    it('does not leak props into a new toast reusing a dismissed toast id', async () => {
+        const { user, trigger, getByText, queryByText } = setup({
+            cb: (toast) => {
+                const id = toast('With action', {
+                    action: { label: 'Undo', onClick: () => { } }
+                });
+                toast.dismiss(id);
+                toast('Without action', { id });
+            }
+        });
+        await user.click(trigger);
+        await waitFor(() => expect(getByText('Without action')).toBeVisible());
+        expect(queryByText('Undo')).toBeNull();
+    });
+    it('keeps a toast recreated during the exit animation window on screen', async () => {
+        const { user, trigger, getByText } = setup({
+            cb: (toast) => {
+                const id = toast('Original toast');
+                toast.dismiss(id);
+                // recreate while the 200ms exit-animation removal is still pending
+                setTimeout(() => toast('Remounted toast', { id }), 100);
+            }
+        });
+        await user.click(trigger);
+        await sleep(500);
+        expect(getByText('Remounted toast')).toBeVisible();
+        expect(document.querySelector('[data-sonner-toast][data-removed="true"]')).toBeNull();
+    });
+    it('resets the auto-close timer when a dismissed id is recreated in the same tick', async () => {
+        const { user, trigger, getByText, queryByText } = setup({
+            cb: (toast) => {
+                const id = toast('Short toast', { duration: 100 });
+                setTimeout(() => {
+                    toast.dismiss(id);
+                    toast('Longer toast', { id, duration: 600 });
+                }, 50);
+            }
+        });
+        await user.click(trigger);
+        // The short toast's 100ms timer would remove the replacement at ~150ms
+        // if the recreate didn't reset it
+        await sleep(400);
+        expect(getByText('Longer toast')).toBeVisible();
+        // The replacement's own 600ms duration still applies
+        await waitFor(() => expect(queryByText('Longer toast')).toBeNull());
+    });
+    it('treats an id reused after a close-button dismissal as a new toast', async () => {
+        let onDismissCalls = 0;
+        let toastId;
+        const { user, trigger, container, getByText, queryByText } = setup({
+            cb: (toast) => {
+                toastId = toast('Closable toast', {
+                    closeButton: true,
+                    action: { label: 'Undo', onClick: () => { } },
+                    onDismiss: () => onDismissCalls++
+                });
+            }
+        });
+        await user.click(trigger);
+        expect(getByText('Closable toast')).toBeVisible();
+        const closeButton = container.querySelector('[data-close-button]');
+        await user.click(closeButton);
+        expect(onDismissCalls).toBe(1);
+        toast('Recreated toast', { id: toastId });
+        await waitFor(() => expect(getByText('Recreated toast')).toBeVisible());
+        expect(queryByText('Undo')).toBeNull();
+        expect(onDismissCalls).toBe(1);
+    });
+    it('keeps an explicit id of 0 in toast.custom()', async () => {
+        let returnedId;
+        const { user, trigger } = setup({
+            cb: (toast) => {
+                returnedId = toast.custom(TestIcon, { id: 0 });
+            }
+        });
+        await user.click(trigger);
+        expect(returnedId).toBe(0);
+        expect(toastState.toasts[0]?.id).toBe(0);
+    });
+});
+
+=== 4509 src/tests/toast.spec.ts	js
+import { describe, it } from 'vitest';
+import ToastTest from './ToastTest.svelte';
+import { render, waitFor } from '@testing-library/svelte';
+import { userEvent } from '@testing-library/user-event';
+import { toast, toastState } from '$lib/toast-state.svelte.js';
+import { sleep } from './utils.js';
+function setup(props) {
+    const user = userEvent.setup();
+    const returned = render(ToastTest, { props });
+    const trigger = returned.getByTestId('trigger');
+    return {
+        trigger,
+        user,
+        ...returned
+    };
+}
+describe('Toast', () => {
+    beforeEach(() => {
+        toastState.reset();
+    });
+    it('should show a toast', async () => {
+        const { user, trigger, container, getByText } = setup({
+            cb: (toast) => toast('Hello world')
+        });
+        await user.click(trigger);
+        expect(getByText('Hello world')).toBeVisible();
+        const toasts = Array.from(container.querySelectorAll('[data-sonner-toast]'));
+        expect(toasts.length).toBe(1);
+    });
+    it('should show a toast with a custom duration', async () => {
+        const { user, trigger, queryByText } = setup({
+            cb: (toast) => toast('Hello world', { duration: 300 })
+        });
+        expect(queryByText('Hello world')).toBeNull();
+        await user.click(trigger);
+        await waitFor(() => expect(queryByText('Hello world')).not.toBeNull());
+        // duration (300ms) + exit animation (200ms), with margin for slow runs
+        await waitFor(() => expect(queryByText('Hello world')).toBeNull());
+    });
+    it('should focus the toast when hotkey is pressed', async () => {
+        const { user, trigger, getByText } = setup({
+            cb: (toast) => toast('Hello world', { duration: 5000 })
+        });
+        await user.click(trigger);
+        expect(getByText('Hello world')).toBeVisible();
+        await user.keyboard('{Alt>}T{/Alt}');
+        await sleep(100);
+        expect(document.activeElement).toBeInstanceOf(HTMLOListElement);
+    });
+    it('should not immediately close the toast when reset', async () => {
+        const { user, trigger, getByText, queryByText } = setup({
+            cb: (toast) => {
+                const id = toast('Loading', { duration: 4000 });
+                setTimeout(() => {
+                    toast.success('Finished loading!', { id });
+                }, 1000);
+            }
+        });
+        await user.click(trigger);
+        expect(getByText('Loading')).toBeVisible();
+        await sleep(2050);
+        expect(queryByText('Loading')).toBeNull();
+        expect(getByText('Finished loading!')).toBeVisible();
+        await sleep(1000);
+        expect(getByText('Finished loading!')).toBeVisible();
+    });
+    it('should reset duration on a toast update', async () => {
+        const { user, trigger, getByText, queryByText } = setup({
+            cb: (toast) => {
+                const id = toast('Loading', { duration: 1000 });
+                setTimeout(() => {
+                    toast.success('Finished loading!', { id });
+                }, 750);
+            }
+        });
+        await user.click(trigger);
+        expect(getByText('Loading')).toBeVisible();
+        await sleep(800);
+        expect(queryByText('Loading')).toBeNull();
+        expect(getByText('Finished loading!')).toBeVisible();
+        // there would only be ~.5 second left on the original toast
+        // so we're gonna wait 2 seconds to make sure the timer is reset
+        await sleep(600);
+        expect(getByText('Finished loading!')).toBeVisible();
+        // finally we'll wait another 1500ms to make sure the toast closes after 2 seconds
+        // since the original toast had a duration of 2 seconds
+        await sleep(600);
+        expect(queryByText('Finished loading!')).toBeNull();
+    });
+    it('should allow duration updates on toast update', async () => {
+        const { user, trigger, getByText, queryByText } = setup({
+            cb: (toast) => {
+                const id = toast('Loading', { duration: 2000 });
+                setTimeout(() => {
+                    toast.success('Finished loading!', { id, duration: 4000 });
+                }, 1000);
+            }
+        });
+        await user.click(trigger);
+        expect(getByText('Loading')).toBeVisible();
+        await sleep(1200);
+        expect(queryByText('Loading')).toBeNull();
+        expect(getByText('Finished loading!')).toBeVisible();
+        await sleep(2200);
+        expect(getByText('Finished loading!')).toBeVisible();
+    });
+});
+
+=== 4929 src/tests/toaster.spec.ts	js
+import { describe, it } from 'vitest';
+import PropsToastTest from './PropsToastTest.svelte';
+import MultiToasterTest from './MultiToasterTest.svelte';
+import { render, waitFor } from '@testing-library/svelte';
+import { userEvent } from '@testing-library/user-event';
+import { toast, toastState } from '$lib/toast-state.svelte.js';
+import { sleep } from './utils.js';
+function setup(props) {
+    const user = userEvent.setup();
+    const returned = render(PropsToastTest, { props });
+    const trigger = returned.getByTestId('trigger');
+    return {
+        trigger,
+        user,
+        ...returned
+    };
+}
+describe('Toaster', () => {
+    beforeEach(() => {
+        toastState.reset();
+    });
+    it('applies classes.default only to toasts without a type', async () => {
+        const { user, trigger, container } = setup({
+            cb: (toast) => {
+                toast('Plain toast');
+                toast.success('Success toast');
+            },
+            toastOptions: {
+                classes: {
+                    default: 'default-toast-class',
+                    success: 'success-toast-class'
+                }
+            }
+        });
+        await user.click(trigger);
+        const plain = container.querySelector('[data-sonner-toast][data-type="default"]');
+        const success = container.querySelector('[data-sonner-toast][data-type="success"]');
+        expect(plain).toHaveClass('default-toast-class');
+        expect(success).toHaveClass('success-toast-class');
+        expect(success).not.toHaveClass('default-toast-class');
+    });
+    it('shows a toast created before the Toaster mounts', async () => {
+        toast('Created before mount');
+        const { getByText } = setup({ cb: () => { } });
+        await waitFor(() => expect(getByText('Created before mount')).toBeVisible());
+    });
+    it('routes toasts to the toaster matching their toasterId', async () => {
+        const user = userEvent.setup();
+        const { getByTestId } = render(MultiToasterTest, {
+            props: {
+                cb: () => {
+                    toast('For the default toaster');
+                    toast('For the named toaster', { toasterId: 'secondary' });
+                }
+            }
+        });
+        await user.click(getByTestId('trigger'));
+        const defaultToaster = getByTestId('default-toaster');
+        const namedToaster = getByTestId('named-toaster');
+        expect(defaultToaster).toHaveTextContent('For the default toaster');
+        expect(defaultToaster).not.toHaveTextContent('For the named toaster');
+        expect(namedToaster).toHaveTextContent('For the named toaster');
+        expect(namedToaster).not.toHaveTextContent('For the default toaster');
+    });
+    it('dismisses toasts across all toasters with toast.dismiss()', async () => {
+        const user = userEvent.setup();
+        const { getByTestId } = render(MultiToasterTest, {
+            props: {
+                cb: () => {
+                    toast('Default toast');
+                    toast('Named toast', { toasterId: 'secondary' });
+                    setTimeout(() => toast.dismiss(), 100);
+                }
+            }
+        });
+        await user.click(getByTestId('trigger'));
+        expect(getByTestId('default-toaster')).toHaveTextContent('Default toast');
+        await sleep(500);
+        expect(document.querySelectorAll('[data-sonner-toast]:not([data-removed="true"])').length).toBe(0);
+    });
+    it('registers heights newest-first when toasts mount in the same tick', async () => {
+        let olderId;
+        let newerId;
+        const { user, trigger } = setup({
+            cb: (toast) => {
+                olderId = toast('Older toast');
+                newerId = toast('Newer toast');
+            }
+        });
+        await user.click(trigger);
+        await waitFor(() => expect(toastState.heights.length).toBe(2));
+        expect(toastState.heights.map((height) => height.toastId)).toEqual([newerId, olderId]);
+    });
+    it('uses the gap prop in the offset math', async () => {
+        const { user, trigger, container } = setup({
+            cb: (toast) => {
+                toast('First toast');
+                toast('Second toast');
+            },
+            gap: 20
+        });
+        await user.click(trigger);
+        const offsets = Array.from(container.querySelectorAll('[data-sonner-toast]')).map((el) => el.style.getPropertyValue('--offset'));
+        // jsdom measures zero heights, so the non-front toast's offset is exactly the gap
+        expect(offsets).toContain('20px');
+    });
+    it('shows the close button when set via toastOptions', async () => {
+        const { user, trigger, container } = setup({
+            cb: (toast) => toast('With close button'),
+            toastOptions: { closeButton: true }
+        });
+        await user.click(trigger);
+        expect(container.querySelector('[data-close-button]')).not.toBeNull();
+    });
+});
+
+=== 92 src/tests/utils.ts	js
+export function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+=== 5965 tests/sonner-parity.test.ts	js
+import { expect, test } from '@playwright/test';
+// Browser-level ports of the regression tests added in emilkowalski/sonner#777,
+// driven by the dedicated /test route.
+test.describe.configure({ mode: 'parallel' });
+test.beforeEach(async ({ page }) => {
+    await page.goto('/test');
+});
+test('classNames.default is only applied to toasts without a type', async ({ page }) => {
+    await page.getByTestId('default-button').click();
+    await expect(page.locator('[data-sonner-toast]')).toHaveClass(/default-toast-classname/);
+    await page.getByTestId('success').click();
+    const successToast = page.locator('[data-sonner-toast][data-type="success"]');
+    await expect(successToast).toHaveClass(/success-toast-classname/);
+    await expect(successToast).not.toHaveClass(/default-toast-classname/);
+});
+test('custom icon is only rendered once in a promise toast', async ({ page }) => {
+    await page.getByTestId('promise-custom-icon').click();
+    await expect(page.getByText('Loading...')).toHaveCount(1);
+    await expect(page.getByText('Loaded')).toHaveCount(1);
+    await expect(page.getByTestId('custom-success-icon')).toHaveCount(1);
+});
+test('icons are hidden from assistive technology', async ({ page }) => {
+    await page.getByTestId('success').click();
+    await expect(page.locator('[data-sonner-toast] [data-icon] svg')).toHaveAttribute('aria-hidden', 'true');
+});
+test('toast created before the Toaster mounts is still shown', async ({ page }) => {
+    await page.goto('/test?toastOnMount');
+    await expect(page.getByText('Toast rendered on mount')).toHaveCount(1);
+});
+test('toast recreated right after being dismissed stays on screen', async ({ page }) => {
+    await page.getByTestId('dismiss-and-recreate').click();
+    // The pending removal must not take the newly created toast down with it
+    await page.waitForTimeout(500);
+    await expect(page.getByText('Remounted toast')).toHaveCount(1);
+});
+test('toast is not dismissed by a fast swipe in a direction that is not allowed', async ({ page }) => {
+    await page.goto('/test?position=top-center&swipeDirections=top,right');
+    await page.getByTestId('default-button').click();
+    const toast = page.locator('[data-sonner-toast]');
+    // hover() waits for the enter animation to finish, so the toast is where
+    // boundingBox() says it is before the pointer gestures start
+    await toast.hover();
+    const box = await toast.boundingBox();
+    if (!box)
+        throw new Error('Toast not rendered');
+    // Fast flick to the left; `left` is not in swipeDirections
+    await page.mouse.down();
+    await page.mouse.move(box.x - 200, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    // Long enough for the exit animation to have removed the toast if it had been dismissed
+    await page.waitForTimeout(500);
+    await expect(toast).toHaveCount(1);
+});
+test('toast is dismissed by a fast swipe in an allowed direction', async ({ page }) => {
+    await page.goto('/test?position=top-center&swipeDirections=top,right');
+    await page.getByTestId('default-button').click();
+    const toast = page.locator('[data-sonner-toast]');
+    await toast.hover();
+    const box = await toast.boundingBox();
+    if (!box)
+        throw new Error('Toast not rendered');
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width + 200, box.y + box.height / 2, { steps: 5 });
+    await page.mouse.up();
+    // Well below the 4s auto-close, so this only passes if the swipe dismissed it
+    await expect(toast).toHaveCount(0, { timeout: 2000 });
+});
+test('toast is dismissed by a fast flick below the distance threshold', async ({ page }) => {
+    await page.goto('/test?position=top-center&swipeDirections=right');
+    await page.getByTestId('default-button').click();
+    const toast = page.locator('[data-sonner-toast]');
+    await toast.hover();
+    const box = await toast.boundingBox();
+    if (!box)
+        throw new Error('Toast not rendered');
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2);
+    await page.mouse.up();
+    // The 20px movement is below SWIPE_THRESHOLD, so only velocity can dismiss it.
+    await expect(toast).toHaveCount(0, { timeout: 2000 });
+});
+test('description fills the width of the toast', async ({ page }) => {
+    await page.getByTestId('component-description').click();
+    const description = await page.getByTestId('wide-description').boundingBox();
+    const toast = await page.locator('[data-sonner-toast]').boundingBox();
+    if (!description || !toast)
+        throw new Error('Toast not rendered');
+    // Full width minus the padding and the icon-less content offset
+    expect(description.width).toBeGreaterThan(toast.width - 60);
+});
+test('action button stays right aligned', async ({ page }) => {
+    await page.getByTestId('action').click();
+    const button = await page.locator('[data-button]').boundingBox();
+    const toast = await page.locator('[data-sonner-toast]').boundingBox();
+    if (!button || !toast)
+        throw new Error('Toast not rendered');
+    expect(button.x + button.width).toBeGreaterThan(toast.x + toast.width - 30);
+});
+test('toasts are routed to the toaster matching their toasterId', async ({ page }) => {
+    await page.goto('/test?secondToaster');
+    await page.getByTestId('toast-to-secondary').click();
+    await page.getByTestId('default-button').click();
+    // The secondary toaster sits top-left, the default one bottom-right
+    const secondaryList = page.locator('[data-sonner-toaster][data-y-position="top"]');
+    const defaultList = page.locator('[data-sonner-toaster][data-y-position="bottom"]');
+    await expect(secondaryList.getByText('Secondary toast')).toHaveCount(1);
+    await expect(secondaryList.getByText('My default toast')).toHaveCount(0);
+    await expect(defaultList.getByText('My default toast')).toHaveCount(1);
+    await expect(defaultList.getByText('Secondary toast')).toHaveCount(0);
+});
+
+=== 3173 tests/test.ts	js
+import { expect, test } from '@playwright/test';
+// Run tests in parallel as they are independent
+test.describe.configure({ mode: 'parallel' });
+test.beforeEach(async ({ page }) => {
+    await page.goto('/');
+});
+test('toast is rendered and disappears after the default timeout', async ({ page }) => {
+    await page.getByTestId('default-button').click();
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(0);
+});
+test('various toast types are rendered correctly', async ({ page }) => {
+    await page.getByTestId('Success').click();
+    await expect(page.getByText('Event has been created', { exact: true })).toHaveCount(1);
+    await page.getByTestId('Error').click();
+    await expect(page.getByText('Event has not been created', { exact: true })).toHaveCount(1);
+    await page.getByTestId('Action').click();
+    await expect(page.locator('[data-button]')).toHaveCount(1);
+});
+test('show correct toast content based on promise state', async ({ page }) => {
+    await page.getByTestId('Promise').click();
+    await expect(page.getByText('Loading...')).toHaveCount(1);
+    await expect(page.getByText('Svelte Sonner toast has been added')).toHaveCount(1);
+});
+test('render custom component in toast', async ({ page }) => {
+    await page.getByTestId('Custom').click();
+    await expect(page.getByText('A custom toast with default styling')).toHaveCount(1);
+});
+test('toast is removed after swiping down', async ({ page }) => {
+    await page.getByTestId('default-button').click();
+    const toast = page.locator('[data-sonner-toast]');
+    await toast.hover();
+    const box = await toast.boundingBox();
+    if (!box)
+        throw new Error('Toast not rendered');
+    await page.mouse.down();
+    // straight down, so the gesture locks to the y axis (down is an allowed
+    // direction for a bottom-positioned toast)
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 300, { steps: 5 });
+    await page.mouse.up();
+    // Well below the 4s auto-close, so this only passes if the swipe dismissed it
+    await expect(toast).toHaveCount(0, { timeout: 2000 });
+});
+test('toast is not removed when hovered', async ({ page }) => {
+    await page.getByTestId('default-button').click();
+    await page.hover('[data-sonner-toast]');
+    const timeout = new Promise((resolve) => setTimeout(resolve, 5000));
+    await timeout;
+    await expect(page.locator('[data-sonner-toast]')).toHaveCount(1);
+});
+test('close a toast from inside a custom component', async ({ page }) => {
+    await page.getByTestId('other-Headless').click();
+    await expect(page.getByText('Event Created')).toHaveCount(1);
+    await page.getByTestId('close-button').click();
+    await expect(page.getByText('Event Created')).toHaveCount(0);
+});
+test('render custom component with properties in toast of predefined type', async ({ page }) => {
+    await page.getByTestId('other-Custom with properties').click();
+    console.log(await page.locator('[data-sonner-toast]').textContent());
+    await expect(page.locator('[data-sonner-toast]').getByText('This is multiline message')).toHaveCount(1);
+});
+
+=== 863 vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vitest/config';
+const vitestBrowserConditionPlugin = {
+    name: 'vite-plugin-vitest-browser-condition',
+    //@ts-expect-error - shh
+    config({ resolve }) {
+        if (process.env.VITEST) {
+            resolve.conditions.unshift('browser');
+        }
+    }
+};
+export default defineConfig({
+    plugins: [vitestBrowserConditionPlugin, sveltekit()],
+    test: {
+        include: ['src/**/*.{test,spec}.{js,ts}'],
+        // jest like globals
+        globals: true,
+        environment: 'jsdom',
+        // in-source testing
+        includeSource: ['src/**/*.{js,ts,svelte}'],
+        // Add @testing-library/jest-dom's matchers & mocks of SvelteKit modules
+        setupFiles: ['./scripts/setupTest.ts'],
+        coverage: {
+            exclude: ['setupTest.ts']
+        }
+    }
+});
+

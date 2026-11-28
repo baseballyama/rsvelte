@@ -558,3 +558,23 @@
     )}>Help</button
 >
 
+=== 139 example/example7.ts	ts	module	-
+import Example from "./Example7.svelte";
+
+const example = new Example({
+  target: document.body,
+  props: {},
+});
+
+export default example;
+
+=== 139 example/example8.ts	ts	module	-
+import Example from "./Example8.svelte";
+
+const example = new Example({
+  target: document.body,
+  props: {},
+});
+
+export default example;
+

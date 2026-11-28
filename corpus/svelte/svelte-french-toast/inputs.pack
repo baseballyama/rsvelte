@@ -567,6 +567,493 @@
 	}
 </style>
 
+=== 2875 src/lib/core/store.ts	ts	module	-
+import { get, writable, type Writable } from 'svelte/store';
+import type { DefaultToastOptions, Toast, ToastType } from './types';
+import writableDerived from 'svelte-writable-derived';
+
+const TOAST_LIMIT = 20;
+
+interface State {
+	toasts: Writable<Toast[]>;
+	pausedAt: Writable<number | null>;
+}
+
+export const toasts: State['toasts'] = writable([]);
+export const pausedAt: State['pausedAt'] = writable(null);
+
+const toastTimeouts = new Map<Toast['id'], ReturnType<typeof setTimeout>>();
+
+const addToRemoveQueue = (toastId: string) => {
+	if (toastTimeouts.has(toastId)) {
+		return;
+	}
+
+	const timeout = setTimeout(() => {
+		toastTimeouts.delete(toastId);
+		remove(toastId);
+	}, 1000);
+
+	toastTimeouts.set(toastId, timeout);
+};
+
+const clearFromRemoveQueue = (toastId: string) => {
+	const timeout = toastTimeouts.get(toastId);
+	if (timeout) {
+		clearTimeout(timeout);
+	}
+};
+
+export function update(toast: Partial<Toast>, clearTimeout = true) {
+	if (clearTimeout && toast.id) {
+		clearFromRemoveQueue(toast.id);
+	}
+	toasts.update(($toasts) => $toasts.map((t) => (t.id === toast.id ? { ...t, ...toast } : t)));
+}
+
+export function add(toast: Toast) {
+	toasts.update(($toasts) => [toast, ...$toasts].slice(0, TOAST_LIMIT));
+}
+
+export function upsert(toast: Toast) {
+	if (get(toasts).find((t) => t.id === toast.id)) {
+		update(toast);
+	} else {
+		add(toast);
+	}
+}
+
+export function dismiss(toastId?: Toast['id']) {
+	toasts.update(($toasts) => {
+		if (toastId) {
+			addToRemoveQueue(toastId);
+		} else {
+			$toasts.forEach((toast) => {
+				addToRemoveQueue(toast.id);
+			});
+		}
+
+		return $toasts.map((t) =>
+			t.id === toastId || toastId === undefined ? { ...t, visible: false } : t
+		);
+	});
+}
+
+export function remove(toastId?: Toast['id']) {
+	toasts.update(($toasts) => {
+		if (toastId === undefined) {
+			return [];
+		}
+		return $toasts.filter((t) => t.id !== toastId);
+	});
+}
+
+export function startPause(time: number) {
+	pausedAt.set(time);
+}
+
+export function endPause(time: number) {
+	let diff: number;
+
+	pausedAt.update(($pausedAt) => {
+		diff = time - ($pausedAt || 0);
+		return null;
+	});
+
+	toasts.update(($toasts) =>
+		$toasts.map((t) => ({
+			...t,
+			pauseDuration: t.pauseDuration + diff
+		}))
+	);
+}
+
+const defaultTimeouts: {
+	[key in ToastType]: number;
+} = {
+	blank: 4000,
+	error: 4000,
+	success: 2000,
+	loading: Infinity,
+	custom: 4000
+};
+
+export function useToasterStore(toastOptions: DefaultToastOptions = {}): State {
+	const mergedToasts = writableDerived(
+		toasts,
+		($toasts) =>
+			$toasts.map((t) => ({
+				...toastOptions,
+				...toastOptions[t.type],
+				...t,
+				duration:
+					t.duration ||
+					toastOptions[t.type]?.duration ||
+					toastOptions?.duration ||
+					defaultTimeouts[t.type],
+				style: [toastOptions.style, toastOptions[t.type]?.style, t.style].join(';')
+			})),
+		($toasts) => $toasts
+	);
+	return {
+		toasts: mergedToasts,
+		pausedAt
+	};
+}
+
+=== 2215 src/lib/core/toast.ts	ts	module	-
+import { dismiss, remove, upsert } from './store';
+import {
+	type Toast,
+	type Renderable,
+	type DefaultToastOptions,
+	type ToastOptions,
+	type ToastType,
+	type ValueOrFunction,
+	resolveValue
+} from './types';
+import { genId } from './utils';
+
+type Message<T extends Record<string, unknown> = Record<string, unknown>> = Renderable<T>;
+
+type ToastHandler = <T extends Record<string, unknown> = Record<string, unknown>>(
+	message: Message<T>,
+	options?: ToastOptions<T>
+) => string;
+
+const createToast = <T extends Record<string, unknown> = Record<string, unknown>>(
+	message: Message<T>,
+	type: ToastType = 'blank',
+	opts?: ToastOptions<T>
+): Toast<T> => ({
+	createdAt: Date.now(),
+	visible: true,
+	type,
+	ariaProps: {
+		role: 'status',
+		'aria-live': 'polite'
+	},
+	message,
+	pauseDuration: 0,
+	icon: opts?.icon,
+	duration: opts?.duration,
+	iconTheme: opts?.iconTheme,
+	position: opts?.position,
+	props: opts?.props,
+	id: opts?.id || genId()
+});
+
+const createHandler =
+	(type?: ToastType): ToastHandler =>
+	(message, options) => {
+		const toast = createToast(message, type, options);
+		upsert(toast);
+		return toast.id;
+	};
+
+const toast = <T extends Record<string, unknown> = Record<string, unknown>>(
+	message: Message<T>,
+	opts?: ToastOptions<T>
+) => createHandler('blank')(message, opts);
+
+toast.error = createHandler('error');
+toast.success = createHandler('success');
+toast.loading = createHandler('loading');
+toast.custom = createHandler('custom');
+
+toast.dismiss = (toastId?: string) => {
+	dismiss(toastId);
+};
+
+toast.remove = (toastId?: string) => remove(toastId);
+
+toast.promise = <T>(
+	promise: Promise<T>,
+	msgs: {
+		loading: Renderable;
+		success: ValueOrFunction<Renderable, T>;
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		error: ValueOrFunction<Renderable, any>;
+	},
+	opts?: DefaultToastOptions
+) => {
+	const id = toast.loading(msgs.loading, { ...opts, ...opts?.loading });
+
+	promise
+		.then((p) => {
+			toast.success(resolveValue(msgs.success, p), {
+				id,
+				...opts,
+				...opts?.success
+			});
+			return p;
+		})
+		.catch((e) => {
+			toast.error(resolveValue(msgs.error, e), {
+				id,
+				...opts,
+				...opts?.error
+			});
+		});
+
+	return promise;
+};
+
+export default toast;
+
+=== 2672 src/lib/core/types.ts	ts	module	-
+import type { SvelteComponent } from 'svelte';
+
+export type ToastType = 'success' | 'error' | 'loading' | 'blank' | 'custom';
+/** Specifies the toast's position on the screen
+ *
+ * Logical positions (`start`, `end`) are recommended over absolute positions
+ * (`left`, `right`), as they automatically adjust based on the text direction
+ * of the locale (LTR or RTL). Examples:
+ * - Use `top-start` instead of `top-left`.
+ * - Use `top-end` instead of `top-right`. */
+export type ToastPosition =
+	| 'top-left'
+	| 'top-center'
+	| 'top-right'
+	| 'bottom-left'
+	| 'bottom-center'
+	| 'bottom-right'
+	| 'top-start'
+	| 'top-end'
+	| 'bottom-start'
+	| 'bottom-end';
+
+export type Renderable<T extends Record<string, unknown> = Record<string, unknown>> =
+	| typeof SvelteComponent<T>
+	| string
+	| null;
+
+export interface IconTheme {
+	primary: string;
+	secondary: string;
+}
+
+export type ValueFunction<TValue, TArg> = (arg: TArg) => TValue;
+export type ValueOrFunction<TValue, TArg> = TValue | ValueFunction<TValue, TArg>;
+
+const isFunction = <TValue, TArg>(
+	valOrFunction: ValueOrFunction<TValue, TArg>
+): valOrFunction is ValueFunction<TValue, TArg> => typeof valOrFunction === 'function';
+
+export const resolveValue = <TValue, TArg>(
+	valOrFunction: ValueOrFunction<TValue, TArg>,
+	arg: TArg
+): TValue => (isFunction(valOrFunction) ? valOrFunction(arg) : valOrFunction);
+
+export interface Toast<T extends Record<string, unknown> = Record<string, unknown>> {
+	type: ToastType;
+	id: string;
+	message: Renderable<T>;
+	icon?: Renderable;
+	duration?: number;
+	pauseDuration: number;
+	position?: ToastPosition;
+
+	// We use `Omit` here in the case that the Component has `export let toast: Toast`.
+	// We are already passing the toast to the component, and it should not be included in props.
+	props?: Omit<T, 'toast'>;
+
+	ariaProps: {
+		role: 'status' | 'alert';
+		'aria-live': 'assertive' | 'off' | 'polite';
+	};
+
+	style?: string;
+	className?: string;
+	iconTheme?: IconTheme;
+
+	createdAt: number;
+	visible: boolean;
+	height?: number;
+}
+
+export type DOMToast<T extends Record<string, unknown> = Record<string, unknown>> = Toast<T> & {
+	offset: number;
+};
+
+export type ToastOptions<T extends Record<string, unknown> = Record<string, unknown>> = Partial<
+	Pick<
+		Toast<T>,
+		| 'id'
+		| 'icon'
+		| 'duration'
+		| 'ariaProps'
+		| 'className'
+		| 'style'
+		| 'position'
+		| 'iconTheme'
+		| 'props'
+	>
+>;
+
+export type DefaultToastOptions = ToastOptions & {
+	[key in ToastType]?: ToastOptions;
+};
+
+export interface ToasterProps {
+	position?: ToastPosition;
+	toastOptions?: DefaultToastOptions;
+	reverseOrder?: boolean;
+	gutter?: number;
+	containerStyle?: string;
+	containerClassName?: string;
+}
+
+=== 2375 src/lib/core/use-toaster.ts	ts	module	-
+import toast from './toast';
+import { endPause as _endPause, startPause as _startPause, update, useToasterStore } from './store';
+import type { Toast, ToastOptions, ToastPosition } from './types';
+import { onDestroy } from 'svelte';
+
+function calculateOffset(
+	toast: Toast,
+	$toasts: Toast[],
+	opts?: {
+		reverseOrder?: boolean;
+		gutter?: number;
+		defaultPosition?: ToastPosition;
+	}
+) {
+	const { reverseOrder, gutter = 8, defaultPosition } = opts || {};
+
+	const relevantToasts = $toasts.filter(
+		(t) => (t.position || defaultPosition) === (toast.position || defaultPosition) && t.height
+	);
+	const toastIndex = relevantToasts.findIndex((t) => t.id === toast.id);
+	const toastsBefore = relevantToasts.filter((toast, i) => i < toastIndex && toast.visible).length;
+
+	const offset = relevantToasts
+		.filter((t) => t.visible)
+		.slice(...(reverseOrder ? [toastsBefore + 1] : [0, toastsBefore]))
+		.reduce((acc, t) => acc + (t.height || 0) + gutter, 0);
+
+	return offset;
+}
+
+const handlers = {
+	startPause() {
+		_startPause(Date.now());
+	},
+	endPause() {
+		_endPause(Date.now());
+	},
+	updateHeight: (toastId: string, height: number) => {
+		update({ id: toastId, height }, false);
+	},
+	calculateOffset
+};
+
+export default function useToaster(toastOptions?: ToastOptions) {
+	const { toasts, pausedAt } = useToasterStore(toastOptions);
+	const timeouts = new Map<Toast['id'], ReturnType<typeof setTimeout>>();
+	let _pausedAt: number | null;
+
+	const unsubscribes = [
+		pausedAt.subscribe(($pausedAt) => {
+			if ($pausedAt) {
+				for (const [, timeoutId] of timeouts) {
+					clearTimeout(timeoutId);
+				}
+				timeouts.clear();
+			}
+			_pausedAt = $pausedAt;
+		}),
+		toasts.subscribe(($toasts) => {
+			if (_pausedAt) {
+				return;
+			}
+
+			const now = Date.now();
+			for (const t of $toasts) {
+				if (timeouts.has(t.id)) {
+					continue;
+				}
+				if (t.duration === Infinity) {
+					continue;
+				}
+
+				const durationLeft = (t.duration || 0) + t.pauseDuration - (now - t.createdAt);
+
+				if (durationLeft < 0) {
+					if (t.visible) {
+						// FIXME: This causes a recursive cycle of updates.
+						toast.dismiss(t.id);
+					}
+					return null;
+				}
+				timeouts.set(
+					t.id,
+					setTimeout(() => toast.dismiss(t.id), durationLeft)
+				);
+			}
+		})
+	];
+	onDestroy(() => {
+		for (const unsubscribe of unsubscribes) {
+			unsubscribe();
+		}
+	});
+
+	return { toasts, handlers };
+}
+
+=== 487 src/lib/core/utils.ts	ts	module	-
+export const genId = (() => {
+	let count = 0;
+
+	return () => {
+		count += 1;
+		return count.toString();
+	};
+})();
+
+export const prefersReducedMotion = (() => {
+	// Cache result
+	let shouldReduceMotion: boolean | undefined;
+
+	return () => {
+		if (shouldReduceMotion === undefined && typeof window !== 'undefined') {
+			const mediaQuery = matchMedia('(prefers-reduced-motion: reduce)');
+			shouldReduceMotion = !mediaQuery || mediaQuery.matches;
+		}
+		return shouldReduceMotion;
+	};
+})();
+
+=== 836 src/lib/index.ts	ts	module	-
+import toast from './core/toast';
+export type {
+	ToastOptions,
+	ToastPosition,
+	Toast,
+	Renderable,
+	ValueOrFunction,
+	ToasterProps,
+	DefaultToastOptions,
+	IconTheme,
+	ToastType,
+	ValueFunction
+} from './core/types';
+
+export { default as useToaster } from './core/use-toaster';
+export { useToasterStore } from './core/store';
+export { default as ToastBar } from './components/ToastBar.svelte';
+export { default as ToastIcon } from './components/ToastIcon.svelte';
+export { default as Toaster } from './components/Toaster.svelte';
+export { default as CheckmarkIcon } from './components/CheckmarkIcon.svelte';
+export { default as ErrorIcon } from './components/ErrorIcon.svelte';
+export { default as LoaderIcon } from './components/LoaderIcon.svelte';
+export { resolveValue } from './core/types';
+
+export { toast };
+export default toast;
+
 === 1353 src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
 	import '../app.css';
@@ -881,4 +1368,183 @@
 	Custom and <b>bold</b> with props like {someProp}!
 	<button onclick={() => toast_.dismiss(toast.id)}>Dismiss</button>
 </span>
+
+=== 192 src/www/demo-code.ts	ts	module	-
+export default `<script>
+	import { onMount } from 'svelte';
+	import toast, { Toaster } from 'svelte-french-toast';
+
+	onMount(() => {
+		toast.success("It works!");
+	})
+</script>
+
+<Toaster />`;
+
+=== 3180 src/www/examples.ts	ts	module	-
+import toast from '../lib';
+import RichContent from './RichContent.svelte';
+
+export interface Example {
+	title: string;
+	action: () => void;
+	emoji: string;
+	snippet: string;
+	html?: boolean;
+}
+
+const examples: Example[] = [
+	{
+		title: 'Success',
+		emoji: '✅',
+		snippet: "toast.success('Successfully toasted!')",
+		action: () => {
+			toast.success('Successfully toasted!');
+		}
+	},
+	{
+		title: 'Error',
+		emoji: '❌',
+		snippet: `toast.error("This didn't work.")`,
+
+		action: () => {
+			toast.error("This didn't work.");
+		}
+	},
+	{
+		title: 'Promise',
+		emoji: '⏳',
+		snippet: `toast.promise(
+	saveSettings(settings),
+	{
+		loading: 'Saving...',
+		success: 'Settings saved!',
+		error: 'Could not save.',
+	}
+);`,
+		action: () => {
+			const promise = new Promise((resolve, reject) => {
+				setTimeout(Math.random() < 0.8 ? resolve : reject, 1000);
+			});
+
+			toast.promise(promise, {
+				loading: 'Saving...',
+				success: `Settings saved!`,
+				error: `Could not save.`
+			});
+		}
+	},
+	{
+		title: 'Multiline',
+		emoji: '↩️',
+		snippet: `toast(
+	"This toast is super big. I don't think anyone could eat it in one bite.\\n\\nIt's larger than you expected. You eat it but it does not seem to get smaller.",
+	{
+		duration: 6000,
+	}
+);`,
+		action: () => {
+			toast(
+				"This toast is super big. I don't think anyone could eat it in one bite.\n\n It's larger than you expected. You eat it but it does not seem to get smaller.",
+				{
+					duration: 6000
+				}
+			);
+		}
+	},
+	{
+		title: 'Emoji',
+		emoji: '👏',
+		snippet: `toast('Good Job!', {
+	icon: '👏',
+});`,
+		action: () => {
+			toast('Good Job!', {
+				icon: '👏'
+			});
+		}
+	},
+	{
+		title: 'Dark mode',
+		emoji: '🌚',
+		snippet: `toast('Hello Darkness!', {
+	icon: '👏',
+	style: 'border-radius: 200px; background: #333; color: #fff;'
+});`,
+		action: () => {
+			toast('Hello Darkness!', {
+				icon: '👏',
+				style: 'border-radius: 200px; background: #333; color: #fff;'
+			});
+		}
+	},
+	{
+		title: 'Rich content',
+		emoji: '🔩',
+		snippet: `<script>
+	import toast_ from 'svelte-french-toast';
+
+	export let toast;
+
+	// Use this component in your app:
+	// toast(RichContent, { props: { someProp: '⭐' }})
+</script>
+
+<script>
+	export let someProp;
+</script>
+<span>
+	Custom and <b>bold</b> with props like {someProp}!
+	<button on:click={() => toast_.dismiss(toast.id)}>Dismiss</button>
+</span>`,
+		html: true,
+		action: () => {
+			toast(RichContent, { props: { someProp: '⭐' } });
+		}
+	},
+	{
+		title: 'Themed',
+		emoji: '🎨',
+		snippet: `toast.success('Look at me!', {
+	style: 'border: 1px solid #713200; padding: 16px; color: #713200;',
+	iconTheme: {
+		primary: '#713200',
+		secondary: '#FFFAEE'
+	}
+});`,
+
+		action: () => {
+			toast.success('Look at me!', {
+				style: 'border: 1px solid #713200; padding: 16px; color: #713200;',
+				iconTheme: {
+					primary: '#713200',
+					secondary: '#FFFAEE'
+				}
+			});
+		}
+	},
+	{
+		title: 'Positioning',
+		emoji: '⬆️',
+		snippet: `toast.success('Always at the bottom.', {
+	position: "bottom-center"
+})`,
+		action: () => {
+			toast.success('Always at the bottom.', {
+				position: 'bottom-center',
+				duration: 10000
+			});
+		}
+	}
+];
+
+export default examples;
+
+=== 224 tests/test.ts	ts	module	-
+import { expect, test } from '@playwright/test';
+
+test('index page has expected h1', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.getByRole('heading', { name: 'Welcome to SvelteKit' })).toBeVisible();
+});
 
