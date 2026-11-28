@@ -1,10 +1,12 @@
-// Runs the extension in a real VS Code, against the rsvelte of this repository's debug build:
+// Runs the files the extension's package ships in a real VS Code, against the rsvelte of this
+// repository's debug build:
 // `cargo build -p rsvelte_command_line --bin rsvelte`, then `node --run test:editor`.
 // VSCODE_VERSION picks the version, by default the oldest one package.json accepts.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { runTests } from '@vscode/test-electron';
+import { listFiles, PackageManager } from '@vscode/vsce';
 import { bundle } from '../../build.ts';
 
 const here = import.meta.dirname;
@@ -40,12 +42,19 @@ for (const [file, text] of Object.entries(files)) {
 }
 fs.symlinkSync(built, path.join(workspace, 'node_modules/rsvelte-debug', executable));
 
+// Only what `node --run package` puts in the package, so a file it leaves out fails the test.
+const packaged = path.join(scratch, 'package');
+for (const file of await listFiles({ cwd: extension, packageManager: PackageManager.None })) {
+	fs.mkdirSync(path.dirname(path.join(packaged, file)), { recursive: true });
+	fs.copyFileSync(path.join(extension, file), path.join(packaged, file));
+}
+
 await bundle('test/editor/suite.ts', 'generated/suite.cjs');
 try {
 	await runTests({
 		version: process.env.VSCODE_VERSION ?? '1.91.0',
 		cachePath: path.join(generated, 'vscode'),
-		extensionDevelopmentPath: extension,
+		extensionDevelopmentPath: packaged,
 		extensionTestsPath: path.join(generated, 'suite.cjs'),
 		launchArgs: [
 			workspace,
