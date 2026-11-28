@@ -90,6 +90,8 @@ struct Facts<'a> {
     awaits: bool,
     /// The rune names that subscribe to a store instead, such as `$state` beside a `state`.
     subscribed: runes::Subscriptions,
+    /// A component: a module has no store subscriptions.
+    stores: bool,
     scopes: FxHashMap<TemplateScope, ScopeId>,
     names: TemplateNames,
     instance_scope: ScopeId,
@@ -211,6 +213,7 @@ fn resolve_scripts(
             uses_props,
             awaits,
             subscribed,
+            stores,
             scopes,
             names,
             instance_scope,
@@ -446,12 +449,16 @@ impl Resolution {
     }
 
     /// Whether the unbound reference `name` subscribes to a store (upstream analysis's synthetic
-    /// `store_sub` binding): any `$name` but `$` and `$$name`, unless it names a rune.
+    /// `store_sub` binding): in a component, any `$name` but `$` and `$$name`, unless it names a
+    /// rune.
     #[must_use]
     pub fn is_store_subscription(&self, name: &str) -> bool {
-        name.strip_prefix('$')
-            .is_some_and(|store| !store.is_empty() && !store.starts_with('$'))
-            && (!is_rune(name) || self.0.borrow_dependent().subscribed.contains(name))
+        let facts = self.0.borrow_dependent();
+        facts.stores
+            && name
+                .strip_prefix('$')
+                .is_some_and(|store| !store.is_empty() && !store.starts_with('$'))
+            && (!is_rune(name) || facts.subscribed.contains(name))
     }
 
     /// Upstream `is_state_source`: in runes mode a `$state` needs a signal only if it is

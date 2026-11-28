@@ -7198,3 +7198,180 @@
 
 ["svelte/rsvelte-mutants/cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.svelte".skip]
 "svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<script>` at a `</script` that a line break follows, where Svelte reads on to the next `</script>`"
+
+["svelte/typescript/classes/members/accessibility/privateStaticNotAccessibleInClodule2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/classes/members/classTypes/staticPropertyNotInClassType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/es2019/globalThisAmbientModules.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/es6/modules/defaultExportsCannotMerge04.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/binaryOperators/additionOperator/additionOperatorWithAnyAndEveryType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/binaryOperators/additionOperator/additionOperatorWithInvalidOperands.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/identifiers/scopeResolutionIdentifiers.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/bitwiseNotOperator/bitwiseNotOperatorWithBooleanType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/bitwiseNotOperator/bitwiseNotOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/bitwiseNotOperator/bitwiseNotOperatorWithStringType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/logicalNotOperator/logicalNotOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/negateOperator/negateOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/negateOperator/negateOperatorWithStringType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/plusOperator/plusOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/plusOperator/plusOperatorWithBooleanType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/plusOperator/plusOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/plusOperator/plusOperatorWithStringType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/typeofOperator/typeofOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/typeofOperator/typeofOperatorWithBooleanType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/typeofOperator/typeofOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/typeofOperator/typeofOperatorWithStringType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/voidOperator/voidOperatorWithAnyOtherType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/voidOperator/voidOperatorWithBooleanType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/voidOperator/voidOperatorWithNumberType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/unaryOperators/voidOperator/voidOperatorWithStringType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/expressions/valuesAndReferences/assignmentToParenthesizedIdentifiers.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/DeclarationMerging/ClassAndModuleThatMergeWithModuleMemberThatUsesClassTypeParameter.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/DeclarationMerging/ClassAndModuleThatMergeWithStaticVariableAndExportedVarThatShareAName.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/codeGeneration/exportCodeGen.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/codeGeneration/importStatements.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/codeGeneration/nameCollision.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportModuleWithAccessibleTypesOnItsExportedMembers.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportObjectLiteralAndObjectTypeLiteralWithAccessibleTypesInNestedMemberTypeAnnotations.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/exportDeclarations/ExportVariableWithAccessibleTypeInTypeAnnotation.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/importDeclarations/exportImportAlias.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/moduleBody/moduleWithStatementsOfEveryKind.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/moduleDeclarations/asiPreventsParsingAsNamespace05.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/internalModules/moduleDeclarations/instantiatedModule.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/parser/ecmascript5/ModuleDeclarations/parserModule1.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/salsa/typeFromPropertyAssignment29.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/any/assignAnyToEveryType.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/objectTypeLiteral/constructSignatures/constructSignaturesWithOverloads2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/boolean/invalidBooleanAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/null/validNullAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/number/invalidNumberAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/string/invalidStringAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/undefined/invalidUndefinedAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/undefined/invalidUndefinedValues.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/void/invalidAssignmentsToVoid.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/void/invalidVoidAssignments.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/primitives/void/invalidVoidValues.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/typeRelationships/assignmentCompatibility/anyAssignabilityInInheritance.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/typeRelationships/subtypesAndSuperTypes/enumIsNotASubtypeOfAnythingButNumber.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/typeRelationships/subtypesAndSuperTypes/subtypesOfTypeParameterWithConstraints2.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
+
+["svelte/typescript/types/witness/witness.svelte.ts".skip]
+"svelte.compileModule" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-emit-in-a-sveltets-module (oxc refuses a namespace that exports a var or a let)"
