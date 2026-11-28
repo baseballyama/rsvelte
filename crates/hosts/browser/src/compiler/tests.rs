@@ -33,3 +33,17 @@ fn a_module_compiles_without_a_stylesheet() {
     assert!(json.contains(r#""css":null"#), "{json}");
     assert!(json.contains("export const a = 1;"), "{json}");
 }
+
+#[test]
+fn a_component_parses_to_its_syntax_tree_or_its_report() {
+    let parsed = parse("<p>{a}</p>");
+    assert!(parsed.syntax_tree.unwrap().starts_with(r#"{"css":null"#));
+    let failed = parse("<p>{</p>");
+    assert!(failed.syntax_tree.is_none());
+    assert!(
+        failed
+            .error
+            .unwrap()
+            .starts_with(r#"{"code":"js_parse_error""#)
+    );
+}

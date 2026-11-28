@@ -2,17 +2,12 @@
 function $$render() {
   
 	let o = { 0x10: 1, [0b11]: 2, 0o17: 3, 1_000: 4, 1e-7: 5, 0x1fn: 6, .5: 7 };
-	let /** @type {typeof __rsvelte_public_props0} */ { 0x10: a, 1e3: b, 1_000: c, ...rest } = $props();
+	let /** @typedef {Record<string, any>} $$ComponentProps *//** @type {$$ComponentProps} */ { 0x10: a, 1e3: b, 1_000: c, ...rest } = $props();
 	let m = o.x ?? 0xff;
 	let xs = [];
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    0x10: __rsvelte_untyped_prop(),
-    1e3: __rsvelte_untyped_prop(),
-    1_000: __rsvelte_untyped_prop(),
-  }, {}, true);
   async () => {
     a;
     b;
@@ -26,7 +21,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const NumbersAsWritten__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof NumbersAsWritten__SvelteComponent_>} NumbersAsWritten__SvelteComponent_ */

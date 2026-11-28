@@ -366,10 +366,10 @@ let { count = initial, title = 'ok', select = (value: number) => value, binding 
 				const program = snapshot.getConfiguredProject(config)!.program;
 				assert.deepEqual(program.getProgramDiagnostics(), []);
 				const parent = program.getSemanticDiagnostics(file);
-				// svelte-check reports 2741 for the missing prop, which the projection passes as an argument.
+				// svelte-check 4.7.8's codes.
 				assert.deepEqual(
 					parent.map((diagnostic) => diagnostic.code).toSorted(),
-					[2322, 2345, 7006],
+					[2322, 2741, 7006],
 				);
 				const diagnostics = program.getSemanticDiagnostics(
 					path.join(path.dirname(file), 'Child.svelte'),

@@ -1,15 +1,11 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { items, rest } = $props();
+	let /** @typedef {{ items: any, rest: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { items, rest } = $props();
 	let count = $state(0);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    items: __rsvelte_untyped_prop(),
-    rest: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("ul", {});
@@ -44,7 +40,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic_slots<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_isomorphic_slots))()(__rsvelte_any_event({}), {
+  return (/** @type {typeof __rsvelte_export_isomorphic_slots<$$ComponentProps, {}, "">} */ (__rsvelte_export_isomorphic_slots))()(__rsvelte_any_event({}), {
     "default": {},
     "header": {
       title: "",

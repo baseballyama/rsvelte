@@ -1,14 +1,10 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { value, items } = $props();
+	let /** @typedef {{ value: any, items: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { value, items } = $props();
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    value: __rsvelte_untyped_prop(),
-    items: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("select", {
@@ -56,7 +52,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const Selectedcontent__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof Selectedcontent__SvelteComponent_>} Selectedcontent__SvelteComponent_ */

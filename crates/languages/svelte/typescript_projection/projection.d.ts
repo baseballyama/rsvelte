@@ -45,11 +45,7 @@ declare function __rsvelte_value<T>(): T;
 declare function __rsvelte_bind_this<C>(component: C): C extends { __rsvelte_instance: infer Instance } ? Instance : C;
 // `__rsvelte_exports`: the exports without the `$on` and `$set` a call adds, as svelte2tsx's `exports()`.
 declare function __rsvelte_export_generic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings>(): <Events extends Record<string, any>, Slots>(events: Events, slots: Slots) => import('svelte').Component<Props, Exports, any> & { __rsvelte_bindings?: Bindings; __rsvelte_exports?: Exports; __rsvelte_events?: Events; __rsvelte_slots?: Slots };
-declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});
 declare function __rsvelte_untyped_prop(): any;
-declare function __rsvelte_array_prop(): any[];
-declare function __rsvelte_record_prop(): Record<string, any>;
-declare function __rsvelte_function_prop(): Function;
 type __rsvelte_props_with_children<Props> = Props extends Record<string, never> ? any : Props & { children?: any };
 // The run declares `untypedJavaScript` where an import of a JavaScript component is untyped.
 interface __rsvelte_check_options {}

@@ -1,0 +1,64 @@
+# rsvelte pack 1
+=== 65 examples/basic-routing/src/App.svelte	ast.sha256
+30bd0849a0e32cf175db76319e50ce116bdf8acf77e6a06a6226acb3248687fc
+
+=== 65 examples/basic-routing/src/routes/Home.svelte	ast.sha256
+8d1fcec78b37038d6b0f52e002f50c6d1a3bc05878242d2121c75ab1dafdd07a
+
+=== 65 examples/basic-routing/src/routes/Name.svelte	ast.sha256
+295d7df6cc9cb743b98d5e3fd785ba8e397e1e06864d7dccc22f56b8c9026fc5
+
+=== 65 examples/basic-routing/src/routes/NotFound.svelte	ast.sha256
+9e4d67bd9c65467c7c175b3ffcd8fc018197816f5c56baaf21623b10327f45bc
+
+=== 65 examples/basic-routing/src/routes/Wild.svelte	ast.sha256
+6d4ee309f697409a71af61b9f5933ae37540ec4ade3153954ecac0d929467689
+
+=== 65 examples/dynamic-imports/src/App.svelte	ast.sha256
+85c12bc1b5d8d049f91948bd1d065552a53c60521cc8151ee31971ed5250624a
+
+=== 65 examples/dynamic-imports/src/routes/Home.svelte	ast.sha256
+c84792016a3ecda1c429e2fc0829edcd326d1e3621ffdf1bc1483acfe49757e5
+
+=== 65 examples/dynamic-imports/src/routes/Loading.svelte	ast.sha256
+25a5c19a1235e681a9e7bab40efb83b41d66fcb2061d7aeb2176d30d1ebd8957
+
+=== 65 examples/dynamic-imports/src/routes/Wild.svelte	ast.sha256
+4bdd5d047773456ca5ec62650cbf2c9d1d97c606ad62028c3d5a8bdfb69a091f
+
+=== 65 src/Router.svelte	ast.sha256
+4bf2fdedfede61b3a5228bd07d294d05ed8fe34fdb90efc87a15179074803337
+
+=== 65 test/app/src/App.svelte	ast.sha256
+658207f434e4d9d02db91849b5ef5601ea82c0b7cce55697ce58d07d84e29371
+
+=== 65 test/app/src/routes/Catalog.svelte	ast.sha256
+468b973df57729b320e2b83959b2a7bbb43409908cf1183557a657e9e780879f
+
+=== 65 test/app/src/routes/Foo.svelte	ast.sha256
+aa8c98aba4863265278d974dbb6384670d1532e96a62a9b00e370de2f693a06e
+
+=== 65 test/app/src/routes/Home.svelte	ast.sha256
+7f314ce84625c3e051de20796b71e6017a71a3b7021c0338ad954d43c241d9d2
+
+=== 65 test/app/src/routes/Loading.svelte	ast.sha256
+9a0bc1fcbd4bd56d8e51a4340c62a82affa39e1f19e9ab96045ce24c821282a1
+
+=== 65 test/app/src/routes/Lucky.svelte	ast.sha256
+fa1911a56883036b1faeb50d21f580d0cb45dda4522865d5a17be44cd9f8a781
+
+=== 65 test/app/src/routes/Name.svelte	ast.sha256
+c8ef2cf91431f9b9697da6c8c90304e3d9d00bb7b788a7ed3de6fc29e35f907b
+
+=== 65 test/app/src/routes/Nested.svelte	ast.sha256
+c56a275bd66eca62f69323d45623d0b938d34ba78dca7abd5def98df473d419d
+
+=== 65 test/app/src/routes/NotFound.svelte	ast.sha256
+3921a9539a1e89f5106ca1d5ced8cb0de77c6812f16bdf2fc0828474a8a37af6
+
+=== 65 test/app/src/routes/Regex.svelte	ast.sha256
+2173de9a9afaa48f48037139d6359f1a958cb038317e11bb2d6a77d2a9bfbcfb
+
+=== 65 test/app/src/routes/Wild.svelte	ast.sha256
+d2cde44e421679d32ab3660bc94c3e551cd9ff0561cb6f8868697bb49e63212e
+

@@ -72,6 +72,17 @@ pub fn print_with(program: &Program<'_>, comments: Comments) -> String {
     printed(codegen(program, options(), comments), program, &[]).code
 }
 
+/// [`print()`], with the parentheses the tree holds, as TypeScript's emit keeps those of its
+/// source.
+#[must_use]
+pub fn print_with_parentheses(program: &Program<'_>) -> String {
+    let options = CodegenOptions {
+        parentheses_as_written: true,
+        ..options()
+    };
+    printed(codegen(program, options, Comments::Attached), program, &[]).code
+}
+
 /// [`print()`], with what `expand` returns printed in place of a statement.
 #[must_use]
 pub fn print_expanding<'a>(program: &Program<'a>, expand: StatementExpansion<'a>) -> String {

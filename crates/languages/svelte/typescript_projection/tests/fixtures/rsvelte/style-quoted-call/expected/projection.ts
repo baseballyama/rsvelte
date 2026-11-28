@@ -1,16 +1,11 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { f, x, items } = $props();
+	let /** @typedef {{ f: any, x: any, items: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { f, x, items } = $props();
 	let n = $state(1);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    f: __rsvelte_untyped_prop(),
-    x: __rsvelte_untyped_prop(),
-    items: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("div", {});
@@ -44,7 +39,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const StyleQuotedCall__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof StyleQuotedCall__SvelteComponent_>} StyleQuotedCall__SvelteComponent_ */

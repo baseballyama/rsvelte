@@ -1,17 +1,13 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { items = $bindable([]), config = $bindable({ open: false }) } = $props();
+	let /** @typedef {{ items?: any[], config?: Record<string, any> }} $$ComponentProps *//** @type {$$ComponentProps} */ { items = $bindable([]), config = $bindable({ open: false }) } = $props();
   items;
   config;
 
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    items: __rsvelte_array_prop(),
-    config: __rsvelte_record_prop(),
-  }, false);
   async () => {
     {
       svelteHTML.createElement("button", {
@@ -25,7 +21,7 @@ function $$render() {
       config.open;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "items" | "config">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "items" | "config">} */ (__rsvelte_export_component))();
 }
 export const BindableProxy__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof BindableProxy__SvelteComponent_>} BindableProxy__SvelteComponent_ */

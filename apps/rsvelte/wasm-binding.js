@@ -1,11 +1,12 @@
-// The compiler of the WebAssembly module, as the Node.js addon's: its functions return the
-// addon's outcome as JSON.
+// The compiler of the WebAssembly module, as the Node.js addon's: its functions return what the
+// addon returns, with the reports as JSON.
 
 /**
  * @typedef {{
  *   version(): string,
  *   compile(source: string, filename?: unknown, generate?: unknown, preserveWhitespace?: unknown): string,
  *   compileModule(source: string, filename?: unknown, generate?: unknown): string,
+ *   parse(source: string): { ast?: string, error?: string, free(): void },
  * }} Module
  */
 
@@ -20,5 +21,13 @@ export function wasmBinding(wasm) {
 			JSON.parse(wasm.compile(source, filename, generate, preserveWhitespace)),
 		compileModule: (source, { filename, generate }) =>
 			JSON.parse(wasm.compileModule(source, filename, generate)),
+		parse(source) {
+			const parsed = wasm.parse(source);
+			try {
+				return { ast: parsed.ast, error: parsed.error && JSON.parse(parsed.error) };
+			} finally {
+				parsed.free();
+			}
+		},
 	};
 }

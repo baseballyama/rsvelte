@@ -321,10 +321,6 @@ impl Builder<'_> {
         };
         // svelte2tsx types a route file's untyped props by their names alone.
         let route = self.route.filter(|_| typed.is_none());
-        let mut required = Buffer::new(0);
-        let mut optional = Buffer::new(0);
-        let rest = object.rest.is_some();
-        let siblings = Siblings::new(pattern);
         let mut reads = Buffer::new(0);
         for property in &object.properties {
             if property.key.is_computed() {
@@ -350,16 +346,6 @@ impl Builder<'_> {
                     reads.push(self.tree.push(Node::Statement(local)));
                 }
             }
-            if typed.is_none() && route.is_none() {
-                let name = self.source(property.key.span(), None);
-                let value = self.prop_default(default, &siblings);
-                let property = self.tree.push(Node::NamedProperty { name, value });
-                if default.is_some() {
-                    optional.push(property);
-                } else {
-                    required.push(property);
-                }
-            }
         }
         if !reads.is_empty() {
             // svelte2tsx reads each bindable prop, which the parent may read, so it is never
@@ -373,84 +359,11 @@ impl Builder<'_> {
         if let Some(typed) = typed {
             return Ok(self.typed_props(typed, statement, edits));
         }
+        let at = [statement, at, pattern.span().end];
         if let Some(route) = route {
-            let at = [statement, at, pattern.span().end];
             return Ok(self.route_props(route, object, at, edits));
         }
-        let name = self.props_name();
-        let required = self.tree.list(&required);
-        let required = self.tree.push(Node::Object {
-            properties: required,
-        });
-        let optional = self.tree.list(&optional);
-        let optional = self.tree.push(Node::Object {
-            properties: optional,
-        });
-        let rest = self
-            .tree
-            .push(Node::Identifier(if rest { "true" } else { "false" }));
-        let arguments = self.tree.list(&[required, optional, rest]);
-        let callee = self.tree.push(Node::Identifier("__rsvelte_props"));
-        let value = self.tree.push(Node::Call { callee, arguments });
-        self.scratch
-            .push(self.tree.push(Node::Const { name, value }));
-        let value = self.tree.push(Node::TypeQuery(name));
-        // JavaScript types a declarator in a JSDoc comment before it, which a comment of its own
-        // there overrides.
-        let (at, replacement) = if self.tree.javascript {
-            (at, Node::DeclaredType(value))
-        } else {
-            (pattern.span().end, Node::TypeAnnotation(value))
-        };
-        let replacement = self.tree.push(replacement);
-        edits.push(Edit {
-            span: Span::new(at, at),
-            replacement: Some(replacement),
-        });
-        Ok(value)
-    }
-
-    fn prop_default<'e>(
-        &mut self,
-        default: Option<&'e Expression<'e>>,
-        siblings: &Siblings<'e>,
-    ) -> NodeIdentifier {
-        let Some(mut default) = default else {
-            return self.untyped_prop();
-        };
-        if self.is_rune(default, "$bindable") {
-            let Expression::CallExpression(call) = default else {
-                // A typed `$bindable(…) as T` is the prop's type as written.
-                return self.source(default.span(), None);
-            };
-            let Some(fallback) = call.arguments.first().and_then(|a| a.as_expression()) else {
-                return self.untyped_prop();
-            };
-            default = fallback;
-        }
-        // svelte2tsx's types for a default, which it reads from the syntax alone.
-        let helper = match default {
-            Expression::StringLiteral(_)
-            | Expression::NumericLiteral(_)
-            | Expression::BooleanLiteral(_)
-            | Expression::TSAsExpression(_) => None,
-            Expression::Identifier(identifier) if identifier.name != "undefined" => None,
-            Expression::ArrowFunctionExpression(_) => Some("__rsvelte_function_prop"),
-            Expression::ObjectExpression(_) => Some("__rsvelte_record_prop"),
-            Expression::ArrayExpression(_) => Some("__rsvelte_array_prop"),
-            _ => Some("__rsvelte_untyped_prop"),
-        };
-        match (helper, siblings.independent(default)) {
-            (None, Some(default)) => self.source(default.span(), None),
-            (None, None) => self.untyped_prop(),
-            (Some(helper), _) => {
-                let callee = self.tree.push(Node::Identifier(helper));
-                self.tree.push(Node::Call {
-                    callee,
-                    arguments: Range::default(),
-                })
-            }
-        }
+        Ok(self.untyped_props(object, at, edits))
     }
 
     fn untyped_prop(&mut self) -> NodeIdentifier {
@@ -526,10 +439,9 @@ mod props_type;
 use props_type::PropsType;
 mod route;
 pub(super) use route::Route;
-mod siblings;
 mod slot_def;
 pub(super) use slot_def::SlotElement;
 mod slot_flags;
 mod stores;
-use siblings::Siblings;
+mod untyped_props;
 pub use stores::store_reads;
