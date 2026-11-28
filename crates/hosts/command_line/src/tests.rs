@@ -54,7 +54,10 @@ fn plugin_tasks_and_type_views_select_their_own_documents() {
             vec![
                 "svelte.compile/client",
                 "svelte.compile/server",
+                "svelte.compile.sourcemap/client",
+                "svelte.compile.sourcemap/server",
                 "svelte.compile.warnings",
+                "svelte.parse/modern",
                 "svelte.format/default",
                 "svelte.lint/default",
                 rsvelte_svelte_typescript_projection::TASK,

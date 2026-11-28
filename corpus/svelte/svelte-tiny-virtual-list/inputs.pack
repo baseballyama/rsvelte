@@ -395,6 +395,21 @@
 	</VirtualList>
 </div>
 
+=== 240 src/lib/index.ts	ts	module	-
+export type {
+	AfterScrollDetail,
+	Alignment,
+	Direction,
+	ItemSize,
+	ItemsUpdatedDetail,
+	ScrollBehaviour,
+	VirtualListEvents,
+	VirtualListProps,
+	VirtualListSnippets
+} from './types.d.ts';
+
+export { default } from './VirtualList.svelte';
+
 === 8588 src/routes/+layout.svelte	svelte	runes	runes
 <script>
 	import { asset, resolve } from '$app/paths';

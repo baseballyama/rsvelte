@@ -1,0 +1,1483 @@
+# rsvelte pack 1
+=== 65 packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	ast.sha256
+4ff79f513a07c637b87573355c1d26bcca6831a31c859582ec5e8c5bf9f2376f
+
+=== 65 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action-rel.svelte	ast.sha256
+87b8d1e8faea2dda1a835dc8e0032b55a7fa83249a1d8f418ccbf4e656b46fe2
+
+=== 65 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action.svelte	ast.sha256
+ac1f29c8041b64373d488e2e7c396505bfedce2060e8bca668152b84236f4e3e
+
+=== 65 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action-ts.svelte	ast.sha256
+ed69e1fbacc271c6f5426bf4c767bec3bfbea4310b421c58c60b73baadf2251a
+
+=== 65 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action.svelte	ast.sha256
+1ba69d717191fd9345c9317a20cfe25a0ad0f2006018c5fc8c7425343e0e5ef3
+
+=== 65 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-correct-script-placement.svelte	ast.sha256
+b55f3b319b6c6a76c7f71e870bd6f7b2ff3753082f36bab2661d84b44273b104
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	ast.sha256
+23d248f163df77226524f180eb52fb2e754d9bcaa9dfd7463bd2e68006325a89
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	ast.sha256
+a4e1c427b35e8ddbda0f7703d502919c0bf5dc9fe6061960b7d9c33ad79a742d
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$generic-filter-out-unused/input.svelte	ast.sha256
+ff994b9d8635df1bffcb8e700b8578858dd3e06fc65b5b2fecf9b5618c33826c
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props-usage/input.svelte	ast.sha256
+a65599282a99ac18010681f292c04d461d731f3f47d471038e44b5923cb3bbde
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props/input.svelte	ast.sha256
+6bdb9b098e02eda7b9c37a102ae95228cc8bfc5e59caf22af3160b210c2ae7f3
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	ast.sha256
+8448107f8156833886c3e15fc6485ce4dcf30de678449352e384d50dc8066fb0
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	ast.sha256
+6d2fd1f9fd7a9cf2aa4d38c85bccf06238f1d41ce5e67ac67a5461c0cd347b94
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$bindable-reassign.v5/input.svelte	ast.sha256
+61fd05036659699d6b71f8f2bdc9b34186a6980d301bbc0d3d8662512529b62e
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-bind/input.svelte	ast.sha256
+a8278be70c84a4e0e78cb962bdd8b68dedd5d5dea993ae770a7e373ce792d134
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-control-flow/input.svelte	ast.sha256
+1081b36bcb2dfa13c1b66de2b6843116077a2ea399d22fc3bbf3d8ce6a7c1c5a
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-undefined/input.svelte	ast.sha256
+a39d31bb39b1a3d48134fa678044964f20e212dadc9aeccc42d243c918126cec
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-uninitialized/input.svelte	ast.sha256
+e90d7122ab274b2d2996e0283eae6f08a3684f4f670a3ea29f91e4c42adb16d1
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	ast.sha256
+c261300060537904d251775c38bef7e967006311494679043781dc189a0d437b
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	ast.sha256
+0fbb49a8c58e18c332ca5925ae079fbfe58cfc56240a3d8f0d70c1949670209a
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	ast.sha256
+703f40f0cf566d4cd5ca6f4b69f57c1d9497fecdef58352ee274504cc830bac4
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/Runes.svelte	ast.sha256
+d5ce840d294d6eb092834880d41549a35ee4226eaff4356d3a1117a626af63e5
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/RunesGeneric.svelte	ast.sha256
+a8d211711636e875e880f0797eca5254a8113fd86af9a7cd8a2e3474f9f7e374
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	ast.sha256
+ccaf6c181541de110f7033e68ee2f1b30538df30b28dccdc23276d716547842e
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/boolean-literal-props/input.svelte	ast.sha256
+e4f181d19bcfc7330873500e9bfc5b29aa9f5e6c30782b30bfc34fc6a4abad51
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-js/input.svelte	ast.sha256
+0dc5ff32a9b5423d4fb3b2fd5e182eedc71a4190c3a67f0c6ed1a4fe8499dc61
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-ts/input.svelte	ast.sha256
+4c9902307b5348f158a19384e77effd50b981970cacedb9d6f66e10f5130394f
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/each-anytype/input.svelte	ast.sha256
+e8231163a49dddcc3c8c5a53ecce24d15a068ff42f71c55b1e35d6d7ffdfc269
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs/no-script-tag/input.svelte	ast.sha256
+712eb8b90ba5ed2824e30afe06c5a81409fb147ccec1c0290e215ff55c7444f9
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	ast.sha256
+e878721b123b78f26fd747f57e074927fa2f0a10511515c49c13dbe3491e4aef
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	ast.sha256
+abbc921bb3e06171cfc29a403857c8ce26a85d6a53ace4f23d1539e13eb49bb2
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-slot-prop-in-snippet.v5/input.svelte	ast.sha256
+2ea858ea4f36848ee0175c029a9ce080534b2fc1d41e95e923d108f74e06f955
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag-if/input.svelte	ast.sha256
+745c9ecfda4b80b1f20fca2cce529c9b8a21a47de46d289e793242b1e0992da8
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag/input.svelte	ast.sha256
+07a9bf51d59d41bd13d6f24beca096375aeae98e8a36a3df03e905743cae1627
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/custom-types/input.svelte	ast.sha256
+f9f49b17d784a0fb827034378e2167ee24e15e9c35910018ffaa07ae43bd1434
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/declaration-tag.v5/input.svelte	ast.sha256
+4e7c448fe764a6cd0dc29dfc22e8622250595f6b2787607ee56fa27c620a395c
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/deprecated-unused-hints/input.svelte	ast.sha256
+cc8ddb778a1aa490219835ce7bf1a93857c3925a723b9eca3a4270449e491522
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/each/input.svelte	ast.sha256
+a62889818b4a6e6e5b642e09f619cfc49d26fc10325c1723fa5b87f7f5c0364a
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-attributes/input.svelte	ast.sha256
+114498a79ae96ae72c1f41f01d65d3417092545aa2ac22accad834f884081669
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	ast.sha256
+bab6078388802e80f3f802f85d86a16cdc75aeb277b56cf06bc172b3ed73deb8
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/exports-map-svelte/input.svelte	ast.sha256
+7c963b0960b7dbfc29d124eb8dc7a81b5a9de50d099e45c85d3fc6e9b7446614
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/ValueComponent.svelte	ast.sha256
+7eaa3bcebbcf9a5834b1ec2739d0a7221b14ae78b5ace08d7a39a03fe53a6330
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/input.svelte	ast.sha256
+263aba1c0a7ad1aed3ad7f2f549f5264db644f94c6c35c86bb9443cc6286fecd
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics/input.svelte	ast.sha256
+cfd8876d705335f79be5b7930639cc822f9c2e31629b30e4ce98a74767945a05
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte	ast.sha256
+199e637efc20704d6785806a9d896d769c65b50d8d4f82d9b59a4060d167b06e
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	ast.sha256
+506c3a54277ffc175b08071d7ca874f0dea9c33599817ec10048d929014aab5c
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/diagnostics-if-control-flow-imported.svelte	ast.sha256
+fbc32ecfd0db9d4e3e43318a9543dd70885888ad781d94a9002e130cf4117306
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	ast.sha256
+86c63096ceb94717b20b6dac394472e8367b0eeae00a00edf7f49d501648fe67
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow/input.svelte	ast.sha256
+c3409f4846d1d55e7dfabbd0528f860f588d8f965585b64646d70573d24713ee
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ignore-generated-code/input.svelte	ast.sha256
+4a31d3d129b337a6aa07ab7c65a5f9b86005c9e2f3da6f1bc44172de5ab5756a
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/SnippetParent.svelte	ast.sha256
+74ea175954cf4205364e590376dadbd1f2891b7561c9e94226d4395fa43b8bb0
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	ast.sha256
+b0b9268b298b7947887d42808776cdc688cac75685ea5f28408a7707d99cf94c
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	ast.sha256
+12fdd72063e52be3d61aef8a0d6929e095027c3230eee8afb9514bb11b1007d4
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/invalid-import/input.svelte	ast.sha256
+215699804a6383ab92577c3ca485bb81ab5f87d886023198afc0aacd1c13fe81
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/js-untyped/input.svelte	ast.sha256
+da7533f431273297b4d6b1139c76658a36185b7fd3ec6665fd7e4eacd094a3a6
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/modulescript-boolean-not-assignable-to-string/input.svelte	ast.sha256
+533f02aa416df9f84a71764f66f17b718f0ee2d1f937f34c332138a2cb1e9272
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/no-typechecks-for-js/input.svelte	ast.sha256
+41195bbc21d34318b25d9d6dced8c4fd4fd908fa0c032fb9d7b550fe5895edba
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/input.svelte	ast.sha256
+986a8c4de1e0859d1f58cd85206f206f346b340c48398678a98aba8b753ac1ca
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/other.svelte	ast.sha256
+adf6b4547fafb4214d859198e670d1f51917952877eec405eb03d9a47ccc467d
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	ast.sha256
+ac014053425746aec2f2531f91e7a6b5b56c77c5196cbdd19ac419d30b9fc0b6
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/paths/input.svelte	ast.sha256
+f6d223199ccc87f47f1698f0b95a5b6e2a998a29b3d9013480ac22be46d5eb74
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/props-untyped/input.svelte	ast.sha256
+83945668a901ebbb8fe1ba5eed35bd03a4770847b04cf497130e9f1e2f4d1bb3
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	ast.sha256
+7e9a4b697e8ed6fb336316120ebc9ac0924480c2a7b0cdd7ea4a13de79f94db6
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	ast.sha256
+1c6a484b658ca859389ec7250d67533cadf9091d90665698a843219bd235217a
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/script-boolean-not-assignable-to-string/input.svelte	ast.sha256
+d6403550eb62fe157aee0c72b923e306cda25c64d5dcf37e616ca8b6ae79659a
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/slot-typechecks/input.svelte	ast.sha256
+2d5232c8c8e0f668fca268861a7d27806bda9ea8ef50be1d33a3b26f554d802b
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	ast.sha256
+d6cee058efef5d1d71cc0bc884f0d788a55ec194c56b761191cd6cbb8799f211
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-scope.v5/input.svelte	ast.sha256
+f8eabf991616e53c4c99f145e69b5d2287098cad97ff2ec590b16d12147b90b9
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	ast.sha256
+e846870a029b6c5c260c490e68f0028ae79eb68dce74a491e9c8ef5b1ebba764
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	ast.sha256
+c679fb4d29b1fc490e5e22f492457e30a982fb41012df873c406def92e31a03d
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	ast.sha256
+2abedf9c4e1523bb01f74b0ca022d895fd38747c1bd823e68bf6f8bf6e69bed2
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	ast.sha256
+8ed8bc993f7ae2aebd66855235db3bc539c5b09c9c25decc89ef2fae8dbb90ed
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	ast.sha256
+4ff23bf3bc9bb88dc94b43c0729c00b6ae01e13061fe0ab1e572e0e747c713d5
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	ast.sha256
+c10ca1eb130d29f51deb592a00ff2017ceeeae289c19f34df3df7ef2aa58383c
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings-arrow/input.svelte	ast.sha256
+41e7c749a734956e00aef326a5285d3e3c3b987b6bdc0f7194ec5a55e92491f5
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings/input.svelte	ast.sha256
+0a1e09f4275f106e1fdd3f16e5f7b1d50667228fbce3d160b17290050103c1d9
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/tags-without-attrs/input.svelte	ast.sha256
+6827bc112c920dea7e2b4ff45e9de744174d23df411af41b0c793441acb7c8b8
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	ast.sha256
+bf5470b33faf4380c2cce11a04cbdd06383b51d061ba2877d0e6fb085013c154
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	ast.sha256
+4a32bded735b7e5049768ee20eac7f9c9207eb5b022cf40f4d54dd38c12b2f6d
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	ast.sha256
+29357765b53dbaa67bce7064cbce2ae87ce9a34959874d34858aa3ab37117553
+
+=== 65 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/undeclared-component/input.svelte	ast.sha256
+177322ce27ae15db9ee651197cdef493a414092ea4838f9c9e3719a6ecbcf0a9
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-catch/input.svelte	ast.sha256
+ecadc73ecf471358192769221abcc5f4035c79822d987a25bd2e459fc804bde0
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-peding-catch/input.svelte	ast.sha256
+ffdab4925b6bcba0ffe463326661a12931690953930db49b0ecdeaf237e7d0e7
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-only/input.svelte	ast.sha256
+b7d4a24bb268160b5ba535c67d5fc3e894bb91ce764f10d12fe3bbdff5deadb4
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then-catch/input.svelte	ast.sha256
+0ef4c3f302cbb07cce3c1fa373edb4c36d5fc4b469d085b3e9c4d1a63284c6be
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then/input.svelte	ast.sha256
+a46b977dd0b3b403fd2d835af04b73d16060d7471226fb1532c0ddb000783aa8
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch-shorthand/input.svelte	ast.sha256
+b0d000ae57f6deaf259d825eaf5d7e26618b915b93951c4daf3d76c12bbbedc0
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch/input.svelte	ast.sha256
+46e2c296ffac93fdd9f0005cafd9f7ba56d96265c1ecce7f87c563aad1ed3042
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then/input.svelte	ast.sha256
+1af07e70bc23cf01ab22c78622c217d7d2306b5d80b900947e6acc080a2e6fa4
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-block/input.svelte	ast.sha256
+49dae98d9e8459e18a6e81f9a160b08ad3ad152bd70ce67e71382ce3a8aed042
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-else/input.svelte	ast.sha256
+46aea256446dfa32cfb288cd470d71d64359b49b4198196fa016f6f56215d3f5
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-keyed/input.svelte	ast.sha256
+d694c7403f19a0714619ed7d9f77be09387fb388744e25bd59ef71bd8d6c3b2b
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/if-block/input.svelte	ast.sha256
+8b6dab70da70ae035987a5c5cfaa876a6d5c7d36a6261b85e672f195760553ef
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/key-block/input.svelte	ast.sha256
+688dcc4dde736da725d7f99b497220bf65992272276d1f35624f839bd468503b
+
+=== 65 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	ast.sha256
+81bfcb1bd785380e6388a615632e4c8109f82281a4862c2ed20e5a5ea62aae74
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$$slots/input.svelte	ast.sha256
+1f19a1b27a16643c61f4963a2528244b33729578165ddbf692a20a25d798ce86
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$store/input.svelte	ast.sha256
+baa5f8daa75bc6467c0119a8f7ea6860c89a354751f605d9361af039aaa1cc67
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/action/input.svelte	ast.sha256
+a2998d74a3db6e242f50ee8167e245187a0444fd611248fe8d2e37927f2c730e
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/animation/input.svelte	ast.sha256
+64e10718c0faae992a090b273743f5e8a78267fbe2c46507c8b8a9523ad6fca8
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	ast.sha256
+ae81e52b86a35e6d6308f4f08e92c1d9cf4e6068a34e388be5c1bf237c6cad20
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-argument-name-match/input.svelte	ast.sha256
+4d0204927447ba912009cd1d6f22aa1b24c02716f3f037b716968003e02c970f
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-type-name-match/input.svelte	ast.sha256
+56d430a5daddc3d8aa2b17f9f43e9dad33b422456cd0f64d068d29dbba5bad86
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/each/input.svelte	ast.sha256
+5b664fdcdf00d6ca9d78532d10be01381033718d694183c0ee790a5c9b638472
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/element-handler/input.svelte	ast.sha256
+a70193b3f4afe7673e8b1031eba1f61075f18cedd74a0e61755b2c08ceaf86e4
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	ast.sha256
+718c8ab1ba9a2f99c59ad90ecb608b8bde5ae61ba96ea9fd539395e35cd5f493
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/property-declaration/input.svelte	ast.sha256
+79223bf00b6def71df40e38df0c1644771912c56b2691c5ab5921b54f3205fb9
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/snippet.v5/input.svelte	ast.sha256
+e96366479d1fda2242d6fdaf0a05fd38500711300f82440a0cf8243f3ec928cd
+
+=== 65 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/transition/input.svelte	ast.sha256
+f3e026921522341b1b65027d4e66c146987ea841e022a41afffa5c3844db1d8a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/another-ref-format-date.svelte	ast.sha256
+70b8b16a2c342e71eb8ad9f9c3ef511f9df00ae732a7344de496d8bb2eb34ec6
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/call-hierarchy-import.svelte	ast.sha256
+d72ead32adac3aafb4754491d0a6dd064a9427276c89bb99040d6c4b2723d2a1
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/outgoing-component.svelte	ast.sha256
+4f8e9463ffcb9cf1005ea69f436ebc2fb68f26d25b3466b5ad00a30c28a41e33
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte	ast.sha256
+eeda84c4f0b5b6073133c4fc366ddf82afe0960141ff6c185527566da6664bbb
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	ast.sha256
+9a62ad756803cd7ae5ee0c45cf8435ffdbb32e8f2a6c049c656d38aca8bcefb0
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte	ast.sha256
+9082df965aeaf434ce91ef6eb1fab82ca7d92a7330a22ca27f30dbfd8f328e03
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	ast.sha256
+3a135c1cea1e14d0e1b37b19f90e99d57fcf80c256d7342ab6e2171f11c9e98a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component2.svelte	ast.sha256
+499aaf2e0b76d616169d23fd05d0a738d03b2d8a4656f782be310cbd99581416
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component3.svelte	ast.sha256
+bbeb386fbfe24f0ea53310c293d13b76b144c6ab5b71571356bcb3cd01e49666
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte	ast.sha256
+d0fe550e93f3273783d30f25e15a62d2d7c547b79f50590d25b5e0ffd09ea2ec
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component5.svelte	ast.sha256
+30e2ce37f392a87d966fdd7de59d09e803349ee707eb0964eb158ae1008b2969
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component6.svelte	ast.sha256
+9ed8ebea24539915186dcd94a99104c67e3765513258ad22d164ffece172e882
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	ast.sha256
+15b3371b518437b6ba572d60725d676da31d0d6e5d1895fd7d1aba2819786dbd
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	ast.sha256
+9704fd218d04d9e9bea487d14d3b98c30a10891ce34cec9f38b5af1755c63c27
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-import-all-remove.svelte	ast.sha256
+a5fa637168ddd7eb470e76ceb899e81021c54477fded1df0f4daa65c7dcc6280
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	ast.sha256
+ff7702147aa6197cabce80332447d65347489b5bd27593edba3a27abf9447921
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-leading-comment.svelte	ast.sha256
+7311d599f2d1b30e6dba58961e1a6aa7eefb78cd56f05628808cb23b84faa2ee
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	ast.sha256
+a89dc4b401666d79d400d8effc65f225291e0ece72259a5cc21c31d05b98515e
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged1.svelte	ast.sha256
+a399604d2c98468c74833a3f7e7ed0a391bbe18ee9c59867b2941acda8e73dd9
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged2.svelte	ast.sha256
+7edfcf13a3fed5fb624c768a4bc65430ec5f8b0cf73b9dc09551b7c806cb1e66
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-with-module.svelte	ast.sha256
+39030607f5c68f83aee55bf8c6a1a7af356784810b5ed934bd831c9c097775b3
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte	ast.sha256
+731fcad40b76765d5166b92eaf1a0b35fa4135a7b7e2dc5d97648a2b6b111590
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte	ast.sha256
+612313da7265273149fcd06bbd3e486d915fc45cd217a2efa3b7cb52e2e639f1
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/codelens/references.svelte	ast.sha256
+6c3f24ae1163fd7bb3a535bcdfdfb22a365acf072dd4d28b3f202b475898d321
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/ScndImport.svelte	ast.sha256
+2579f5b3f1a2713638bf6b6468a0623eb070dafac54e4544b3a72420ebfa8eb8
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/UpperCase/dirCasing.svelte	ast.sha256
+f591cb8704f9c92138f705d091928c7e40e2f30c086789a5612e3ecfa150b450
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	ast.sha256
+d731e82ec078bd1c2a1bea0a29b9ece4177696f3e5b8120fcb4c6dd633643024
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	ast.sha256
+4f80ab76bc04ed57040ba0af77ff3fe7609b2581cda4ef67a863a0d526f9bce3
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-event-dispatcher.svelte	ast.sha256
+e6b954a914265e764aa006fcef491a0c434d59b0c777f2b74dd449561a6224ca
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-interface.svelte	ast.sha256
+771003545e1ccedcc6d4bf7ed780b664b028ac1aa7da299d044c169494e36032
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	ast.sha256
+00e5b86bbe8e9110c9994ab6d84719e4adf0ac80fa9c910ba4b97b4f9df85f2a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-rune.svelte	ast.sha256
+a705e22f1edbb437a38a11c099eb28b6e1694db24c4061cc564a510841763aa9
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	ast.sha256
+da392cc338859fec2a50ca1e57aefbaf69e952b02e873ab65a43016ae982971e
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	ast.sha256
+ae403fc935e1ec69fc25ef2d00fc45c1edf4b8f48bb86eb136cdb698838c0003
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte	ast.sha256
+d52e51992584df8e13e64c42beadb1c330838d030d2cc4f4d68ee383195b3d25
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-new-line.svelte	ast.sha256
+160760e947c19bfa3fcf37785776731c4d79661455dc2c5dfcc4e304237c2569
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	ast.sha256
+3a27810666bc5ed10bac417fb739a7c3639640451b877e2a64cb52e876152b1c
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	ast.sha256
+c7bd127c829d37584eaa5fac050e1dae9bb3b9fa78f7f439bbed505bdf9c6c0a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions2.svelte	ast.sha256
+fbc5c2bedb182a9829a4dad55dcd31a68f4029822c1c12a757cbaf6363f8d853
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	ast.sha256
+1f1377f0aebc2a0bd8314d2f1447999d9ea87443fd9319bc2629837c76236d85
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions8.svelte	ast.sha256
+60c8412de4ed545919064fbee2e023973cb391dbd82aa996dc5434eef098a576
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions9.svelte	ast.sha256
+93a99a4ec21e3164a11ae6f3dd52520ae1c289701de082d4bbaa0b6f33243968
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	ast.sha256
+f8f1aba83b8030516dd698dfcb45b6bcaadc760935b7598d9a02b88d5a4f8b12
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	ast.sha256
+d5bc251a7723a2399c984536eb0017f31148001e1051ba8f7cb644a6fa6d8447
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	ast.sha256
+647cfd41221c941e570bf358141e36aedf42026afade1e414e46b4ef88b79255
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	ast.sha256
+338ce63de09adddb8c279152619eed5e8d447a26e11bacc4c81d686921eded73
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/completions/ts-directive-comment.svelte	ast.sha256
+cf00e7bbe30998a14ee535640d3a7491856aa529884852dcfa902a23dcb4c6c5
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/declaration-map/import-from-base64-sourcemap.svelte	ast.sha256
+3a441e73b305ce139bcea0cc97027d14cb933063f9254f7d589de53d81b4a4fb
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/declaration-map/importing.svelte	ast.sha256
+2dd1182713c11559950b64ab3d710f2e83207282411ec11ded988fcd141721dc
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/definition/definition-rune.svelte	ast.sha256
+1296c26fce6f988107cd1212d02f76b1a57462304630960a8fb951b3d458c167
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/definition/imported-rune.svelte	ast.sha256
+8906f5868dafbff59036b08222e1ba76e9ff0403513e397c73a81f2228e99d91
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/definitions.svelte	ast.sha256
+59333f73dac0b794856ff99e0ff41f8e85add08ad3b262472bc886ab74568d0a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics-imported-js-update.svelte	ast.sha256
+5ee31f3d6830a35d7570dafe01339ef1874bae61271ff5c36999f8f1e1869348
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics.svelte	ast.sha256
+592af673bd8041b3e9971121bf073065e1ed148ed940a359c3a3c87a6ca71989
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	ast.sha256
+89c93087fb4871ed704e5fa9c0f5fe4aa80f7398de1c0dabdd1eb364a68cb606
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	ast.sha256
+f9d18f50dfb142d6460ccde289cf349119ee7018eee8af5a1e088c952e22b392
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	ast.sha256
+cb5f6415e11c561a84ac4234156a831f7bc5e7462356ba394c85b1055c1cb711
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport2.svelte	ast.sha256
+cd6b8cf0ce774a38a28c00105988b185ef983c0a80845d94e6f4ca338284f753
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/document-highlight/document-highlight.svelte	ast.sha256
+a92b065f2e47b9280114bcd24816ba50b30e4074654b290e8b918da8b20e78a0
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/documentation.svelte	ast.sha256
+065964917ee74ec4e20dd83b346d4d38fd5ad43fca57652f1a8b9f160e06f6c4
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-no-final-newline.svelte	ast.sha256
+319f977745a9d4142c8cebacf5489ece26d3d11f6d89e48e69648fa58ba0a817
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-snippets.v5/input.svelte	ast.sha256
+51bd32b7042dbc3b227e40dbdf40932dcb4b9170e1f932090ec212d3a3f259ed
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte	ast.sha256
+e607d0b2f3373d3e128c736c048e7665864023241f17faf1feb31a7b8a1dbfda
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	ast.sha256
+a2175bfbdcecd9613913ba54735f978ce7d3f28c438010891c9e5e564fba6ee0
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	ast.sha256
+cc3c5bae675bca49f57f2c6a57806d41264710e530d7cb3f94828803a6ddb5dd
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-file-references-parent.svelte	ast.sha256
+8586da67159626d54ed28135a9caee4f36a0d034f883bbadcb130834a02727d8
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-references-$store-other.svelte	ast.sha256
+badb40f6f2286cc174b78bb1feb1f4bc95ecf011b04df70fec14de7da175f50f
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-references-$store.svelte	ast.sha256
+ab8ac9c715b92df852377bf146304ddf03575b844f1c70b11d806dc845157d35
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/find-references-ignore-generated.svelte	ast.sha256
+244f4efd5cc3844077eabba5b5dfcfede0a55b3e3dd875d43808cc8b3706966b
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/hover/hover-$store.svelte	ast.sha256
+d90cd20c1b9a077304b411acd3ef637d11e2046a7cf991dd1947552c8137a878
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/hover/hover-events-interface.svelte	ast.sha256
+7df6d3bb251d6df32e40eec08fa486ed8bd0085ef9459f324aa204518ac74fae
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/hover/hoverinfo.svelte	ast.sha256
+d6b1534c89d090099df97e939492eb4a5868c9815275068cdfeecc3362a2b669
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/performance.svelte	ast.sha256
+d837c4fa6f389c68d003b0acb0f25b318c18bcdcba6802fde3ce53710b35c86c
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	ast.sha256
+8f823d0864643e31f5769e3817556139fb72af367b21b28bf345ec106d4be64a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action.svelte	ast.sha256
+4e607f2d81c7ed727d93c3476036f5e155edd0e9f6a23e26380a272ffa89077c
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/preferences/imports.svelte	ast.sha256
+041b85d04108e514a9eb5ce9619d105fe495b2fd15fd2e32e5cc950605d6dc1f
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	ast.sha256
+2c1fd0f6d36e80307dcb895e13f35774b65d7e696ba74c596d8c9fe45a729cdd
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/preferences/with-context-module.svelte	ast.sha256
+521b83d92efba11a241a23b4667924703be11948b991426ee0a00a7c2b40a993
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes-importer.svelte	ast.sha256
+ebc76d55c139c9777f33f98a34fa829f7f275de53e0d5449a63255c25276b4ed
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes.svelte	ast.sha256
+697d2c9080b869cbf807dbad22fc68afad39f2657db7cd850c73ecfcd97327f5
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-events-importer.svelte	ast.sha256
+96347a304354bd506af59309fdda46e341bdd60b21321545e6306fef8cb668a2
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-let.svelte	ast.sha256
+7f14453d7832b7738685fc274d0fcec6f7235932f39932bbec4f2e4d26df69fe
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename2.svelte	ast.sha256
+07e6a7fad54e917d7b7c7f78b6ba2c6c21646103904077c8290e64a362acd6c6
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename4.svelte	ast.sha256
+0a751b7c61f11835339488e1d73b39e27d3355dd7d9579b1beb89071323d61c0
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename5.svelte	ast.sha256
+728739edf2f1169fd1ca9ee83f5faaf897247da4db6c05bb0d0dce7c7b930760
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	ast.sha256
+31f00b56c437e1cfdcecf208fbaa105fd517a2864dea101d927d81458c2ab5f9
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range-import.svelte	ast.sha256
+0fa4b7122125ca10adab7bc66afbf602fcfd6aaca80b17d5bc3c16cd21c5978b
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range.svelte	ast.sha256
+c02ced7a3c43a213d012610421ad37c0c34039b4b6a4ce661d4bb8f39aec1746
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/semantic-tokens/jsToken.svelte	ast.sha256
+8556d14604cfee2d643e5dcb16ee3668b586a3b2f7632f2ed1a2679eff81653a
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	ast.sha256
+00f3f69d0cdc86d011e844128d4a1e67f1b18b730895755c9a75d84808bd1c58
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/typedefinition/typedefinition.svelte	ast.sha256
+8ba2f48312d29c6a8f21e9b2f9e065cb156b00d84368c3d1c415d88a8c089f30
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/update-imports/+page.svelte	ast.sha256
+47cdac63a061ba07b77f36285b55e5ddf59c3cac77fdc777de4592e3c64c6b97
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/update-imports/updateimports.svelte	ast.sha256
+93d899aa186c0b342e2f1614406804918054dd316fad93e30d20dbd2064044ce
+
+=== 65 packages/language-server/test/plugins/typescript/testfiles/workspace-symbols/workspace-symbols.svelte	ast.sha256
+8bee0b7ff91080b017e3d1fdc33b2ac552ce2962dd8a6ccf73a2dccc12b2176c
+
+=== 65 packages/svelte-check/test-error/Index.svelte	ast.sha256
+4db9f0c87700fef9c29f38ccdd8df107ba8e8962576347e378c8b563717fb8d8
+
+=== 65 packages/svelte-check/test-success/Index.svelte	ast.sha256
+e85624c6179d496ae69f01489358f313126fc83e7df54f473b031f377c5fe59d
+
+=== 65 packages/svelte-vscode/test/grammar/samples/action/input.svelte	ast.sha256
+d06f3441bba68cd04cf8ab85b3fe98afe82fd06bda4ea8766446b09838bb53a7
+
+=== 65 packages/svelte-vscode/test/grammar/samples/animation/input.svelte	ast.sha256
+c0bb3db0a2220d675c1eff5a03d1574165c3c89cfd57e8cf138b8fcc1cd89e3f
+
+=== 65 packages/svelte-vscode/test/grammar/samples/await-block/input.svelte	ast.sha256
+617eec4af10ff77e0ad2843add3fc94fd03cdbebf994da5dd9ef05411d929c74
+
+=== 65 packages/svelte-vscode/test/grammar/samples/bind/input.svelte	ast.sha256
+97348162234e9b2b3cd9b42812979ef41819afc1e02bfa4f95dfe51871dd58f4
+
+=== 65 packages/svelte-vscode/test/grammar/samples/class-directive/input.svelte	ast.sha256
+ae015cb619a25b1b7cda19f80dbacb9f6f521cf97f8e4aa51e63845964648ebd
+
+=== 65 packages/svelte-vscode/test/grammar/samples/component-docs/input.svelte	ast.sha256
+622367c10d96bcd668f8e1769c71364a08fb55ff61723cd833597ea8c6ef375f
+
+=== 65 packages/svelte-vscode/test/grammar/samples/const/input.svelte	ast.sha256
+a2d0b87f89e58e9412a29890675592417fa45b2956002afb69b5d996d44123d4
+
+=== 65 packages/svelte-vscode/test/grammar/samples/debug/input.svelte	ast.sha256
+8fbdfaddf87108609b36e45a126bad0434077e4c4e3dde8b4306b3da38c59acc
+
+=== 65 packages/svelte-vscode/test/grammar/samples/each-block/input.svelte	ast.sha256
+15b56a59f68808c33bd4c55c3d120b95f6f7add15d88832dacf7c88ba1e8870d
+
+=== 65 packages/svelte-vscode/test/grammar/samples/element-namespace/input.svelte	ast.sha256
+0b943200f1bd1bde39b74faf11ba81e19895e5b2b5293cf6bb25787bef92f848
+
+=== 65 packages/svelte-vscode/test/grammar/samples/elements/input.svelte	ast.sha256
+7f48b3eaa3d84ac2cae034c33f46035b286213d70937b056a5e5d5f589760f99
+
+=== 65 packages/svelte-vscode/test/grammar/samples/handler/input.svelte	ast.sha256
+fe0740cdb636b99a9ce40736d5563c02e6e303f4badf56a9f1e08b5f8655f658
+
+=== 65 packages/svelte-vscode/test/grammar/samples/if-block/input.svelte	ast.sha256
+8ac36f6c69598ba248fda084f06b7fc096bfcde31abc44443ff982f8dd34b0a4
+
+=== 65 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	ast.sha256
+df798bbfcbd35071f25eafc41e837b9b6c640659c3cf233475fbfa5444901f71
+
+=== 65 packages/svelte-vscode/test/grammar/samples/namespaced-component/input.svelte	ast.sha256
+21a69f3746ca909b076782118e839bd5daf2e83b09d41b56d76001a8dc84a97d
+
+=== 65 packages/svelte-vscode/test/grammar/samples/props/input.svelte	ast.sha256
+e7a888332998231dcf52fe655384d96475add380865d54c07061308fd047fc84
+
+=== 65 packages/svelte-vscode/test/grammar/samples/script-coffee/input.svelte	ast.sha256
+ec0f864a46afcea3e93dbaf7fe869a9e7a3c628967b7392d4bfea1ebb79a4601
+
+=== 65 packages/svelte-vscode/test/grammar/samples/script-context-lang/input.svelte	ast.sha256
+e1af080a2e74e54f75a969e29625ddbc70d71571189bb5a90cb2644be7498e33
+
+=== 65 packages/svelte-vscode/test/grammar/samples/script-type-no-semicolon/input.svelte	ast.sha256
+23fa331c97debe33dc25ccf48c2647e387262ba5574d02ea853ead9f436284fb
+
+=== 65 packages/svelte-vscode/test/grammar/samples/script-type-single-line/input.svelte	ast.sha256
+ef299f99733cad9c43e246605e7e17f6a36387a003dbd7f0cd86afe3c83f982a
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	ast.sha256
+5aee0cb5df393750f3bad330234b09ec343d63066e80d484974ee4d103fe55f8
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style-less/input.svelte	ast.sha256
+ec389f4d90b6d2abca7b61aeab3f4b0a0589c74f7beb7b30a16d89b99000e398
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style-postcss/input.svelte	ast.sha256
+d194c143654a06dc6e17fb3da62f2701dbe7eb97dac143baaa9d1d29d826e3ca
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	ast.sha256
+451c72999dc7fd114d06fbdda59f047d83ae96eef294fdb83272a7688aa765cd
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	ast.sha256
+43a03ac2ee3d2dd194f09414a894a90451f0f7bb94ed91665efb859d11883d7d
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	ast.sha256
+bdffc2f3be946d43dea3d00e992941ebbe6dacb42acb1ba8444ff44c0bf93aa3
+
+=== 65 packages/svelte-vscode/test/grammar/samples/style/input.svelte	ast.sha256
+401647caa0596ab98e143261c59649a1203f6ed7bb68b34d672fa1615352c60c
+
+=== 65 packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	ast.sha256
+72023207bec11b3038c46011b1e3be1d4907d935e28d596d72a203ad9ec5adc5
+
+=== 65 packages/svelte-vscode/test/grammar/samples/transition/input.svelte	ast.sha256
+e30524fa256bd598dab787ba03647284cc093b53fc4db518d0e8487e29cc6d84
+
+=== 65 packages/svelte2tsx/repl/index.svelte	ast.sha256
+dd9fbb24ad25127e88fa7126dace22a9bacc49f0b29e177b18f354b2506e5cda
+
+=== 65 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	ast.sha256
+19bde596be4dc6484975c30b1684392e8ccb4ad318df6117429b486ef16da4b7
+
+=== 65 packages/svelte2tsx/test/emitDts/samples/javascript/src/TestNoScript.svelte	ast.sha256
+b176e4ffe332085675522d76aedda63e9557a0b153c5f2cce3a4bbf47db491fd
+
+=== 65 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	ast.sha256
+9071753a7199acfa1a1cc9aff0d26c7b2ff08667c0bd7a6ff2990302a35427cd
+
+=== 65 packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	ast.sha256
+ba6876ea7b6cafde8fd6c51f4f97a0fa89847176afbce7de663da99c0c0a834c
+
+=== 65 packages/svelte2tsx/test/emitDts/samples/typescript-runes.v5/src/TestRunes2.svelte	ast.sha256
+a4868387c7525a71393efaf6513a91854f9fdac5d1228966b7023e4897fde0e6
+
+=== 65 packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	ast.sha256
+d74396d88a4a2a20d9f5d2f03bd9de3855a15f2fc63cd938b865b775db03f3b9
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/action-bare/input.svelte	ast.sha256
+b968ead539920363607d78d30de598c9e121002d88e1de6bac896ed8435722f2
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/action-nested/input.svelte	ast.sha256
+c50b13102a5b49f3c44376f40d8c4c18174770152731dcfba229758edb129f1b
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/action-params/input.svelte	ast.sha256
+25a27fe36bb61a0be5e2c8016c91a4f477a43a4b7beb5ee9bd0ed8eeac1116d9
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	ast.sha256
+d2f46293dc591d05b7b6c4adff3a609e26d2243a7816f1624709d1b9c0aaa965
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	ast.sha256
+bed7a70cab7336522339c9c3bc545b663ecbbac5885cf9d30a113384611a7e92
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-bare/input.svelte	ast.sha256
+b79c03fe132063f92c4fb189da8e108ad83b5fb74ba5dbe322d26bdfb05adc4e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-data/input.svelte	ast.sha256
+2dc31307801745131f01833beb5dfbd90d53f7642d314340d8885fb103f2e934
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-element/input.svelte	ast.sha256
+b5a98d35cc494a18079d99619b4406427d4de5b99b3a0027a5824267960230e8
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	ast.sha256
+a328891fee560c23f0685674a40ad46082f387c567371583595e8418f2908b7f
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	ast.sha256
+66e2cce6f5bef58089f082c555540156b1ca83fed24b8d6a5931dc48fad26272
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-nullish-coalescing/input.svelte	ast.sha256
+ac16c49d37c6b6d012525c79a838b45e8c2c7f3b26203b91bb578e1be63ca33b
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-number/input.svelte	ast.sha256
+e4723f77a69e09964ffaeca3e203d01c2e95f646191d5bae132a0f7440b53872
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-optional-chaining/input.svelte	ast.sha256
+09848acd927cb6083d26777637aefdfc3302a44def4814130dd382abb299f5d2
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-quoted/input.svelte	ast.sha256
+e6e757248cf0f7d81679d02b73d518b1c55a6fa98975eff056e35b1606ec1384
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-shorthand/input.svelte	ast.sha256
+afec7baeea06a0717b735560e7496a9754b5c7c50d76dcf506e5f6da1b6ebb94
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-text/input.svelte	ast.sha256
+1afe570c999ad15eea7f76e779de1b9a81013942c30138d2b63c3c24c066add7
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-value-escape/input.svelte	ast.sha256
+0c7b3cf3cb4840a218c85b9d67b194ccaae63bb9a92857fe0dd33846a85da814
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/auto-closing-tag/input.svelte	ast.sha256
+42d43004e135645564de869147ce30901e1221eef4a9d83533a527c85e684220
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic-catch/input.svelte	ast.sha256
+1a97dde8a2d9209fac83e21e5c3ae96a1dba7ce8c54d27c06c2393af51a5bf63
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic/input.svelte	ast.sha256
+6868cb6bdbb4063bb698f916da2bd3801e431571ecd6477d186e4470af07525e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-array/input.svelte	ast.sha256
+dacbadd0cd78bb2e3290368758a076c3c839825ab7d4cfc87e3d14efce2b96da
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-default/input.svelte	ast.sha256
+c413ebe36ade83091037c7a6ce2888bcf65f6f33f190e3ab6134ae035e654ce1
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-object/input.svelte	ast.sha256
+65d5356caa9ded650fcd178d043fd0550f6e528034c856d6b0a2389b67fa6b34
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-rest/input.svelte	ast.sha256
+c57346742eb9c3229d9dd724a0ef0edf783b28163122542143a85dba92cb4892
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-no-then/input.svelte	ast.sha256
+5b23091a281e885e22b994d9c9b908be4bbbd3b2312fd57e8ea59f8f1c93bd3e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-parentheses/input.svelte	ast.sha256
+06d06797a4ac7de8ad6115492c32676a64582b37340ba97cbd80cf6c0f85f486
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending-catch/input.svelte	ast.sha256
+4c27becf4426d30688d19a9f8183ba5b33af6c12f1b51c41f64961bfb94223a5
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending/input.svelte	ast.sha256
+a2dd8a860fb91b1c16ed3f9ffa9251e196e014492da808cf414883c6b43dbee3
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch-no-var/input.svelte	ast.sha256
+d1eb795841815ab5f4d5791cbbb88d9e6fbc01d3f0910b48637d7a8644ed19df
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch/input.svelte	ast.sha256
+a9a660587a67a096d636f5cced3a227c4943f82627d5861fa6fe4eb0f0ba5cad
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-then-no-var/input.svelte	ast.sha256
+1b2606043be0853cbc6947bf2c38d1e8c2f09c6c4b05e0599f99961f8f277b1b
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	ast.sha256
+4641509ba4099806a529ee6f9cb2308c39e1317e3145638a52f905d1d15fae9f
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	ast.sha256
+d8c35d04103ca503262e723bba2e1d1d1540228ddfd0c6ad282f227fa7573750
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-get-set.v5/input.svelte	ast.sha256
+fdf48ab586ed5cf5995663603b2ace65d5db64bd12688ab092bd8863ac7c9847
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-body/input.svelte	ast.sha256
+709af49897ab29a550945f289ef5e487cc7639332b54fd8798847690e46b5b6c
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-component/input.svelte	ast.sha256
+365824055002050f56ebc005ae522eb90e33813c87df8a19a0a7d7b0071e1c32
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-self/input.svelte	ast.sha256
+04bb28b947d085206fc9c6335964afed03db3f47b74f196c11eb76fcaf243d11
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	ast.sha256
+46ed881dca6bd4d47e964dfa111b7a570d2d653fc0e26dc12878a668dae033b0
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	ast.sha256
+d74f384966f8b5664e18ff27739bc326de0e13cba0093bf535927e4bdea1734f
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/class-bare/input.svelte	ast.sha256
+ad3e43770cb05f9f3e5732b23521da7fa73520ae9d9008cd59dff010faff621d
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/class-parentheses/input.svelte	ast.sha256
+ad20955733e50a7d9f112f94838652582a679a97010faadcfac96a1c399e030d
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/class/input.svelte	ast.sha256
+4853c4f76082ee5fa0f7e3d02ff329421be9433dd16a56fe05b2e3860aa19065
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/comment/input.svelte	ast.sha256
+e605ca9bac816d8840d3ddbfac2ff7788c47284d7f219fc6d2f00c18437f2a29
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	ast.sha256
+2a81040d9abad1d646d6638695b543de06507f7107d9ff02006eaea4202805a6
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-empty/input.svelte	ast.sha256
+7861f9a98b7d348a67af9f3c78277177631ae223aefafc13b920c2d0fac0a9f3
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let-destructure/input.svelte	ast.sha256
+fbefddf57c7dd40aae1223eabd7fe072827fc4843aa2c7191691d6016876b437
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let/input.svelte	ast.sha256
+1c77eaeca0d40d0c8f156a6cdfdfe1e4cd13ad1542a230e1cd90995a33a416bd
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot/input.svelte	ast.sha256
+9f13ba02b507edc9a5b939b5a6289fd871f102362ad49b7b94a62683b35974c6
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-multi-slot/input.svelte	ast.sha256
+673c23c873b459644a10d6d19028a75ead897dde9ac598452a8e4035ff45dbfc
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-name-dot/input.svelte	ast.sha256
+b21903f4756dd5f38fd2e01c65c5ebfecfe862c7870df1fece9a3a3a728451fa
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte	ast.sha256
+e4275a583230173f462a3bdd814db650b89bba99bcf21b112fda90286b45fb63
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-no-slots/input.svelte	ast.sha256
+34c6cb5d130e941f5e00196b03199e28f214a3e958e5d8d3c2f70259abdaed3d
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-attribute-as-prop.v5/input.svelte	ast.sha256
+cfbb805a48066277a6bc6e87ebe48c8417e811ab3a6bc9ecde0900f9020f593d
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	ast.sha256
+5fe446ea6df286d160ba155f7ff8087fc1411f5f2334008a9f5f46b5a1ec7122
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	ast.sha256
+623f846ad92c7f7717aa82d51fc93024eec203561170455293d6e2b949da45a6
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	ast.sha256
+b983966d0e8bacd378f531695a4f626109074dae8a63926d1b00b8f0ec211955
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	ast.sha256
+85c3cd96133d7bacb5045f20b0ea515ddac9a05b5006fa2e929de5f696b220c2
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/debug-block/input.svelte	ast.sha256
+36b35a656e2f69ba0b156968093126a6d937131f6f7bd507fc582789516b3c8e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	ast.sha256
+6bd66c7c457bca2681e6635900c59e127c4e4c47f5eea202257d984a76728342
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic-sequence/input.svelte	ast.sha256
+4acbf939bf802805e03a9400b567649a6939399c7277495f4bb1f09fb1255619
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic/input.svelte	ast.sha256
+0948fed043a9f8298b69a1af9132a50bb8cfa9a18c8c1eb1ae0e6477913a5fec
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-index/input.svelte	ast.sha256
+8f04a142189ab08d5f1e696e04f90bf6b2c6ac322c24a4c21034dbfd22f878df
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key-else/input.svelte	ast.sha256
+7eb8455bc5afe773e80002306b794700f79ddcca11b0d08f02378418e604ce9f
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key/input.svelte	ast.sha256
+c52c939b7a12dfa807b2091c78328e99dbd756d2cda30b5695aa406f9595ff3c
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-nullish-coalescing/input.svelte	ast.sha256
+911a5041619cf39a36c3c4d46b3763f02e6ff26a3e0de43ebc56f6c940bd9dd8
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-optional-chaining/input.svelte	ast.sha256
+38d01fd157b74e933b0b068c7a31359b6d3a2f44ee202254046440a56328d07e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	ast.sha256
+ff881cc0973613799c71ca1b1a0d0de2b3f336662914f6a9b4429f60e6387bbb
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	ast.sha256
+bbb5f7e749ae3ad32ac79928661b690dd86c0f46b22010daeff81e399e1ed44a
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-bare/input.svelte	ast.sha256
+043be4f8ec174a8be042b1cf77a52efdc43f1249725c96ae5a1d0226c99412c1
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-bare/input.svelte	ast.sha256
+214de7c6ba1225eb5c09c1562c22701ec70d58859fba2a57106b7661e776ff57
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-infer-props/input.svelte	ast.sha256
+04e7e2c0c128d1a30efb7afa76618ee6ca243a44c1f9760fe69875c9d8bc394e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component/input.svelte	ast.sha256
+77ae2d4f28a302b5ed62a82ad8db668117754f54d7c8155a88856d34eeb77397
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-customname/input.svelte	ast.sha256
+ef02e550bbbf4872eb867b7a85f6378c0dd2608801e1cd29784f85e45e894c9c
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-modifiers/input.svelte	ast.sha256
+eebe783240faa4e80d3859292a74a64465aef8716b98c6760e6656e7a465697e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-quoted/input.svelte	ast.sha256
+530dc1b7bfd74b07847477bcf099f385d75553aa322ac1bb8a504b5e9a0eea86
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-svelte-component/input.svelte	ast.sha256
+d0d18d14551d9f22069ce7734d21b6447ceb5af0c001d49fb5444507222870eb
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler/input.svelte	ast.sha256
+4ce749b4eb6cc1910308b09738447bb986b6a2cd08695e86dcaaf510c79efbb8
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/expression-nullish-coalescing-optional-chaining/input.svelte	ast.sha256
+5cd65059f9c34e050a45f99cd43432b5565d15f0ad3da24195a103ad98d18d71
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/html-block/input.svelte	ast.sha256
+10356eef300898a5dd67de1915dcac2f441c323ea7c06d0c77377b62e53da0d6
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-block-const/input.svelte	ast.sha256
+e749fd6571f36c0f615586743625dfe1402eaab28c05f3c33ec3e3f0b1e65ef8
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-block/input.svelte	ast.sha256
+25eeabfcc100fe4b7b799daedfa7adf65e179945d0c00707d5ccd6d8c81a03c3
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-comma-block/input.svelte	ast.sha256
+024dd229d9d3e8b89101693d5024dc3c66165a079b9bc537605f1dde576683e0
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block-nested/input.svelte	ast.sha256
+3642c8c96ae06061a8e3dc01b3219d1e66ba4341de98d9fd4785ff4171e03a59
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block/input.svelte	ast.sha256
+644a24fda97869eb20ce36ae9a98f7df81c541ef982cc3c53986ce8db96b81b5
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-block/input.svelte	ast.sha256
+7cd27e4f23bd87d16cee545590057156321a0b73d973cc14973ac84396effa8f
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-nullish-coalescing/input.svelte	ast.sha256
+f21ee4030446cc75b4e7f71d897e1203a47f1815d6e0f40dec304064413ba6a3
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-optional-chaining/input.svelte	ast.sha256
+a5e491911dea72f2b1e81821d797cd4385b279049a65a634885d7eb02a4e4b9b
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte	ast.sha256
+92c83d8e3573a1f71fa33012c0ae4ac2c463bc21dd7568638a0bb133044c68d2
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block/input.svelte	ast.sha256
+2dae9cfd6a95b3cb47859eb5c75505ba618181a3be890c43493470b154c7fa72
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block-shadowed/input.svelte	ast.sha256
+6a73a1382e1f204ce7b533f67add95bd11f2544fa743234af1f7e06408a59bf8
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block/input.svelte	ast.sha256
+7e3b17c3bdd5f4e2be01f2b511e50372e525e42f528e7115f3b5b84b6853321c
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let-shadowed/input.svelte	ast.sha256
+51bed03bf6cade39443ffd9f75cf673d8772627e7725cdd09b2f2e521feec7cf
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let/input.svelte	ast.sha256
+5a24b284c49236feb0e0ba97e475645390055887e2e540709bee23c9360e0377
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	ast.sha256
+4bbd9655ae441d5d4ee4de538125f793b49958b1536832b247445377f502ad0e
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/namespaced-attributes/input.svelte	ast.sha256
+286e0d0de251421922458218595d42eb14b98d2208939e2eec42ec6eb3bd02ff
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/nested-if-else-if-and-each-block/input.svelte	ast.sha256
+a7ac2cff3a9fd03ef99ff57258ca0ad0ef16b6eccd37a1cc5d10c567436d8186
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/nested-snippet.v5/input.svelte	ast.sha256
+4c983cbf42ee1cc5b77073af8943d7614012c05b72d45b233a75d40116250ee4
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/quotes-inside-quotes/input.svelte	ast.sha256
+3995e3783e69af75a57f39f5ba2a83e59d75da4783ba8f958f98b1796ec7556a
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-noscroll/input.svelte	ast.sha256
+8bc7c26905c22316f511c083f3fb772e68a4f6a72243b7a3fbc12c0f92e14c2a
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-prefetch/input.svelte	ast.sha256
+a3e80f87017e85f6aaa34b617f67cfa3f53881a5d24feac0ce9001e70b6279f6
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/simple-expression/input.svelte	ast.sha256
+01a40b4e12fc77e473ab09a61d7de7ad9ab3363a7a15b941c2b4d6335d92937a
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/snippet.v5/input.svelte	ast.sha256
+b6edb94b7112be945964b01d2060af2a4ab766786aeaab43fcb3f6530e28ff5b
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/style-directive/input.svelte	ast.sha256
+05c29dee39ac1376d8ae5f7a831c14cdc1d429a442cf6228ec78049ffbeb3b20
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-boundary.v5/input.svelte	ast.sha256
+0f92e79a118b4d40f6f33031f53b63f2b41d805d2ab4c60c1beb195f99958054
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-fragment/input.svelte	ast.sha256
+1804b5215b7f17e7847bcdebba13428b659f75294438f3b71199e09f42337a82
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/sveltehead-title/input.svelte	ast.sha256
+bc526c50d77b924bf588e0cd72225c8d8e1d297401f2ccc554914f0c99daaf0f
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/sveltekit-anchor-attrs/input.svelte	ast.sha256
+f9b5fb3161fae87127ffb4e23e0cdb8c0c05c5af281c7d84261ed652827073dd
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/svg-attributes/input.svelte	ast.sha256
+ea60de4863b0d10fc3f0654feb0280b5d4a53e4afd604380af4b1684d3f20099
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	ast.sha256
+8f195be55b23def7192d7a9b63e42f758b024cd621020416b1f54bbebd86ba9b
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	ast.sha256
+2ee85a21e0639d5a45f67c3ce947691d1aec510f0ca10e91f46bdbc8a3fc117c
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/transition-modifiers/input.svelte	ast.sha256
+3cb665fdf0798d2c920456f5c66edde5e7a8c7008bfc459123b775204dff4488
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/transition-params/input.svelte	ast.sha256
+0a8e374690acad90052be8df49858c7374ac6bbcbae7bb3c06a37b161aa27d02
+
+=== 65 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	ast.sha256
+cef91db7fd51d71db4716b8019c351026f8030bf6258bf5687a860b476ed2c6f
+
+=== 65 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	ast.sha256
+1da5ea8f2c9363289c0d842c586756afd8bc8b881104bc930fc2ade6cbc99dae
+
+=== 65 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	ast.sha256
+0a99a84cb8437f31e50177247cb2e7679e764afef1bc6223dd804c8371af883a
+
+=== 65 packages/svelte2tsx/test/sourcemaps/samples/simple-element/input.svelte	ast.sha256
+a80371be871df07bbe75f1aac04af427f293075ab69b8caaef5d3745385a41dd
+
+=== 65 packages/svelte2tsx/test/sourcemaps/samples/slot-let/input.svelte	ast.sha256
+4f975333d0b99011537a5fb7090cd50381fd28b854dd7ec4b4e59ead82a78d34
+
+=== 65 packages/svelte2tsx/test/sourcemaps/samples/slots/input.svelte	ast.sha256
+2e95630c50d92b813b3034ca1b23e94ca4afef50f9c5ec8f94d2ad21bebbb28a
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	ast.sha256
+31831b3d8a4fdb15ebee489cf81aaa506b29819276ce202af23be3c6126f21e8
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	ast.sha256
+c9b48e2d9622b8d5b02d2ce37d9eafe1b221f1cf0a24efb0b1edf1af2d968391
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/$store-prop-init/input.svelte	ast.sha256
+5171770087ca398431ff7ec73b422dea1072802f69f43aefc48ad29f30a892f6
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	ast.sha256
+937c646951223a55e0ac8fd64f60ac0b9a4ef9cd93498cfd63cb18c373bb7041
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/await-with-$store/input.svelte	ast.sha256
+f9139bd54d9114c496ac204c724278db967d2e693b42c0fd447243068b3ed66f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	ast.sha256
+068b41d83fa7522a6204db57e2f9e2221692284d26f82ae5b6950edb4892306d
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/commented-out-script/input.svelte	ast.sha256
+a87251cc94c0111ab008186af69156a4915741b077ab409406c24f2be8d34cbb
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	ast.sha256
+ff9444efff2ae9e313b71395e1d55236ba2393500cae224c5379a9c5bca0b25b
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-constant/input.svelte	ast.sha256
+70bcf73d3224c56976afc77bb3da179266ffdb8b2b968966ee18ac343b8e2f44
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-dispatcher/input.svelte	ast.sha256
+623e92c96433f25c331cff249db021e4e2d6fa1ea8efe37bce25b0e915dd7eaa
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-string-literals/input.svelte	ast.sha256
+14a9ee599691fbc252382ece768fd603cca9734ed42b858249ae11790dd41def
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface/input.svelte	ast.sha256
+135e8f8da4a16b4fb09955e6732695e0c451fe82108345a3c9aa570df0249ffc
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-events-strictEvents/input.svelte	ast.sha256
+829b6f7666297e3c8ca56422e264e1c8513835101ee1755448d6a4b18bca99ad
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-events-type/input.svelte	ast.sha256
+9f1e77fbd15f64a2db4f478a09b676908450b7389d44cb6873bcf1edd68df129
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-multiple-slots/input.svelte	ast.sha256
+c382f0c0320020b7a7666e2ec1c1e0d79d9e933d79c52e2ef7e1f14e8cf84867
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	ast.sha256
+ac822e8693a732f934ebe0b4e8fe05e886c7525c03e7b6bfd8280eaa94f686a5
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-type/input.svelte	ast.sha256
+935b5234245f654d1ada0d0a09217b133f7c0e954087dbe11641978b1ce254a1
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-crazy-attributes/input.svelte	ast.sha256
+b98d508d697e4c75c528a195ff890f1e956ce88f73107b1d78e6f03b3428b05f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-fallback/input.svelte	ast.sha256
+c86274ca6009e01385eebfc4fe57e5915f91f791bcda8a57a99cc54cc244d6eb
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-forward-with-props/input.svelte	ast.sha256
+3f6db88bf68b14bc8809f302a805144a0332cbb503cf1dc01af9885f0645fd2a
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-await/input.svelte	ast.sha256
+2c37de112eab637b7383f293e8951ac216f57205a608b8ba1335129319581322
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-each/input.svelte	ast.sha256
+7fe6a7ef383eb2e7e44af8884cc751281ef16ebb4d047ee3f4ebcef24dbede15
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward-named-slot/input.svelte	ast.sha256
+6b4e1e951c7aedb7912052746c58805335aec870331ed5ea59fbd487099c2a0c
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward/input.svelte	ast.sha256
+d41e950cf356704942eeadaef65f4889dae6c0c155c4e30681504b849ca49d8f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-nest-scope/input.svelte	ast.sha256
+cfcc6a0e1f198781e2ce1e0de9f13fedeb8f3ea5fd204b442cab0adec04a16bf
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-no-space/input.svelte	ast.sha256
+ff54a85258a448863abe93e313fdd4ee8a94154e0e56ed0fe3c4e9f8b5d1755b
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	ast.sha256
+6917aedc7592724a479f2052f346942fd8fa2a189d1e4bca0fffc1a33056c7ab
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-with-documentation/input.svelte	ast.sha256
+82c3b67607ac7f95989ab45d8e76cc4c611b6c03812c649d4671c1c83292ace0
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-with-indented-multiline-documentation/input.svelte	ast.sha256
+b17ea35aa792efff00b8e7a28e62592b58742b2a233d2cf8a25ffdd66b234267
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/component-with-multiline-documentation/input.svelte	ast.sha256
+8351086138ca6ba7e3b9a99626c4437d22358a2dc2a31dfa847cbee51470c02a
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/creates-no-script-dts/input.svelte	ast.sha256
+fd45c64698b20f2086c64c4d07040762d5a24878efdf21fe115fbe3e8840efed
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	ast.sha256
+083d09f26d45ae62f15390e1289c40882c09cfd9e72cc9b589a4991d03c62228
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	ast.sha256
+9aefcc51ce2b29770af30171741af90d2509795c29b30dafb9d30f6e3577adc5
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-multi/input.svelte	ast.sha256
+6c6f41b3958cf7ed88dd999fd258ae33407ad79362290f35e339b4b3fc9e3be8
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-with-props/input.svelte	ast.sha256
+db74381f2f82576c6cf390c4277ee572c05f518b96438caa27dc1d45811d3902
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component/input.svelte	ast.sha256
+0c40a880b23944a89a390d3288c7e84b69ef8e249ba356daa258b034f2ad003b
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-element/input.svelte	ast.sha256
+8d2cca2f8c8fc1ed9485f60c7da325b68abfe3c87df7bd73ad1c2472bc7a1714
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-svelte-element/input.svelte	ast.sha256
+43142646683c94796dd0dc46006634cb033fe974fc253ec81610107e40196017
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events-alias/input.svelte	ast.sha256
+1450e2f6085d2285c0b571bd6261dd48d44477e4684822547bd991c664905847
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events/input.svelte	ast.sha256
+e8a051d44784911ed11197163539bb3cf44e825e2f54dd6619381027a51e3c89
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatchers/input.svelte	ast.sha256
+119d797484dcd7aa8888ed0b0c865c47c485e4b2acc7aafaa078977c0ba586ed
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/export-class/input.svelte	ast.sha256
+6389c3987496d1bb0d51b1d36e0d838f836c804fec526e12adeff6eb02b4b184
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/export-const-array-destructuring/input.svelte	ast.sha256
+50afc03935ff11f2fbc6a45aa777f266318713538a90d90e3ee9786268b840e3
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/export-const-object-destructuring/input.svelte	ast.sha256
+111f40d2a2b62aba0308b81b10723823358ffd16ae2f7b3713c1351d2bcb1abd
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/export-list-runes.v5/input.svelte	ast.sha256
+f13d513df19517d71047cd0852b8113aec24d0e7a5eb609ae77fe3c3ea1340f6
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	ast.sha256
+b6947cdae9dd305a44d988a3c08cfebb4a043c291e2754ba55e07aca4394a2b0
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/generics-attribute.v5/input.svelte	ast.sha256
+de2af0085a37ce7266725647541b9dfe7bbfeecd1fe822d5dbe1c4f7984db86c
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/import-leading-comment/input.svelte	ast.sha256
+aa058a341dd570e29ba15de059a2ee7a1319d71fa75f4a9e2e124ded075f28b9
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/import-single-quote/input.svelte	ast.sha256
+f3b09c39d2b211a57704c4b6e3a65ace95e87909b6be41d36878d48e58e81717
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/input.svelte	ast.sha256
+dc7dd66c58ddd573118b8cf1e4c8c1b2b4fdd1fa4f4d7a4cf3a71e42b19a4fd6
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/js-jsdoc-before-first-import/input.svelte	ast.sha256
+de6dcce9d086b02ccfc319251d6ba394056478920ae069c47db67ff36dc6fbe8
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-runes.v5/input.svelte	ast.sha256
+e2d87cc5e06d42ea51b8816a268d3daeb4101302f5bef7cc9027b396d1041040
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-sveltekit-autotypes-runes.v5/+page.svelte	ast.sha256
+66b3668187781dec63d6d7354e80997f008472be984e68a020f9c5d3d9bb0d79
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-various.v5/input.svelte	ast.sha256
+b13a0a46a6e4820d00b4423be0d2de9a8db7dcc1b0df016abbdceef1eaf4058a
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	ast.sha256
+f6d1c9803c831abf46c589525d04cff64fc412980056379ebc113eb5f9367e9c
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	ast.sha256
+48bfe021c9c06572c653a737235a43201e3baa79dd307d65694d19d17944de0e
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-not-$props-init.v5/input.svelte	ast.sha256
+8bd7a45e7a4d8a654d1e374db0c59781dbda1928e0b2cd15d4410d493d03f042
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-spread.v5/input.svelte	ast.sha256
+9abaf2092c073557b48b2f8f2268c8df5f9ec0aea6c9af084aae1373375acac0
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id.v5/input.svelte	ast.sha256
+2c6911a4a95e40f56834e45fa23c93da283401a3f68f8f3bddeba112741f2c25
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	ast.sha256
+4a650e695589561ae1bc9ab576daf25c5371e92b67ea433bbe8ea762707b0175
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports/input.svelte	ast.sha256
+b628e8f7d9d4b5442e68075b4a3efe31b8da51b0bdaac0b7f9b77c7c9cea6cea
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	ast.sha256
+d1068331ba5cf6b231ba021911e24131443a56db3d2c5e6c4b459e8ea52dd1a7
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes-best-effort-types.v5/input.svelte	ast.sha256
+dd1d9085688594294a91942d979632056479cc47d25cbebc7f7a0277776f4ac1
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable-reserved-name.v5/input.svelte	ast.sha256
+f1946782980a80806aa33f7e17233a582cdfa5a7f4023da8e1f2469b0250405d
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable.v5/input.svelte	ast.sha256
+6d4d436120816718b531526a2bc5e778e9c0b98d3e675942f0e831d7e011cb73
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes-looking-like-stores.v5/input.svelte	ast.sha256
+2477638f16f0aa0aee86408ef327ed8951d15c5a8593fab223afc15b89c315ef
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes-only-export.v5/input.svelte	ast.sha256
+a4f6f9fa69f26fdc5a0cdca08605bb13179255f050219d4fa149f7783c370fc1
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes-with-slots.v5/input.svelte	ast.sha256
+2b5038f91800e5662f91c13d65e70cc2378af5e4c2eb9ce2c80d3dfc6505ba26
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/runes.v5/input.svelte	ast.sha256
+0d90bd9125454fb041ffbaf1a58f7f81f8037f694544ec3c9ee86983a3716a03
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	ast.sha256
+c05173902e8332ce13b23ac2082c24687fd7cbff865427d85dee616ffd0c99f9
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	ast.sha256
+954d9d059e575556c5845f16ebbe2391ee0859a338bdd20ea3b1595ea10fcd31
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/script-style-like-component/input.svelte	ast.sha256
+c45824ac2a2e17db9fab5f963aa6ab8418fcf8bccc909cac195963bc080b95b7
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	ast.sha256
+2474680b125e003ef0bfb623d5248b7419aa17891c3fbf567452389856da1e2f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/script-with-src/input.svelte	ast.sha256
+e270690af40915dba8300517ef5336323c08b2ad5bbcec4412d4a659d845e808
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/self-closing-component/input.svelte	ast.sha256
+f5301ab3613181cfe4aafcbc552c9f03ff4ca9a7bd7e4ec2cee77b539de3c34f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	ast.sha256
+058657b38fa53cc690c9780f17a5269e5250682ed137728e30816b29e85d36b1
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	ast.sha256
+b21a286ae26ae7215ad3680fbe1204a5293310dd14562d4de9f9b72382378f26
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-1.v5/input.svelte	ast.sha256
+f08a15810cde3d54b534e176344a4916ea5a15db400b853938fbc37fb0f2935f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-2.v5/input.svelte	ast.sha256
+bd1a5bf56c150d478231e32a1c6a5a62b0ec7cd1d39101625e113979ee8e78b2
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-4.v5/input.svelte	ast.sha256
+39d47616d694844550ecaf10215930888a8f66a7b63b830744cdaaa4d5f6fc6d
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-5.v5/input.svelte	ast.sha256
+e586384f7d9965cdd800c29539f4a895db835810d030207e5d0d7820a42e0d92
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-6.v5/input.svelte	ast.sha256
+37a3d99717930526213dd7c899d7ffa3ac5f912cdb007cc3a4f89fdad43e431d
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-7.v5/input.svelte	ast.sha256
+4fd1607099702752147f534ef1a049c73f7e74b68bafccd0190ca32759a732c6
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/store-derived-import/input.svelte	ast.sha256
+684a26f414bf0f35c96e7e3c48ba186605afe0157a3a1f5c8e78df285f297e5f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	ast.sha256
+9ea0099e94c4e65fcd17bdc503dd20222fb382f323150d9119bebc286be1d37b
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/store-import/input.svelte	ast.sha256
+53a26370d5b10f93de9cb913f8e47c39eb622eb95da67eaff2cfb4eda75e3fd9
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/store-property-access/input.svelte	ast.sha256
+14eaecf4a2a5ca2a32b03c71c475694ad740d14ab74e7b3a07ea55ab40f3e60f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/stores-looking-like-runes/input.svelte	ast.sha256
+889db3e92d047f7cbe684da85ff5b27cb52a1bb65aac2a76e2153e7a1ce97e38
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	ast.sha256
+2c5a3f19396ddd0bdc26e21625620a025ffc86f1f9204233bf094333e00dddcc
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute-bare/input.svelte	ast.sha256
+e8a524734e02e3b5472dd38b95aab6f9b5040979d8f7ff8963ace9a3bfbb4d37
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute/input.svelte	ast.sha256
+dc29c28e45c9030513b31c05734c42be96e3f2b031712de73965c46dae36fbd3
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/style-in-script/input.svelte	ast.sha256
+291ca0a086afc426acddcbedaffbd771237e64dd5d7f6775bc7af345777324b4
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-script-comment-with-real-style/input.svelte	ast.sha256
+546b6454f1091a2dcd40453068998bd85009279f838325ae631c5b358af7a117
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	ast.sha256
+a4c235bf9c356c7993afbc1c3bee40f4c7a10cd662975161bf6c08fb0c49c6a9
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	ast.sha256
+06d302a02a6467bd93f265012a10a66ccbd03da5fb285ca1e12272c4ca80b6a3
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	ast.sha256
+107f01563f9ee366caf9cf5c7fd7ca8ac29f9b7cc61d61fd4bd553e0ee6100e1
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune-no-changes.v5/+page.svelte	ast.sha256
+cd3ee2fe527466008ee95069aec0e317ac9b19c80fcac8f5419618dc78853f9a
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune.v5/+page.svelte	ast.sha256
+87130ecb1f861b793022c4ad71dee0958b7d2633bb1c23e614e9380e8a0310dc
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	ast.sha256
+0b303cdb2d28fad2459d70c99882971d20588187b477fe1ecfcbbf054b6fb608
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	ast.sha256
+4f16984d9eeadc0475f0ab763a2f80940d4e3c0a2388ac631d96d15397bddbdf
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	ast.sha256
+690b104c32dd7ce09e0b5e441d3b73208374f93417034cf850b45fb553b5eece
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	ast.sha256
+3e270149e08eabdb45e585cf2558048ac433d4335b9f7009b454a8bd8d948f1c
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-generics.v5/input.svelte	ast.sha256
+4439ad06862ba5e0bdb9e690f40d79160dce7661f7dfa145c56b3073f7614a5f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	ast.sha256
+829cb18ec2409564ca89df757dc31f4f66ff3d00feadec27134a4bb4e48b384d
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	ast.sha256
+2c100b4f57eb01ea9ea7fe2e6400bc94832c7af3a9e3f7fc08e1747534f49337
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-4.v5/input.svelte	ast.sha256
+dca9eb941a48355a240dd0eb41a97635dc3c5b96551a696241a483eb70b58c70
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	ast.sha256
+5d114aafd74d709567c61d203a384bbd8af650ccc9a12964f9590b17b07dc501
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-6.v5/input.svelte	ast.sha256
+708a5350e4842dd1c8a27228930f4a6938433a341b73e61fab25180cd84e2ba8
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-7.v5/input.svelte	ast.sha256
+3206d789ed7dbf6fcda3eca6384822cd2c38c29736b1ada9506f557477fa05d8
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-8.v5/input.svelte	ast.sha256
+dede09bab3660cd1d43a052e946da5aab2bc0233a07daf1d332fc1ca1d33bc04
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	ast.sha256
+930a06492ea2794ac240f78dd17c224e247564eb202293c82b3efdb6427e2899
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	ast.sha256
+7ee7bbae401a9cfefe89b735420c9acb9a95439e87df6f5048b0214427f859eb
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	ast.sha256
+9395ed89cdfbcbb4073142d77ec633c590e511c7330df5fc1c18427303a86cc4
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	ast.sha256
+55fc554bd06c62fb045caf38de95ee410ac1b41f2c29d910822199cf85f2dcfb
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-13.v5/input.svelte	ast.sha256
+c557b0ef6003c1311be2523fde6f56250ee9c7160819a925afca37ca0e0a2b6e
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	ast.sha256
+c03d4b4a24c5a134dc3beedc09950d9205790f252c8c59c6c32bb593981e8268
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	ast.sha256
+28405b0fc6368a4d0478ceab90c9330b5734a45494d1dda68efe7fc843c23ee7
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-3.v5/input.svelte	ast.sha256
+4534fc0905786bfbbb402096c54917a0ba76584b3846becdb4eb56a3984f393d
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	ast.sha256
+765a3a4d004dc05dea076de73ca1d7a6d12f14ce5f7b70d750dcee74a16d2bfe
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	ast.sha256
+2df2d2daa662782983936d44ab060e045ab6915857df16c1b7b511e42d513ed0
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	ast.sha256
+4c2697ca9c4420e12819737ce470b49a668ffe0a009d6ebc251f6f3257e4196c
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	ast.sha256
+7ddc909643bec2c24b46854e5e7703d2c206e5fd6a27fa69a63202ff639d83fc
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	ast.sha256
+35363285b828d103e9c801e6912d67d10c4263fc798b00db3b377484029b3d6b
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	ast.sha256
+02f1c4b644def2c32c6d4dcb0cbe408fa60479b94e86a3747319b8b03f763614
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	ast.sha256
+b9d7cf14d104cabb34da412623cd224ba82ab1c548f709df19f9497970e430a9
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes.v5/input.svelte	ast.sha256
+2d77c26c087b5e697598b05a3f8970a5836238e4604c8c8a84e87096f17d7d6e
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	ast.sha256
+0dd4acddcc2cf6361fbf3e601981429fd1292ab51bb61904088117dd2fe682e0
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	ast.sha256
+59d88910790520bde2f791d6c7f2eacfc27deff93ecd977b7d84910274e9480f
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	ast.sha256
+1976bd32fedbf329334ab084ad9bfb0fe6cb7282d205eaba410e958f76ef1e4e
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	ast.sha256
+9b9118b574942d8152e171e6abd44fa09af5e70f2c9a9bf6100ffedce09a03d4
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots/input.svelte	ast.sha256
+62d012ae681edee3635a8aacad6c0eb86dbc5168e2ec3a8a8ae0548869698733
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-$property/input.svelte	ast.sha256
+c731dbf4cfc809d308d21c5d72fca05ff055d1858afa6b9542829cd7b727254e
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-assignment-operators/input.svelte	ast.sha256
+5979a40df3218f4f42fc6e3c1f7abe9266687eac504fd0c9a31a5d2e8a750355
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-increments/input.svelte	ast.sha256
+a8f4315b1c9b694b22325556f77f313a59e73c99bd5cfc2bd2281f30d89d42c0
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-unary-operators/input.svelte	ast.sha256
+7b1f646c292800cdc97c6f7bc2a8df015e651f9fb8287732e3889e6752dd0897
+
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	ast.sha256
+87e546074916583cfabf10cc62619ee10adcce4110ec7e9049dd933b5f9ad4c4
+

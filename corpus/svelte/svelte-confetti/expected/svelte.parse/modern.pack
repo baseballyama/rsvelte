@@ -1,0 +1,13 @@
+# rsvelte pack 1
+=== 65 src/lib/Confetti.svelte	ast.sha256
+3a0804fb380d9d6cb5cdaf7f95a0920dd48b5e4cb6b518cc23c2e316f79bd6d3
+
+=== 65 src/routes/+page.svelte	ast.sha256
+c943a0d73936d07c5977754c131b9c558b600d3635299e27bd9acf833a5a957d
+
+=== 65 src/routes/CodeBlock.svelte	ast.sha256
+33339d8c0e1cb3971b0d1f3f3d32347971d95d642c94256dbee5384b44e96475
+
+=== 65 src/routes/ConfettiOnClick.svelte	ast.sha256
+93dec7a71dd45e2c83a989fcfe65d8ea03920396a88653fd71bdf33d39955976
+

@@ -67,3 +67,53 @@ TypeScript reads on past some syntax errors in a `.svelte.ts` module: a reserved
 - Test: `a_typescript_module_that_oxc_cannot_read_fails_where_typescript_reads_on` in
   `src/module/tests/erased_errors.rs`.
 - The report is [#5347](https://github.com/baseballyama/rsvelte/issues/5347).
+
+## TypeScript emit in a `.svelte.ts` module
+
+Svelte 5.59.1 compiles TypeScript 6.0.3's emit of a `.svelte.ts` module, and rsvelte compiles
+oxc's (`typescript_emit` in [`module.rs`](src/lower/module.rs)). The two write enums and
+namespaces in their own ways.
+
+- TypeScript writes an enum or a namespace as `var E;` and then
+  `(function (E) { … })(E || (E = {}));`.
+- oxc writes an enum as `var E = (function (E) { …; return E; })(E || {});`, and an exported one
+  as `export let E = (function (E) { … })({});`. It writes a namespace as `let N;` and then
+  `(function (_N) { … })(N || (N = {}));`, with the parameter renamed. An import alias in a
+  namespace stays a `var`.
+- TypeScript keeps a module's `export {};`, and rsvelte drops it. oxc also drops a const enum that
+  is the body of an `if` with no braces.
+- rsvelte keeps oxc's emit. Writing TypeScript's text would patch oxc's transform at each of these
+  places.
+
+## JavaScript layout
+
+Svelte prints its output with esrap, and rsvelte prints with `oxc_codegen`
+([`print.rs`](../../typescript/compile/src/print.rs)). Each lays out the same tree in its own way.
+The corpus compares JavaScript as a syntax tree
+([the verdicts](../../../language_independent/corpus/README.md#verdicts)), as the oracle asks with
+`compare: 'js-ast'` in `tools/oracle/tasks/compile-artifacts.ts`.
+
+- esrap 2.4.2 compares an operand's precedence with a member's. Below it, the object of a member,
+  the function a call reads and the tag of a template get parentheses. See
+  [its precedence table](https://github.com/sveltejs/esrap/blob/f968d9e35b5bf3d3b78c191064476fa69e87fa05/src/languages/ts/index.js#L23-L30)
+  and [its member](https://github.com/sveltejs/esrap/blob/f968d9e35b5bf3d3b78c191064476fa69e87fa05/src/languages/ts/index.js#L1616-L1620).
+- Svelte 5.59.1 wraps a literal there: `"a".length` prints as `("a").length`. It wraps a
+  number, a regular expression, `true` and `null` the same way. In a module it also wraps an
+  object, a function or a class there, as in `({}).x` and `(function () {})()`. A template
+  literal, an array, a name, a member and a call stay bare.
+- rsvelte prints a literal bare, as in `"a".length` and `1 .x`. Both write the parentheses
+  JavaScript needs, such as those around an arrow function or a sequence.
+- The report is [#5387](https://github.com/baseballyama/rsvelte/issues/5387).
+- A plain `.ts` file is not part of this entry. There, TypeScript 6.0.3's emit is the output, and
+  `ts.compile` prints it with the parentheses TypeScript keeps
+  ([`parentheses.rs`](../../typescript/compile/src/parentheses.rs)): those of the source, except
+  around a type assertion, plus those its factory adds at the start of a statement, an arrow's
+  body or a default export. The `ts.compile` corpus task compares that emit with parentheses kept
+  as nodes. Two shapes still differ, as [#5389](https://github.com/baseballyama/rsvelte/issues/5389)
+  tracks:
+  - The parser keeps no parentheses in an assignment target, so `(a) = 1` and `[(a)] = b` print
+    without the pair TypeScript keeps. The corpus reads both sides with that parser, so it cannot
+    see this one.
+  - The tree does not say whether `new A` had an argument list, so `(new A as any).b` prints as
+    `new A().b` where TypeScript writes `(new A).b`.
+  - Test: `tests/parentheses.rs` in `crates/languages/typescript/compile`.

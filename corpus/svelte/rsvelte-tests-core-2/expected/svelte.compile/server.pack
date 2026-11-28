@@ -32224,6 +32224,22 @@ export default function _98e06d67bcbd008($$renderer) {
 	}
 }
 
+=== 221 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/55233fd392c207df.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token -->\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
 === 263 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5fe5d773ee7f35e7.svelte	error.json
 {
 	"code": "expected_block_type",
@@ -44382,6 +44398,174 @@ export default function Fbd8eb4e632ed166($$renderer, $$props) {
 	}
 ]
 
+=== 223 props_bigint_key_3363/a_bigint_key_is_accepted/020b288a227d609f.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _20b288a227d609f($$renderer, $$props) {
+	let { 0o7n: a } = $$props;
+
+	function go() {
+		a = 1;
+	}
+
+	$$renderer.push(`<button>${$.escape(a)}</button>`);
+}
+=== 221 props_bigint_key_3363/a_bigint_key_is_accepted/3878e417553838ff.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _878e417553838ff($$renderer, $$props) {
+	let { 0n: a } = $$props;
+
+	function go() {
+		a = 1;
+	}
+
+	$$renderer.push(`<button>${$.escape(a)}</button>`);
+}
+=== 229 props_bigint_key_3363/a_bigint_key_is_accepted/40a18664f4a013d6.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _0a18664f4a013d6($$renderer, $$props) {
+	let { 0x10n: a, $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}${$.escape(rest)}`);
+}
+=== 225 props_bigint_key_3363/a_bigint_key_is_accepted/492c297b9dffb264.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _92c297b9dffb264($$renderer, $$props) {
+	let { 1_000n: a } = $$props;
+
+	function go() {
+		a = 1;
+	}
+
+	$$renderer.push(`<button>${$.escape(a)}</button>`);
+}
+=== 183 props_bigint_key_3363/a_bigint_key_is_accepted/5ac078c3889eb1e3.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _ac078c3889eb1e3($$renderer, $$props) {
+	let { 0o7n: a } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}`);
+}
+=== 226 props_bigint_key_3363/a_bigint_key_is_accepted/65f20bb0ed350420.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _5f20bb0ed350420($$renderer, $$props) {
+	let { 2n: a, $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}${$.escape(rest)}`);
+}
+=== 185 props_bigint_key_3363/a_bigint_key_is_accepted/75e852fd5e8e2eaa.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _5e852fd5e8e2eaa($$renderer, $$props) {
+	let { 1_000n: a } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}`);
+}
+=== 241 props_bigint_key_3363/a_bigint_key_is_accepted/774dd1f9051392b2.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _74dd1f9051392b2($$renderer, $$props) {
+	let { 9007199254740993n: a, $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}${$.escape(rest)}`);
+}
+=== 181 props_bigint_key_3363/a_bigint_key_is_accepted/8137b4bead4b8592.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _137b4bead4b8592($$renderer, $$props) {
+	let { 0n: a } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}`);
+}
+=== 221 props_bigint_key_3363/a_bigint_key_is_accepted/83a1774e58f11718.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _3a1774e58f11718($$renderer, $$props) {
+	let { 2n: a } = $$props;
+
+	function go() {
+		a = 1;
+	}
+
+	$$renderer.push(`<button>${$.escape(a)}</button>`);
+}
+=== 236 props_bigint_key_3363/a_bigint_key_is_accepted/867ab3bb973e3de9.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function _67ab3bb973e3de9($$renderer, $$props) {
+	let { 9007199254740993n: a } = $$props;
+
+	function go() {
+		a = 1;
+	}
+
+	$$renderer.push(`<button>${$.escape(a)}</button>`);
+}
+=== 196 props_bigint_key_3363/a_bigint_key_is_accepted/a0fc2e5a0877c646.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function A0fc2e5a0877c646($$renderer, $$props) {
+	let { 9007199254740993n: a } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}`);
+}
+=== 181 props_bigint_key_3363/a_bigint_key_is_accepted/a6095544abbbf447.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function A6095544abbbf447($$renderer, $$props) {
+	let { 2n: a } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}`);
+}
+=== 228 props_bigint_key_3363/a_bigint_key_is_accepted/bef4129c10420c3f.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Bef4129c10420c3f($$renderer, $$props) {
+	let { 0o7n: a, $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}${$.escape(rest)}`);
+}
+=== 224 props_bigint_key_3363/a_bigint_key_is_accepted/cbecb0fa72032a54.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Cbecb0fa72032a54($$renderer, $$props) {
+	let { 0x10n: a } = $$props;
+
+	function go() {
+		a = 1;
+	}
+
+	$$renderer.push(`<button>${$.escape(a)}</button>`);
+}
+=== 230 props_bigint_key_3363/a_bigint_key_is_accepted/e715c301f7c8ea7d.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function E715c301f7c8ea7d($$renderer, $$props) {
+	let { 1_000n: a, $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}${$.escape(rest)}`);
+}
+=== 226 props_bigint_key_3363/a_bigint_key_is_accepted/fa0cd1f02975e700.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Fa0cd1f02975e700($$renderer, $$props) {
+	let { 0n: a, $$slots, $$events, ...rest } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}${$.escape(rest)}`);
+}
+=== 184 props_bigint_key_3363/a_bigint_key_is_accepted/fafe8e26dd0c636b.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function Fafe8e26dd0c636b($$renderer, $$props) {
+	let { 0x10n: a } = $$props;
+
+	$$renderer.push(`<!---->${$.escape(a)}`);
+}
 === 180 props_bigint_key_3363/a_string_key_and_an_identifier_key_are_unaffected/174e1a0283f1b28b.svelte	js
 import * as $ from 'svelte/internal/server';
 

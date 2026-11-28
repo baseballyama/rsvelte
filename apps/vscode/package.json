@@ -14,10 +14,15 @@
 		"url": "https://github.com/baseballyama/rsvelte"
 	},
 	"publisher": "rsvelte",
+	"files": [
+		"LICENSE",
+		"dist/extension.cjs"
+	],
 	"type": "module",
 	"main": "./dist/extension.cjs",
 	"scripts": {
 		"build": "node build.ts",
+		"package": "node build.ts && vsce package --no-dependencies --out dist/rsvelte.vsix",
 		"test": "node --test 'src/*.test.ts'",
 		"test:editor": "node build.ts && node test/editor/run.ts",
 		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
@@ -25,6 +30,7 @@
 	"devDependencies": {
 		"@types/vscode": "1.91.0",
 		"@vscode/test-electron": "3.1.0",
+		"@vscode/vsce": "4.1.1",
 		"esbuild": "0.28.2",
 		"vscode-languageclient": "11.0.1"
 	},

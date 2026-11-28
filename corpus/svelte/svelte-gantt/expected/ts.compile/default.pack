@@ -1,0 +1,1965 @@
+# rsvelte pack 1
+=== 6260 packages/docs-mdsvex/vite-plugin-watch-workspace.ts	js
+import debug from 'debug';
+import fg from 'fast-glob';
+import fs from 'fs';
+import path from 'node:path';
+import ts from 'typescript';
+import YAML from 'yaml';
+const log = debug(`vite-plugin-watch-workspace`);
+const FILE_TYPES = ['ts', 'tsx'];
+const RELATIVE_PATH_REGEX = /(\.+\/)*/;
+const getTsConfigFollowExtends = (filename, rootDir) => {
+    let extendedConfig = {};
+    const config = ts.readConfigFile(filename, ts.sys.readFile).config;
+    if (config.extends) {
+        const importPath = path.resolve(rootDir || '', config.extends);
+        const newRootDir = path.dirname(importPath);
+        extendedConfig = getTsConfigFollowExtends(importPath, newRootDir);
+    }
+    return {
+        ...extendedConfig,
+        ...config,
+        compilerOptions: {
+            ...extendedConfig.compilerOptions,
+            ...config.compilerOptions
+        }
+    };
+};
+const getFilesAndTsConfigs = async (workspacePath, currentPackage, packageDir, fileTypes, ignorePaths) => {
+    const packagePath = path.resolve(workspacePath, packageDir);
+    const tsConfigPath = path.resolve(packagePath, 'tsconfig.json');
+    // check whether the user has passed a glob
+    const currentPackageGlob = currentPackage.includes('*')
+        ? currentPackage
+        : `${currentPackage}/**/*`;
+    const tsconfig = getTsConfigFollowExtends(tsConfigPath);
+    const rootDir = tsconfig.compilerOptions.rootDir;
+    const files = await fg(path.resolve(packagePath, `${rootDir}/**/*.(${fileTypes.join('|')})`), {
+        ignore: ['**/node_modules/**', currentPackageGlob, ...(ignorePaths || [])]
+    });
+    // keep the tsconfig path beside each file to avoid looking for file ids in arrays later
+    return files.map((file) => [file, tsConfigPath]);
+};
+const getExternalFileLists = async (workspaceRoot, currentPackage, fileTypes, ignorePaths) => {
+    // const workspacePackageJson = path.resolve(workspaceRoot, 'package.json')
+    const workspacePnpmYaml = path.resolve(workspaceRoot, 'pnpm-workspace.yaml');
+    // const workspaces = JSON.parse(fs.readFileSync(workspacePackageJson, 'utf8')).workspaces;
+    const workspaces = YAML.parse(fs.readFileSync(workspacePnpmYaml, 'utf8')).packages;
+    log(workspaces);
+    const externalFiles = {};
+    const filesConfigs = (await Promise.all(workspaces.map(async (workspace) => {
+        // get directories in each workspace
+        const workspacePath = path.resolve(workspaceRoot, workspace.replace('*', ''));
+        log(workspacePath);
+        // get directories in workSpacePath
+        const packages = fs
+            .readdirSync(workspacePath)
+            .filter((dir) => fs.lstatSync(path.join(workspacePath, dir)).isDirectory());
+        log(packages);
+        // get files and tsconfigs in each package
+        return await Promise.all(packages.map(async (packageDir) => await getFilesAndTsConfigs(workspacePath, currentPackage, packageDir, fileTypes, ignorePaths)));
+    }))).flatMap((filesConfigs) => filesConfigs.flat());
+    filesConfigs.map(([file, tsconfig]) => (externalFiles[file] = tsconfig));
+    return externalFiles;
+};
+const getLoader = (fileExtension) => {
+    switch (fileExtension) {
+        case '.ts':
+            return 'ts';
+        case '.tsx':
+            return 'tsx';
+        case '.js':
+            return 'js';
+        case '.jsx':
+            return 'jsx';
+        case '.css':
+            return 'css';
+        case '.json':
+            return 'json';
+        default:
+            return 'ts';
+    }
+};
+const getOutExtension = (fileExtension) => {
+    switch (fileExtension) {
+        case '.css':
+            return '.css';
+        case '.json':
+            return '.json';
+        case '.ts':
+        case '.tsx':
+        case '.js':
+        case '.jsx':
+        default:
+            return '.js';
+    }
+};
+const getOutDir = (file, tsconfig) => {
+    const rootFolder = tsconfig.compilerOptions.rootDir.replace(RELATIVE_PATH_REGEX, '');
+    const outFolder = tsconfig.compilerOptions.outDir
+        ? tsconfig.compilerOptions.outDir.replace(RELATIVE_PATH_REGEX, '')
+        : '';
+    return path.dirname(file).replace(rootFolder, outFolder);
+};
+const getOutFile = (outdir, file, fileExtension) => {
+    const outExtension = getOutExtension(fileExtension);
+    return path.resolve(outdir, path.basename(file).replace(fileExtension, outExtension));
+};
+/**
+ * Plugin to watch a workspace for changes and rebuild when detected using esbuild
+ * @param config
+ * The config contains the following parameters
+ *  - workspaceRoot: path to the root of the workspace
+ *  - currentPackage: path to the current package or glob. Will be transformed to a glob if a path is passed.
+ *  - format: esm | cjs
+ *  - fileTypes: ts | tsx | js | jsx | ... (optional)
+ *  - ignorePaths: paths or globs to ignore (optional)
+ * @constructor
+ */
+export async function VitePluginWatchWorkspace(config) {
+    const externalFiles = await getExternalFileLists(config.workspaceRoot, config.currentPackage, config.fileTypes || FILE_TYPES, config.ignorePaths);
+    return {
+        name: 'vite-plugin-watch-workspace',
+        async buildStart() {
+            Object.keys(externalFiles).map((file) => {
+                this.addWatchFile(file);
+            });
+        },
+        async handleHotUpdate({ file, server, modules, timestamp }) {
+            log(`File', ${file}`);
+            const tsconfigPath = externalFiles[file];
+            if (!tsconfigPath) {
+                log(`tsconfigPath not found for file ${file}`);
+                return;
+            }
+            const tsconfig = getTsConfigFollowExtends(tsconfigPath);
+            const fileExtension = path.extname(file);
+            const loader = getLoader(fileExtension);
+            const outdir = getOutDir(file, tsconfig);
+            const outfile = getOutFile(outdir, file, fileExtension);
+            log(`Outfile ${outfile}, loader ${loader}`);
+            server.hot.send({
+                type: 'update',
+                updates: modules.map((mod) => ({
+                    type: mod.url.includes('.css') ? 'css-update' : 'js-update',
+                    path: mod.url, // file==id, url (real)
+                    acceptedPath: mod.url,
+                    timestamp
+                }))
+            });
+            return [];
+        }
+    };
+}
+
+=== 1914 packages/svelte-gantt/src/column/canvas.ts	js
+import { Column } from '../core/column';
+export function createBackground(columns, opts) {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = (columns.length - 1) * columns[0].width;
+        canvas.height = 20;
+        const ctx = canvas.getContext('2d');
+        ctx.shadowColor = 'rgba(128,128,128,0.5)';
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        ctx.shadowBlur = 0.5;
+        ctx.lineWidth = opts.columnStrokeWidth;
+        ctx.lineCap = 'square';
+        ctx.strokeStyle = opts.columnStrokeColor;
+        ctx.translate(0.5, 0.5);
+        columns.forEach(column => {
+            lineAt(ctx, column.left);
+        });
+        const dataURL = canvas.toDataURL();
+        return `url("${dataURL}")`;
+    }
+    catch (e) {
+        console.error('[canvas] Render error', e);
+    }
+}
+function lineAt(ctx, x) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 20);
+    ctx.stroke();
+}
+export function createWeekEndsHighlight(columns, opts) {
+    const start_gantt = new Date(opts.from);
+    const dayStart = start_gantt.getDay();
+    const startIndex = dayStart == 0 ? 7 : 7 - dayStart;
+    const canvas = document.createElement('canvas');
+    canvas.width = columns.length * columns[0].width;
+    canvas.height = 20;
+    const ctx = canvas.getContext('2d');
+    ctx.shadowColor = 'rgba(128,128,128,0.5)';
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.shadowBlur = 0.5;
+    ctx.lineWidth = columns[0].width;
+    ctx.lineCap = 'square';
+    ctx.strokeStyle = opts.highlightColor;
+    ctx.translate(0.5, 0.5);
+    columns.forEach((column, index) => {
+        if (index == startIndex)
+            lineAt(ctx, column.left - columns[0].width / 2);
+        if (index == startIndex + 1)
+            lineAt(ctx, column.left - columns[0].width / 2);
+    });
+    const dataURL = canvas.toDataURL();
+    return `url("${dataURL}")`;
+}
+
+=== 243 packages/svelte-gantt/src/column/index.ts	js
+import Column from './Column.svelte';
+import ColumnHeaderRow from './ColumnHeaderRow.svelte';
+import ColumnHeader from './ColumnHeader.svelte';
+import Columns from './Columns.svelte';
+export { Column, ColumnHeaderRow, ColumnHeader, Columns };
+
+=== 1553 packages/svelte-gantt/src/core/api.ts	js
+import { setContext, getContext } from "svelte";
+function controller() {
+    const listeners = [];
+    function raise(...params) {
+        for (const listener of listeners) {
+            listener(params);
+        }
+    }
+    ;
+    function on(handler) {
+        listeners.push(handler);
+        const removeListener = () => {
+            const index = listeners.indexOf(handler);
+            listeners.splice(index, 1);
+        };
+        return removeListener;
+    }
+    ;
+    return [on, raise];
+}
+function feature(events) {
+    const result = { on: {}, raise: {} };
+    for (const event in events) {
+        const [on, raise] = events[event];
+        result.on[event] = on;
+        result.raise[event] = raise;
+    }
+    return result;
+}
+const contextKey = {};
+export function provideGanttApi() {
+    return setContext(contextKey, createGanttApi());
+}
+function createGanttApi() {
+    return {
+        tasks: feature({
+            move: controller(),
+            resize: controller(),
+            select: controller(),
+            switchRow: controller(),
+            moveEnd: controller(),
+            change: controller(),
+            changed: controller(),
+            dblclicked: controller(),
+        }),
+        gantt: feature({
+            viewChanged: controller(),
+            dateSelected: controller(),
+        }),
+        timeranges: feature({
+            clicked: controller(),
+            resized: controller(),
+            changed: controller(),
+        }),
+    };
+}
+export function useGanttApi() {
+    return getContext(contextKey);
+}
+
+=== 1652 packages/svelte-gantt/src/core/column.ts	js
+import { get } from '../utils/utils';
+export function createColumnService(params) {
+    function getColumnByDate(date) {
+        const pair = findByDate(params.columns, date);
+        return !pair[0] ? pair[1] : pair[0];
+    }
+    function getColumnByPosition(x) {
+        const pair = findByPosition(params.columns, x);
+        return !pair[0] ? pair[1] : pair[0];
+    }
+    return {
+        getColumnByDate,
+        getColumnByPosition,
+        getPositionByDate(date) {
+            if (!date)
+                return null;
+            const column = getColumnByDate(date);
+            let durationTo = date - column.from;
+            const position = (durationTo / column.duration) * column.width;
+            //multiples - skip every nth col, use other duration
+            return column.left + position;
+        },
+        getDateByPosition(x) {
+            const column = getColumnByPosition(x);
+            x = x - column.left;
+            let positionDuration = (column.duration / column.width) * x;
+            const date = column.from + positionDuration;
+            return date;
+        },
+        /**
+         * TODO: remove, currently unused
+         * @param {number} date - Date
+         * @returns {number} rounded date passed as parameter
+         */
+        roundTo(date) {
+            let value = Math.round(date / params.magnetDuration) * params.magnetDuration;
+            return value;
+        }
+    };
+}
+export function findByPosition(columns, x) {
+    const result = get(columns, x, c => c.left);
+    return result;
+}
+export function findByDate(columns, x) {
+    const result = get(columns, x, c => c.from);
+    return result;
+}
+
+=== 58 packages/svelte-gantt/src/core/constants.ts	js
+export const MIN_DRAG_X = 2;
+export const MIN_DRAG_Y = 2;
+
+=== 11 packages/svelte-gantt/src/core/drag/DragContext.ts	js
+export {};
+
+=== 5784 packages/svelte-gantt/src/core/drag/draggable.ts	js
+import { isLeftClick, addEventListenerOnce, getRelativePos } from '../../utils/dom';
+import { MIN_DRAG_Y, MIN_DRAG_X } from '../constants';
+function getAccessor(accessor) {
+    if (accessor instanceof Function) {
+        return () => accessor();
+    }
+    else {
+        return () => accessor;
+    }
+}
+/**
+ * Applies dragging interaction to gantt elements
+ */
+export function useDraggable(node, options) {
+    const onMousedown = createDraggable(options);
+    node.addEventListener('pointerdown', onMousedown);
+    return {
+        destroy() {
+            node.removeEventListener('pointerdown', onMousedown, false);
+        }
+    };
+}
+/**
+ * Applies dragging interaction to gantt elements
+ */
+export function createDraggable(options) {
+    let mouseStartPosX;
+    let mouseStartPosY;
+    let mouseStartRight;
+    let direction;
+    let dragging = false;
+    let resizing = false;
+    let initialX;
+    let initialY;
+    let triggered = false;
+    const dragAllowed = getAccessor(options.dragAllowed);
+    const resizeAllowed = getAccessor(options.resizeAllowed);
+    function onMousedown(event) {
+        if (!isLeftClick(event)) {
+            return;
+        }
+        event.stopPropagation();
+        event.preventDefault();
+        const canDrag = dragAllowed();
+        const canResize = resizeAllowed();
+        if (!canDrag && !canResize) {
+            return;
+        }
+        const x = options.getX(event);
+        const y = options.getY(event);
+        const width = options.getWidth();
+        initialX = event.clientX;
+        initialY = event.clientY;
+        mouseStartRight = x + width;
+        mouseStartPosX = getRelativePos(options.container, event).x - x;
+        mouseStartPosY = getRelativePos(options.container, event).y - y;
+        if (canResize && mouseStartPosX <= options.resizeHandleWidth) {
+            direction = 'left';
+            resizing = true;
+        }
+        if (canResize && mouseStartPosX >= width - options.resizeHandleWidth) {
+            direction = 'right';
+            resizing = true;
+        }
+        if (canDrag && !resizing) {
+            dragging = true;
+        }
+        if ((dragging || resizing) && options.onDown) {
+            options.onDown({
+                mouseEvent: event,
+                x,
+                width,
+                y,
+                resizing: resizing,
+                dragging: dragging
+            });
+        }
+        window.addEventListener('pointermove', onMousemove, false);
+        addEventListenerOnce(window, 'pointerup', onMouseup);
+    }
+    ;
+    function onMousemove(event) {
+        if (!triggered) {
+            if (Math.abs(event.clientX - initialX) > MIN_DRAG_X ||
+                Math.abs(event.clientY - initialY) > MIN_DRAG_Y) {
+                triggered = true;
+            }
+            else {
+                return;
+            }
+        }
+        event.preventDefault();
+        if (resizing) {
+            const mousePos = getRelativePos(options.container, event);
+            const x = options.getX(event);
+            const width = options.getWidth();
+            let resultX;
+            let resultWidth;
+            if (direction === 'left') {
+                if (mouseStartRight - mousePos.x <= 0) {
+                    direction = 'right';
+                    resultX = mouseStartRight;
+                    resultWidth = mouseStartRight - mousePos.x;
+                    mouseStartRight = mouseStartRight + width;
+                }
+                else {
+                    resultX = mousePos.x;
+                    resultWidth = mouseStartRight - mousePos.x;
+                }
+            }
+            else if (direction === 'right') {
+                //resize right
+                if (mousePos.x - x <= 0) {
+                    direction = 'left';
+                    resultX = mousePos.x;
+                    resultWidth = mousePos.x - x;
+                    mouseStartRight = x;
+                }
+                else {
+                    resultX = x;
+                    resultWidth = mousePos.x - x;
+                }
+            }
+            if (options.onResize) {
+                options.onResize({
+                    x: resultX,
+                    width: resultWidth,
+                    event
+                });
+            }
+        }
+        // mouseup
+        if (dragging && options.onDrag) {
+            const mousePos = getRelativePos(options.container, event);
+            options.onDrag({
+                x: mousePos.x - mouseStartPosX, // maybe this is the rounding error
+                y: mousePos.y - mouseStartPosY,
+                event
+            });
+        }
+    }
+    ;
+    function onMouseup(event) {
+        const x = options.getX(event);
+        const y = options.getY(event);
+        const width = options.getWidth();
+        options.onMouseUp && options.onMouseUp();
+        // there is an issue here maybe, we update task according to the mousemove event, but we ignore the mouseup event and use the previously commited x, y and width
+        // you know those issues when task gets rounded incorrectly on resize? could be the cause
+        // ....or not really, this issue results in task resizing when task is merely dragged
+        if (triggered && options.onDrop) {
+            options.onDrop({
+                mouseEvent: event,
+                x,
+                y,
+                width,
+                dragging: dragging,
+                resizing: resizing
+            });
+        }
+        mouseStartPosX = null;
+        mouseStartPosY = null;
+        mouseStartRight = null;
+        dragging = false;
+        resizing = false;
+        initialX = null;
+        initialY = null;
+        triggered = false;
+        window.removeEventListener('pointermove', onMousemove, false);
+    }
+    ;
+    return onMousedown;
+}
+
+=== 157 packages/svelte-gantt/src/core/drag/index.ts	js
+export * from './draggable';
+export { default as DraggableGroup } from './DraggableGroup.svelte';
+export { default as Draggable } from './Draggable.svelte';
+
+=== 1203 packages/svelte-gantt/src/core/events.ts	js
+export function createDelegatedEventDispatcher() {
+    const callbacks = {};
+    return {
+        onDelegatedEvent(type, attr, callback) {
+            if (!callbacks[type])
+                callbacks[type] = {};
+            callbacks[type][attr] = callback;
+        },
+        offDelegatedEvent(type, attr) {
+            delete callbacks[type][attr];
+        },
+        onEvent(e) {
+            const { type, target } = e;
+            const cbs = callbacks[type];
+            if (!cbs)
+                return;
+            let match;
+            let element = target;
+            while (element && element != e.currentTarget) {
+                if ((match = matches(cbs, element))) {
+                    break;
+                }
+                element = element.parentElement;
+            }
+            if (match && cbs[match.attr]) {
+                cbs[match.attr](e, match.data, element);
+            }
+            else if (cbs['empty']) {
+                cbs['empty'](e, null, element);
+            }
+        }
+    };
+}
+function matches(cbs, element) {
+    let data;
+    for (const attr in cbs) {
+        if ((data = element.getAttribute(attr))) {
+            return { attr, data };
+        }
+    }
+}
+
+=== 4809 packages/svelte-gantt/src/core/layouts.ts	js
+/**
+ * Layouts tasks - overlapping tasks display one over another
+ * @param params
+ */
+export function overlap(params) {
+    const { taskStore, rowStore, rowHeight, rowPadding, rowReflectedTasks } = params;
+    let top = 0;
+    const result = { changed: false };
+    if (!params.invalidateFull) {
+        for (const taskId in params.invalidatedTasks) {
+            positionTask(taskStore.entities[taskId]);
+        }
+        return result;
+    }
+    for (const rowId of rowStore.ids) {
+        const row = rowStore.entities[rowId];
+        row.y = top;
+        const prevHeight = row.height;
+        row.height = row.model.height || rowHeight;
+        if (!row.hidden) {
+            top += row.height;
+        }
+        if (prevHeight !== row.height) {
+            result.changed = true;
+        }
+        const reflectedTasks = rowReflectedTasks[rowId];
+        if (reflectedTasks) {
+            for (const task of reflectedTasks) {
+                positionTask(task);
+            }
+        }
+    }
+    function positionTask(task) {
+        const row = rowStore.entities[task.model.resourceId];
+        if (!row)
+            return;
+        task.height = (row ? row.height : undefined) - 2 * rowPadding;
+        task.top = row.y + rowPadding;
+    }
+    for (const taskId of taskStore.ids) {
+        positionTask(taskStore.entities[taskId]);
+    }
+    return result;
+}
+/**
+ * Layouts tasks - overlapping tasks display in the same row, but shrink to not overlap with eachother
+ * @param params
+ */
+export function pack(params) {
+    // TODO:: partial invalidation
+    return _layoutRows(params, false);
+}
+/**
+ * Layouts tasks - overlapping tasks display in the same row, but row is expanded to fit them
+ * @param params
+ * @returns
+ */
+export function expand(params) {
+    // TODO:: partial invalidation
+    return _layoutRows(params, true);
+}
+function _layoutRows(params, expandRow) {
+    const { taskStore, rowStore, rowTasks, rowHeight, rowPadding } = params;
+    let top = 0;
+    const result = { changed: false };
+    for (const rowId of rowStore.ids) {
+        const row = rowStore.entities[rowId];
+        const taskIds = rowTasks[rowId];
+        row.y = top;
+        const prevHeight = row.height;
+        if (taskIds) {
+            const tasks = taskIds.map(taskId => taskStore.entities[taskId]);
+            _layoutRow(tasks, row, {
+                rowHeight: rowHeight,
+                rowPadding,
+                expandRow,
+            });
+        }
+        if (!row.hidden) {
+            top += row.height;
+        }
+        if (prevHeight !== row.height) {
+            result.changed = true;
+        }
+    }
+}
+function _layoutRow(tasks, row, params) {
+    if (!tasks.length) {
+        return;
+    }
+    tasks.sort(_byStartThenByLongestSortFn);
+    const others = {};
+    const context = {};
+    const ctx = (task) => context[task.model.id] ?? (context[task.model.id] = {});
+    let maxYPos = 0;
+    for (const task of tasks) {
+        const c = ctx(task);
+        c.yPos = 0;
+        let fits = false;
+        while (!fits) {
+            const othersAtYPos = others[c.yPos] || [];
+            fits = true;
+            for (const other of othersAtYPos) { // can use binary search to find this iterator
+                if (_intersects(task, other)) {
+                    ctx(task).intersects = ctx(other).intersects = true;
+                    c.yPos++;
+                    if (c.yPos > maxYPos) {
+                        maxYPos = c.yPos;
+                    }
+                    fits = false;
+                    break;
+                }
+                else {
+                    continue;
+                }
+            }
+        }
+        if (!others[c.yPos]) {
+            others[c.yPos] = [];
+        }
+        others[c.yPos].push(task);
+    }
+    if (params.expandRow) {
+        const contentHeight = (row.model.height || params.rowHeight) - 2 * params.rowPadding;
+        row.height = contentHeight * (maxYPos + 1) + 2 * params.rowPadding;
+        for (const task of tasks) {
+            const c = ctx(task);
+            task.height = contentHeight;
+            task.top = row.y + params.rowPadding + (task.height * c.yPos);
+        }
+    }
+    else {
+        row.height = row.model.height || params.rowHeight;
+        const contentHeight = row.height - 2 * params.rowPadding;
+        for (const task of tasks) {
+            const c = ctx(task);
+            task.height = contentHeight / (maxYPos + 1);
+            task.top = row.y + params.rowPadding + (task.height * c.yPos);
+        }
+    }
+}
+/** string intersection between tasks */
+function _intersects(left, right) {
+    return (left.left + left.width) > right.left && left.left < (right.left + right.width);
+}
+function _byStartThenByLongestSortFn(a, b) {
+    return (a.left - b.left) || ((b.left + b.width) - (a.left + a.width));
+}
+
+=== 2092 packages/svelte-gantt/src/core/row.ts	js
+export function createRows(rows, params) {
+    const context = { y: 0, result: [] };
+    createChildRows(rows, context, params);
+    return context.result;
+}
+function createChildRows(rowModels, context, params, parent = null, level = 0, parents = []) {
+    const rowsAtLevel = [];
+    const allRows = [];
+    if (parent) {
+        parents = [...parents, parent];
+    }
+    for (const model of rowModels) {
+        const row = createRow(model, context.y, params);
+        context.result.push(row);
+        rowsAtLevel.push(row);
+        allRows.push(row);
+        row.childLevel = level;
+        row.parent = parent;
+        row.allParents = parents;
+        if (parent) {
+            // when row is hidden, other rows (y-pos) move upward
+            row.hidden = !(parent.model.expanded || parent.model.expanded == null) || parent.hidden != null && parent.hidden;
+        }
+        if (!row.hidden) {
+            context.y += row.height;
+        }
+        if (model.children) {
+            const nextLevel = createChildRows(model.children, context, params, row, level + 1, parents);
+            row.children = nextLevel.rows;
+            row.allChildren = nextLevel.allRows;
+            allRows.push(...nextLevel.allRows);
+        }
+    }
+    return {
+        rows: rowsAtLevel,
+        allRows
+    };
+}
+function createRow(model, y, params) {
+    // defaults
+    // height of row element
+    const height = model.height ?? params.rowHeight;
+    return {
+        model: model,
+        y,
+        height,
+    };
+}
+export function expandRow(row) {
+    row.model.expanded = true;
+    if (row.children)
+        show(row.children);
+}
+export function collapseRow(row) {
+    row.model.expanded = false;
+    if (row.children)
+        hide(row.children);
+}
+function hide(children) {
+    for (const row of children) {
+        if (row.children)
+            hide(row.children);
+        row.hidden = true;
+    }
+}
+function show(children, hidden = false) {
+    for (const row of children) {
+        if (row.children)
+            show(row.children, !row.model.expanded);
+        row.hidden = hidden;
+    }
+}
+
+=== 547 packages/svelte-gantt/src/core/selectionManager.ts	js
+import { writable } from 'svelte/store';
+export class SelectionManager {
+    taskStore;
+    _selectedTasks = writable({});
+    constructor(taskStore) {
+        this.taskStore = taskStore;
+    }
+    selectSingle(taskId) {
+        this.unSelectTasks();
+        this._selectedTasks.set({ [taskId]: true });
+    }
+    toggleSelection(taskId) {
+        this._selectedTasks.update(selections => ({
+            ...selections,
+            [taskId]: !selections[taskId]
+        }));
+    }
+    unSelectTasks() {
+        this._selectedTasks.set({});
+    }
+}
+
+=== 3936 packages/svelte-gantt/src/core/store.ts	js
+import { writable, derived } from 'svelte/store';
+function createEntityStore() {
+    const { subscribe, set, update } = writable({ ids: [], entities: {} });
+    return {
+        set,
+        _update: update,
+        subscribe,
+        add: (item) => update(({ ids, entities }) => ({
+            ids: [...ids, item.model.id],
+            entities: {
+                ...entities,
+                [item.model.id]: item
+            }
+        })),
+        delete: (id) => update(state => {
+            const { [id]: _, ...entities } = state.entities;
+            return {
+                ids: state.ids.filter(i => i !== id),
+                entities
+            };
+        }),
+        deleteAll: (ids) => update(state => {
+            const entities = { ...state.entities };
+            const idSet = new Set(ids);
+            for (let i = 0; i < state.ids.length; i++) {
+                if (idSet.has(state.ids[i])) {
+                    delete entities[state.ids[i]];
+                }
+            }
+            return {
+                ids: state.ids.filter(i => !idSet.has(i)),
+                entities
+            };
+        }),
+        update: (item) => update(({ ids, entities }) => ({
+            ids,
+            entities: {
+                ...entities,
+                [item.model.id]: item
+            }
+        })),
+        upsert: (item) => update(({ ids, entities }) => {
+            const hasIndex = ids.indexOf(item.model.id) !== -1;
+            return {
+                ids: hasIndex ? ids : [...ids, item.model.id],
+                entities: {
+                    ...entities,
+                    [item.model.id]: item
+                }
+            };
+        }),
+        upsertAll: (items) => update(state => {
+            const entities = { ...state.entities };
+            const ids = [...state.ids];
+            for (let i = 0; i < items.length; i++) {
+                if (ids.indexOf(items[i].model.id) === -1) {
+                    ids.push(items[i].model.id);
+                }
+                entities[items[i].model.id] = items[i];
+            }
+            return {
+                ids,
+                entities
+            };
+        }),
+        addAll: (items) => {
+            const ids = [];
+            const entities = {};
+            for (let i = 0; i < items.length; i++) {
+                ids.push(items[i].model.id);
+                entities[items[i].model.id] = items[i];
+            }
+            set({ ids, entities });
+        },
+        refresh: () => update(store => ({ ...store }))
+    };
+}
+export function all(store) {
+    return derived(store, ({ ids, entities }) => {
+        const results = [];
+        for (let i = 0; i < ids.length; i++) {
+            results.push(entities[ids[i]]);
+        }
+        return results;
+    });
+}
+export function where(store, filterFn) {
+    return derived(store, ({ ids, entities }) => {
+        const results = [];
+        for (let i = 0; i < ids.length; i++) {
+            if (filterFn(entities[ids[i]])) {
+                results.push(entities[ids[i]]);
+            }
+        }
+        return results;
+    });
+}
+export function createDataStore() {
+    const taskStore = createEntityStore();
+    const rowStore = createEntityStore();
+    const timeRangeStore = createEntityStore();
+    const allTasks = all(taskStore);
+    const allRows = all(rowStore);
+    const allTimeRanges = all(timeRangeStore);
+    const rowTaskCache = derived(allTasks, $allTasks => {
+        const cache = {};
+        for (let i = 0; i < $allTasks.length; i++) {
+            const task = $allTasks[i];
+            if (!cache[task.model.resourceId]) {
+                cache[task.model.resourceId] = [];
+            }
+            cache[task.model.resourceId].push(task.model.id);
+        }
+        return cache;
+    });
+    return {
+        taskStore,
+        rowStore,
+        timeRangeStore,
+        allTasks,
+        allRows,
+        allTimeRanges,
+        rowTaskCache
+    };
+}
+
+=== 1520 packages/svelte-gantt/src/core/task.ts	js
+export function createTaskFactory(params) {
+    return {
+        createTask: (model) => createTask(model, params),
+        reflectTask: (task, targetRow) => reflectTask(task, targetRow, params),
+    };
+}
+export function createTask(model, params) {
+    model.amountDone = model.amountDone ?? 0;
+    model.showButton = model.showButton ?? false;
+    model.buttonClasses = model.buttonClasses ?? '';
+    model.buttonHtml = model.buttonHtml ?? '';
+    const left = params.getPositionByDate(model.from) | 0;
+    const right = params.getPositionByDate(model.to) | 0;
+    const row = params.rowEntities[model.resourceId];
+    const height = (row ? row.height : undefined) - 2 * params.rowPadding;
+    const top = (row ? row.y : -1000) + params.rowPadding;
+    return {
+        model,
+        left: left,
+        width: right - left,
+        height,
+        top,
+    };
+}
+export function overlap(left, right) {
+    return !(left.left + left.width <= right.left || left.left >= right.left + right.width);
+}
+export function reflectTask(task, targetRow, params) {
+    const reflectedId = `reflected-task-${String(task.model.id)}-${String(targetRow.model.id)}`;
+    const model = {
+        ...task.model,
+        resourceId: targetRow.model.id,
+        id: reflectedId,
+        enableDragging: false
+    };
+    return {
+        ...task,
+        model,
+        top: targetRow.y + params.rowPadding,
+        reflected: true,
+        reflectedOnParent: false,
+        reflectedOnChild: true,
+        originalId: task.model.id
+    };
+}
+
+=== 544 packages/svelte-gantt/src/core/timeRange.ts	js
+export class TimeRangeFactory {
+    columnService;
+    constructor(columnService) {
+        this.columnService = columnService;
+    }
+    create(model) {
+        // enable dragging
+        model.resizable = model.resizable === undefined ? true : model.resizable;
+        const left = this.columnService.getPositionByDate(model.from);
+        const right = this.columnService.getPositionByDate(model.to);
+        return {
+            model,
+            left: left,
+            width: right - left,
+            resizing: false
+        };
+    }
+}
+
+=== 216 packages/svelte-gantt/src/entities/index.ts	js
+import Task from './Task.svelte';
+import Row from './Row.svelte';
+import TimeRange from './TimeRange.svelte';
+import TimeRangeHeader from './TimeRangeHeader.svelte';
+export { Task, Row, TimeRange, TimeRangeHeader };
+
+=== 60 packages/svelte-gantt/src/gantt.ts	js
+import { SelectionManager } from './core/selectionManager';
+
+=== 419 packages/svelte-gantt/src/index.ts	js
+import SvelteGantt from './Gantt.svelte';
+import { SvelteGanttTable } from './modules/table';
+import { SvelteGanttDependencies } from './modules/dependencies';
+import { SvelteGanttExternal } from './modules/external/external';
+import { MomentSvelteGanttDateAdapter } from './utils/momentDateAdapter';
+export { SvelteGantt, SvelteGanttTable, SvelteGanttDependencies, SvelteGanttExternal, MomentSvelteGanttDateAdapter };
+
+=== 4846 packages/svelte-gantt/src/modules/create-tasks.ts	js
+import { ColumnService } from '../core/column';
+import { getRelativePos, getRelativePosition } from '../utils/dom';
+import { GanttUtils } from '../utils/utils';
+import { getContext } from 'svelte';
+export function useCreateTask() {
+    const { columnService, utils } = getContext('services');
+    return function createTaskActionBound(node, options) {
+        return createTaskAction(node, {
+            columnService,
+            utils,
+            ...options,
+        });
+    };
+}
+const MIN_DRAG_X = 2;
+const MIN_DRAG_Y = 2;
+function createTaskAction(node, options) {
+    let startX;
+    let startFrom;
+    let mouseStartRight;
+    let direction;
+    let initialX;
+    let initialY;
+    let triggered = false;
+    /** dragging will not activate around the edges */
+    let deadZone = 10;
+    const container = () => options.container;
+    function isNearEdge(x, y) {
+        const rect = options.boundsContainer.getBoundingClientRect();
+        const nearBottomEdge = y - rect.top >= rect.height - deadZone;
+        const nearRightEdge = x - rect.left >= rect.width - deadZone;
+        return nearBottomEdge || nearRightEdge;
+    }
+    function onMousedown(event) {
+        if (!options.enabled) {
+            return;
+        }
+        event.stopPropagation();
+        event.preventDefault();
+        if (isNearEdge(event.clientX, event.clientY)) {
+            return;
+        }
+        const [mousePosX, _] = getRelativePosition(container(), event);
+        const from = startFrom = options.utils.roundTo(options.columnService.getDateByPosition(mousePosX));
+        const x = startX = options.columnService.getPositionByDate(from) | 0;
+        const width = 0;
+        initialX = event.clientX;
+        initialY = event.clientY;
+        mouseStartRight = x + width;
+        window.addEventListener('pointermove', onMousemove, false);
+        window.addEventListener('pointerup', onMouseup);
+    }
+    ;
+    function onMousemove(event) {
+        if (!triggered) {
+            if (Math.abs(event.clientX - initialX) > MIN_DRAG_X || Math.abs(event.clientY - initialY) > MIN_DRAG_Y) {
+                triggered = true;
+            }
+            else {
+                return;
+            }
+        }
+        event.preventDefault();
+        const { x, width, y } = getValues(event);
+        options.onMove({
+            from: startFrom,
+            to: startFrom,
+            x,
+            width,
+            y,
+        });
+    }
+    ;
+    function getValues(event) {
+        const mousePos = getRelativePos(container(), event);
+        const x = startX;
+        const width = 0;
+        let resultX;
+        let resultWidth;
+        if (direction === 'left') {
+            if (mouseStartRight - mousePos.x <= 0) {
+                direction = 'right';
+                resultX = mouseStartRight;
+                resultWidth = mouseStartRight - mousePos.x;
+                mouseStartRight = mouseStartRight + width;
+            }
+            else {
+                resultX = mousePos.x;
+                resultWidth = mouseStartRight - mousePos.x;
+            }
+        }
+        else { // if (direction === 'right')
+            //resize right
+            if (mousePos.x - x <= 0) {
+                direction = 'left';
+                resultX = mousePos.x;
+                resultWidth = mousePos.x - x;
+                mouseStartRight = x;
+            }
+            else {
+                resultX = x;
+                resultWidth = mousePos.x - x;
+            }
+        }
+        return { x: resultX, width: resultWidth, y: mousePos.y };
+    }
+    function onMouseup(event) {
+        window.removeEventListener('pointerup', onMouseup);
+        window.removeEventListener('pointermove', onMousemove, false);
+        if (triggered) {
+            const { x, width, y } = getValues(event);
+            const newFrom = options.utils.roundTo(options.columnService.getDateByPosition(x));
+            const newTo = options.utils.roundTo(options.columnService.getDateByPosition(x + width));
+            const newLeft = options.columnService.getPositionByDate(newFrom) | 0;
+            const newRight = options.columnService.getPositionByDate(newTo) | 0;
+            options.onEnd({
+                from: newFrom,
+                to: newTo,
+                x: newLeft,
+                width: newRight - newLeft,
+                y,
+            });
+        }
+        mouseStartRight = null;
+        initialX = null;
+        initialY = null;
+        triggered = false;
+    }
+    ;
+    node.addEventListener('pointerdown', onMousedown);
+    return {
+        destroy() {
+            node.removeEventListener('pointerdown', onMousedown);
+            window.removeEventListener('pointermove', onMousemove);
+            window.removeEventListener('pointerup', onMouseup);
+        },
+        update(opts) {
+            Object.assign(options, opts);
+        },
+    };
+}
+
+=== 11 packages/svelte-gantt/src/modules/dependencies/dependency.ts	js
+export {};
+
+=== 102 packages/svelte-gantt/src/modules/dependencies/index.ts	js
+import SvelteGanttDependencies from './GanttDependencies.svelte';
+export { SvelteGanttDependencies };
+
+=== 2076 packages/svelte-gantt/src/modules/external/external.ts	js
+import { isDraggable } from '../../utils/utils';
+import { useDraggable } from '../../core/drag';
+import { getRelativePos, getRowAtPoint } from '../../utils/dom';
+const defaults = {
+    enabled: true,
+    elementContent: () => {
+        const element = document.createElement('div');
+        element.innerHTML = 'New Task';
+        Object.assign(element.style, {
+            position: 'absolute',
+            background: '#eee',
+            padding: '0.5em 1em',
+            fontSize: '12px',
+            pointerEvents: 'none'
+        });
+        return element;
+    }
+};
+export class SvelteGanttExternal {
+    draggable;
+    element;
+    options;
+    constructor(node, options) {
+        this.options = Object.assign({}, defaults, options);
+        this.draggable = useDraggable(node, {
+            onDrag: this.onDrag.bind(this),
+            dragAllowed: () => this.options.enabled,
+            resizeAllowed: false,
+            onDrop: this.onDrop.bind(this),
+            container: document.body,
+            getX: (event) => event.pageX,
+            getY: (event) => event.pageY,
+            getWidth: () => 0
+        });
+    }
+    onDrag({ x, y }) {
+        if (!this.element) {
+            this.element = this.options.elementContent();
+            document.body.appendChild(this.element);
+            this.options.dragging = true;
+        }
+        this.element.style.top = y + 'px';
+        this.element.style.left = x + 'px';
+    }
+    onDrop(event) {
+        const gantt = this.options.gantt;
+        const rowId = getRowAtPoint(event.mouseEvent);
+        const targetRow = gantt.getRow(rowId);
+        if (targetRow && isDraggable(targetRow.model)) {
+            const mousePos = getRelativePos(gantt.getRowContainer(), event.mouseEvent);
+            const date = gantt.utils.getDateByPosition(mousePos.x);
+            this.options.onsuccess?.(targetRow, date, gantt);
+        }
+        else {
+            this.options.onfail?.();
+        }
+        document.body.removeChild(this.element);
+        this.options.dragging = false;
+        this.element = null;
+    }
+}
+
+=== 76 packages/svelte-gantt/src/modules/table/index.ts	js
+import SvelteGanttTable from './Table.svelte';
+export { SvelteGanttTable };
+
+=== 11 packages/svelte-gantt/src/modules/table/tableHeader.ts	js
+export {};
+
+=== 219 packages/svelte-gantt/src/ui/index.ts	js
+// this file is not typescript because of typescript not recognizing svelte components as modules
+import ContextMenu from './ContextMenu.svelte';
+import Resizer from './Resizer.svelte';
+export { ContextMenu, Resizer };
+
+=== 723 packages/svelte-gantt/src/utils/contextMenuManager.ts	js
+import { ContextMenu } from '../ui';
+export class ContextMenuManager {
+    current;
+    constructor() {
+        this.current = null;
+    }
+    open(actions, position) {
+        if (this.current) {
+            this.current.$destroy();
+        }
+        const contextMenu = new ContextMenu({
+            target: document.body,
+            props: {
+                actions,
+                left: position.x,
+                top: position.y,
+                onactionend: () => contextMenu.$destroy()
+            }
+        });
+        this.current = contextMenu;
+        return this.current;
+    }
+    close() {
+        if (this.current) {
+            this.current.$destroy();
+            this.current = null;
+        }
+    }
+}
+
+=== 9331 packages/svelte-gantt/src/utils/date.ts	js
+export function startOf(date, unit) {
+    const d = new Date(date);
+    const y = d.getFullYear();
+    const m = d.getMonth();
+    const dt = d.getDate();
+    switch (unit) {
+        case 'y':
+        case 'year':
+            return startOfDate(y, 0, 1);
+        case 'month':
+            return startOfDate(y, m, 1);
+        case 'week':
+            return startOfDate(y, m, dt, true);
+        case 'd':
+        case 'day':
+            return startOfDate(y, m, dt);
+        case 'h':
+        case 'hour':
+            d.setMinutes(0, 0, 0);
+            return d.valueOf();
+        case 'm':
+        case 'minute':
+        case 's':
+        case 'second': {
+            const unitMs = getDuration(unit);
+            const value = Math.floor(date / unitMs) * unitMs;
+            return value;
+        }
+        default:
+            throw new Error(`Unknown unit: ${unit}`);
+    }
+}
+function startOfDate(y, m, d, week = false) {
+    if (y < 100 && y >= 0) {
+        return new Date(y + 400, m, d).valueOf() - 31536000000;
+    }
+    else if (week) {
+        return getFirstDayOfWeek(new Date(y, m, d).valueOf()).valueOf();
+    }
+    else {
+        return new Date(y, m, d).valueOf();
+    }
+}
+function getFirstDayOfWeek(d) {
+    // 👇️ clone date object, so we don't mutate it
+    const date = new Date(d);
+    const day = date.getDay(); // 👉️ get day of week
+    // 👇️ day of month - day of week (-6 if Sunday), otherwise +1
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    return new Date(date.setDate(diff));
+}
+function checkLeapYear(year) {
+    const leap = new Date(year, 1, 29).getDate() === 29;
+    if (leap)
+        return true;
+    return false;
+}
+export function getDuration(unit, offset = 1) {
+    switch (unit) {
+        case 'y':
+        case 'year':
+            return offset * 31536000000;
+        case 'month':
+            return offset * 30 * 24 * 60 * 60 * 1000; // incorrect since months are of different durations
+        // 4 cases : 28 - 29 - 30 - 31
+        case 'week':
+            return offset * 7 * 24 * 60 * 60 * 1000;
+        case 'd':
+        case 'day':
+            return offset * 24 * 60 * 60 * 1000;
+        case 'h':
+        case 'hour':
+            return offset * 60 * 60 * 1000;
+        case 'm':
+        case 'minute':
+            return offset * 60 * 1000;
+        case 's':
+        case 'second':
+            return offset * 1000;
+        default:
+            throw new Error(`Unknown unit: ${unit}`);
+    }
+}
+export function getDurationV2(unit, offset = 1, date = null) {
+    switch (unit) {
+        case 'y':
+        case 'year':
+            // 2 cases 31622400000 (366) - 31536000000 (365)
+            if (date) {
+                const isLeapYear = checkLeapYear(date.getFullYear());
+                if (isLeapYear)
+                    return 31622400000;
+            }
+            return offset * 31536000000; // Incorrect since there is years with 366 days
+        case 'month':
+            if (date) {
+                const month_number_of_days = new Date(date.getFullYear(), date.getMonth(), 0).getDate();
+                return offset * month_number_of_days * 24 * 60 * 60 * 1000;
+            }
+            return offset * 30 * 24 * 60 * 60 * 1000; // incorrect since months are of different durations
+        // 4 cases : 28 - 29 - 30 - 31
+        case 'week':
+            return offset * 7 * 24 * 60 * 60 * 1000;
+        case 'd':
+        case 'day':
+            return offset * 24 * 60 * 60 * 1000;
+        case 'h':
+        case 'hour':
+            return offset * 60 * 60 * 1000;
+        case 'm':
+        case 'minute':
+            return offset * 60 * 1000;
+        case 's':
+        case 'second':
+            return offset * 1000;
+        default:
+            throw new Error(`Unknown unit: ${unit}`);
+    }
+}
+function addSeconds(date, offset = 1) {
+    date.setSeconds(date.getSeconds() + offset);
+    return date;
+}
+function addMinutes(date, offset = 1) {
+    date.setMinutes(date.getMinutes() + offset);
+    return date;
+}
+function addHours(date, offset = 1) {
+    date.setHours(date.getHours() + offset);
+    return date;
+}
+function addDays(date, offset = 1) {
+    date.setDate(date.getDate() + offset);
+    date.setHours(0, 0, 0);
+    return date;
+}
+function addWeeks(date, offset = 1) {
+    const d = date;
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day == 0 ? -6 : 1); // adjust when day is sunday
+    d.setDate(diff);
+    d.setHours(0, 0, 0);
+    d.setDate(d.getDate() + 7 * offset);
+    return d;
+}
+function addMonths(date, offset = 1) {
+    date.setMonth(date.getMonth() + offset);
+    date.setDate(1);
+    date.setHours(0, 0, 0);
+    return date;
+}
+function addYears(date, offset = 1) {
+    date.setFullYear(date.getFullYear() + offset);
+    date.setMonth(0);
+    date.setDate(1);
+    date.setHours(0, 0, 0);
+    return date;
+}
+function getNextDate(date, unit, offset) {
+    switch (unit) {
+        case 'y':
+        case 'year':
+            return addYears(date, offset);
+        case 'month':
+            return addMonths(date, offset);
+        case 'week':
+            return addWeeks(date, offset);
+        case 'd':
+        case 'day':
+            return addDays(date, offset);
+        case 'h':
+        case 'hour':
+            return addHours(date, offset);
+        case 'm':
+        case 'minute':
+            return addMinutes(date, offset);
+        case 's':
+        case 'second':
+            return addSeconds(date, offset);
+        default:
+            break;
+    }
+}
+const units = ['y', 'year', 'month', 'week', 'd', 'day', 'h', 'hour', 'm', 'minute', 's', 'second'];
+/**
+ *
+ * @param from Interval start
+ * @param to Interval end
+ * @param unit Column unit
+ * @param offset Column spacing
+ * @param highlightedDurations
+ * @returns
+ */
+export function getAllPeriods(from, to, unit, offset = 1, highlightedDurations) {
+    if (units.indexOf(unit) !== -1) {
+        let tmsWorkOld = 0;
+        let interval_duration = 0;
+        const start = new Date(from); // Starts at hh:mm:ss
+        const dateWork = new Date(from);
+        let nextDate = getNextDate(dateWork, unit, offset);
+        let tmsWork = nextDate.getTime();
+        const firstDuration = nextDate.getTime() - from;
+        const all_periods = [
+            {
+                // start: start,
+                // end: nextDate,
+                from: from,
+                // from: startOf(from, unit), // incorrect if not circled down to the unit eg. 6:30
+                // TODO: think about offsetting the whole row, so for example if timeline starts at 6:30, the headers still show times for 6:00, 7:00 etc, and not 6:30, 7:30...
+                to: nextDate.getTime(),
+                duration: firstDuration,
+                // check whether duration is highlighted
+                isHighlighted: highlightedDurations && isUnitFraction(start, highlightedDurations)
+            }
+        ];
+        if (tmsWork < to) {
+            while (tmsWork < to) {
+                tmsWorkOld = tmsWork;
+                nextDate = getNextDate(new Date(tmsWork), unit, offset);
+                interval_duration = nextDate.getTime() - tmsWork;
+                all_periods.push({
+                    from: tmsWork,
+                    to: nextDate.getTime(),
+                    duration: interval_duration,
+                    //check whether duration is highlighted
+                    isHighlighted: highlightedDurations &&
+                        isUnitFraction(new Date(tmsWork), highlightedDurations)
+                });
+                tmsWork = nextDate.getTime();
+            }
+            const last_day_duration = to - tmsWorkOld;
+            all_periods[all_periods.length - 1].to = to;
+            all_periods[all_periods.length - 1].duration = last_day_duration;
+            // ToDo: there could be another option for hours, minutes, seconds based on pure math like in getPeriodDuration to optimise performance
+        }
+        return all_periods;
+    }
+    throw new Error(`Unknown unit: ${unit}`);
+}
+function isUnitFraction(localDate, highlightedDurations) {
+    // const localDate = new Date(timestamp * 1000);
+    let timeInUnit;
+    switch (highlightedDurations.unit) {
+        case 'm':
+        case 'minute':
+            timeInUnit = localDate.getMinutes();
+            return highlightedDurations.fractions.includes(timeInUnit);
+        case 'h':
+        case 'hour':
+            timeInUnit = localDate.getHours();
+            return highlightedDurations.fractions.includes(timeInUnit);
+        case 'd':
+        case 'day':
+            timeInUnit = localDate.getDay();
+            return highlightedDurations.fractions.includes(timeInUnit);
+        case 'week':
+            // getWeekNumber(localDate);
+            return highlightedDurations.fractions.includes(timeInUnit);
+        case 'dayinMonth':
+            timeInUnit = localDate.getDate();
+            return highlightedDurations.fractions.includes(timeInUnit);
+        case 'month':
+            timeInUnit = localDate.getMonth();
+            return highlightedDurations.fractions.includes(timeInUnit);
+        case 'y':
+        case 'year':
+            timeInUnit = localDate.getFullYear();
+            return highlightedDurations.fractions.includes(timeInUnit);
+        default:
+            throw new Error(`Invalid unit: ${highlightedDurations.unit}`);
+    }
+}
+
+=== 5623 packages/svelte-gantt/src/utils/defaultDateAdapter.ts	js
+import { SvelteGanttDateAdapter } from './date';
+export class DefaultSvelteGanttDateAdapter {
+    format(date, format) {
+        const d = new Date(date);
+        switch (format) {
+            case 'H':
+                return d.getHours() + '';
+            case 'HH':
+                return pad(d.getHours());
+            case 'H:mm':
+                return `${d.getHours()}:${pad(d.getMinutes())}`;
+            case 'hh:mm':
+                return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+            case 'hh:mm:ss':
+                return `${d.getHours()}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            case 'dd/MM/yyyy':
+                return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+            case 'dd/MM/yyyy hh:mm':
+                return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${d.getHours()}:${d.getMinutes()}`;
+            case 'dd/MM/yyyy hh:mm:ss':
+                return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`;
+            // VPY More formats supported 10/12/2021
+            case 'YYYY':
+                return `${d.getFullYear()}`;
+            case 'Q':
+                return `${Math.floor(d.getMonth() / 3 + 1)}`;
+            case '[Q]Q':
+                return `Q${Math.floor(d.getMonth() / 3 + 1)}`;
+            case 'YYYY[Q]Q':
+                return `${d.getFullYear()}Q${Math.floor(d.getMonth() / 3 + 1)}`;
+            case 'MM': {
+                // const month = d.toLocaleString('default', { month: 'long' });
+                let month = String(d.getMonth() + 1);
+                if (month.length == 1)
+                    month = `0${month}`;
+                return `${month}`;
+            }
+            case 'MMMM': {
+                const month = d.toLocaleString('default', { month: 'long' });
+                return `${month.charAt(0).toUpperCase()}${month.substring(1)}`;
+            }
+            case 'MMMM - YYYY': {
+                const month = d.toLocaleString('default', { month: 'long' });
+                return `${month.charAt(0).toUpperCase()}${month.substring(1)}-${d.getFullYear()}`;
+            }
+            case 'MMMM YYYY': {
+                const month = d.toLocaleString('default', { month: 'long' });
+                return `${month.charAt(0).toUpperCase()}${month.substring(1)} ${d.getFullYear()}`;
+            }
+            case 'MMM': {
+                const month = d.toLocaleString('default', { month: 'short' });
+                return `${month.charAt(0).toUpperCase()}${month.substring(1)}`;
+            }
+            case 'MMM - YYYY': {
+                const month = d.toLocaleString('default', { month: 'short' });
+                return `${month.charAt(0).toUpperCase()}${month.substring(1)} - ${d.getFullYear()}`;
+            }
+            case 'MMM YYYY': {
+                const month = d.toLocaleString('default', { month: 'short' });
+                return `${month.charAt(0).toUpperCase()}${month.substring(1)} ${d.getFullYear()}`;
+            }
+            case 'W':
+                return `${getWeekNumber(d)}`;
+            case 'WW': {
+                const weeknumber = getWeekNumber(d);
+                return `${weeknumber.toString().length == 1 ? '0' : ''}${weeknumber}`;
+            }
+            default:
+                console.warn(`Date Format '${format}' is not supported, use another date adapter.`);
+                return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+        }
+    }
+    /**
+     * Rounds the date down to the nearest unit
+     *
+     * Note: This does not consider the timezone, rounds only to the UTC time, which makes it incorrect to round to day start or half hour time zones
+     */
+    roundTo(date, unit, offset) {
+        const magnetDuration = getPeriodDuration(unit, offset);
+        const value = Math.round(date / magnetDuration) * magnetDuration; //
+        return value;
+    }
+}
+function pad(value) {
+    let result = value.toString();
+    for (let i = result.length; i < 2; i++) {
+        result = '0' + result;
+    }
+    return result;
+}
+function getWeekNumber(d) {
+    // Copy date so don't modify original
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    // Set to nearest Thursday: current date + 4 - current day number
+    // Make Sunday's day number 7
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    // Get first day of year
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    // Calculate full weeks to nearest Thursday
+    const weekNo = Math.ceil(((d.valueOf() - yearStart.valueOf()) / 86400000 + 1) / 7);
+    // Return array of year and week number
+    return weekNo;
+}
+/**
+ * Return duration
+ */
+function getPeriodDuration(unit, offset) {
+    switch (unit) {
+        case 'y':
+        case 'year':
+            // 2 cases 31622400000 (366) - 31536000000 (365)
+            return offset * 31536000000; // Incorrect since there is years with 366 days
+        case 'month':
+            // 4 cases : 28 - 29 - 30 - 31
+            return offset * 30 * 24 * 60 * 60 * 1000; // incorrect since months are of different durations
+        case 'week':
+            return offset * 7 * 24 * 60 * 60 * 1000;
+        case 'd':
+        case 'day':
+            return offset * 24 * 60 * 60 * 1000;
+        case 'h':
+        case 'hour':
+            return offset * 60 * 60 * 1000;
+        case 'm':
+        case 'minute':
+            return offset * 60 * 1000;
+        case 's':
+        case 'second':
+            return offset * 1000;
+        default:
+            throw new Error(`Unknown unit: ${unit}`);
+    }
+}
+
+=== 4378 packages/svelte-gantt/src/utils/dom.ts	js
+export function isLeftClick(event) {
+    return event.which === 1;
+}
+/**
+ * Gets mouse position within an element
+ * @param node
+ * @param event
+ */
+export function getRelativePos(node, event) {
+    const rect = node.getBoundingClientRect();
+    const x = event.clientX - rect.left; //x position within the element.
+    const y = event.clientY - rect.top; //y position within the element.
+    return {
+        x: x,
+        y: y
+    };
+}
+export function getRelativePosition(node, event) {
+    const rect = node.getBoundingClientRect();
+    const x = event.clientX - rect.left; //x position within the element.
+    const y = event.clientY - rect.top; //y position within the element.
+    return [x, y];
+}
+/**
+ * Adds an event listener that triggers once.
+ * @param target
+ * @param type
+ * @param listener
+ * @param addOptions
+ * @param removeOptions
+ */
+export function addEventListenerOnce(target, type, listener, addOptions, removeOptions) {
+    target.addEventListener(type, function fn() {
+        target.removeEventListener(type, fn, removeOptions);
+        listener.apply(this, arguments, addOptions);
+    });
+}
+/**
+ * Sets the cursor on an element. Globally by default.
+ * @param cursor
+ * @param node
+ */
+export function setCursor(cursor, node = document.body) {
+    node.style.cursor = cursor;
+}
+export function sortFn(prop) {
+    return function (a, b) {
+        if (prop(a) < prop(b)) {
+            return -1;
+        }
+        else if (prop(a) > prop(b)) {
+            return 1;
+        }
+        return 0;
+    };
+}
+export function normalizeClassAttr(classes) {
+    if (!classes) {
+        return '';
+    }
+    if (typeof classes === 'string') {
+        return classes;
+    }
+    if (Array.isArray(classes)) {
+        return classes.join(' ');
+    }
+    return '';
+}
+/* eslint-disable */
+export function debounce(func, wait, immediate = false) {
+    let timeout;
+    return function () {
+        const context = this, args = arguments;
+        const later = function () {
+            timeout = null;
+            if (!immediate)
+                func.apply(context, args);
+        };
+        const callNow = immediate && !timeout;
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+        if (callNow)
+            func.apply(context, args);
+    };
+}
+export function throttle(func, limit) {
+    let wait = false;
+    return function () {
+        if (!wait) {
+            func.apply(null, arguments);
+            wait = true;
+            setTimeout(function () {
+                wait = false;
+            }, limit);
+        }
+    };
+}
+/** How much pixels near the bounds user has to drag to start scrolling */
+const DRAGGING_TO_SCROLL_TRESHOLD = 40;
+/** How much pixels does the view scroll when dragging */
+const DRAGGING_TO_SCROLL_DELTA = 40;
+function outOfBounds(event, rect) {
+    return {
+        left: event.clientX - rect.left < 0 + DRAGGING_TO_SCROLL_TRESHOLD,
+        top: event.clientY - rect.top < 0 + DRAGGING_TO_SCROLL_TRESHOLD,
+        right: event.clientX - rect.left > rect.width - DRAGGING_TO_SCROLL_TRESHOLD,
+        bottom: event.clientY - rect.top > rect.height - DRAGGING_TO_SCROLL_TRESHOLD
+    };
+}
+export const scrollIfOutOfBounds = throttle((event, scrollable) => {
+    // throttle the following
+    const mainContainerRect = scrollable.getBoundingClientRect();
+    const bounds = outOfBounds(event, mainContainerRect);
+    if (bounds.left || bounds.right) {
+        // scroll left
+        scrollable.scrollTo({
+            left: scrollable.scrollLeft + (bounds.left ? -DRAGGING_TO_SCROLL_DELTA : DRAGGING_TO_SCROLL_DELTA),
+            behavior: 'smooth'
+        });
+    }
+    if (bounds.top || bounds.bottom) {
+        // scroll top
+        scrollable.scrollTo({
+            top: scrollable.scrollTop + (bounds.top ? -DRAGGING_TO_SCROLL_DELTA : DRAGGING_TO_SCROLL_DELTA),
+            behavior: 'smooth'
+        });
+    }
+}, 250);
+export function getRowAtPoint(event) {
+    const elements = document.elementsFromPoint(event.clientX, event.clientY);
+    const rowElement = elements.find(element => !!element.getAttribute('data-row-id'));
+    if (rowElement !== undefined) {
+        const rowId = rowElement.getAttribute('data-row-id');
+        return rowId;
+    }
+    return null;
+}
+export function whenEnterPress(callback) {
+    return (e) => {
+        if (e.key === 'Enter') {
+            callback(e);
+        }
+    };
+}
+
+=== 1640 packages/svelte-gantt/src/utils/momentDateAdapter.ts	js
+import { SvelteGanttDateAdapter } from './date';
+/**
+ * Date adapter that uses MomentJS
+ */
+export class MomentSvelteGanttDateAdapter {
+    moment;
+    constructor(moment) {
+        this.moment = moment;
+    }
+    format(date, format) {
+        return this.moment(date).format(format);
+    }
+    roundTo(date, unit, offset) {
+        const m = this.moment(date);
+        roundMoment(m, offset, unit);
+        return m.valueOf();
+    }
+}
+const aliases = {
+    hour: 'hours',
+    minute: 'minutes',
+    second: 'seconds',
+    millisecond: 'milliseconds'
+};
+// TODO: write tests for this
+function roundMoment(m, precision, key, direction = 'round') {
+    if (precision === 1 && key === 'day') {
+        precision = 24;
+        key = 'hours';
+    }
+    if (aliases[key]) {
+        key = aliases[key];
+    }
+    const methods = {
+        hours: 24,
+        minutes: 60,
+        seconds: 60,
+        milliseconds: 1000
+    };
+    if (!methods[key]) {
+        console.warn(`Rounding dates by ${key} is not supported`);
+    }
+    let value = 0;
+    let rounded = false;
+    let subRatio = 1;
+    let maxValue;
+    for (const k in methods) {
+        if (k === key) {
+            value = m.get(key);
+            maxValue = methods[k];
+            rounded = true;
+        }
+        else if (rounded) {
+            subRatio *= methods[k];
+            value += m.get(k) / subRatio;
+            m.set(k, 0);
+        }
+    }
+    value = Math[direction](value / precision) * precision; // value is date represented in units of `key`, ignoring the bigger units, eg 14h30m->14.5h
+    value = Math.min(value, maxValue);
+    m.set(key, value);
+    return m;
+}
+
+=== 2402 packages/svelte-gantt/src/utils/utils.ts	js
+import { SvelteGanttDateAdapter } from './date';
+export function createUtils(params) {
+    return {
+        /**
+         * Returns position of date on a line if from and to represent length of width
+         * @param {*} date
+         */
+        getPositionByDate(date) {
+            return getPositionByDate(date, params.from, params.to, params.width);
+        },
+        getDateByPosition(x) {
+            return getDateByPosition(x, params.from, params.to, params.width);
+        },
+        roundTo(date) {
+            if (params.dateAdapter) {
+                return params.dateAdapter.roundTo(date, params.magnetUnit, params.magnetOffset);
+            }
+            // this does not consider the timezone, rounds only to the UTC time
+            // let value = Math.round((date - 7200000) / params.magnetDuration) * params.magnetDuration;
+            // cases where rounding to day or timezone offset is not rounded, this won't work
+            return null;
+        }
+    };
+}
+export function getPositionByDate(date, from, to, width) {
+    if (!date) {
+        return undefined;
+    }
+    const durationTo = date - from;
+    const durationToEnd = to - from;
+    return (durationTo / durationToEnd) * width;
+}
+export function getDateByPosition(x, from, to, width) {
+    const durationTo = (x / width) * (to - from);
+    const dateAtPosition = from + durationTo;
+    return dateAtPosition;
+}
+// Returns the object on the left and right in an array using the given cmp function.
+// The compare function defined which property of the value to compare (e.g.: c => c.left)
+export function getIndicesOnly(input, value, comparer, strict) {
+    let lo = -1;
+    let hi = input.length;
+    while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2);
+        if (strict ? comparer(input[mid]) < value : comparer(input[mid]) <= value) {
+            lo = mid;
+        }
+        else {
+            hi = mid;
+        }
+    }
+    if (!strict && input[lo] !== undefined && comparer(input[lo]) === value) {
+        hi = lo;
+    }
+    return [lo, hi];
+}
+export function get(input, value, comparer, strict) {
+    const res = getIndicesOnly(input, value, comparer, strict);
+    return [input[res[0]], input[res[1]]];
+}
+export function isDraggable(item) {
+    return item.draggable ?? item.enableDragging ?? true;
+}
+export function isResizable(item) {
+    return item.resizable ?? item.enableResize ?? true;
+}
+

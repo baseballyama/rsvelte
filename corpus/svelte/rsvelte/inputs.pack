@@ -25,6 +25,9 @@
 
 <p>{label} {thing}</p>
 
+=== 24 check/array-extends/project/src/lib/thing.ts	ts	module	-
+export const thing = 1;
+
 === 128 check/basic/project/src/App.svelte	svelte	runes	runes
 <script lang="ts">
 	let { name }: { name: string } = $props();
@@ -116,12 +119,96 @@ export default function makeCounter() {
 	return { count: 0 };
 }
 
+=== 81 check/js-rune-module-without-allow-js-loose/project/src/plain.ts	ts	module	-
+import { counter } from './lib/counter.svelte';
+
+export const n = counter.count;
+
+=== 124 check/js-rune-module-without-allow-js/project/src/missing.ts	ts	module	-
+import Gone from './lib/gone.svelte';
+import { alsoGone } from './lib/gone.svelte';
+
+export const parts = [Gone, alsoGone];
+
+=== 97 check/kit-hooks-arrow-ts/project/src/hooks.client.ts	ts	module	-
+export const handleError = ({ error, event }) => {
+	console.error(error, event.url.pathname);
+};
+
+=== 266 check/kit-hooks-arrow-ts/project/src/hooks.server.ts	ts	module	-
+export const handle = async ({ event, resolve }) => {
+	return resolve(event);
+};
+
+export const handleError = ({ error, event }) => {
+	console.error(error, event.url.pathname);
+};
+
+export const handleFetch = async ({ request, fetch }) => {
+	return fetch(request);
+};
+
+=== 63 check/kit-hooks-arrow-ts/project/src/hooks.ts	ts	module	-
+export const reroute = ({ url }) => {
+	return url.pathname;
+};
+
 === 89 check/kit-hooks-arrow-ts/project/src/routes/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	let { data }: { data: unknown } = $props();
 </script>
 
 <p>{data}</p>
+
+=== 93 check/kit-hooks-fn-ts/project/src/hooks.client.ts	ts	module	-
+export function handleError({ error, event }) {
+	console.error(error, event.url.pathname);
+}
+
+=== 242 check/kit-hooks-fn-ts/project/src/hooks.server.ts	ts	module	-
+export function handle({ event, resolve }) {
+	return resolve(event);
+}
+
+export function handleError({ error, event }) {
+	console.error(error, event.url.pathname);
+}
+
+export function handleFetch({ request, fetch }) {
+	return fetch(request);
+}
+
+=== 59 check/kit-hooks-fn-ts/project/src/hooks.ts	ts	module	-
+export function reroute({ url }) {
+	return url.pathname;
+}
+
+=== 173 check/kit-hooks-satisfies-ts/project/src/hooks.client.ts	ts	module	-
+import type { HandleClientError } from '@sveltejs/kit';
+
+export const handleError: HandleClientError = ({ error, event }) => {
+	console.error(error, event.url.pathname);
+};
+
+=== 535 check/kit-hooks-satisfies-ts/project/src/hooks.server.ts	ts	module	-
+import { sequence } from '@sveltejs/kit/hooks';
+import type { Handle, HandleFetch, HandleServerError } from '@sveltejs/kit';
+
+const logger: Handle = async ({ event, resolve }) => resolve(event);
+const auth = (async ({ event, resolve }) => resolve(event)) satisfies Handle;
+
+export const handle = sequence(logger, auth);
+
+export const handleError = (({ error, event }) => {
+	console.error(error, event.url.pathname);
+}) satisfies HandleServerError;
+
+export const handleFetch: HandleFetch = async ({ request, fetch }) => fetch(request);
+
+=== 117 check/kit-hooks-satisfies-ts/project/src/hooks.ts	ts	module	-
+import type { Reroute } from '@sveltejs/kit';
+
+export const reroute = (({ url }) => url.pathname) satisfies Reroute;
 
 === 60 check/kit-jsdoc-longtail-js/project/src/routes/+page.svelte	svelte	runes	runes
 <script>
@@ -132,6 +219,41 @@ export default function makeCounter() {
 
 === 34 check/kit-load-augmentation-js/project/src/routes/+page.svelte	svelte	runes	neutral
 <h1>kit-load-augmentation-js</h1>
+
+=== 306 check/kit-load-augmentation-ts/project/src/routes/+page.server.ts	ts	module	-
+// #2055 (2): a `const load = (...) => ...` whose initializer is itself a
+// function must get its parameter typed directly — not wrapped in
+// `satisfies`, which `findExports` reserves for a non-function-like
+// initializer.
+export const load = async ({ params }) => {
+	return { slug: params.slug };
+};
+
+=== 386 check/kit-load-augmentation-ts/project/src/routes/+page.ts	ts	module	-
+// #2055 (1): official's `load` gate only checks the parameter's type
+// (`hasTypedParameter`), not any pre-existing return-type annotation — this
+// must still get `event` typed even though the return type is already
+// spelled out, or `event` stays implicit `any` under `strict`.
+export async function load(event): Promise<{ slug: string }> {
+	return { slug: event.params.slug };
+}
+
+=== 427 check/kit-load-augmentation-ts/project/src/routes/multi/+page.ts	ts	module	-
+// #2055 (4): `findExports` only recognises a single-declarator
+// `export const x = ...` — `export const a = ..., b = ...;` isn't looked up
+// under either name, so neither export gets augmented. `load`'s `event` must
+// stay implicit `any` here (and raise TS7006 under `strict`) on both the
+// official checker and rsvelte-check.
+export const prerender = true, load = async (event) => ({ ok: true, params: event.params });
+
+=== 414 check/kit-load-augmentation-ts/project/src/routes/typed/+layout.ts	ts	module	-
+// The #1944 shape recurring for `load` specifically (#2055): a parenthesized,
+// already-typed arrow-const initializer must be left untouched entirely —
+// augmenting it again would either double-annotate the parameter or (before
+// this fix) wrap the whole thing in a spurious `satisfies`.
+export const load = (async (event: import('./$types.js').LayoutLoadEvent) => {
+	return { slug: event.params.slug };
+});
 
 === 177 check/kit-route-props-ts/project/src/routes/a/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -205,6 +327,10 @@ export default function makeCounter() {
 </script>
 
 <SurveyOptions id={answer} />
+
+=== 147 check/sibling-symlink/project/pkg-libs/src/components/index.ts	ts	module	-
+export { default as SurveyOptions, SURVEY_OTHER_PREFIX } from './survey-options.svelte';
+export type { WithOther } from './survey-options.svelte';
 
 === 237 check/sibling-symlink/project/pkg-libs/src/components/survey-options.svelte	svelte	runes	runes
 <script module lang="ts">
@@ -290,6 +416,10 @@ export default function makeCounter() {
 
 <p>{total}</p>
 
+=== 56 check/svelte-import-diagnostic-line/project/src/lib/exports.ts	ts	module	-
+export const present = 1;
+export const alsoPresent = 2;
+
 === 287 check/svelte-type-reference/project/src/box.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { Snippet } from 'svelte';
@@ -327,6 +457,22 @@ export default function makeCounter() {
 </script>
 
 <p>{store.table === null}{emptyRow.id}</p>
+
+=== 115 check/ts-aliased-import/project/pkg-a/src/named.ts	ts	module	-
+import type { RowShape } from '$libs/components/data-table.svelte';
+
+export const emptyRow: RowShape = { id: '' };
+
+=== 166 check/ts-aliased-import/project/pkg-a/src/store.ts	ts	module	-
+import type DataTable from '$libs/components/data-table.svelte';
+
+interface Row {
+	id: string;
+}
+
+export class Store {
+	public table: DataTable<Row> | null = null;
+}
 
 === 273 check/ts-aliased-import/project/pkg-libs/components/data-table.svelte	svelte	runes	runes
 <script module lang="ts">
@@ -401,6 +547,19 @@ export const tokens = ['a', 'b'];
 
 export default { name: 'default-theme' };
 
+=== 565 check/ts-aliased-rune-module-nodenext/project/pkg-a/src/plain.ts	ts	module	-
+import { useProvider } from '$lib/modules/provider.svelte';
+import theme, { tokens } from '$lib/modules/theme.svelte';
+import makeState, { shared } from '$libs/modules/state.svelte';
+import type { RowShape } from '$libs/components/data-table.svelte';
+import type Widget from '$lib/anatomy/widget.svelte';
+
+export const size: number = useProvider().size + tokens.length;
+export const themeName: string = theme.name;
+export const count: number = shared.count + makeState().count;
+export const emptyRow: RowShape = { id: '' };
+export let widget: Widget | null = null;
+
 === 118 check/ts-aliased-rune-module-nodenext/project/pkg-libs/modules/state.svelte.ts	svelte-module-ts	runes	-
 export const shared = { count: 0 };
 
@@ -413,6 +572,22 @@ export function helper(): number {
 	return 1;
 }
 
+=== 82 check/ts-companion-named-import-bundler/project/src/relative.ts	ts	module	-
+import { helper } from './lib/widget.svelte';
+
+export const m: number = helper();
+
+=== 128 check/ts-companion-named-import-probe-scope/project/src/relative.ts	ts	module	-
+import { helper } from './lib/widget.svelte';
+
+export const used: number = helper();
+export const bad: number = 'not a number';
+
+=== 81 check/ts-companion-named-import/project/src/aliased.ts	ts	module	-
+import { helper } from '$lib/widget.svelte';
+
+export const n: number = helper();
+
 === 158 check/ts-companion-named-import/project/src/companion-user.svelte	svelte	runes	neutral
 <script lang="ts">
 	import Widget from '$lib/widget.svelte';
@@ -420,6 +595,11 @@ export function helper(): number {
 </script>
 
 <Widget label={String(helper())} />
+
+=== 48 check/ts-instance-reexport/project/src/lib/helper.ts	ts	module	-
+export function helper(): number {
+	return 1;
+}
 
 === 172 check/ts-instance-reexport/project/src/reexport.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -439,6 +619,15 @@ export function helper(): number {
 </script>
 
 <p>{value}{shared}</p>
+
+=== 32 check/ts-paths-non-relative/project/src/lib/util.ts	ts	module	-
+export const value: number = 1;
+
+=== 46 check/ts-paths-non-relative/project/src/orphan.ts	ts	module	-
+export const orphan: number = "not a number";
+
+=== 35 check/ts-paths-non-relative/project/src/shared/box.ts	ts	module	-
+export const shared: string = "s";
 
 === 360 check/ts-relative-import-bundler/project/src/consumer.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -465,6 +654,11 @@ export function helper(): number {
 </script>
 
 <span>{size}</span>
+
+=== 164 check/ts-relative-import-bundler/project/src/lib/index.ts	ts	module	-
+export type { ArrowProps } from './anatomy/arrow.svelte';
+export { useProvider } from './modules/provider.svelte';
+export { tokens } from './modules/theme.svelte';
 
 === 131 check/ts7-native/project/src/Bad.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -1172,6 +1366,74 @@ $effect(() => {
     {/if}
   </div>
 </div>
+=== 31 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	svelte	runes	neutral
+<div aria-labelledby=""></div>
+
+=== 135 errors/attribute_contenteditable_dynamic.svelte	svelte	runes	rejected
+<script>
+	let editable = $state(true);
+	let html = $state('');
+</script>
+
+<div contenteditable={editable} bind:innerHTML={html}></div>
+
+=== 78 errors/attribute_contenteditable_missing.svelte	svelte	runes	rejected
+<script>
+	let html = $state('');
+</script>
+
+<div bind:innerHTML={html}></div>
+
+=== 78 errors/block_invalid_elseif.svelte	svelte	runes	rejected
+<script>
+	let { a, b } = $props();
+</script>
+
+{#if a}
+	A
+{:elseif b}
+	B
+{/if}
+
+=== 74 errors/inspect_trace_generator.svelte	svelte	runes	rejected
+<script>
+	function* items() {
+		$inspect.trace();
+		yield 1;
+	}
+</script>
+
+=== 53 errors/props_invalid_identifier.svelte	svelte	runes	rejected
+<script>
+	let [value] = $props();
+</script>
+
+{value}
+
+=== 74 errors/render_tag_invalid_spread_argument.svelte	svelte	runes	rejected
+<script>
+	let { row, args } = $props();
+</script>
+
+{@render row(...args)}
+
+=== 56 errors/script_invalid_attribute_value.svelte	svelte	runes	rejected
+<script module="server">
+	export const a = 1;
+</script>
+
+=== 43 errors/script_reserved_attribute.svelte	svelte	runes	rejected
+<script server>
+	let a = 1;
+</script>
+
+{a}
+
+=== 70 errors/svelte_boundary_invalid_attribute_value.svelte	svelte	runes	rejected
+<svelte:boundary onerror="handle">
+	<p>content</p>
+</svelte:boundary>
+
 === 271 lint-env/no-sveltekit/src/nav.svelte	svelte	runes	neutral
 <script>
 	import { goto } from '$app/navigation';
@@ -35467,6 +35729,18 @@ plain text with no script, no markup elements and no expressions
 
 <p>{i.label}{i.describe()}{m.id}{c}{t}{n ?? 0}</p>
 
+=== 157 pattern/adversarial/typescript/ts-enum-namespace-module.svelte.ts	svelte-module-ts	runes	-
+export enum Level {
+	Low = 1,
+	High = 2,
+}
+
+export const state = $state({ level: Level.Low });
+
+export function raise(): void {
+	state.level = Level.High;
+}
+
 === 819 pattern/adversarial/typescript/ts-erasure-surface.svelte	svelte	runes	neutral
 <script lang="ts">
   interface Row {
@@ -39096,6 +39370,41 @@ export function read() {
 
 <b>{g()}{o}</b>
 
+=== 235 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	svelte	runes	rejected
+<script>
+	export let o = 1;
+	const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+=== 404 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	svelte	runes	runes
+<script>
+	let o = $state(1);
+	const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+{#each [{ a: 1 }] as { a: $a }}{$a}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+<div>
+	{#each [3] as $d}{@const $e = $d}{$e}{/each}
+</div>
+
+{#if o}{@const $f = o}{$f}{/if}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+{[1].map(($m) => $m).join('')}
+
 === 356 pattern/issues/3188-boundary-snippet-params.svelte	svelte	runes	runes
 <script>
 	let o = $state(1);
@@ -39940,9 +40249,6 @@ a<b
 </script>
 
 {o.a + 1 = 2}
-
-=== 12 pattern/issues/3220-assign-rvalue-target.svelte	svelte	runes	rejected
-{42 = nope}
 
 === 71 pattern/issues/3228-derived-by-literal.svelte	svelte	runes	runes
 <script>

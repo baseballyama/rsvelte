@@ -11,6 +11,8 @@ export const ORACLES_FILE = path.join(REGISTRY, 'oracles.json');
 export const IMPORT_REPORT_FILE = path.join(REGISTRY, 'import-report.json');
 /** The hand-written part of units (types.ts `UnitTable`), one table per unit key. */
 export const UNITS_FILE = path.join(REGISTRY, 'units.toml');
+/** The skips regen writes, for a task whose oracle output it cannot parse (types.ts `Task.unparseable`). */
+export const UNPARSEABLE_FILE = path.join(REGISTRY, 'unparseable.txt');
 /** Tasks that compare one file of another task's pack, by name: `{ pack, file }`. */
 export const READERS_FILE = path.join(REGISTRY, 'readers.toml');
 /** The project configuration both type checkers read for every source. */

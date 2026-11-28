@@ -16,13 +16,9 @@ function $$render() {
     };
     return __rsvelte_snippet_return;
   };
- let /** @type {typeof __rsvelte_public_props0} */ { items, header } = $props(); let count = $state(0);
+ let /** @typedef {{ items: any, header: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { items, header } = $props(); let count = $state(0);
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    items: __rsvelte_untyped_prop(),
-    header: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("div", {});
@@ -31,7 +27,7 @@ function $$render() {
     __rsvelte_ensure_snippet(header?.(format(count), count));
     __rsvelte_ensure_snippet(row(`${count}`, format));
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const RenderMemo__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof RenderMemo__SvelteComponent_>} RenderMemo__SvelteComponent_ */

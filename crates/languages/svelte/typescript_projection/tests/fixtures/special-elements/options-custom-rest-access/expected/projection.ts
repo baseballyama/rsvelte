@@ -1,14 +1,11 @@
 ;
 function $$render() {
   
-let /** @type {typeof __rsvelte_public_props0} */ {value,...rest}=$props();
+let /** @typedef {{ value: any } & Record<string, any>} $$ComponentProps *//** @type {$$ComponentProps} */ {value,...rest}=$props();
 function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest.other; }
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    value: __rsvelte_untyped_prop(),
-  }, {}, true);
   async () => {
     {
       svelteHTML.createElement("svelte:options", {
@@ -22,7 +19,7 @@ function change() { rest.other=1; rest.count++; let x; x=rest.other; return rest
       rest['other'];
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const OptionsCustomRestAccess__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof OptionsCustomRestAccess__SvelteComponent_>} OptionsCustomRestAccess__SvelteComponent_ */

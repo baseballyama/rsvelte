@@ -32,6 +32,22 @@ export default function DragRegion($$renderer) {
 	}
 ]
 
+=== 262 src/lib/components/common/ScrollbarContainer.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 49,
+		"column": 18,
+		"character": 1003
+	},
+	"end": {
+		"line": 49,
+		"column": 18,
+		"character": 1003
+	}
+}
+
 === 794 src/lib/components/dashboard/Banner.svelte	css
 
 	.banner.svelte-1gwi47l {
@@ -321,6 +337,38 @@ export default function LoadingScreen($$renderer) {
 		}
 	}
 ]
+
+=== 318 src/lib/components/dashboard/sidebar/WatchedPersons.svelte	error.json
+{
+	"code": "legacy_reactive_statement_invalid",
+	"message": "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid",
+	"start": {
+		"line": 12,
+		"column": 1,
+		"character": 419
+	},
+	"end": {
+		"line": 41,
+		"column": 2,
+		"character": 1454
+	}
+}
+
+=== 318 src/lib/components/dashboard/sidebar/WatchedRepos.svelte	error.json
+{
+	"code": "legacy_reactive_statement_invalid",
+	"message": "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid",
+	"start": {
+		"line": 23,
+		"column": 1,
+		"character": 645
+	},
+	"end": {
+		"line": 60,
+		"column": 2,
+		"character": 1778
+	}
+}
 
 === 103 src/lib/components/settings/accounts/Accounts.svelte	css
 

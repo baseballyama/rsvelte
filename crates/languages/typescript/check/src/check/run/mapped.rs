@@ -27,18 +27,28 @@ impl CheckRequest<'_> {
     /// document reaches as TypeScript resolves `./App.vue` to `./App.vue.ts`.
     pub(super) fn checked_path(&self, root: &Path, index: usize) -> PathBuf {
         let path = normalized(&root.join(&self.documents[index]));
-        let mapped = self.mapped(index).is_some();
-        let script = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .is_some_and(|e| SCRIPT_EXTENSIONS.contains(&e));
-        if mapped || script {
+        if self.checked_at_own_path(&path, index) {
             path
         } else {
             let mut name = path.into_os_string();
             name.push(".ts");
             name.into()
         }
+    }
+
+    fn checked_at_own_path(&self, path: &Path, index: usize) -> bool {
+        let script = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| SCRIPT_EXTENSIONS.contains(&e));
+        self.mapped(index).is_some() || script
+    }
+
+    /// Whether the checker reads document `index` at its own path with the text the disk holds
+    /// there, which the host read from it.
+    pub(super) fn checked_as_on_disk(&self, root: &Path, index: usize) -> bool {
+        let path = normalized(&root.join(&self.documents[index]));
+        self.on_disk[index] && self.checked_at_own_path(&path, index)
     }
 
     /// Document `index`'s content-mapped input, if it has one.
@@ -63,10 +73,11 @@ impl CheckRequest<'_> {
             .map(move |(path, stand_in)| (normalized(&root.join(path)), stand_in))
     }
 
-    /// The extensions of the content-mapped documents, each once.
+    /// The extensions of the content-mapped documents and of the stand-ins, each once.
     pub(super) fn mapped_extensions(&self) -> Vec<&'static str> {
         let extensions: BTreeSet<_> = (self.mapped_files.iter().flatten())
             .map(|file| file.extension)
+            .chain(self.stand_ins.iter().filter_map(|(_, s)| s.extension))
             .collect();
         extensions.into_iter().collect()
     }

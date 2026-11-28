@@ -2,14 +2,1041 @@
 === 3 benchmarking/benchmarks/ssr/wrapper/App.svelte	json
 []
 
+=== 211 packages/svelte/tests/compiler-errors/samples/attribute-empty/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected attribute value\nhttps://svelte.dev/e/expected_attribute_value",
+		"start": {
+			"line": 0,
+			"character": 12
+		},
+		"end": {
+			"line": 0,
+			"character": 12
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression/main.svelte	json
+[]
+
+=== 210 packages/svelte/tests/compiler-errors/samples/attribute-unique-binding/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 17
+		},
+		"end": {
+			"line": 0,
+			"character": 25
+		}
+	}
+]
+
+=== 210 packages/svelte/tests/compiler-errors/samples/attribute-unique-class/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 23
+		},
+		"end": {
+			"line": 0,
+			"character": 40
+		}
+	}
+]
+
+=== 210 packages/svelte/tests/compiler-errors/samples/attribute-unique-shorthand/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 17
+		},
+		"end": {
+			"line": 0,
+			"character": 24
+		}
+	}
+]
+
+=== 210 packages/svelte/tests/compiler-errors/samples/attribute-unique-style/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 23
+		},
+		"end": {
+			"line": 0,
+			"character": 42
+		}
+	}
+]
+
+=== 210 packages/svelte/tests/compiler-errors/samples/attribute-unique/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+		"start": {
+			"line": 0,
+			"character": 17
+		},
+		"end": {
+			"line": 0,
+			"character": 28
+		}
+	}
+]
+
+=== 197 packages/svelte/tests/compiler-errors/samples/catch-before-closing/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token {:else}\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 1
+		}
+	}
+]
+
+=== 295 packages/svelte/tests/compiler-errors/samples/catch-without-await/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/class-state-field-static/main.svelte	json
+[]
+
+=== 195 packages/svelte/tests/compiler-errors/samples/comment-unclosed/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token -->\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 24
+		},
+		"end": {
+			"line": 0,
+			"character": 24
+		}
+	}
+]
+
+=== 291 packages/svelte/tests/compiler-errors/samples/component-invalid-name/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+		"start": {
+			"line": 6,
+			"character": 1
+		},
+		"end": {
+			"line": 6,
+			"character": 14
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-3/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-4/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-5/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-6/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-3/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error/main.svelte	json
+[]
+
 === 3 packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte	json
 []
+
+=== 249 packages/svelte/tests/compiler-errors/samples/const-tag-sequence/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{@const ...} must consist of a single variable declaration\nhttps://svelte.dev/e/const_tag_invalid_expression",
+		"start": {
+			"line": 5,
+			"character": 15
+		},
+		"end": {
+			"line": 5,
+			"character": 33
+		}
+	}
+]
 
 === 3 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte	json
 []
 
 === 3 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-2/main.svelte	json
 []
+
+=== 199 packages/svelte/tests/compiler-errors/samples/const-tag-whitespace/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected whitespace\nhttps://svelte.dev/e/expected_whitespace",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 8
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-block-declaration/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-block-in-pseudoclass/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-1/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-1/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-global-modifier/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css-nesting-selector-root/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/css/main.svelte	json
+[]
+
+=== 200 packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 0,
+			"character": 12
+		},
+		"end": {
+			"line": 0,
+			"character": 12
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-legacy/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/dollar-binding-global/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte	json
+[]
+
+=== 290 packages/svelte/tests/compiler-errors/samples/element-invalid-name/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 8
+		}
+	}
+]
+
+=== 217 packages/svelte/tests/compiler-errors/samples/else-before-closing-2/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 1
+		}
+	}
+]
+
+=== 295 packages/svelte/tests/compiler-errors/samples/else-before-closing-3/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 1
+		}
+	}
+]
+
+=== 295 packages/svelte/tests/compiler-errors/samples/else-before-closing/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 1
+		}
+	}
+]
+
+=== 295 packages/svelte/tests/compiler-errors/samples/else-if-before-closing-2/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 1
+		}
+	}
+]
+
+=== 217 packages/svelte/tests/compiler-errors/samples/else-if-before-closing/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 1
+		}
+	}
+]
+
+=== 217 packages/svelte/tests/compiler-errors/samples/else-if-without-if/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 2
+		}
+	}
+]
+
+=== 221 packages/svelte/tests/compiler-errors/samples/empty-attribute-shorthand/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+		"start": {
+			"line": 0,
+			"character": 6
+		},
+		"end": {
+			"line": 0,
+			"character": 6
+		}
+	}
+]
+
+=== 213 packages/svelte/tests/compiler-errors/samples/empty-classname-binding/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`class:` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+		"start": {
+			"line": 0,
+			"character": 4
+		},
+		"end": {
+			"line": 0,
+			"character": 10
+		}
+	}
+]
+
+=== 210 packages/svelte/tests/compiler-errors/samples/empty-directive-name/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`use:` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+		"start": {
+			"line": 0,
+			"character": 4
+		},
+		"end": {
+			"line": 0,
+			"character": 8
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/export-not-defined-module/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/export-state-module/main.svelte	json
+[]
+
+=== 194 packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Assigning to rvalue\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/invalid-arguments-usage/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/invalid-snippet-binding/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/invalid-snippet-mutation/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/legacy-no-const-assignment/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/legacy-no-const-update/main.svelte	json
+[]
+
+=== 193 packages/svelte/tests/compiler-errors/samples/malformed-snippet-2/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token )\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 31
+		},
+		"end": {
+			"line": 0,
+			"character": 31
+		}
+	}
+]
+
+=== 193 packages/svelte/tests/compiler-errors/samples/malformed-snippet/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 20
+		},
+		"end": {
+			"line": 0,
+			"character": 20
+		}
+	}
+]
+
+=== 233 packages/svelte/tests/compiler-errors/samples/multiple-styles/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate",
+		"start": {
+			"line": 8,
+			"character": 0
+		},
+		"end": {
+			"line": 8,
+			"character": 0
+		}
+	}
+]
+
+=== 227 packages/svelte/tests/compiler-errors/samples/options-children/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "<svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 24
+		}
+	}
+]
+
+=== 199 packages/svelte/tests/compiler-errors/samples/raw-mustaches-whitespace/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected whitespace\nhttps://svelte.dev/e/expected_whitespace",
+		"start": {
+			"line": 0,
+			"character": 6
+		},
+		"end": {
+			"line": 0,
+			"character": 6
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/render-tag-invalid-call/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-before-after-update/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-bindable-not-called/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-export-let-derived/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-export-let/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding-this/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-mutation/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-no-const-update/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-1/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-props-not-called/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-instance/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-snapshot-args/main.svelte	json
+[]
+
+=== 198 packages/svelte/tests/compiler-errors/samples/script-unclosed-eof/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 2,
+			"character": 8
+		},
+		"end": {
+			"line": 2,
+			"character": 8
+		}
+	}
+]
+
+=== 203 packages/svelte/tests/compiler-errors/samples/script-unclosed/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<script>` was left open\nhttps://svelte.dev/e/element_unclosed",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 22
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/self-reference/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/slot-conflicting-with-render-tag/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/snippet-children-conflict/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/snippet-invalid-export/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-contextual/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-global-disallowed/main.svelte	json
+[]
+
+=== 189 packages/svelte/tests/compiler-errors/samples/store-prevent-user-declarations/main.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable '$count'.",
+		"start": {
+			"line": 2,
+			"character": 5
+		},
+		"end": {
+			"line": 2,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-3/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-shadow-scope/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/store-template-expression-scope/main.svelte	json
+[]
+
+=== 197 packages/svelte/tests/compiler-errors/samples/style-unclosed-eof/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token </style\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 7
+		},
+		"end": {
+			"line": 2,
+			"character": 7
+		}
+	}
+]
+
+=== 215 packages/svelte/tests/compiler-errors/samples/style-unclosed/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte	json
+[]
+
+=== 375 packages/svelte/tests/compiler-errors/samples/svelte-selfdestructive/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, svelte:fragment or svelte:boundary\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
+		"start": {
+			"line": 1,
+			"character": 2
+		},
+		"end": {
+			"line": 1,
+			"character": 24
+		}
+	}
+]
+
+=== 295 packages/svelte/tests/compiler-errors/samples/then-before-closing/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+		"start": {
+			"line": 2,
+			"character": 1
+		},
+		"end": {
+			"line": 2,
+			"character": 1
+		}
+	}
+]
+
+=== 295 packages/svelte/tests/compiler-errors/samples/then-without-await/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	json
+[]
+
+=== 193 packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 19
+		},
+		"end": {
+			"line": 0,
+			"character": 19
+		}
+	}
+]
+
+=== 198 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-b/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 0,
+			"character": 2
+		},
+		"end": {
+			"line": 0,
+			"character": 2
+		}
+	}
+]
+
+=== 198 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-c/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 0,
+			"character": 1
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 194 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-d/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 198 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 1
+		}
+	}
+]
+
+=== 242 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose-2/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</p>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 0
+		}
+	}
+]
+
+=== 316 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</p>` attempted to close element that was already automatically closed by `<pre>` (cannot nest `<pre>` inside `<p>`)\nhttps://svelte.dev/e/element_invalid_closing_tag_autoclosed",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 0
+		}
+	}
+]
+
+=== 244 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 241 packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Void elements cannot have children or closing tags\nhttps://svelte.dev/e/void_element_invalid_content",
+		"start": {
+			"line": 0,
+			"character": 23
+		},
+		"end": {
+			"line": 0,
+			"character": 23
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/compiler-errors/samples/window-children/main.svelte	json
+[]
+
+=== 237 packages/svelte/tests/compiler-errors/samples/window-duplicate/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can only have one `<svelte:window>` element\nhttps://svelte.dev/e/svelte_meta_duplicate",
+		"start": {
+			"line": 1,
+			"character": 0
+		},
+		"end": {
+			"line": 1,
+			"character": 0
+		}
+	}
+]
+
+=== 248 packages/svelte/tests/compiler-errors/samples/window-inside-block/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 1
+		}
+	}
+]
+
+=== 248 packages/svelte/tests/compiler-errors/samples/window-inside-element/main.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 1
+		}
+	}
+]
 
 === 3 packages/svelte/tests/css/samples/animations/input.svelte	json
 []
@@ -758,6 +1785,12 @@
 === 3 packages/svelte/tests/migrate/samples/accessors/output.svelte	json
 []
 
+=== 3 packages/svelte/tests/migrate/samples/css-ignore/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/migrate/samples/css-ignore/output.svelte	json
+[]
+
 === 3 packages/svelte/tests/migrate/samples/derivations/output.svelte	json
 []
 
@@ -842,6 +1875,38 @@
 
 === 3 packages/svelte/tests/migrate/samples/impossible-migrate-slot-non-identifier/output.svelte	json
 []
+
+=== 200 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 2,
+			"character": 21
+		},
+		"end": {
+			"line": 2,
+			"character": 21
+		}
+	}
+]
+
+=== 200 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/output.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+		"start": {
+			"line": 4,
+			"character": 21
+		},
+		"end": {
+			"line": 4,
+			"character": 21
+		}
+	}
+]
 
 === 3 packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	json
 []
@@ -1060,7 +2125,13 @@
 === 3 packages/svelte/tests/migrate/samples/slots-multiple/output.svelte	json
 []
 
+=== 3 packages/svelte/tests/migrate/samples/slots-with-$$props/output.svelte	json
+[]
+
 === 3 packages/svelte/tests/migrate/samples/slots/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/migrate/samples/slots/output.svelte	json
 []
 
 === 3 packages/svelte/tests/migrate/samples/state-and-derivations-sequence/output.svelte	json
@@ -1321,11 +2392,107 @@
 === 3 packages/svelte/tests/parser-legacy/samples/if-block/input.svelte	json
 []
 
+=== 211 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li-block/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected block closing tag\nhttps://svelte.dev/e/block_unexpected_close",
+		"start": {
+			"line": 4,
+			"character": 2
+		},
+		"end": {
+			"line": 4,
+			"character": 2
+		}
+	}
+]
+
 === 3 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte	json
 []
 
 === 3 packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte	json
 []
+
+=== 191 packages/svelte/tests/parser-legacy/samples/loose-invalid-block/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 0,
+			"character": 5
+		},
+		"end": {
+			"line": 0,
+			"character": 5
+		}
+	}
+]
+
+=== 221 packages/svelte/tests/parser-legacy/samples/loose-invalid-expression/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+		"start": {
+			"line": 0,
+			"character": 5
+		},
+		"end": {
+			"line": 0,
+			"character": 5
+		}
+	}
+]
+
+=== 244 packages/svelte/tests/parser-legacy/samples/loose-unclosed-block/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 0
+		}
+	}
+]
+
+=== 191 packages/svelte/tests/parser-legacy/samples/loose-unclosed-open-tag/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 2
+		}
+	}
+]
+
+=== 244 packages/svelte/tests/parser-legacy/samples/loose-unclosed-tag/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 0
+		}
+	}
+]
 
 === 3 packages/svelte/tests/parser-legacy/samples/nbsp/input.svelte	json
 []
@@ -1408,6 +2575,9 @@
 === 3 packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte	json
 []
 
@@ -1419,6 +2589,22 @@
 
 === 3 packages/svelte/tests/parser-modern/samples/if-block-elseif/input.svelte	json
 []
+
+=== 204 packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "The keyword 'let' is reserved\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 1,
+			"character": 2
+		},
+		"end": {
+			"line": 1,
+			"character": 2
+		}
+	}
+]
 
 === 421 packages/svelte/tests/parser-modern/samples/loose-valid-each-as/input.svelte	json
 [
@@ -1485,6 +2671,22 @@
 === 3 packages/svelte/tests/parser-modern/samples/typescript-in-event-handler/input.svelte	json
 []
 
+=== 173 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	json
+[
+	{
+		"code": 1434,
+		"message": "Unexpected keyword or identifier.",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 4
+		}
+	}
+]
+
 === 3 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/output.svelte	json
 []
 
@@ -1493,6 +2695,38 @@
 
 === 3 packages/svelte/tests/preprocess/samples/attributes-with-equals/output.svelte	json
 []
+
+=== 235 packages/svelte/tests/preprocess/samples/comments/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate",
+		"start": {
+			"line": 16,
+			"character": 0
+		},
+		"end": {
+			"line": 16,
+			"character": 0
+		}
+	}
+]
+
+=== 235 packages/svelte/tests/preprocess/samples/comments/output.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate",
+		"start": {
+			"line": 16,
+			"character": 0
+		},
+		"end": {
+			"line": 16,
+			"character": 0
+		}
+	}
+]
 
 === 3 packages/svelte/tests/preprocess/samples/dependencies/input.svelte	json
 []
@@ -1527,6 +2761,54 @@
 === 3 packages/svelte/tests/preprocess/samples/partial-names/output.svelte	json
 []
 
+=== 287 packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 0
+		}
+	}
+]
+
+=== 287 packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 0
+		}
+	}
+]
+
+=== 193 packages/svelte/tests/preprocess/samples/script-self-closing/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 23
+		},
+		"end": {
+			"line": 0,
+			"character": 23
+		}
+	}
+]
+
 === 3 packages/svelte/tests/preprocess/samples/script-self-closing/output.svelte	json
 []
 
@@ -1542,7 +2824,44 @@
 === 3 packages/svelte/tests/preprocess/samples/style-async/output.svelte	json
 []
 
+=== 3 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/output.svelte	json
+[]
+
+=== 3 packages/svelte/tests/preprocess/samples/style-attributes-modified/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/preprocess/samples/style-attributes-modified/output.svelte	json
+[]
+
+=== 3 packages/svelte/tests/preprocess/samples/style-attributes/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/preprocess/samples/style-attributes/output.svelte	json
+[]
+
+=== 193 packages/svelte/tests/preprocess/samples/style-self-closing/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 18
+		}
+	}
+]
+
 === 3 packages/svelte/tests/preprocess/samples/style-self-closing/output.svelte	json
+[]
+
+=== 3 packages/svelte/tests/print/samples/animate-directive/input.svelte	json
 []
 
 === 3 packages/svelte/tests/print/samples/attach-tag/input.svelte	json
@@ -1552,6 +2871,9 @@
 []
 
 === 3 packages/svelte/tests/print/samples/await-block/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/print/samples/bind-directive/input.svelte	json
 []
 
 === 3 packages/svelte/tests/print/samples/block-element-separation/input.svelte	json
@@ -3565,6 +4887,12 @@
 []
 
 === 3 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-in-reactive-declaration-2/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-script/main.svelte	json
+[]
+
+=== 3 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-template/main.svelte	json
 []
 
 === 3 packages/svelte/tests/runtime-legacy/samples/store-each-binding-deep/main.svelte	json
@@ -7881,6 +9209,25 @@
 === 3 packages/svelte/tests/validator/samples/a11y-tabindex-no-positive/input.svelte	json
 []
 
+=== 173 packages/svelte/tests/validator/samples/action-on-component/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "element.addAction is not a function",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/animation-duplicate/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/animation-each-with-const/input.svelte	json
 []
 
@@ -7890,13 +9237,74 @@
 === 3 packages/svelte/tests/validator/samples/animation-each-with-whitespace/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/animation-not-in-each/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/animation-not-in-keyed-each/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/animation-on-component/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/animation-siblings/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/anonymous-declarations/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/assignment-to-const-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/assignment-to-const-3/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/assignment-to-const-4/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/assignment-to-const-5/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/assignment-to-const-6/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/assignment-to-const-7/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/assignment-to-const-8/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/assignment-to-const/input.svelte	json
+[]
+
+=== 191 packages/svelte/tests/validator/samples/attribute-expected-equals/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 4,
+			"character": 9
+		},
+		"end": {
+			"line": 4,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/attribute-quoted/input.svelte	json
@@ -7917,13 +9325,76 @@
 === 3 packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/bind_group_invalid_expression/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-await-catch/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-await-then/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/binding-const-field/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-const/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-dimensions-svg/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-import-component/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-import-element/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-input-checked/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-input-type-boolean/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-invalid-on-element-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-invalid-on-element/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-invalid-value-global/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-invalid-value/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-invalid/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-let/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-radio-input-checked/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/binding-select-multiple-dynamic/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/binding-this-input-type-dynamic/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/catch-declares-error-variable/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-event-modifiers-invalid/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte	json
@@ -7935,13 +9406,140 @@
 === 3 packages/svelte/tests/validator/samples/component-namespaced/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/component-slot-default-reserved/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-slot-dynamic-attribute/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-slotted-custom-element-2/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-slotted-each-block/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte	json
+[]
+
+=== 367 packages/svelte/tests/validator/samples/const-tag-conflict-1/input.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'a'.",
+		"start": {
+			"line": 5,
+			"character": 10
+		},
+		"end": {
+			"line": 5,
+			"character": 11
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'a'.",
+		"start": {
+			"line": 6,
+			"character": 10
+		},
+		"end": {
+			"line": 6,
+			"character": 11
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/const-tag-conflict-2/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/const-tag-inside-key-block/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/const-tag-placement-1/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/const-tag-placement-2/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/const-tag-readonly-1/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/const-tag-readonly-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/contenteditable-dynamic/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/contenteditable-missing/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-1/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-3/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-4/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-placement-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-placement-3/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-placement-4/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-placement-5/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-placement-6/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-placement/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector-3/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector-4/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector-5/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector-6/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector-list/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-global-selector/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-invalid-type-selector-placement/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/css-mismatched-quotes/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/custom-element-props-identifier-props-option/input.svelte	json
@@ -7953,7 +9551,61 @@
 === 3 packages/svelte/tests/validator/samples/custom-element-props-identifier/input.svelte	json
 []
 
+=== 257 packages/svelte/tests/validator/samples/debug-invalid-args/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments",
+		"start": {
+			"line": 1,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"character": 9
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/declaration-tag-invalid-function/input.svelte	json
+[]
+
+=== 246 packages/svelte/tests/validator/samples/declaration-tag-invalid-type-2/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Declaration tags must be `let` or `const` declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+		"start": {
+			"line": 27,
+			"character": 2
+		},
+		"end": {
+			"line": 27,
+			"character": 20
+		}
+	}
+]
+
+=== 243 packages/svelte/tests/validator/samples/declaration-tag-invalid-type/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Declaration tags must be `let` or `const` declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+		"start": {
+			"line": 1,
+			"character": 2
+		},
+		"end": {
+			"line": 1,
+			"character": 5
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/declaration-tag-legacy-mode/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte	json
@@ -7962,7 +9614,257 @@
 === 3 packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte	json
 []
 
+=== 334 packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte	json
+[
+	{
+		"code": 1128,
+		"message": "Declaration or statement expected.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 15
+		}
+	},
+	{
+		"code": 1003,
+		"message": "Identifier expected.",
+		"start": {
+			"line": 1,
+			"character": 25
+		},
+		"end": {
+			"line": 1,
+			"character": 26
+		}
+	}
+]
+
+=== 175 packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte	json
+[
+	{
+		"code": 1128,
+		"message": "Declaration or statement expected.",
+		"start": {
+			"line": 1,
+			"character": 8
+		},
+		"end": {
+			"line": 1,
+			"character": 15
+		}
+	}
+]
+
+=== 188 packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	json
+[
+	{
+		"code": 2528,
+		"message": "A module cannot have multiple default exports.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 30
+		}
+	}
+]
+
+=== 187 packages/svelte/tests/validator/samples/default-export-module/input.svelte	json
+[
+	{
+		"code": 2528,
+		"message": "A module cannot have multiple default exports.",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 19
+		}
+	}
+]
+
+=== 214 packages/svelte/tests/validator/samples/default-export/input.svelte	json
+[
+	{
+		"code": 1258,
+		"message": "A default export must be at the top level of a file or module declaration.",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 7
+		}
+	}
+]
+
+=== 258 packages/svelte/tests/validator/samples/directive-non-expression/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
+		"start": {
+			"line": 0,
+			"character": 15
+		},
+		"end": {
+			"line": 0,
+			"character": 15
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/dollar-dollar-global-in-markup/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/dollar-dollar-global-in-script/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/dollar-global-in-markup/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/dollar-global-in-script/input.svelte	json
+[]
+
+=== 250 packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+		"start": {
+			"line": 1,
+			"character": 17
+		},
+		"end": {
+			"line": 1,
+			"character": 21
+		}
+	}
+]
+
+=== 248 packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 1
+		}
+	}
+]
+
+=== 250 packages/svelte/tests/validator/samples/dynamic-element-this/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "'this' is a reserved word in JavaScript and cannot be used here\nhttps://svelte.dev/e/unexpected_reserved_word",
+		"start": {
+			"line": 1,
+			"character": 18
+		},
+		"end": {
+			"line": 1,
+			"character": 18
+		}
+	}
+]
+
+=== 222 packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Comma is not permitted after the rest element\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 4,
+			"character": 53
+		},
+		"end": {
+			"line": 4,
+			"character": 53
+		}
+	}
+]
+
+=== 202 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected keyword 'case'\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 0,
+			"character": 18
+		},
+		"end": {
+			"line": 0,
+			"character": 18
+		}
+	}
+]
+
+=== 193 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 0,
+			"character": 17
+		},
+		"end": {
+			"line": 0,
+			"character": 17
+		}
+	}
+]
+
+=== 250 packages/svelte/tests/validator/samples/each-block-invalid-context/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "'case' is a reserved word in JavaScript and cannot be used here\nhttps://svelte.dev/e/unexpected_reserved_word",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 16
+		}
+	}
+]
+
 === 3 packages/svelte/tests/validator/samples/empty-block/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/error-mode-warn/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/event-attribute/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/event-modifiers-invalid-nonpassive/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/event-modifiers-invalid-passive/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/event-modifiers-invalid/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	json
@@ -7977,7 +9879,42 @@
 === 3 packages/svelte/tests/validator/samples/global-event-reference/input.svelte	json
 []
 
+=== 228 packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{@html ...} tag cannot be in attribute value\nhttps://svelte.dev/e/tag_invalid_placement",
+		"start": {
+			"line": 0,
+			"character": 12
+		},
+		"end": {
+			"line": 0,
+			"character": 12
+		}
+	}
+]
+
+=== 225 packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{@html ...} tag cannot be inside <textarea>\nhttps://svelte.dev/e/tag_invalid_placement",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 1
+		}
+	}
+]
+
 === 3 packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/if-block-whitespace-runes/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/ignore-warning-compiler-option/input.svelte	json
@@ -8004,6 +9941,15 @@
 === 3 packages/svelte/tests/validator/samples/illegal-attribute-character/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/illegal-variable-declaration/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/illegal_spread_element-document/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/illegal_spread_element-window/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte	json
 []
 
@@ -8028,13 +9974,34 @@
 === 3 packages/svelte/tests/validator/samples/inline-new-class/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/invalid-empty-css-declaration/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/invalid-node-placement-2/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/invalid-node-placement-4/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/invalid-node-placement-5/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/invalid-node-placement-6/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/invalid-node-placement-7/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/invalid-node-placement-8/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/invalid-node-placement/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	json
@@ -8043,14 +10010,113 @@
 === 3 packages/svelte/tests/validator/samples/js-scope-catch-clause/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/let-directive/input.svelte	json
+[]
+
+=== 230 packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{#if ...} block cannot be in attribute value\nhttps://svelte.dev/e/block_invalid_placement",
+		"start": {
+			"line": 0,
+			"character": 12
+		},
+		"end": {
+			"line": 0,
+			"character": 12
+		}
+	}
+]
+
+=== 229 packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "{#each ...} block cannot be inside <textarea>\nhttps://svelte.dev/e/block_invalid_placement",
+		"start": {
+			"line": 1,
+			"character": 1
+		},
+		"end": {
+			"line": 1,
+			"character": 1
+		}
+	}
+]
+
 === 3 packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	json
 []
+
+=== 287 packages/svelte/tests/validator/samples/multiple-script-default-context/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 0
+		}
+	}
+]
+
+=== 287 packages/svelte/tests/validator/samples/multiple-script-module-context/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 0
+		}
+	}
+]
 
 === 3 packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/mutate-derived-private-field/input.svelte	json
 []
+
+=== 260 packages/svelte/tests/validator/samples/namespace-invalid/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 54
+		}
+	}
+]
+
+=== 260 packages/svelte/tests/validator/samples/namespace-non-literal/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 30
+		}
+	}
+]
 
 === 3 packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	json
 []
@@ -8064,6 +10130,9 @@
 === 3 packages/svelte/tests/validator/samples/non-invalid-node-placement-if-snippet/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/reactive-declaration-cyclical/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte	json
 []
 
@@ -8074,6 +10143,21 @@
 []
 
 === 3 packages/svelte/tests/validator/samples/rest-eachblock-binding/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/rune-invalid-spread-derived-by/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/rune-invalid-spread-derived/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/rune-invalid-spread-state-raw/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/rune-invalid-spread-state/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings-2/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings/input.svelte	json
@@ -8094,6 +10178,22 @@
 === 3 packages/svelte/tests/validator/samples/script-context-module-runes-deprecated/input.svelte	json
 []
 
+=== 250 packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "If the context attribute is supplied, its value must be \"module\"\nhttps://svelte.dev/e/script_invalid_context",
+		"start": {
+			"line": 0,
+			"character": 8
+		},
+		"end": {
+			"line": 0,
+			"character": 22
+		}
+	}
+]
+
 === 3 packages/svelte/tests/validator/samples/script-invalid-spread-attribute/input.svelte	json
 []
 
@@ -8112,6 +10212,9 @@
 === 3 packages/svelte/tests/validator/samples/slot-attribute-component/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/slot-attribute-invalid/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/slot-warning-ignore/input.svelte	json
 []
 
@@ -8119,6 +10222,37 @@
 []
 
 === 3 packages/svelte/tests/validator/samples/slot-warning2/input.svelte	json
+[]
+
+=== 369 packages/svelte/tests/validator/samples/snippet-already-declared/input.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'foo'.",
+		"start": {
+			"line": 4,
+			"character": 10
+		},
+		"end": {
+			"line": 4,
+			"character": 13
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'foo'.",
+		"start": {
+			"line": 1,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"character": 8
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/snippet-shadowing-prop/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/snippet-whitespace-ok/input.svelte	json
@@ -8176,7 +10310,19 @@
 === 3 packages/svelte/tests/validator/samples/store-runes-conflict/input.svelte	json
 []
 
+=== 3 packages/svelte/tests/validator/samples/style-directive-modifiers-invalid/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/svelte-component-deprecated/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/svelte-fragment-placement-2/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/svelte-fragment-placement/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/svelte-head-attributes/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/svelte-ignore-non-reactive-update/input.svelte	json
@@ -8194,10 +10340,131 @@
 === 3 packages/svelte/tests/validator/samples/tag-hyphen/input.svelte	json
 []
 
+=== 234 packages/svelte/tests/validator/samples/tag-invalid/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 39
+		}
+	}
+]
+
+=== 449 packages/svelte/tests/validator/samples/tag-non-string/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 34
+		}
+	}
+]
+
+=== 214 packages/svelte/tests/validator/samples/tag-reserved/input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Tag name is reserved\nhttps://svelte.dev/e/svelte_options_reserved_tagname",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 41
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/textarea-value-children/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/title-no-attributes/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/title-no-children/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-in-transition/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-in/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-out-transition/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-out/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-transition-in/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-transition-out/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-duplicate-transition/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/transition-on-component/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	json
+[]
+
+=== 184 packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	json
+[
+	{
+		"code": 7005,
+		"message": "Variable 'foo' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"character": 8
+		}
+	}
+]
+
+=== 3 packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/ts-unsupported-modifier-readonly/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/ts-unsupported-modifier/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/ts-unsupported-namespace/input.svelte	json
+[]
+
 === 3 packages/svelte/tests/validator/samples/unknown-code/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/use-the-platform/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/window-binding-invalid-innerwidth/input.svelte	json
+[]
+
+=== 3 packages/svelte/tests/validator/samples/window-binding-invalid/input.svelte	json
 []
 
 === 3 packages/svelte/tests/validator/samples/window-binding-online/input.svelte	json

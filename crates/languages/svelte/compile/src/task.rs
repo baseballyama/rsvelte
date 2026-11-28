@@ -35,9 +35,19 @@ pub fn register(registry: &mut Registry) {
         .artifact::<crate::warnings::Warned>()
         .task(Compile {
             target: Target::Client,
+            mapped: false,
         })
         .task(Compile {
             target: Target::Server,
+            mapped: false,
+        })
+        .task(Compile {
+            target: Target::Client,
+            mapped: true,
+        })
+        .task(Compile {
+            target: Target::Server,
+            mapped: true,
         })
         .task(crate::CompileModule {
             target: Target::Client,
@@ -45,7 +55,8 @@ pub fn register(registry: &mut Registry) {
         .task(crate::CompileModule {
             target: Target::Server,
         })
-        .task(crate::Warn);
+        .task(crate::Warn)
+        .task(Parse);
 }
 
 pub fn register_with_configuration(registry: &mut Registry, configuration: crate::Configuration) {
@@ -58,16 +69,44 @@ pub fn register_with_configuration(registry: &mut Registry, configuration: crate
     );
 }
 
+/// The modern AST, as `parse` writes it.
+#[derive(Debug)]
+pub(crate) struct Parse;
+
+impl Task for Parse {
+    fn identifier(&self) -> &'static str {
+        "svelte.parse/modern"
+    }
+
+    fn applies(&self, document: &Document) -> bool {
+        rsvelte_svelte_syntax::matches(document)
+    }
+
+    fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
+        match rsvelte_svelte_syntax::fully_parsed(context) {
+            Ok(component) => out.file(
+                "ast.json",
+                crate::parse::print(context.source_text(), component),
+            ),
+            Err(diagnostic) => out.diagnostics.push(diagnostic.clone()),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Compile {
     pub target: Target,
+    /// Also writes the module's source map, `js.map`.
+    pub mapped: bool,
 }
 
 impl Task for Compile {
     fn identifier(&self) -> &'static str {
-        match self.target {
-            Target::Client => "svelte.compile/client",
-            Target::Server => "svelte.compile/server",
+        match (self.target, self.mapped) {
+            (Target::Client, false) => "svelte.compile/client",
+            (Target::Server, false) => "svelte.compile/server",
+            (Target::Client, true) => "svelte.compile.sourcemap/client",
+            (Target::Server, true) => "svelte.compile.sourcemap/server",
         }
     }
 
@@ -76,8 +115,16 @@ impl Task for Compile {
     }
 
     fn run(&self, context: &DocumentContext<'_>, out: &mut TaskOutput) {
-        match compiled(context, self.target, false) {
+        match compiled(context, self.target, self.mapped) {
             Ok(compiled) => {
+                if self.mapped {
+                    let map = compiled.javascript.source_map(
+                        context.source_text(),
+                        context.lines(LineBreaks::Newline),
+                        crate::compiler::source_name(&context.document.path),
+                    );
+                    out.file("js.map", map);
+                }
                 out.file("js", compiled.javascript.out);
                 // An empty stylesheet is no file, as the official output writes none.
                 if let Some(stylesheet) = compiled.stylesheet.filter(|s| !s.is_empty()) {

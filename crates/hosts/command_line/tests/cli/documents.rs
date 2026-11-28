@@ -291,7 +291,7 @@ fn javascript_uses_its_own_syntax_mode_in_shared_tasks() {
             compiled.diagnostics
         );
         assert_eq!(
-            compiled.files[0].text, "export const value = a < b > c;\n",
+            compiled.files[0].text, "export const value = a < b > (c);\n",
             "{path}"
         );
         let formatted = task_at(path, "export const value=a<b>(c)", "ts.format/default");

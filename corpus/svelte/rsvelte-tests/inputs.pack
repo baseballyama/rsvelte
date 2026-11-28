@@ -104,8 +104,6 @@ let x=1
 === 14 js/scripts/compat-lsp/mechanism.test.mjs/fc77f34582ff0f3f.svelte	svelte	runes	neutral
 <div a></div>
 
-=== 5 rsvelte/runtime_api/failures_do_not_expose_compiler_phase_errors/cae0c88bd9675a5a.svelte	svelte	runes	rejected
-<div>
 === 62 rsvelte/runtime_api/fixed_css_scope_is_frozen_in_facts_and_runtime_output/0115c930074f2e71.svelte	svelte	runes	neutral
 <style>.card { color: blue }</style><div class="card">ok</div>
 === 202 rsvelte/runtime_api/prepares_once_and_emits_neutral_client_and_server_artifacts/98eece84c46fb836.svelte	svelte	runes	runes
@@ -280,10 +278,6 @@ type X = WithOther<'a' | 'b'>;
 <script lang="ts">import Button from '$lib/Button.svelte';</script>
 <Button n={1} />
 
-=== 31 rsvelte_check/svelte_check/runner/tests/compiler_errors_keep_their_specific_code/4e810ce2e7d5e62e.svelte	svelte	runes	rejected
-<h1>Hello {name}!</h1>
-
-<style>
 === 11 rsvelte_check/svelte_check/runner/tests/compiler_errors_keep_their_specific_code/a2b0f77fff2325e8.svelte	svelte	runes	rejected
 {42 = nope}
 === 77 rsvelte_check/svelte_check_companion_module/a_rune_module_specifier_is_left_alone/e1de3ccb6be59a49.svelte	svelte	runes	neutral
@@ -1082,10 +1076,6 @@ Hello
 <!-- #region -->
 <div>
 
-=== 6 rsvelte_language_server/folding/tests/no_input_panics/94343e3237a4bce8.svelte	svelte	runes	rejected
-</div>
-=== 1 rsvelte_language_server/folding/tests/no_input_panics/975a1cfd04076805.svelte	svelte	runes	rejected
-<
 === 13 rsvelte_language_server/folding/tests/no_input_panics/a2c04a7ff655c756.svelte	svelte	runes	rejected
 <div
   attr="
@@ -3054,7 +3044,7 @@ export const answer = 42;
 <style>.broken { color: red;</style><div />
 === 5 rsvelte_language_server/rsvelte_analysis/d45f481a51ba4278.svelte	svelte	runes	neutral
 <img>
-=== 5500 rsvelte_language_server/rsvelte_analysis/d5a7cfca9ab4af24.svelte	svelte	runes	neutral
+=== 5500 rsvelte_language_server/rsvelte_analysis/d5a7cfca9ab4af24.svelte	svelte	runes	rejected
 <div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div><div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div></div>
 === 19 rsvelte_language_server/selection_ranges/tests/a_block_expression_is_its_own_step/42425b7626b80e4b.svelte	svelte	runes	neutral
 {#if a > 1}foo{/if}
@@ -8088,6 +8078,8 @@ export let c = 3,
 <svelte:window /><svelte:window />
 === 54 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/8c8ae80a4e4ef193.svelte	svelte	runes	rejected
 <div><svelte:head><title>t</title></svelte:head></div>
+=== 18 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	svelte	runes	rejected
+<svelte:element />
 === 18 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/b42d1ee73ee0803f.svelte	svelte	runes	rejected
 {@debug user.name}
 === 166 rsvelte_projection/svelte2tsx_event_dispatcher_2157/a_dispatcher_declared_inside_a_function_is_still_tracked/7f7502fdc709268a.svelte	svelte	runes	neutral

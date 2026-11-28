@@ -90,9 +90,36 @@ difference and not the projection:
   `(n: number) => void`, and `onclick={(e, x) => {}}` or `on:click={(e, x) => {}}` on a
   `<button>`. In a TypeScript component, both checkers report the TS2322.
 
+- The checkers give an empty object literal that misses a required property different codes.
+
+  ```ts
+  declare function slots<Slots>(): <Name extends keyof Slots>(
+    name: Name,
+    attributes: Slots[Name],
+  ) => Record<string, any>;
+  type S = { default: { x: number }; named: {} };
+  slots<S>()('default', {});
+  ```
+
+  TypeScript 6.0.3 reports TS2345 `Argument of type '{}' is not assignable to parameter of type
+  '{ x: number; }'.` at 6:23, and TypeScript 7.1 reports TS2741 `Property 'x' is missing in type
+  '{}' but required in type '{ x: number; }'.` there. A `<slot />` that misses a required prop of
+  its `$$Slots` gives the same pair, because svelte2tsx writes its props as this call's argument.
+
+  Where that finding starts differs too, for a `<slot>` without attributes. The overwrites
+  svelte2tsx makes of the tag decide where its empty props map, and svelte-check reports at the
+  first of their two braces. Counted in characters from `<slot`, that is +0 for `<slot />` and
+  for a slot inside an element, and +1 for `<slot/>`, `<slot></slot>` and
+  `<slot>fallback</slot>`. The offset is +6 for `<slot  />`, for `<slot name="named" />` and
+  for a named slot whose attribute is on the next line, so the finding can start on another
+  line. The projection maps the braces to `<slot`, +0, in `slot_call` in the projection crate's
+  [`call.rs`](../typescript_projection/src/lower/call.rs).
+
 - Test: `typecheck_prints_what_typescript_7_prints` and
   `typecheck_checks_a_javascript_snippet_s_parameters_as_typescript_7_does` in the command line
   crate's `tests/cli/typecheck_checker.rs`.
+  The slot finding's test is `typecheck_reports_a_missing_slot_prop_at_the_slot_tag` in
+  `tests/cli/typecheck_slots.rs`.
 - The reports are [#5254](https://github.com/baseballyama/rsvelte/issues/5254) and
   [#5319](https://github.com/baseballyama/rsvelte/issues/5319).
 
@@ -192,3 +219,57 @@ into `never`, such as one with `generics="T, Key = T extends Map<infer K, unknow
 
 - Test: `typecheck_reports_a_value_that_is_no_component_at_its_tag` in the command line crate's
   `tests/cli/typecheck_component_values.rs`.
+
+## The script of a component svelte2tsx rejects
+
+When svelte2tsx throws, svelte-check reads the component as its instance script, else its module
+script (the `catch` in the language server's `preprocessSvelteFile`). A script that neither imports
+nor exports is then a global script. Every file of the project reads its top-level names, with
+or without `allowJs`. An import of the component reports TS2306 `File '…' is not a module.` The
+expected output of a unit can then depend on the broken units beside it. The corpus skips such
+units for `svelte.check` with the reason "svelte-check adds the script of a component
+that does not parse to the project as a global script" in
+[`units.toml`](../../../../corpus/_registry/units.toml).
+
+rsvelte reads such a script as an empty file, which is not a module either and declares nothing
+(`unprojected` in the projection crate's [`lib.rs`](../typescript_projection/src/lib.rs)). An
+import still reports TS2306, but another file that reads one of the script's names reports TS2304
+`Cannot find name`. rsvelte reads a script that imports or exports unchanged, with `export {};`
+after it.
+
+A script is a module where TypeScript's `isExternalModule` says so. That takes a top-level import
+or export declaration other than `export as namespace`, an `import … = require(…)`, or an
+`import.meta` anywhere. A top-level `await` alone does not make one. The statements come from
+oxc's parse. A script oxc cannot parse reads as an empty file, where TypeScript's recovery can
+still find an import or export. `let = ;` before an `export` is such a script: svelte-check
+reports TS1192 for a default import of its component, and rsvelte TS2306. No script is ever read
+as a global script.
+
+Before this, every component whose Svelte parse failed read as an empty file. An import of one
+then matched svelte-check where TypeScript reads the script as a global script, only by accident.
+A bare trailing `export` or `import` is such a script, and so is an `import` inside an `if`.
+
+- Tests: `a_thrown_stand_in_is_a_module_where_typescript_reads_the_script_as_one` in the
+  projection crate's `src/tests/stand_in.rs`, and
+  `typecheck_reads_a_rejected_component_as_its_script` and
+  `typecheck_declares_no_global_for_a_rejected_component_s_script` in the command line crate's
+  `tests/cli/typecheck_rejected.rs`.
+
+## A named import of a JavaScript component without `allowJs`
+
+Without `allowJs`, svelte-check 4.7.8 reads a JavaScript component as a `.js` file that TypeScript
+does not load. Each import of it reports TS7016, and every name it imports is `any`. rsvelte reports
+the same TS7016 and types the default import as `any` (`untyped.rs` in the TypeScript check
+crate's `src/check/run/`). A named or namespace import keeps the types of the component's generated
+text. So a use of such a name can report an error that svelte-check does not, and an import of a
+name the component does not export reports TS2614 or TS2339.
+
+rsvelte cannot make these names `any` from outside. TypeScript 7 loads and types every file a
+content mapper maps, whatever the extension of its generated text, and `allowJs` does not change
+that. The rule is
+[`ResolvedUsingExtraExtensions`](https://github.com/microsoft/TypeScript/blob/6161772c1370bdd4a82f808e6823bd755eb1870d/tsc/internal/module/util.go#L161-L163)
+at the pinned build of TypeScript 7. Item 185 of the
+[upstream bug list](https://github.com/baseballyama/rsvelte/issues/4939) records it.
+
+- Test: `typecheck_types_a_named_import_of_a_javascript_component` in the command line crate's
+  `tests/cli/typecheck_untyped.rs`.

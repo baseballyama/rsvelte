@@ -22,6 +22,41 @@ import Router from 'svelte-spa-router'
 import routes from './routes'
 </script>
 
+=== 189 examples/basic-routing/src/main.ts	ts	module	-
+// Initialize the Svelte app and inject it in the DOM
+import App from './App.svelte'
+import {mount} from 'svelte'
+
+const app = mount(App, {
+    target: document.body
+})
+
+export default app
+
+=== 581 examples/basic-routing/src/routes.ts	ts	module	-
+// Components
+import Home from './routes/Home.svelte'
+import Name from './routes/Name.svelte'
+import Wild from './routes/Wild.svelte'
+import NotFound from './routes/NotFound.svelte'
+
+// Export the route definition object
+export default {
+    // Exact path
+    '/': Home,
+
+    // Using named parameters, with last being optional
+    '/hello/:first/:last?': Name,
+
+    // Wildcard parameter
+    // Included twice to match both `/wild` (and nothing after) and `/wild/*` (with anything after)
+    '/wild': Wild,
+    '/wild/*': Wild,
+
+    // Catch-all, must be last
+    '*': NotFound
+}
+
 === 467 examples/basic-routing/src/routes/Home.svelte	svelte	runes	neutral
 <h2>Home component</h2>
 
@@ -88,6 +123,62 @@ import Router from 'svelte-spa-router'
 // Import the list of routes
 import routes from './routes'
 </script>
+
+=== 2159 examples/dynamic-imports/src/routes.ts	ts	module	-
+/* eslint-disable */
+
+// Import the wrap method
+import wrap from 'svelte-spa-router/wrap'
+
+// Components: only Home, Loading and NotFound are statically included in the bundle
+import Home from './routes/Home.svelte'
+import Loading from './routes/Loading.svelte'
+import NotFound from './routes/NotFound.svelte'
+
+// Export the route definition object
+export default {
+    // Exact path
+    '/': Home,
+
+    // Using named parameters, with last being optional
+    // This is dynamically imported, so the code is loaded on-demand from the server
+    '/hello/:first/:last?': wrap({
+        // Note that this is a function that returns the import
+        asyncComponent: () => import('./routes/Name.svelte'),
+        // Show the loading component while the component is being downloaded
+        loadingComponent: Loading,
+        // Pass values for the `params` prop of the loading component
+        loadingParams: {
+            message: 'Loading the Name route…'
+        }
+    }),
+
+    // Wildcard parameter
+    // This matches `/wild/*` (with anything after), but NOT `/wild` (with nothing after)
+    // This is dynamically imported too
+    '/wild/*': wrap({
+        // Note that this is a function that returns the import
+        // We're adding an artificial delay of 5 seconds so you can experience the loading even on localhost
+        // Note that normally the modules loaded with `import()` are cached, so the delay exists only on the first request.
+        // In this case, we're adding a delay every time the component is loaded
+        asyncComponent: () =>
+            import('./routes/Wild.svelte').then((component) => {
+                return new Promise((resolve) => {
+                    // Wait 5 seconds before returning
+                    setTimeout(() => resolve(component), 5050)
+                })
+            }),
+        // Show the loading component while the component is being downloaded
+        loadingComponent: Loading,
+        // Pass values for the `params` prop of the loading component
+        loadingParams: {
+            message: 'Loading the Wild route…'
+        }
+    }),
+
+    // Catch-all, must be last
+    '*': NotFound
+}
 
 === 775 examples/dynamic-imports/src/routes/Home.svelte	svelte	runes	neutral
 <h2>Home component</h2>
@@ -859,6 +950,228 @@ export default function active(node: HTMLElement, opts?: ActiveOptions | string 
     }
 }
 
+=== 4494 src/types.ts	ts	module	-
+import type {Component} from 'svelte'
+
+/** Full location from the hash: page and querystring */
+export interface Location {
+    /** Location (page/view), for example `/book` */
+    location: string
+
+    /** Querystring from the hash, as a string not parsed */
+    querystring?: string
+}
+
+/** Dictionary with route details passed to pre-conditions and callback props */
+export interface RouteDetail {
+    /** Route matched as defined in the route definition (could be a string or a regular expression object) */
+    route: string | RegExp
+
+    /** Location path */
+    location: string
+
+    /** Querystring from the hash */
+    querystring: string
+
+    /** Params matched in the route */
+    params: Record<string, string> | null
+    // TODO the real type is `Record<string, string | null> | RegExpExecArray | null` - adjust in next major or keep for convenience?
+
+    /** Custom data passed by the user */
+    userData?: object
+}
+
+/** Detail object for `onRouteLoaded` */
+export interface RouteDetailLoaded extends RouteDetail {
+    /** Svelte component */
+    component: Component<any, any>
+
+    /** Name of the Svelte component that was loaded (note: might be minified in production) */
+    name: string
+}
+
+/**
+ * This is a Svelte component loaded asynchronously.
+ * It's meant to be used with the `import()` function, such as `() => import('Foo.svelte')`.
+ */
+export type AsyncSvelteComponent = () => Promise<{default: Component<any, any>} | Component<any, any>>
+
+/**
+ * Route pre-condition function. This is a callback that receives a RouteDetail object as argument containing information on the route that we're trying to load.
+ * The function must return a boolean indicating whether the route can be loaded. If the function returns `false`, the route is not loaded, and no other pre-condition function is executed.
+ *
+ * The pre-condition function can be asynchronous too, returning a boolean asynchronously.
+ */
+export type RoutePrecondition = (detail: RouteDetail) => boolean | Promise<boolean>
+
+/** Object returned by the `wrap` method */
+export interface WrappedComponent {
+    /** Component to load (this is always asynchronous) */
+    component: AsyncSvelteComponent
+
+    /** Route pre-conditions to validate */
+    conditions?: RoutePrecondition[]
+
+    /** Optional dictionary of static props */
+    props?: Record<string, unknown>
+
+    /** Optional user data dictionary */
+    userData?: object
+}
+
+/** Type for the opts parameter of the link action */
+export interface LinkActionOpts {
+    /** A string to use in place of the link's href attribute. Using this allows for updating link's targets reactively. */
+    href?: string
+
+    /** If true, link is disabled */
+    disabled?: boolean
+}
+
+/** Type for the update function of the link action */
+export type LinkActionUpdateFunc = ((opts?: LinkActionOpts) => void) | ((hrefVar?: string) => void)
+
+/** Backwards-compatible alias (kept for the historical typo) */
+export type LinkActionUpateFunc = LinkActionUpdateFunc
+
+/** Router state object, containing the current location, querystring and params. */
+export interface RouterState {
+    /** The current full location (incl. querystring) */
+    readonly loc: Location
+
+    /** The current location (excluding querystring) */
+    readonly location: string
+
+    /** The current querystring */
+    readonly querystring: string | undefined
+
+    /** The currently-matched params */
+    readonly params: Record<string, string> | null | undefined
+    // TODO the real type is `Record<string, string | null> | RegExpExecArray | null | undefined` - adjust in next major or keep for convenience?
+}
+
+/** Options for the `active` action */
+export interface ActiveOptions {
+    /** Path to match; if empty, will default to the link's target */
+    path?: string | RegExp
+
+    /** Name of the CSS class to add when the route is active; default is "active" */
+    className?: string
+
+    /** Name of the CSS class to add when the route is inactive; nothing added by default */
+    inactiveClassName?: string
+}
+
+/** List of routes */
+export type RouteDefinition =
+    | Record<string, Component<any, any> | WrappedComponent>
+    | Map<string | RegExp, Component<any, any> | WrappedComponent>
+
+// Note: `RouterProps` is intentionally defined inline in Router.svelte rather than here
+// svelte2tsx (used by @sveltejs/package to emit .d.ts) can't follow cross-file type aliases when typing `$props()`, so the interface must live in the same file as the component to surface correctly to consumers
+
+=== 4087 src/wrap.ts	ts	module	-
+import type {Component} from 'svelte'
+import type {AsyncSvelteComponent, RoutePrecondition, WrappedComponent} from './types.js'
+
+export type {AsyncSvelteComponent, RoutePrecondition, WrappedComponent} from './types.js'
+
+/** Options object for the call to `wrap` */
+export interface WrapOptions {
+    /** Svelte component to load (this is incompatible with `asyncComponent`) */
+    component?: Component<any, any>
+
+    /** Function that returns a Promise that fulfills with a Svelte component (e.g. `{asyncComponent: () => import('Foo.svelte')}`) */
+    asyncComponent?: AsyncSvelteComponent
+
+    /** Svelte component to be displayed while the async route is loading (as a placeholder); when unset or false-y, no component is shown */
+    loadingComponent?: Component<any, any>
+
+    /** Optional dictionary passed to the `loadingComponent` component as params (for an exported prop called `params`) */
+    loadingParams?: Record<string, unknown>
+
+    /** Optional object that will be passed to callback props such as `onRouteLoading`, `onRouteLoaded`, `onConditionsFailed` */
+    userData?: object
+
+    /** Optional key-value dictionary of static props that will be passed to the component */
+    props?: Record<string, unknown>
+
+    /** Route pre-conditions to add, which will be executed in order */
+    conditions?: RoutePrecondition[] | RoutePrecondition
+}
+
+/**
+ * Wraps a component to enable multiple capabilities:
+ *
+ * 1. Using dynamically-imported components (e.g. `{asyncComponent: () => import('Foo.svelte')}`), which also allows bundlers to do code-splitting.
+ * 2. Adding route pre-conditions (e.g. `{conditions: [...]}`).
+ * 3. Adding static props that are passed to the component.
+ * 4. Adding custom userData, which is passed to callback props (e.g. `onRouteLoaded`) or to route pre-conditions.
+ */
+export function wrap(args: WrapOptions): WrappedComponent {
+    if (!args) {
+        throw Error('Parameter args is required')
+    }
+
+    // We need to have one and only one of component and asyncComponent
+    // This does a "XNOR"
+    if (!args.component == !args.asyncComponent) {
+        throw Error('One and only one of component and asyncComponent is required')
+    }
+
+    // If the component is not async, wrap it into a function returning a Promise
+    if (args.component) {
+        const sync = args.component
+        args.asyncComponent = () => Promise.resolve(sync)
+    }
+
+    // Parameter asyncComponent and each item of conditions must be functions
+    if (typeof args.asyncComponent != 'function') {
+        throw Error('Parameter asyncComponent must be a function')
+    }
+    let conditions: RoutePrecondition[] | undefined
+    if (args.conditions) {
+        // Ensure it's an array
+        const arr = Array.isArray(args.conditions) ? args.conditions : [args.conditions]
+        for (let i = 0; i < arr.length; i++) {
+            if (!arr[i] || typeof arr[i] != 'function') {
+                throw Error('Invalid parameter conditions[' + i + ']')
+            }
+        }
+        conditions = arr
+    }
+
+    // Check if we have a placeholder component
+    const asyncComponent = args.asyncComponent as AsyncSvelteComponent & {
+        loading?: Component<any, any>
+        loadingParams?: Record<string, unknown>
+    }
+    if (args.loadingComponent) {
+        asyncComponent.loading = args.loadingComponent
+        asyncComponent.loadingParams = args.loadingParams || undefined
+    }
+
+    // Build the wrapped component
+    // _sveltesparouter is defined as a read-only, non-enumerable, non-configurable property so callers can't tamper with the marker the router uses to detect wrapped routes
+    const wrapped: WrappedComponent = {
+        component: asyncComponent,
+        userData: args.userData,
+        conditions: conditions?.length ? conditions : undefined,
+        props: args.props && Object.keys(args.props).length ? args.props : {}
+    }
+
+    Object.defineProperty(wrapped, '_sveltesparouter', {
+        value: true,
+        writable: false,
+        enumerable: false,
+        configurable: false
+    })
+
+    return wrapped
+}
+
+export default wrap
+
 === 6044 test/app/src/App.svelte	svelte	runes	runes
 
 <h1>svelte-spa-router example</h1>
@@ -1064,6 +1377,193 @@ disableLinks.map((el) => {
     return el
 })
 </script>
+
+=== 211 test/app/src/main.ts	ts	module	-
+// Initialize the Svelte app and inject it in the DOM
+import './global.css'
+import App from './App.svelte'
+import {mount} from 'svelte'
+
+const app = mount(App, {
+    target: document.body
+})
+
+export default app
+
+=== 6192 test/app/src/routes.ts	ts	module	-
+/* eslint-disable */
+
+// Import the "wrap" function
+import {wrap} from 'svelte-spa-router/wrap'
+
+// Types
+import type {RouteDefinition} from 'svelte-spa-router'
+
+// Components
+import Catalog from './routes/Catalog.svelte'
+import Home from './routes/Home.svelte'
+import Name from './routes/Name.svelte'
+import Loading from './routes/Loading.svelte'
+import Wild from './routes/Wild.svelte'
+import Foo from './routes/Foo.svelte'
+import Regex from './routes/Regex.svelte'
+import NotFound from './routes/NotFound.svelte'
+
+const wrappedLuckyRoute = wrap({
+    // Add an artificial delay so we can experience the component loading
+    asyncComponent: () =>
+        import('./routes/Lucky.svelte').then((res) => {
+            return new Promise((resolve) => {
+                setTimeout(() => resolve(res), 2000)
+            })
+        }),
+    // Component to show while the module is being downloaded
+    loadingComponent: Loading,
+    // Props for the loading component
+    loadingParams: {message: 'secret'},
+    // Set some user data
+    userData: {foo: 'bar'},
+    // Route pre-conditions, which are executed in order
+    conditions: [
+        (detail) => {
+            // If there's a querystring parameter, override the random choice (tests need to be deterministic)
+            if (detail.querystring == 'pass=1') {
+                return true
+            } else if (detail.querystring == 'pass=0') {
+                return false
+            }
+            // Random
+            return Math.random() > 0.5
+        },
+        // This is an async condition
+        async (detail) => {
+            // This pre-condition is executed only if the first one succeeded
+            // eslint-disable-next-line no-console
+            console.log('Pre-condition 2 executed', detail.location, detail.querystring, detail.userData)
+
+            // eslint-disable-next-line no-console
+            console.log('Pre-condition 2 started waiting')
+
+            // Pause this
+            await new Promise((resolve) => setTimeout(resolve, 100))
+
+            // eslint-disable-next-line no-console
+            console.log('Pre-condition 2 done waiting')
+
+            // Always succeed (after the delay)
+            return true
+        }
+    ]
+})
+
+// This demonstrates how to pass routes as a POJO (Plain Old JavaScript Object) or a JS Map
+// In this code sample we're using both (controlling at runtime what's enabled, by checking for the 'routemap=1' querystring parameter) just because we are using this code sample for tests too
+// In your code, you'll likely want to choose one of the two options only
+let routes: RouteDefinition
+const urlParams = new URLSearchParams(window.location.search)
+if (!urlParams.has('routemap')) {
+    // The simples way to define routes is to use a dictionary.
+    // This is a key->value pair in which the key is a string of the path.
+    // The path is passed to regexparam that does some transformations allowing the use of params and wildcards
+    routes = {
+        // Exact path
+        '/': Home,
+
+        // Allow children to also signal link activation
+        '/brand': Home,
+
+        // Using named parameters, with last being optional
+        '/hello/:first/:last?': Name,
+
+        // Using named parameters, with last being optional
+        '/catalog/:id?': Catalog,
+
+        // Wildcard parameter
+        '/wild': Wild,
+        // Special route that has custom data that will be passed to the `routeLoaded` event
+        '/wild/data': wrap({
+            component: Wild,
+            userData: {hello: 'world'}
+        }),
+        '/wild/*': Wild,
+
+        // This route has a pre-condition function that lets people in only 50% of times, and a second pre-condition that is always true
+        // The second argument is a custom data object that will be passed to the `conditionsFailed` event if the pre-conditions fail
+        '/lucky': wrappedLuckyRoute,
+
+        // This route has a static prop that is passed to it
+        '/foo': wrap({
+            component: Foo,
+            props: {staticProp: 'this is static'}
+        }),
+
+        // This component contains a nested router
+        // Note that we must match both '/nested' and '/nested/*' for the nested router to work (or look below at doing this with a Map and a regular expression)
+        '/nested': wrap({
+            asyncComponent: () => import('./routes/Nested.svelte')
+        }),
+        '/nested/*': wrap({
+            asyncComponent: () => import('./routes/Nested.svelte')
+        }),
+
+        // Catch-all, must be last
+        '*': NotFound
+    }
+} else {
+    routes = new Map()
+
+    // Exact path
+    routes.set('/', Home)
+
+    // Allow children to also signal link activation
+    routes.set('/brand', Home)
+
+    // Using named parameters, with last being optional
+    routes.set('/hello/:first/:last?', Name)
+
+    // Wildcard parameter
+    routes.set('/wild', Wild)
+    // Special route that has custom data that will be passed to the `routeLoaded` event
+    routes.set(
+        '/wild/data',
+        wrap({
+            component: Wild,
+            userData: {hello: 'world'}
+        })
+    )
+    routes.set('/wild/*', Wild)
+
+    // This route has a pre-condition function that lets people in only 50% of times (and a second pre-condition that is always true)
+    // The second argument is a custom data object that will be passed to the `conditionsFailed` event if the pre-conditions fail
+    routes.set('/lucky', wrappedLuckyRoute)
+
+    // This route has a static prop that is passed to it
+    routes.set(
+        '/foo',
+        wrap({
+            component: Foo,
+            props: {staticProp: 'this is static'}
+        })
+    )
+
+    // Regular expressions
+    routes.set(/^\/regex\/(.*)?/i, Regex)
+    routes.set(/^\/(pattern|match)(\/[a-z0-9]+)?/i, Regex)
+
+    // This component contains a nested router
+    // Thanks to being able to define routes via regular expressions, this allows us to use a single line rather than 2 ('/nested' and '/nested/*')
+    routes.set(
+        /^\/nested(\/(.*))?/,
+        wrap({
+            asyncComponent: () => import('./routes/Nested.svelte')
+        })
+    )
+
+    // Catch-all, must be last
+    routes.set('*', NotFound)
+}
+
+export default routes
 
 === 321 test/app/src/routes/Catalog.svelte	svelte	runes	runes
 <h1 id="catalog">Item {id}</h1>

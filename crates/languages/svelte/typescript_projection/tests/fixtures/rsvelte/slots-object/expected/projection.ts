@@ -2,14 +2,11 @@
 function $$render() {
   const $$slots = (/** @type {typeof __rsvelte_slot_flags<"header" | "default">} */ (__rsvelte_slot_flags))();
 
-	let /** @type {typeof __rsvelte_public_props0} */ { title, ...rest } = $props();
+	let /** @typedef {{ title: any } & Record<string, any>} $$ComponentProps *//** @type {$$ComponentProps} */ { title, ...rest } = $props();
 	const named = $$slots.header ? 'with' : 'without';
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    title: __rsvelte_untyped_prop(),
-  }, {}, true);
   async () => {
     if ($$slots.header) {
       {
@@ -30,7 +27,7 @@ function $$render() {
       __rsvelte_slots()("default", {});
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic_slots<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_isomorphic_slots))()(__rsvelte_any_event({}), {
+  return (/** @type {typeof __rsvelte_export_isomorphic_slots<$$ComponentProps, {}, "">} */ (__rsvelte_export_isomorphic_slots))()(__rsvelte_any_event({}), {
     "header": {},
     "default": {},
   });

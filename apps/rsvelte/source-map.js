@@ -19,10 +19,19 @@ export function sourceMap(json, source, preprocessed) {
 	return Object.defineProperties(map, {
 		toString: { value: () => JSON.stringify(map) },
 		toUrl: {
-			value: () =>
-				`data:application/json;charset=utf-8;base64,${Buffer.from(JSON.stringify(map)).toString('base64')}`,
+			value: () => `data:application/json;charset=utf-8;base64,${base64(JSON.stringify(map))}`,
 		},
 	});
+}
+
+/**
+ * The UTF-8 of `text` in base64, in Node.js and in a browser alike.
+ * @param {string} text
+ */
+function base64(text) {
+	let binary = '';
+	for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
+	return btoa(binary);
 }
 
 /**

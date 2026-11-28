@@ -9,7 +9,7 @@ function $$render() {
 
 	
 	
-	let /** @type {typeof __rsvelte_public_props0} */ { store } = $props();;let $store = __sveltets_2_store_get(store);
+	let /** @typedef {{ store: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { store } = $props();;let $store = __sveltets_2_store_get(store);
 
 	const count = writable(0);;let $count = __sveltets_2_store_get(count);
 
@@ -21,9 +21,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    store: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("p", {});
@@ -52,7 +49,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const StoreSubscriptions__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof StoreSubscriptions__SvelteComponent_>} StoreSubscriptions__SvelteComponent_ */

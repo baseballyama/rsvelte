@@ -2,10 +2,22 @@
 // claimed file is admitted; tasks (./tasks) decide what is measured on an admitted unit.
 import { compile, compileModule } from 'svelte/compiler';
 import { parse as parseSfc } from '@vue/compiler-sfc';
+import { parseJs } from './canonical.ts';
+import { emit } from './tasks/ts-compile.ts';
 import { vueModule } from './behaviour/official.ts';
 import type { Language } from './types.ts';
 
 const code = (e: unknown): string => (e as { code?: string }).code ?? 'throw';
+
+/** Whether svelte rejects the component in the mode it infers itself. */
+function rejectedWithoutRunes(src: string, filename: string): boolean {
+	try {
+		compile(src, { filename, generate: false });
+		return false;
+	} catch {
+		return true;
+	}
+}
 
 const LANGUAGES: Language[] = [
 	{
@@ -19,6 +31,12 @@ const LANGUAGES: Language[] = [
 			try {
 				compile(src, { filename, generate: false, runes: true });
 			} catch (e) {
+				// A rejection in every mode is a real error, and the rejection is the expected
+				// result; a component only legacy mode compiles is out of scope, as is one that
+				// needs an experimental option.
+				if (code(e) !== 'experimental_async' && rejectedWithoutRunes(src, filename)) {
+					return { include: true, fields: { mode: 'runes', inferredMode: 'rejected' } };
+				}
 				return { include: false, reason: `not-runes-compatible:${code(e)}` };
 			}
 			let inferredMode = 'neutral';
@@ -34,9 +52,13 @@ const LANGUAGES: Language[] = [
 		ext: '.svelte.js',
 		matches: (p) => p.endsWith('.svelte.js'),
 		admit(src, filename) {
+			// A module has no legacy mode, so its rejection is the expected result.
 			try {
 				compileModule(src, { filename, generate: false });
 			} catch (e) {
+				if (code(e) !== 'experimental_async') {
+					return { include: true, fields: { mode: 'runes', inferredMode: 'rejected' } };
+				}
 				return { include: false, reason: `module-rejected:${code(e)}` };
 			}
 			return { include: true, fields: { mode: 'runes' } };
@@ -50,6 +72,25 @@ const LANGUAGES: Language[] = [
 		ext: '.svelte.ts',
 		matches: (p) => p.endsWith('.svelte.ts'),
 		admit: () => ({ include: true, fields: { mode: 'runes' } }),
+	},
+	{
+		// A plain TypeScript file, whose emit is the subject (ts.compile). TypeScript writes an emit
+		// past a syntax error, and an emit acorn cannot read (an `assert` on an import, a re-export
+		// of a name only a type import declared), neither of which is an answer to compare with.
+		id: 'ts',
+		family: 'svelte',
+		ext: '.ts',
+		matches: (p) => p.endsWith('.ts') && !p.endsWith('.d.ts') && !p.endsWith('.svelte.ts'),
+		admit(src, filename) {
+			const { outputText, diagnostics } = emit(src, filename);
+			if (diagnostics?.length) return { include: false, reason: 'typescript-syntax-error' };
+			try {
+				parseJs(outputText);
+			} catch {
+				return { include: false, reason: 'typescript-emit-unparseable' };
+			}
+			return { include: true, fields: { mode: 'module' } };
+		},
 	},
 	{
 		id: 'vue',

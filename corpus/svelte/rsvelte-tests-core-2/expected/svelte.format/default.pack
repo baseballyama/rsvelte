@@ -18357,6 +18357,12 @@ https://svelte.dev/e/js_parse_error
 > 1 | <b>{v</b>
     |       ^
 
+=== 81 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/55233fd392c207df.svelte	error.txt
+Expected token -->
+https://svelte.dev/e/expected_token
+> 1 | <!--->
+    |      ^
+
 === 123 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5fe5d773ee7f35e7.svelte	error.txt
 Expected 'if', 'each', 'await', 'key' or 'snippet'
 https://svelte.dev/e/expected_block_type
@@ -26614,6 +26620,150 @@ https://svelte.dev/e/expected_token
 </script>
 
 <p>{v}{w}</p>
+
+=== 117 props_bigint_key_3363/a_bigint_key_is_accepted/020b288a227d609f.svelte	svelte
+<script>
+  let { 0o7n: a } = $props();
+  function go() {
+    a = 1;
+  }
+</script>
+
+<button onclick={go}>{a}</button>
+
+=== 115 props_bigint_key_3363/a_bigint_key_is_accepted/3878e417553838ff.svelte	svelte
+<script>
+  let { 0n: a } = $props();
+  function go() {
+    a = 1;
+  }
+</script>
+
+<button onclick={go}>{a}</button>
+
+=== 70 props_bigint_key_3363/a_bigint_key_is_accepted/40a18664f4a013d6.svelte	svelte
+<script>
+  let { 0x10n: a, ...rest } = $props();
+</script>
+
+{a}{rest}
+
+=== 119 props_bigint_key_3363/a_bigint_key_is_accepted/492c297b9dffb264.svelte	svelte
+<script>
+  let { 1_000n: a } = $props();
+  function go() {
+    a = 1;
+  }
+</script>
+
+<button onclick={go}>{a}</button>
+
+=== 54 props_bigint_key_3363/a_bigint_key_is_accepted/5ac078c3889eb1e3.svelte	svelte
+<script>
+  let { 0o7n: a } = $props();
+</script>
+
+{a}
+
+=== 67 props_bigint_key_3363/a_bigint_key_is_accepted/65f20bb0ed350420.svelte	svelte
+<script>
+  let { 2n: a, ...rest } = $props();
+</script>
+
+{a}{rest}
+
+=== 56 props_bigint_key_3363/a_bigint_key_is_accepted/75e852fd5e8e2eaa.svelte	svelte
+<script>
+  let { 1_000n: a } = $props();
+</script>
+
+{a}
+
+=== 82 props_bigint_key_3363/a_bigint_key_is_accepted/774dd1f9051392b2.svelte	svelte
+<script>
+  let { 9007199254740993n: a, ...rest } = $props();
+</script>
+
+{a}{rest}
+
+=== 52 props_bigint_key_3363/a_bigint_key_is_accepted/8137b4bead4b8592.svelte	svelte
+<script>
+  let { 0n: a } = $props();
+</script>
+
+{a}
+
+=== 115 props_bigint_key_3363/a_bigint_key_is_accepted/83a1774e58f11718.svelte	svelte
+<script>
+  let { 2n: a } = $props();
+  function go() {
+    a = 1;
+  }
+</script>
+
+<button onclick={go}>{a}</button>
+
+=== 130 props_bigint_key_3363/a_bigint_key_is_accepted/867ab3bb973e3de9.svelte	svelte
+<script>
+  let { 9007199254740993n: a } = $props();
+  function go() {
+    a = 1;
+  }
+</script>
+
+<button onclick={go}>{a}</button>
+
+=== 67 props_bigint_key_3363/a_bigint_key_is_accepted/a0fc2e5a0877c646.svelte	svelte
+<script>
+  let { 9007199254740993n: a } = $props();
+</script>
+
+{a}
+
+=== 52 props_bigint_key_3363/a_bigint_key_is_accepted/a6095544abbbf447.svelte	svelte
+<script>
+  let { 2n: a } = $props();
+</script>
+
+{a}
+
+=== 69 props_bigint_key_3363/a_bigint_key_is_accepted/bef4129c10420c3f.svelte	svelte
+<script>
+  let { 0o7n: a, ...rest } = $props();
+</script>
+
+{a}{rest}
+
+=== 118 props_bigint_key_3363/a_bigint_key_is_accepted/cbecb0fa72032a54.svelte	svelte
+<script>
+  let { 0x10n: a } = $props();
+  function go() {
+    a = 1;
+  }
+</script>
+
+<button onclick={go}>{a}</button>
+
+=== 71 props_bigint_key_3363/a_bigint_key_is_accepted/e715c301f7c8ea7d.svelte	svelte
+<script>
+  let { 1_000n: a, ...rest } = $props();
+</script>
+
+{a}{rest}
+
+=== 67 props_bigint_key_3363/a_bigint_key_is_accepted/fa0cd1f02975e700.svelte	svelte
+<script>
+  let { 0n: a, ...rest } = $props();
+</script>
+
+{a}{rest}
+
+=== 55 props_bigint_key_3363/a_bigint_key_is_accepted/fafe8e26dd0c636b.svelte	svelte
+<script>
+  let { 0x10n: a } = $props();
+</script>
+
+{a}
 
 === 51 props_bigint_key_3363/a_string_key_and_an_identifier_key_are_unaffected/174e1a0283f1b28b.svelte	svelte
 <script>

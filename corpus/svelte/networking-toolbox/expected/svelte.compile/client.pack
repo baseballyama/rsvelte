@@ -526,6 +526,22 @@ export default function WarningCard($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 264 src/lib/components/furniture/BurgerMenu.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 309,
+		"column": 4,
+		"character": 10010
+	},
+	"end": {
+		"line": 309,
+		"column": 4,
+		"character": 10010
+	}
+}
+
 === 925 src/lib/components/furniture/Footer.svelte	css
 
   .footer.svelte-7dtyhk {
@@ -625,6 +641,22 @@ export default function Footer($$anchor, $$props) {
 	$.append($$anchor, footer);
 	$.pop();
 }
+=== 262 src/lib/components/furniture/Header.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 71,
+		"column": 18,
+		"character": 2253
+	},
+	"end": {
+		"line": 71,
+		"column": 18,
+		"character": 2253
+	}
+}
+
 === 4082 src/lib/components/furniture/QuickTips.svelte	css
 
   .quick-tips.svelte-nj9t3c {
@@ -4474,6 +4506,38 @@ export default function ShortcutsDialog($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 264 src/lib/components/furniture/TopNav.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 297,
+		"column": 4,
+		"character": 11000
+	},
+	"end": {
+		"line": 297,
+		"column": 4,
+		"character": 11000
+	}
+}
+
+=== 264 src/lib/components/global/GlobalSearch.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 803,
+		"column": 2,
+		"character": 22397
+	},
+	"end": {
+		"line": 803,
+		"column": 2,
+		"character": 22397
+	}
+}
+
 === 2254 src/lib/components/global/Icon.svelte	css
 
   .icon.svelte-1q906rh {
@@ -6191,6 +6255,22 @@ export default function HomepageCarousel($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
+=== 264 src/lib/components/home/HomepageCategories.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 467,
+		"column": 2,
+		"character": 12961
+	},
+	"end": {
+		"line": 467,
+		"column": 2,
+		"character": 12961
+	}
+}
+
 === 1699 src/lib/components/home/HomepageDefault.svelte	css
 
   .sitemap-link.svelte-19yqysf {
@@ -14779,6 +14859,22 @@ export default function CIDRCompare($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input']);
+=== 264 src/lib/components/tools/CIDRContains.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 489,
+		"column": 2,
+		"character": 16892
+	},
+	"end": {
+		"line": 489,
+		"column": 2,
+		"character": 16892
+	}
+}
+
 === 6258 src/lib/components/tools/CIDRDeaggregate.svelte	css
 
   .input-section.svelte-gcckok {
@@ -15541,6 +15637,22 @@ export default function CIDRDeaggregate($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input']);
+=== 264 src/lib/components/tools/CIDRDiff.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 501,
+		"column": 2,
+		"character": 16121
+	},
+	"end": {
+		"line": 501,
+		"column": 2,
+		"character": 16121
+	}
+}
+
 === 1564 src/lib/components/tools/CIDRInput.svelte	css
 
   .form-field.svelte-zkysce {
@@ -15831,6 +15943,22 @@ export default function CIDRInput($$anchor, $$props) {
 }
 
 $.delegate(['input', 'click']);
+=== 264 src/lib/components/tools/CIDROverlap.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 490,
+		"column": 2,
+		"character": 16296
+	},
+	"end": {
+		"line": 490,
+		"column": 2,
+		"character": 16296
+	}
+}
+
 === 6076 src/lib/components/tools/CIDRSplitter.svelte	css
 
   .mode-section.svelte-1qlf1oz {
@@ -16667,6 +16795,22 @@ export default function CIDRSplitter($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 264 src/lib/components/tools/CIDRSummarizer.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 357,
+		"column": 2,
+		"character": 11302
+	},
+	"end": {
+		"line": 357,
+		"column": 2,
+		"character": 11302
+	}
+}
+
 === 7700 src/lib/components/tools/ClientIDOption61.svelte	css
 
   .card.svelte-1mudz6i {
@@ -33944,6 +34088,22 @@ export default function DNSKEYKeyTag($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input']);
+=== 262 src/lib/components/tools/DNSLabelNormalizer.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 291,
+		"column": 2,
+		"character": 9572
+	},
+	"end": {
+		"line": 291,
+		"column": 2,
+		"character": 9572
+	}
+}
+
 === 12469 src/lib/components/tools/DNSMXPlanner.svelte	css
 
   .card-header.svelte-ocp976 {
@@ -42549,6 +42709,22 @@ export default function DUIDGenerator($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 264 src/lib/components/tools/EDNSSizeEstimator.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 975,
+		"column": 2,
+		"character": 27963
+	},
+	"end": {
+		"line": 975,
+		"column": 2,
+		"character": 27963
+	}
+}
+
 === 12425 src/lib/components/tools/EUI64.svelte	css
 
   .input-section.svelte-e4iyfj {
@@ -52736,6 +52912,22 @@ export default function IPInput($$anchor, $$props) {
 }
 
 $.delegate(['input']);
+=== 266 src/lib/components/tools/IPRegexGenerator.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1014,
+		"column": 4,
+		"character": 32626
+	},
+	"end": {
+		"line": 1014,
+		"column": 4,
+		"character": 32626
+	}
+}
+
 === 8141 src/lib/components/tools/IPValidator.svelte	css
 
   .input-section.svelte-gtgubt {
@@ -68430,6 +68622,22 @@ export default function NetworkVisualizer($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
+=== 264 src/lib/components/tools/NextAvailable.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 650,
+		"column": 2,
+		"character": 21856
+	},
+	"end": {
+		"line": 650,
+		"column": 2,
+		"character": 21856
+	}
+}
+
 === 9393 src/lib/components/tools/NthIP.svelte	css
 
   .form-row.svelte-1e7d9k3 {
@@ -69636,6 +69844,22 @@ export default function NthIP($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input']);
+=== 266 src/lib/components/tools/PTRGenerator.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 922,
+		"column": 23,
+		"character": 27397
+	},
+	"end": {
+		"line": 922,
+		"column": 23,
+		"character": 27397
+	}
+}
+
 === 12640 src/lib/components/tools/PTRSweepPlanner.svelte	css
 
   .info-card.svelte-lsjtaq {
@@ -81787,6 +82011,22 @@ export default function SubnetCalculator($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 264 src/lib/components/tools/SubnetPlanner.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 580,
+		"column": 2,
+		"character": 20003
+	},
+	"end": {
+		"line": 580,
+		"column": 2,
+		"character": 20003
+	}
+}
+
 === 16285 src/lib/components/tools/SupernetCalculator.svelte	css
 
   .examples-card.svelte-1cjcuvu {
@@ -95498,6 +95738,22 @@ export default function _page($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
+=== 264 src/routes/cidr/range-to-cidr/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 291,
+		"column": 2,
+		"character": 10246
+	},
+	"end": {
+		"line": 291,
+		"column": 2,
+		"character": 10246
+	}
+}
+
 === 5231 src/routes/cidr/set-operations/+layout.svelte	css
 
   .reference.svelte-1pc2fd8 {
@@ -98553,6 +98809,54 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input']);
+=== 264 src/routes/diagnostics/dns/blacklist-checker/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 867,
+		"column": 2,
+		"character": 25228
+	},
+	"end": {
+		"line": 867,
+		"column": 2,
+		"character": 25228
+	}
+}
+
+=== 264 src/routes/diagnostics/dns/caa-effective/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 494,
+		"column": 2,
+		"character": 16552
+	},
+	"end": {
+		"line": 494,
+		"column": 2,
+		"character": 16552
+	}
+}
+
+=== 264 src/routes/diagnostics/dns/dmarc-check/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 610,
+		"column": 2,
+		"character": 20449
+	},
+	"end": {
+		"line": 610,
+		"column": 2,
+		"character": 20449
+	}
+}
+
 === 2225 src/routes/diagnostics/dns/dnssec-adflag/+page.svelte	css
 
   .form-grid.svelte-15x3kkc {
@@ -99247,6 +99551,22 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click', 'change']);
+=== 264 src/routes/diagnostics/dns/dnssec-validation-chain/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 732,
+		"column": 2,
+		"character": 21994
+	},
+	"end": {
+		"line": 732,
+		"column": 2,
+		"character": 21994
+	}
+}
+
 === 6616 src/routes/diagnostics/dns/glue-check/+page.svelte	css
 
   .zone-info.svelte-1ib8npq {
@@ -100228,6 +100548,54 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click', 'change', 'keydown']);
+=== 264 src/routes/diagnostics/dns/lookup/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 324,
+		"column": 2,
+		"character": 11416
+	},
+	"end": {
+		"line": 324,
+		"column": 2,
+		"character": 11416
+	}
+}
+
+=== 264 src/routes/diagnostics/dns/ns-soa-check/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 532,
+		"column": 2,
+		"character": 20178
+	},
+	"end": {
+		"line": 532,
+		"column": 2,
+		"character": 20178
+	}
+}
+
+=== 264 src/routes/diagnostics/dns/propagation/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 375,
+		"column": 2,
+		"character": 13747
+	},
+	"end": {
+		"line": 375,
+		"column": 2,
+		"character": 13747
+	}
+}
+
 === 15943 src/routes/diagnostics/dns/query-performance/+page.svelte	css
 
   .inline-form.svelte-168o2iv {
@@ -101789,6 +102157,22 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input']);
+=== 264 src/routes/diagnostics/dns/reverse-lookup/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 382,
+		"column": 2,
+		"character": 12662
+	},
+	"end": {
+		"line": 382,
+		"column": 2,
+		"character": 12662
+	}
+}
+
 === 4655 src/routes/diagnostics/dns/soa-serial/+page.svelte	css
 
   .form-grid.svelte-pe9bo2 {
@@ -102661,6 +103045,22 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click', 'change']);
+=== 264 src/routes/diagnostics/dns/spf-evaluator/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 467,
+		"column": 2,
+		"character": 16721
+	},
+	"end": {
+		"line": 467,
+		"column": 2,
+		"character": 16721
+	}
+}
+
 === 5249 src/routes/diagnostics/dns/spf-flatten/+page.svelte	css
 
   .results-section.svelte-bvqwjc {
@@ -105493,6 +105893,22 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['change', 'click']);
+=== 264 src/routes/diagnostics/email/greylist-tester/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 474,
+		"column": 2,
+		"character": 17319
+	},
+	"end": {
+		"line": 474,
+		"column": 2,
+		"character": 17319
+	}
+}
+
 === 5670 src/routes/diagnostics/email/mail-tls-check/+page.svelte	css
 
   .subsection.svelte-1k1ysyv {
@@ -110319,6 +110735,86 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['change', 'keydown', 'click']);
+=== 264 src/routes/diagnostics/http/cors-check/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 530,
+		"column": 2,
+		"character": 17365
+	},
+	"end": {
+		"line": 530,
+		"column": 2,
+		"character": 17365
+	}
+}
+
+=== 264 src/routes/diagnostics/http/headers/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 382,
+		"column": 2,
+		"character": 12253
+	},
+	"end": {
+		"line": 382,
+		"column": 2,
+		"character": 12253
+	}
+}
+
+=== 264 src/routes/diagnostics/http/perf/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 577,
+		"column": 2,
+		"character": 19781
+	},
+	"end": {
+		"line": 577,
+		"column": 2,
+		"character": 19781
+	}
+}
+
+=== 264 src/routes/diagnostics/http/redirect-trace/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 524,
+		"column": 2,
+		"character": 16261
+	},
+	"end": {
+		"line": 524,
+		"column": 2,
+		"character": 16261
+	}
+}
+
+=== 264 src/routes/diagnostics/http/security/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 469,
+		"column": 2,
+		"character": 14377
+	},
+	"end": {
+		"line": 469,
+		"column": 2,
+		"character": 14377
+	}
+}
+
 === 5039 src/routes/diagnostics/network/asn-geo-lookup/+page.svelte	css
 
   .lookup-form.svelte-2zofru {

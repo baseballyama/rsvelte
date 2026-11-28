@@ -13318,6 +13318,22 @@ export default function _page($$anchor) {
 	$.template_effect(() => $.set_text(text, secret));
 	$.append($$anchor, p);
 }
+=== 226 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	}
+}
+
 === 263 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';

@@ -1,0 +1,2613 @@
+# rsvelte pack 1
+=== 2994 src/lib/box/box-extras.svelte.ts	js
+import { isFunction, isObject } from "$lib/utils/is.js";
+export const BoxSymbol = Symbol("box");
+export const isWritableSymbol = Symbol("is-writable");
+function boxWith(getter, setter) {
+    const derived = $derived.by(getter);
+    if (setter) {
+        return {
+            [BoxSymbol]: true,
+            [isWritableSymbol]: true,
+            get current() {
+                return derived;
+            },
+            set current(v) {
+                setter(v);
+            }
+        };
+    }
+    return {
+        [BoxSymbol]: true,
+        get current() {
+            return getter();
+        }
+    };
+}
+/**
+ * @returns Whether the value is a Box
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function isBox(value) {
+    return isObject(value) && BoxSymbol in value;
+}
+/**
+ * @returns Whether the value is a WritableBox
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function isWritableBox(value) {
+    return isBox(value) && isWritableSymbol in value;
+}
+function boxFrom(value) {
+    if (isBox(value))
+        return value;
+    if (isFunction(value))
+        return boxWith(value);
+    return simpleBox(value);
+}
+/**
+ * Function that gets an object of boxes, and returns an object of reactive values
+ *
+ * @example
+ * const count = box(0)
+ * const flat = box.flatten({ count, double: box.with(() => count.current) })
+ * // type of flat is { count: number, readonly double: number }
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function boxFlatten(boxes) {
+    return Object.entries(boxes).reduce((acc, [key, b]) => {
+        if (!isBox(b)) {
+            return Object.assign(acc, { [key]: b });
+        }
+        if (isWritableBox(b)) {
+            Object.defineProperty(acc, key, {
+                get() {
+                    return b.current;
+                },
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                set(v) {
+                    b.current = v;
+                }
+            });
+        }
+        else {
+            Object.defineProperty(acc, key, {
+                get() {
+                    return b.current;
+                }
+            });
+        }
+        return acc;
+    }, {});
+}
+/**
+ * Function that converts a box to a readonly box.
+ *
+ * @example
+ * const count = box(0) // WritableBox<number>
+ * const countReadonly = box.readonly(count) // ReadableBox<number>
+ *
+ * @see {@link https://runed.dev/docs/functions/box}
+ */
+function toReadonlyBox(b) {
+    if (!isWritableBox(b))
+        return b;
+    return {
+        [BoxSymbol]: true,
+        get current() {
+            return b.current;
+        }
+    };
+}
+function simpleBox(initialValue) {
+    let current = $state(initialValue);
+    return {
+        [BoxSymbol]: true,
+        [isWritableSymbol]: true,
+        get current() {
+            return current;
+        },
+        set current(v) {
+            current = v;
+        }
+    };
+}
+export { boxWith, isBox, isWritableBox, boxFrom, boxFlatten, toReadonlyBox, simpleBox };
+
+=== 569 src/lib/box/box.svelte.ts	js
+import { boxFrom, boxWith, boxFlatten, toReadonlyBox, isBox, isWritableBox, BoxSymbol, isWritableSymbol } from "./box-extras.svelte.js";
+export function box(initialValue) {
+    let current = $state(initialValue);
+    return {
+        [BoxSymbol]: true,
+        [isWritableSymbol]: true,
+        get current() {
+            return current;
+        },
+        set current(v) {
+            current = v;
+        }
+    };
+}
+box.from = boxFrom;
+box.with = boxWith;
+box.flatten = boxFlatten;
+box.readonly = toReadonlyBox;
+box.isBox = isBox;
+box.isWritableBox = isWritableBox;
+
+=== 5829 src/lib/box/box.test.svelte.ts	js
+import { describe, expect, expectTypeOf, test } from "vitest";
+import { box } from "./box.svelte.js";
+import {} from "./box-extras.svelte.js";
+describe("box", () => {
+    test("box with initial value should be settable", () => {
+        const count = box(0);
+        expect(count.current).toBe(0);
+        count.current = 1;
+        expect(count.current).toBe(1);
+    });
+});
+describe("box.from", () => {
+    test("box of writable box should be settable", () => {
+        const count = box.from(box(0));
+        expect(count.current).toBe(0);
+        count.current = 1;
+        expect(count.current).toBe(1);
+    });
+    test("box of readable box should not be settable", () => {
+        const count = box.from(box.with(() => 0));
+        expect(count.current).toBe(0);
+        // @ts-expect-error -- we're testing that the setter is not run
+        expect(() => (count.current = 1)).toThrow();
+    });
+    test("can set box of box or value", () => {
+        const count = 0;
+        const reCount = box.from(count);
+        expect(reCount.current).toBe(0);
+        reCount.current = 1;
+        expect(reCount.current).toBe(1);
+    });
+});
+describe("box.with", () => {
+    test("box with getter only should return value and not be settable", () => {
+        const count = box.with(() => 0);
+        expect(count.current).toBe(0);
+        // @ts-expect-error -- we're testing that the setter is not run
+        expect(() => (count.current = 1)).toThrow();
+    });
+    test("box with state getter should be reactive", () => {
+        let value = $state(0);
+        const count = box.with(() => value);
+        expect(count.current).toBe(0);
+        value++;
+        expect(count.current).toBe(1);
+    });
+    test("box with getter and setter should be reactive", () => {
+        let value = $state(0);
+        const double = box.with(() => value, (v) => (value = v * 2));
+        expect(double.current).toBe(0);
+        double.current = 1;
+        expect(double.current).toBe(2);
+        expect(value).toBe(2);
+    });
+});
+describe("box.isBox", () => {
+    test("box should be a box", () => {
+        const count = box(0);
+        expect(box.isBox(count)).toBe(true);
+    });
+});
+describe("box.isWritableBox", () => {
+    test("writable box should be a writable box", () => {
+        const count = box(0);
+        expect(box.isWritableBox(count)).toBe(true);
+    });
+    test("readable box should not be a writable box", () => {
+        const count = box.from(() => 0);
+        expect(box.isWritableBox(count)).toBe(false);
+    });
+});
+describe("box.flatten", () => {
+    test("flattens an object of boxes", () => {
+        const count = box(0);
+        const double = box.with(() => count.current * 2);
+        function increment() {
+            count.current++;
+        }
+        const flat = box.flatten({ count, double, increment });
+        expect(flat.count).toBe(0);
+        expect(flat.double).toBe(0);
+        count.current = 1;
+        expect(flat.count).toBe(1);
+        expect(flat.double).toBe(2);
+        flat.count = 2;
+        expect(count.current).toBe(2);
+        expect(flat.count).toBe(2);
+        expect(double.current).toBe(4);
+        expect(flat.double).toBe(4);
+        // @ts-expect-error -- we're testing that the setter is not run
+        expect(() => (flat.double = 3)).toThrow();
+        flat.increment();
+        expect(count.current).toBe(3);
+        expect(double.current).toBe(6);
+        expect(flat.count).toBe(3);
+        expect(flat.double).toBe(6);
+    });
+});
+describe("box.readonly", () => {
+    test("box.readonly returns a non-settable box", () => {
+        const count = box(0);
+        const readonlyCount = box.readonly(count);
+        function setReadOnlyCount() {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            readonlyCount.current = 1;
+        }
+        expect(setReadOnlyCount).toThrow();
+    });
+    test("box.readonly returned box should update with original box", () => {
+        const count = box(0);
+        const readonlyCount = box.readonly(count);
+        expect(readonlyCount.current).toBe(0);
+        count.current = 1;
+        expect(readonlyCount.current).toBe(1);
+        count.current = 2;
+        expect(readonlyCount.current).toBe(2);
+    });
+});
+describe("box types", () => {
+    test("box without initial value", () => {
+        const count = box();
+        expectTypeOf(count).toExtend();
+        expectTypeOf(count).toExtend();
+    });
+    test("box with initial value", () => {
+        const count = box(0);
+        expectTypeOf(count).toExtend();
+        expectTypeOf(count).toExtend();
+    });
+    test("box from writable box", () => {
+        const count = box.from(box(0));
+        expectTypeOf(count).toExtend();
+    });
+    test("box from readable box", () => {
+        const count = box.from(box.with(() => 0));
+        expectTypeOf(count).toMatchObjectType();
+        expectTypeOf(count).not.toMatchTypeOf();
+    });
+    test("box from box or value", () => {
+        const count = 0;
+        const count2 = box.from(count);
+        expectTypeOf(count2).toMatchObjectType();
+    });
+    test("box from maybe box or getter", () => {
+        const count = 0;
+        const count2 = box.from(count);
+        expectTypeOf(count2).toExtend();
+    });
+    test("box.isWritableBox = true should allow box to be settable", () => {
+        const count = box(0);
+        expectTypeOf(count).toExtend();
+        expect(box.isWritableBox(count)).toBe(true);
+        if (box.isWritableBox(count)) {
+            expectTypeOf(count).toExtend();
+        }
+    });
+    test("box.readonly should return a non-settable box", () => {
+        const count = box(0);
+        const readonlyCount = box.readonly(count);
+        expectTypeOf(readonlyCount).toExtend();
+        expectTypeOf(readonlyCount).not.toMatchTypeOf();
+    });
+});
+
+=== 1462 src/lib/index.ts	js
+export { box } from "./box/box.svelte.js";
+export { boxWith, isBox, isWritableBox, boxFrom, boxFlatten, toReadonlyBox, simpleBox } from "./box/box-extras.svelte.js";
+export { unbox } from "./unbox/unbox.svelte.js";
+export * from "./types.js";
+export { composeHandlers } from "./utils/compose-handlers.js";
+export { cssToStyleObj } from "./utils/css-to-style-obj.js";
+export { executeCallbacks } from "./utils/execute-callbacks.js";
+export { addEventListener } from "./utils/events.js";
+export { mergeProps } from "./utils/merge-props.js";
+export { styleToString } from "./utils/style.js";
+export { srOnlyStyles, srOnlyStylesString } from "./utils/sr-only-styles.js";
+export { useRefById } from "./utils/use-ref-by-id.svelte.js";
+export { pascalCase, camelCase, kebabCase } from "./utils/strings.js";
+export { onDestroyEffect } from "./utils/on-destroy-effect.svelte.js";
+export { onMountEffect } from "./utils/on-mount-effect.svelte.js";
+export { afterSleep } from "./utils/after-sleep.js";
+export { afterTick } from "./utils/after-tick.js";
+export { useOnChange } from "./utils/use-on-change.svelte.js";
+export { styleToCSS } from "./utils/style-to-css.js";
+export { isHTMLElement, isDocument, isWindow, getNodeName, isNode, isShadowRoot, contains, getDocument, getDocumentElement, getWindow, getActiveElement, getParentNode } from "./utils/dom.js";
+export { DOMContext } from "./utils/dom-context.svelte.js";
+export { attachRef } from "./utils/attach-ref.js";
+
+=== 11 src/lib/types.ts	js
+export {};
+
+=== 295 src/lib/unbox/unbox.svelte.ts	js
+import { isBox } from "$lib/box/box-extras.svelte.js";
+import { isFunction } from "$lib/utils/is.js";
+export function unbox(value) {
+    if (isBox(value))
+        return value.current;
+    if (isFunction(value)) {
+        const getter = value;
+        return getter();
+    }
+    return value;
+}
+
+=== 167 src/lib/utils/after-sleep.ts	js
+/**
+ * A utility function that executes a callback after a specified number of milliseconds.
+ */
+export function afterSleep(ms, cb) {
+    return setTimeout(cb, ms);
+}
+
+=== 86 src/lib/utils/after-tick.ts	js
+import { tick } from "svelte";
+export function afterTick(fn) {
+    tick().then(fn);
+}
+
+=== 1808 src/lib/utils/attach-ref.ts	js
+import { untrack } from "svelte";
+import { isBox } from "../box/box-extras.svelte.js";
+import { createAttachmentKey } from "svelte/attachments";
+/**
+ * Creates a Svelte Attachment that attaches a DOM element to a ref.
+ * The ref can be either a WritableBox or a callback function.
+ *
+ * @param ref - Either a WritableBox to store the element in, or a callback function that receives the element
+ * @param onChange - Optional callback that fires when the ref changes
+ * @returns An object with a spreadable attachment key that should be spread onto the element
+ *
+ * @example
+ * // Using with WritableBox
+ * const ref = box<HTMLDivElement | null>(null);
+ * <div {...attachRef(ref)}>Content</div>
+ *
+ * @example
+ * // Using with callback
+ * <div {...attachRef((node) => myNode = node)}>Content</div>
+ *
+ * @example
+ * // Using with onChange
+ * <div {...attachRef(ref, (node) => console.log(node))}>Content</div>
+ */
+export function attachRef(ref, onChange) {
+    return {
+        [createAttachmentKey()]: (node) => {
+            if (isBox(ref)) {
+                ref.current = node;
+                untrack(() => onChange?.(node));
+                return () => {
+                    // we don't want to detach the node if it's still connected
+                    if ("isConnected" in node && node.isConnected)
+                        return;
+                    ref.current = null;
+                    onChange?.(null);
+                };
+            }
+            ref(node);
+            untrack(() => onChange?.(node));
+            return () => {
+                // we don't want to detach the node if it's still connected
+                if ("isConnected" in node && node.isConnected)
+                    return;
+                ref(null);
+                onChange?.(null);
+            };
+        }
+    };
+}
+
+=== 1873 src/lib/utils/compose-handlers.test.ts	js
+import { describe, expect, it, vi } from "vitest";
+import { composeHandlers } from "./compose-handlers.js"; // Replace with the actual file name
+describe("composeHandlers", () => {
+    it("should call all handlers in order", () => {
+        const handler1 = vi.fn();
+        const handler2 = vi.fn();
+        const composedHandler = composeHandlers(handler1, handler2);
+        const event = new MouseEvent("click", { cancelable: true });
+        composedHandler(event);
+        expect(handler1).toHaveBeenCalled();
+        expect(handler2).toHaveBeenCalled();
+    });
+    it("should stop calling handlers if event.preventDefault() is called", () => {
+        const handler1 = vi.fn((e) => e.preventDefault());
+        const handler2 = vi.fn();
+        const composedHandler = composeHandlers(handler1, handler2);
+        const event = new Event("click", { cancelable: true });
+        composedHandler(event);
+        expect(handler1).toHaveBeenCalledWith(event);
+        expect(handler2).not.toHaveBeenCalled();
+    });
+    it("should handle undefined handlers", () => {
+        const handler1 = vi.fn();
+        const handler2 = undefined;
+        const handler3 = vi.fn();
+        const composedHandler = composeHandlers(handler1, handler2, handler3);
+        const event = new Event("click", { cancelable: true });
+        composedHandler(event);
+        expect(handler1).toHaveBeenCalledWith(event);
+        expect(handler3).toHaveBeenCalledWith(event);
+    });
+    it('should preserve "this" context', () => {
+        const context = { name: "TestContext" };
+        const handler = vi.fn(function (_) {
+            expect(this).toBe(context);
+        });
+        const composedHandler = composeHandlers(handler);
+        const event = new Event("click");
+        composedHandler.call(context, event);
+        expect(handler).toHaveBeenCalledWith(event);
+    });
+});
+
+=== 646 src/lib/utils/compose-handlers.ts	js
+/**
+ * Composes event handlers into a single function that can be called with an event.
+ * If the previous handler cancels the event using `event.preventDefault()`, the handlers
+ * that follow will not be called.
+ */
+export function composeHandlers(...handlers) {
+    return function (e) {
+        for (const handler of handlers) {
+            if (!handler)
+                continue;
+            if (e.defaultPrevented)
+                return;
+            if (typeof handler === "function") {
+                handler.call(this, e);
+            }
+            else {
+                handler.current?.call(this, e);
+            }
+        }
+    };
+}
+
+=== 1811 src/lib/utils/css-to-style-obj.test.ts	js
+import { describe, expect, it } from "vitest";
+import { cssToStyleObj } from "./css-to-style-obj.js";
+describe("cssToStyleObj", () => {
+    it("should return an empty object if an empty string is passed", () => {
+        const result = cssToStyleObj("");
+        expect(result).toEqual({});
+    });
+    it("should return an empty object if null is passed", () => {
+        const result = cssToStyleObj(null);
+        expect(result).toEqual({});
+    });
+    it("should return an empty object if undefined is passed", () => {
+        const result = cssToStyleObj(undefined);
+        expect(result).toEqual({});
+    });
+    it("should convert a single CSS property to camelCase in the style object", () => {
+        const result = cssToStyleObj("background-color: red;");
+        expect(result).toEqual({ backgroundColor: "red" });
+    });
+    it("should convert multiple CSS properties to camelCase in the style object", () => {
+        const result = cssToStyleObj("color: blue; font-size: 16px; margin-top: 10px;");
+        expect(result).toEqual({ color: "blue", fontSize: "16px", marginTop: "10px" });
+    });
+    it("should handle CSS shorthand properties correctly", () => {
+        const result = cssToStyleObj("margin: 10px 20px 30px 40px;");
+        expect(result).toEqual({ margin: "10px 20px 30px 40px" });
+    });
+    it("should handle CSS comments correctly", () => {
+        const result = cssToStyleObj("/* comment */ color: green; /* another comment */");
+        expect(result).toEqual({ color: "green" });
+    });
+    it("should handle CSS vendor prefixes correctly", () => {
+        const result = cssToStyleObj("-webkit-transform: rotate(45deg); -moz-transform: rotate(45deg);");
+        expect(result).toEqual({ WebkitTransform: "rotate(45deg)", MozTransform: "rotate(45deg)" });
+    });
+});
+
+=== 662 src/lib/utils/css-to-style-obj.ts	js
+import parse from "style-to-object";
+import { camelCase, pascalCase } from "./strings.js";
+export function cssToStyleObj(css) {
+    if (!css)
+        return {};
+    const styleObj = {};
+    function iterator(name, value) {
+        if (name.startsWith("-moz-") ||
+            name.startsWith("-webkit-") ||
+            name.startsWith("-ms-") ||
+            name.startsWith("-o-")) {
+            styleObj[pascalCase(name)] = value;
+            return;
+        }
+        if (name.startsWith("--")) {
+            styleObj[name] = value;
+            return;
+        }
+        styleObj[camelCase(name)] = value;
+    }
+    parse(css, iterator);
+    return styleObj;
+}
+
+=== 1455 src/lib/utils/dom-context.svelte.ts	js
+import { boxWith } from "$lib/box/box-extras.svelte.js";
+import { getActiveElement, getDocument } from "./dom.js";
+export class DOMContext {
+    element;
+    root = $derived.by(() => {
+        if (!this.element.current)
+            return document;
+        const rootNode = this.element.current.getRootNode() ?? document;
+        return rootNode;
+    });
+    constructor(element) {
+        if (typeof element === "function") {
+            this.element = boxWith(element);
+        }
+        else {
+            this.element = element;
+        }
+    }
+    getDocument = () => {
+        return getDocument(this.root);
+    };
+    getWindow = () => {
+        return this.getDocument().defaultView ?? window;
+    };
+    getActiveElement = () => {
+        return getActiveElement(this.root);
+    };
+    isActiveElement = (node) => {
+        return node === this.getActiveElement();
+    };
+    getElementById(id) {
+        return this.root.getElementById(id);
+    }
+    querySelector = (selector) => {
+        if (!this.root)
+            return null;
+        return this.root.querySelector(selector);
+    };
+    querySelectorAll = (selector) => {
+        if (!this.root)
+            return [];
+        return this.root.querySelectorAll(selector);
+    };
+    setTimeout = (callback, delay) => {
+        return this.getWindow().setTimeout(callback, delay);
+    };
+    clearTimeout = (timeoutId) => {
+        return this.getWindow().clearTimeout(timeoutId);
+    };
+}
+
+=== 13994 src/lib/utils/dom-context.test.svelte.ts	js
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { DOMContext } from "./dom-context.svelte.js";
+import { box } from "$lib/box/box.svelte.js";
+describe("DOMContext", () => {
+    let container;
+    let shadowHost;
+    let shadowRoot;
+    beforeEach(() => {
+        // Clean up DOM
+        document.body.innerHTML = "";
+        // Create test container
+        container = document.createElement("div");
+        container.id = "test-container";
+        document.body.appendChild(container);
+        // Create shadow DOM setup
+        shadowHost = document.createElement("div");
+        shadowHost.id = "shadow-host";
+        shadowRoot = shadowHost.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+			<div id="shadow-content">
+				<button id="shadow-button">Shadow Button</button>
+				<input id="shadow-input" />
+			</div>
+		`;
+        container.appendChild(shadowHost);
+    });
+    afterEach(() => {
+        document.body.innerHTML = "";
+    });
+    describe("constructor", () => {
+        it("should accept a Box<HTMLElement | null>", () => {
+            const element = document.createElement("div");
+            const elementBox = box(element);
+            const context = new DOMContext(elementBox);
+            expect(context.element.current).toBe(element);
+        });
+        it("should accept an ElementGetter function", () => {
+            const element = document.createElement("div");
+            const getter = () => element;
+            const context = new DOMContext(getter);
+            expect(context.element.current).toBe(element);
+        });
+        it("should handle null element", () => {
+            const context = new DOMContext(box(null));
+            expect(context.element.current).toBe(null);
+        });
+        it("should handle getter returning null", () => {
+            const getter = () => null;
+            const context = new DOMContext(getter);
+            expect(context.element.current).toBe(null);
+        });
+    });
+    describe("root", () => {
+        it("should return document when element is null", () => {
+            const context = new DOMContext(box(null));
+            expect(context.root).toBe(document);
+        });
+        it("should return document for regular DOM elements", () => {
+            const element = document.createElement("div");
+            document.body.appendChild(element);
+            const context = new DOMContext(box(element));
+            expect(context.root).toBe(document);
+        });
+        it("should return shadow root for shadow DOM elements", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.root).toBe(shadowRoot);
+        });
+        it("should handle nested shadow DOM", () => {
+            // Create nested shadow DOM
+            const nestedHost = document.createElement("div");
+            const nestedShadow = nestedHost.attachShadow({ mode: "open" });
+            nestedShadow.innerHTML = '<span id="nested-span">Nested</span>';
+            shadowRoot.appendChild(nestedHost);
+            const nestedSpan = nestedShadow.getElementById("nested-span");
+            const context = new DOMContext(box(nestedSpan));
+            expect(context.root).toBe(nestedShadow);
+        });
+    });
+    describe("getDocument", () => {
+        it("should return document for regular DOM context", () => {
+            const element = document.createElement("div");
+            const context = new DOMContext(box(element));
+            expect(context.getDocument()).toBe(document);
+        });
+        it("should return document for shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.getDocument()).toBe(document);
+        });
+        it("should return document when element is null", () => {
+            const context = new DOMContext(box(null));
+            expect(context.getDocument()).toBe(document);
+        });
+    });
+    describe("getWindow", () => {
+        it("should return window for regular DOM context", () => {
+            const element = document.createElement("div");
+            const context = new DOMContext(box(element));
+            expect(context.getWindow()).toBe(window);
+        });
+        it("should return window for shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.getWindow()).toBe(window);
+        });
+        it("should return window when element is null", () => {
+            const context = new DOMContext(box(null));
+            expect(context.getWindow()).toBe(window);
+        });
+    });
+    describe("getActiveElement", () => {
+        it("should return active element from document context", () => {
+            const button = document.createElement("button");
+            container.appendChild(button);
+            button.focus();
+            const context = new DOMContext(box(container));
+            expect(context.getActiveElement()).toBe(button);
+        });
+        it("should return active element from shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            shadowButton.focus();
+            const context = new DOMContext(box(shadowHost));
+            expect(context.getActiveElement()).toBe(shadowButton);
+        });
+        it("should handle null element context", () => {
+            const context = new DOMContext(box(null));
+            // Should return whatever is currently active in document
+            expect(context.getActiveElement()).toBeDefined();
+        });
+    });
+    describe("isActiveElement", () => {
+        it("should return true for active element", () => {
+            const button = document.createElement("button");
+            container.appendChild(button);
+            button.focus();
+            const context = new DOMContext(box(container));
+            expect(context.isActiveElement(button)).toBe(true);
+        });
+        it("should return false for non-active element", () => {
+            const button1 = document.createElement("button");
+            const button2 = document.createElement("button");
+            container.appendChild(button1);
+            container.appendChild(button2);
+            button1.focus();
+            const context = new DOMContext(box(container));
+            expect(context.isActiveElement(button2)).toBe(false);
+        });
+        it("should return false for null element", () => {
+            const context = new DOMContext(box(container));
+            expect(context.isActiveElement(null)).toBe(false);
+        });
+        it("should work with shadow DOM elements", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            shadowButton.focus();
+            const shadowContext = new DOMContext(box(shadowButton));
+            expect(shadowContext.isActiveElement(shadowButton)).toBe(true);
+        });
+    });
+    describe("getElementById", () => {
+        it("should find element by ID in document context", () => {
+            const testDiv = document.createElement("div");
+            testDiv.id = "test-div";
+            container.appendChild(testDiv);
+            const context = new DOMContext(box(container));
+            expect(context.getElementById("test-div")).toBe(testDiv);
+        });
+        it("should find element by ID in shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.getElementById("shadow-button")).toBe(shadowButton);
+        });
+        it("should return null for non-existent ID", () => {
+            const context = new DOMContext(box(container));
+            expect(context.getElementById("non-existent")).toBe(null);
+        });
+        it("should not find shadow DOM elements from document context", () => {
+            const context = new DOMContext(box(container));
+            expect(context.getElementById("shadow-button")).toBe(null);
+        });
+        it("should support generic typing", () => {
+            const input = document.createElement("input");
+            input.id = "test-input";
+            container.appendChild(input);
+            const context = new DOMContext(box(container));
+            const foundInput = context.getElementById("test-input");
+            expect(foundInput).toBe(input);
+            // TypeScript should infer this as HTMLInputElement | null
+        });
+    });
+    describe("querySelector", () => {
+        it("should find element by selector in document context", () => {
+            const testDiv = document.createElement("div");
+            testDiv.className = "test-class";
+            container.appendChild(testDiv);
+            const context = new DOMContext(box(container));
+            expect(context.querySelector(".test-class")).toBe(testDiv);
+        });
+        it("should find element by selector in shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.querySelector("button")).toBe(shadowButton);
+        });
+        it("should return null for non-existent selector", () => {
+            const context = new DOMContext(box(container));
+            expect(context.querySelector(".non-existent")).toBe(null);
+        });
+        it("should return null when root is null", () => {
+            const context = new DOMContext(box(null));
+            // Mock the root to be null for this test
+            Object.defineProperty(context, "root", { value: null });
+            expect(context.querySelector("div")).toBe(null);
+        });
+        it("should not find shadow DOM elements from document context", () => {
+            const context = new DOMContext(box(container));
+            expect(context.querySelector("#shadow-button")).toBe(null);
+        });
+    });
+    describe("querySelectorAll", () => {
+        it("should find all elements by selector in document context", () => {
+            const div1 = document.createElement("div");
+            const div2 = document.createElement("div");
+            div1.className = "test-class";
+            div2.className = "test-class";
+            container.appendChild(div1);
+            container.appendChild(div2);
+            const context = new DOMContext(box(container));
+            const elements = context.querySelectorAll(".test-class");
+            expect(elements.length).toBe(2);
+            expect(elements[0]).toBe(div1);
+            expect(elements[1]).toBe(div2);
+        });
+        it("should find all elements by selector in shadow DOM context", () => {
+            // Add another button to shadow DOM
+            const extraButton = document.createElement("button");
+            extraButton.textContent = "Extra Button";
+            shadowRoot.appendChild(extraButton);
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            const buttons = context.querySelectorAll("button");
+            expect(buttons.length).toBe(2);
+        });
+        it("should return empty NodeList for non-existent selector", () => {
+            const context = new DOMContext(box(container));
+            const elements = context.querySelectorAll(".non-existent");
+            expect(elements.length).toBe(0);
+        });
+        it("should return empty array when root is null", () => {
+            const context = new DOMContext(box(null));
+            // Mock the root to be null for this test
+            Object.defineProperty(context, "root", { value: null });
+            const elements = context.querySelectorAll("div");
+            expect(Array.isArray(elements)).toBe(true);
+            expect(elements.length).toBe(0);
+        });
+        it("should not find shadow DOM elements from document context", () => {
+            const context = new DOMContext(box(container));
+            const buttons = context.querySelectorAll("#shadow-button");
+            expect(buttons.length).toBe(0);
+        });
+    });
+    describe("reactive updates", () => {
+        it("should update root when element changes", () => {
+            const elementBox = box(container);
+            const context = new DOMContext(elementBox);
+            // Initially should use document root
+            expect(context.root).toBe(document);
+            // Change to shadow DOM element
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            elementBox.current = shadowButton;
+            // Should now use shadow root
+            expect(context.root).toBe(shadowRoot);
+        });
+        it("should handle element changing from non-null to null", () => {
+            const elementBox = box(container);
+            const context = new DOMContext(elementBox);
+            expect(context.root).toBe(document);
+            // Change to null
+            elementBox.current = null;
+            // Should fall back to document
+            expect(context.root).toBe(document);
+        });
+        it("should update queries when element context changes", () => {
+            const elementBox = box(container);
+            const context = new DOMContext(elementBox);
+            // Initially can't find shadow button
+            expect(context.getElementById("shadow-button")).toBe(null);
+            // Change to shadow DOM context
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            elementBox.current = shadowButton;
+            // Now should find shadow button
+            expect(context.getElementById("shadow-button")).toBe(shadowButton);
+        });
+    });
+});
+
+=== 13417 src/lib/utils/dom-context.test.ts	js
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { DOMContext } from "./dom-context.svelte.js";
+import { box } from "../box/box.svelte.js";
+describe("DOMContext", () => {
+    let container;
+    let shadowHost;
+    let shadowRoot;
+    beforeEach(() => {
+        // Clean up DOM
+        document.body.innerHTML = "";
+        // Create test container
+        container = document.createElement("div");
+        container.id = "test-container";
+        document.body.appendChild(container);
+        // Create shadow DOM setup
+        shadowHost = document.createElement("div");
+        shadowHost.id = "shadow-host";
+        shadowRoot = shadowHost.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+			<div id="shadow-content">
+				<button id="shadow-button">Shadow Button</button>
+				<input id="shadow-input" />
+			</div>
+		`;
+        container.appendChild(shadowHost);
+    });
+    afterEach(() => {
+        document.body.innerHTML = "";
+    });
+    describe("constructor", () => {
+        it("should accept a Box<HTMLElement | null>", () => {
+            const element = document.createElement("div");
+            const elementBox = box(element);
+            const context = new DOMContext(elementBox);
+            expect(context.element.current).toBe(element);
+        });
+        it("should accept an ElementGetter function", () => {
+            const element = document.createElement("div");
+            const getter = () => element;
+            const context = new DOMContext(getter);
+            expect(context.element.current).toBe(element);
+        });
+        it("should handle null element", () => {
+            const context = new DOMContext(box(null));
+            expect(context.element.current).toBe(null);
+        });
+        it("should handle getter returning null", () => {
+            const getter = () => null;
+            const context = new DOMContext(getter);
+            expect(context.element.current).toBe(null);
+        });
+    });
+    describe("root", () => {
+        it("should return document when element is null", () => {
+            const context = new DOMContext(box(null));
+            expect(context.root).toBe(document);
+        });
+        it("should return document for regular DOM elements", () => {
+            const element = document.createElement("div");
+            document.body.appendChild(element);
+            const context = new DOMContext(box(element));
+            expect(context.root).toBe(document);
+        });
+        it("should return shadow root for shadow DOM elements", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.root).toBe(shadowRoot);
+        });
+        it("should handle nested shadow DOM", () => {
+            // Create nested shadow DOM
+            const nestedHost = document.createElement("div");
+            const nestedShadow = nestedHost.attachShadow({ mode: "open" });
+            nestedShadow.innerHTML = '<span id="nested-span">Nested</span>';
+            shadowRoot.appendChild(nestedHost);
+            const nestedSpan = nestedShadow.getElementById("nested-span");
+            const context = new DOMContext(box(nestedSpan));
+            expect(context.root).toBe(nestedShadow);
+        });
+    });
+    describe("getDocument", () => {
+        it("should return document for regular DOM context", () => {
+            const element = document.createElement("div");
+            const context = new DOMContext(box(element));
+            expect(context.getDocument()).toBe(document);
+        });
+        it("should return document for shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.getDocument()).toBe(document);
+        });
+        it("should return document when element is null", () => {
+            const context = new DOMContext(box(null));
+            expect(context.getDocument()).toBe(document);
+        });
+    });
+    describe("getWindow", () => {
+        it("should return window for regular DOM context", () => {
+            const element = document.createElement("div");
+            const context = new DOMContext(box(element));
+            expect(context.getWindow()).toBe(window);
+        });
+        it("should return window for shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.getWindow()).toBe(window);
+        });
+        it("should return window when element is null", () => {
+            const context = new DOMContext(box(null));
+            expect(context.getWindow()).toBe(window);
+        });
+    });
+    describe("getActiveElement", () => {
+        it("should return active element from document context", () => {
+            const button = document.createElement("button");
+            container.appendChild(button);
+            button.focus();
+            const context = new DOMContext(box(container));
+            expect(context.getActiveElement()).toBe(button);
+        });
+        it("should return active element from shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            shadowButton.focus();
+            const context = new DOMContext(box(shadowHost));
+            expect(context.getActiveElement()).toBe(shadowButton);
+        });
+        it("should handle null element context", () => {
+            const context = new DOMContext(box(null));
+            expect(context.getActiveElement()).toBeDefined();
+        });
+    });
+    describe("isActiveElement", () => {
+        it("should return true for active element", () => {
+            const button = document.createElement("button");
+            container.appendChild(button);
+            button.focus();
+            const context = new DOMContext(box(container));
+            expect(context.isActiveElement(button)).toBe(true);
+        });
+        it("should return false for non-active element", () => {
+            const button1 = document.createElement("button");
+            const button2 = document.createElement("button");
+            container.appendChild(button1);
+            container.appendChild(button2);
+            button1.focus();
+            const context = new DOMContext(box(container));
+            expect(context.isActiveElement(button2)).toBe(false);
+        });
+        it("should return false for null element", () => {
+            const context = new DOMContext(box(container));
+            expect(context.isActiveElement(null)).toBe(false);
+        });
+        it("should work with shadow DOM elements", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            shadowButton.focus();
+            const shadowContext = new DOMContext(box(shadowButton));
+            expect(shadowContext.isActiveElement(shadowButton)).toBe(true);
+        });
+    });
+    describe("getElementById", () => {
+        it("should find element by ID in document context", () => {
+            const testDiv = document.createElement("div");
+            testDiv.id = "test-div";
+            container.appendChild(testDiv);
+            const context = new DOMContext(box(container));
+            expect(context.getElementById("test-div")).toBe(testDiv);
+        });
+        it("should find element by ID in shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.getElementById("shadow-button")).toBe(shadowButton);
+        });
+        it("should return null for non-existent ID", () => {
+            const context = new DOMContext(box(container));
+            expect(context.getElementById("non-existent")).toBe(null);
+        });
+        it("should not find shadow DOM elements from document context", () => {
+            const context = new DOMContext(box(container));
+            expect(context.getElementById("shadow-button")).toBe(null);
+        });
+        it("should support generic typing", () => {
+            const input = document.createElement("input");
+            input.id = "test-input";
+            container.appendChild(input);
+            const context = new DOMContext(box(container));
+            const foundInput = context.getElementById("test-input");
+            expect(foundInput).toBe(input);
+            // TypeScript should infer this as HTMLInputElement | null
+        });
+    });
+    describe("querySelector", () => {
+        it("should find element by selector in document context", () => {
+            const testDiv = document.createElement("div");
+            testDiv.className = "test-class";
+            container.appendChild(testDiv);
+            const context = new DOMContext(box(container));
+            expect(context.querySelector(".test-class")).toBe(testDiv);
+        });
+        it("should find element by selector in shadow DOM context", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            expect(context.querySelector("button")).toBe(shadowButton);
+        });
+        it("should return null for non-existent selector", () => {
+            const context = new DOMContext(box(container));
+            expect(context.querySelector(".non-existent")).toBe(null);
+        });
+        it("should return null when root is null", () => {
+            const context = new DOMContext(box(null));
+            Object.defineProperty(context, "root", { value: null });
+            expect(context.querySelector("div")).toBe(null);
+        });
+        it("should not find shadow DOM elements from document context", () => {
+            const context = new DOMContext(box(container));
+            expect(context.querySelector("#shadow-button")).toBe(null);
+        });
+    });
+    describe("querySelectorAll", () => {
+        it("should find all elements by selector in document context", () => {
+            const div1 = document.createElement("div");
+            const div2 = document.createElement("div");
+            div1.className = "test-class";
+            div2.className = "test-class";
+            container.appendChild(div1);
+            container.appendChild(div2);
+            const context = new DOMContext(box(container));
+            const elements = context.querySelectorAll(".test-class");
+            expect(elements.length).toBe(2);
+            expect(elements[0]).toBe(div1);
+            expect(elements[1]).toBe(div2);
+        });
+        it("should find all elements by selector in shadow DOM context", () => {
+            const extraButton = document.createElement("button");
+            extraButton.textContent = "Extra Button";
+            shadowRoot.appendChild(extraButton);
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            const context = new DOMContext(box(shadowButton));
+            const buttons = context.querySelectorAll("button");
+            expect(buttons.length).toBe(2);
+        });
+        it("should return empty NodeList for non-existent selector", () => {
+            const context = new DOMContext(box(container));
+            const elements = context.querySelectorAll(".non-existent");
+            expect(elements.length).toBe(0);
+        });
+        it("should return empty array when root is null", () => {
+            const context = new DOMContext(box(null));
+            Object.defineProperty(context, "root", { value: null });
+            const elements = context.querySelectorAll("div");
+            expect(Array.isArray(elements)).toBe(true);
+            expect(elements.length).toBe(0);
+        });
+        it("should not find shadow DOM elements from document context", () => {
+            const context = new DOMContext(box(container));
+            const buttons = context.querySelectorAll("#shadow-button");
+            expect(buttons.length).toBe(0);
+        });
+    });
+    describe("reactive updates", () => {
+        it("should update root when element changes", () => {
+            const elementBox = box(container);
+            const context = new DOMContext(elementBox);
+            expect(context.root).toBe(document);
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            elementBox.current = shadowButton;
+            expect(context.root).toBe(shadowRoot);
+        });
+        it("should handle element changing from non-null to null", () => {
+            const elementBox = box(container);
+            const context = new DOMContext(elementBox);
+            expect(context.root).toBe(document);
+            elementBox.current = null;
+            expect(context.root).toBe(document);
+        });
+        it("should update queries when element context changes", () => {
+            const elementBox = box(container);
+            const context = new DOMContext(elementBox);
+            expect(context.getElementById("shadow-button")).toBe(null);
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            elementBox.current = shadowButton;
+            expect(context.getElementById("shadow-button")).toBe(shadowButton);
+        });
+    });
+});
+
+=== 10756 src/lib/utils/dom.test.ts	js
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { isHTMLElement, isDocument, isWindow, getNodeName, isNode, isShadowRoot, contains, getDocument, getDocumentElement, getWindow, getActiveElement, getParentNode } from "./dom.js";
+describe("dom utilities", () => {
+    let container;
+    let shadowHost;
+    let shadowRoot;
+    beforeEach(() => {
+        // Clean up DOM
+        document.body.innerHTML = "";
+        // Create test container
+        container = document.createElement("div");
+        container.id = "test-container";
+        document.body.appendChild(container);
+        // Create shadow DOM setup
+        shadowHost = document.createElement("div");
+        shadowHost.id = "shadow-host";
+        shadowRoot = shadowHost.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+			<div id="shadow-content">
+				<button id="shadow-button">Shadow Button</button>
+			</div>
+		`;
+        container.appendChild(shadowHost);
+    });
+    afterEach(() => {
+        document.body.innerHTML = "";
+    });
+    describe("isHTMLElement", () => {
+        it("should return true for HTML elements", () => {
+            expect(isHTMLElement(document.createElement("div"))).toBe(true);
+            expect(isHTMLElement(document.body)).toBe(true);
+        });
+        it("should return false for non-HTML elements", () => {
+            expect(isHTMLElement(null)).toBe(false);
+            expect(isHTMLElement(undefined)).toBe(false);
+            expect(isHTMLElement("string")).toBe(false);
+            expect(isHTMLElement(123)).toBe(false);
+            expect(isHTMLElement(document)).toBe(false);
+            expect(isHTMLElement(window)).toBe(false);
+        });
+        it("should return false for text nodes", () => {
+            const textNode = document.createTextNode("text");
+            expect(isHTMLElement(textNode)).toBe(false);
+        });
+    });
+    describe("isDocument", () => {
+        it("should return true for document", () => {
+            expect(isDocument(document)).toBe(true);
+        });
+        it("should return false for non-document objects", () => {
+            expect(isDocument(document.createElement("div"))).toBe(false);
+            expect(isDocument(window)).toBe(false);
+            expect(isDocument(null)).toBe(false);
+            expect(isDocument(shadowRoot)).toBe(false);
+        });
+    });
+    describe("isWindow", () => {
+        it("should return true for window object", () => {
+            // Note: The implementation checks for VisualViewport constructor
+            // This might need adjustment based on actual implementation
+            const mockWindow = { constructor: { name: "VisualViewport" } };
+            expect(isWindow(mockWindow)).toBe(true);
+        });
+        it("should return false for non-window objects", () => {
+            expect(isWindow(document)).toBe(false);
+            expect(isWindow(document.createElement("div"))).toBe(false);
+            expect(isWindow(null)).toBe(false);
+        });
+    });
+    describe("getNodeName", () => {
+        it("should return localName for HTML elements", () => {
+            const div = document.createElement("div");
+            expect(getNodeName(div)).toBe("div");
+            const button = document.createElement("button");
+            expect(getNodeName(button)).toBe("button");
+        });
+        it("should return #document for non-HTML elements", () => {
+            expect(getNodeName(document)).toBe("#document");
+            expect(getNodeName(window)).toBe("#document");
+        });
+    });
+    describe("isNode", () => {
+        it("should return true for nodes", () => {
+            expect(isNode(document.createElement("div"))).toBe(true);
+            expect(isNode(document)).toBe(true);
+            expect(isNode(document.createTextNode("text"))).toBe(true);
+        });
+        it("should return false for non-nodes", () => {
+            expect(isNode(null)).toBe(false);
+            expect(isNode(undefined)).toBe(false);
+            expect(isNode("string")).toBe(false);
+            expect(isNode({})).toBe(false);
+        });
+    });
+    describe("isShadowRoot", () => {
+        it("should return true for shadow roots", () => {
+            expect(isShadowRoot(shadowRoot)).toBe(true);
+        });
+        it("should return false for non-shadow roots", () => {
+            expect(isShadowRoot(document)).toBe(false);
+            expect(isShadowRoot(document.createElement("div"))).toBe(false);
+            expect(isShadowRoot(null)).toBe(false);
+        });
+    });
+    describe("contains", () => {
+        it("should return true when parent contains child", () => {
+            const parent = document.createElement("div");
+            const child = document.createElement("span");
+            parent.appendChild(child);
+            expect(contains(parent, child)).toBe(true);
+        });
+        it("should return true when parent and child are the same", () => {
+            const element = document.createElement("div");
+            expect(contains(element, element)).toBe(true);
+        });
+        it("should return false when parent does not contain child", () => {
+            const parent = document.createElement("div");
+            const child = document.createElement("span");
+            expect(contains(parent, child)).toBe(false);
+        });
+        it("should handle shadow DOM containment", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            expect(contains(shadowHost, shadowButton)).toBe(true);
+        });
+        it("should return false for null/undefined inputs", () => {
+            const element = document.createElement("div");
+            expect(contains(null, element)).toBe(false);
+            expect(contains(element, null)).toBe(false);
+            expect(contains(null, null)).toBe(false);
+        });
+        it("should return false for non-HTML elements", () => {
+            expect(contains(document, document.createElement("div"))).toBe(false);
+        });
+    });
+    describe("getDocument", () => {
+        it("should return the document for document input", () => {
+            expect(getDocument(document)).toBe(document);
+        });
+        it("should return window.document for window input", () => {
+            expect(getDocument(window)).toBe(document);
+        });
+        it("should return ownerDocument for elements", () => {
+            const element = document.createElement("div");
+            expect(getDocument(element)).toBe(document);
+        });
+        it("should return document for null/undefined", () => {
+            expect(getDocument(null)).toBe(document);
+            expect(getDocument(undefined)).toBe(document);
+        });
+        it("should handle shadow DOM elements", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            expect(getDocument(shadowButton)).toBe(document);
+        });
+    });
+    describe("getDocumentElement", () => {
+        it("should return document.documentElement", () => {
+            expect(getDocumentElement(document)).toBe(document.documentElement);
+            expect(getDocumentElement(window)).toBe(document.documentElement);
+            expect(getDocumentElement(document.createElement("div"))).toBe(document.documentElement);
+        });
+    });
+    describe("getWindow", () => {
+        it("should return window for document", () => {
+            expect(getWindow(document)).toBe(window);
+        });
+        it("should return window for HTML elements", () => {
+            const element = document.createElement("div");
+            expect(getWindow(element)).toBe(window);
+        });
+        it("should return window for shadow root", () => {
+            expect(getWindow(shadowRoot)).toBe(window);
+        });
+        it("should return window for null/undefined", () => {
+            expect(getWindow(null)).toBe(window);
+            expect(getWindow(undefined)).toBe(window);
+        });
+    });
+    describe("getActiveElement", () => {
+        it("should return active element from document", () => {
+            const button = document.createElement("button");
+            container.appendChild(button);
+            button.focus();
+            expect(getActiveElement(document)).toBe(button);
+        });
+        it("should return active element from shadow root", () => {
+            const shadowButton = shadowRoot.getElementById("shadow-button");
+            shadowButton.focus();
+            expect(getActiveElement(shadowRoot)).toBe(shadowButton);
+        });
+        it("should traverse nested shadow roots", () => {
+            // Create nested shadow DOM
+            const nestedHost = document.createElement("div");
+            const nestedShadow = nestedHost.attachShadow({ mode: "open" });
+            nestedShadow.innerHTML = '<input id="nested-input" />';
+            shadowRoot.appendChild(nestedHost);
+            const nestedInput = nestedShadow.getElementById("nested-input");
+            nestedInput.focus();
+            // Should find the deeply nested active element
+            expect(getActiveElement(shadowRoot)).toBe(nestedInput);
+        });
+    });
+    describe("getParentNode", () => {
+        it("should return the element itself for html element", () => {
+            const html = document.documentElement;
+            expect(getParentNode(html)).toBe(html);
+        });
+        it("should return parentNode for regular elements", () => {
+            const parent = document.createElement("div");
+            const child = document.createElement("span");
+            parent.appendChild(child);
+            expect(getParentNode(child)).toBe(parent);
+        });
+        it("should return host for shadow root", () => {
+            expect(getParentNode(shadowRoot)).toBe(shadowHost);
+        });
+        it("should handle assigned slots", () => {
+            // Create slot setup
+            const slotHost = document.createElement("div");
+            const slotShadow = slotHost.attachShadow({ mode: "open" });
+            slotShadow.innerHTML = '<slot name="test"></slot>';
+            const slottedElement = document.createElement("span");
+            slottedElement.slot = "test";
+            slotHost.appendChild(slottedElement);
+            container.appendChild(slotHost);
+            // The slotted element's parent should be the slot
+            const parentNode = getParentNode(slottedElement);
+            expect(parentNode).toBeDefined();
+        });
+        it("should return documentElement as fallback", () => {
+            // Create an orphaned node
+            const orphan = document.createElement("div");
+            const result = getParentNode(orphan);
+            expect(result).toBe(document.documentElement);
+        });
+    });
+});
+
+=== 2651 src/lib/utils/dom.ts	js
+import { isObject } from "./is.js";
+const ELEMENT_NODE = 1;
+const DOCUMENT_NODE = 9;
+const DOCUMENT_FRAGMENT_NODE = 11;
+export function isHTMLElement(node) {
+    return isObject(node) && node.nodeType === ELEMENT_NODE && typeof node.nodeName === "string";
+}
+export function isDocument(node) {
+    return isObject(node) && node.nodeType === DOCUMENT_NODE;
+}
+export function isWindow(node) {
+    return isObject(node) && node.constructor?.name === "VisualViewport";
+}
+export function getNodeName(node) {
+    if (isHTMLElement(node))
+        return node.localName ?? "";
+    return "#document";
+}
+export function isNode(node) {
+    return isObject(node) && node.nodeType !== undefined;
+}
+export function isShadowRoot(node) {
+    return isNode(node) && node.nodeType === DOCUMENT_FRAGMENT_NODE && "host" in node;
+}
+export function contains(parent, child) {
+    if (!parent || !child)
+        return false;
+    if (!isHTMLElement(parent) || !isHTMLElement(child))
+        return false;
+    const rootNode = child.getRootNode?.();
+    if (parent === child)
+        return true;
+    if (parent.contains(child))
+        return true;
+    if (rootNode && isShadowRoot(rootNode)) {
+        let next = child;
+        while (next) {
+            if (parent === next)
+                return true;
+            // @ts-expect-error - host is not typed
+            next = next.parentNode || next.host;
+        }
+    }
+    return false;
+}
+export function getDocument(node) {
+    if (isDocument(node))
+        return node;
+    if (isWindow(node))
+        return node.document;
+    return node?.ownerDocument ?? document;
+}
+export function getDocumentElement(node) {
+    return getDocument(node).documentElement;
+}
+export function getWindow(node) {
+    if (isShadowRoot(node))
+        return getWindow(node.host);
+    if (isDocument(node))
+        return node.defaultView ?? window;
+    if (isHTMLElement(node))
+        return node.ownerDocument?.defaultView ?? window;
+    return window;
+}
+export function getActiveElement(rootNode) {
+    let activeElement = rootNode.activeElement;
+    while (activeElement?.shadowRoot) {
+        const el = activeElement.shadowRoot.activeElement;
+        if (el === activeElement)
+            break;
+        else
+            activeElement = el;
+    }
+    return activeElement;
+}
+export function getParentNode(node) {
+    if (getNodeName(node) === "html")
+        return node;
+    const result = 
+    // @ts-expect-error - assignedSlot is not typed
+    node.assignedSlot ||
+        node.parentNode ||
+        (isShadowRoot(node) && node.host) ||
+        getDocumentElement(node);
+    return isShadowRoot(result) ? result.host : result;
+}
+
+=== 2097 src/lib/utils/event-list.ts	js
+const EVENT_LIST = [
+    "onabort",
+    "onanimationcancel",
+    "onanimationend",
+    "onanimationiteration",
+    "onanimationstart",
+    "onauxclick",
+    "onbeforeinput",
+    "onbeforetoggle",
+    "onblur",
+    "oncancel",
+    "oncanplay",
+    "oncanplaythrough",
+    "onchange",
+    "onclick",
+    "onclose",
+    "oncompositionend",
+    "oncompositionstart",
+    "oncompositionupdate",
+    "oncontextlost",
+    "oncontextmenu",
+    "oncontextrestored",
+    "oncopy",
+    "oncuechange",
+    "oncut",
+    "ondblclick",
+    "ondrag",
+    "ondragend",
+    "ondragenter",
+    "ondragleave",
+    "ondragover",
+    "ondragstart",
+    "ondrop",
+    "ondurationchange",
+    "onemptied",
+    "onended",
+    "onerror",
+    "onfocus",
+    "onfocusin",
+    "onfocusout",
+    "onformdata",
+    "ongotpointercapture",
+    "oninput",
+    "oninvalid",
+    "onkeydown",
+    "onkeypress",
+    "onkeyup",
+    "onload",
+    "onloadeddata",
+    "onloadedmetadata",
+    "onloadstart",
+    "onlostpointercapture",
+    "onmousedown",
+    "onmouseenter",
+    "onmouseleave",
+    "onmousemove",
+    "onmouseout",
+    "onmouseover",
+    "onmouseup",
+    "onpaste",
+    "onpause",
+    "onplay",
+    "onplaying",
+    "onpointercancel",
+    "onpointerdown",
+    "onpointerenter",
+    "onpointerleave",
+    "onpointermove",
+    "onpointerout",
+    "onpointerover",
+    "onpointerup",
+    "onprogress",
+    "onratechange",
+    "onreset",
+    "onresize",
+    "onscroll",
+    "onscrollend",
+    "onsecuritypolicyviolation",
+    "onseeked",
+    "onseeking",
+    "onselect",
+    "onselectionchange",
+    "onselectstart",
+    "onslotchange",
+    "onstalled",
+    "onsubmit",
+    "onsuspend",
+    "ontimeupdate",
+    "ontoggle",
+    "ontouchcancel",
+    "ontouchend",
+    "ontouchmove",
+    "ontouchstart",
+    "ontransitioncancel",
+    "ontransitionend",
+    "ontransitionrun",
+    "ontransitionstart",
+    "onvolumechange",
+    "onwaiting",
+    "onwebkitanimationend",
+    "onwebkitanimationiteration",
+    "onwebkitanimationstart",
+    "onwebkittransitionend",
+    "onwheel"
+];
+export const EVENT_LIST_SET = new Set(EVENT_LIST);
+
+=== 987 src/lib/utils/events.ts	js
+/**
+ * Adds an event listener to the specified target element(s) for the given event(s), and returns a function to remove it.
+ * @param target The target element(s) to add the event listener to.
+ * @param event The event(s) to listen for.
+ * @param handler The function to be called when the event is triggered.
+ * @param options An optional object that specifies characteristics about the event listener.
+ * @returns A function that removes the event listener from the target element(s).
+ */
+export function addEventListener(target, event, handler, options) {
+    const events = Array.isArray(event) ? event : [event];
+    // Add the event listener to each specified event for the target element(s).
+    events.forEach((_event) => target.addEventListener(_event, handler, options));
+    // Return a function that removes the event listener from the target element(s).
+    return () => {
+        events.forEach((_event) => target.removeEventListener(_event, handler, options));
+    };
+}
+
+=== 1671 src/lib/utils/execute-callbacks.test.ts	js
+import { describe, expect, it, vi } from "vitest";
+import { executeCallbacks } from "./execute-callbacks.js";
+describe("executeCallbacks", () => {
+    it("should execute all callback functions with the same arguments", () => {
+        const mockCallback1 = vi.fn();
+        const mockCallback2 = vi.fn();
+        const mockCallback3 = vi.fn();
+        const executeCombinedCallbacks = executeCallbacks(mockCallback1, mockCallback2, mockCallback3);
+        executeCombinedCallbacks(1, 2, 3);
+        expect(mockCallback1).toHaveBeenCalledWith(1, 2, 3);
+        expect(mockCallback2).toHaveBeenCalledWith(1, 2, 3);
+        expect(mockCallback3).toHaveBeenCalledWith(1, 2, 3);
+    });
+    it("should handle callback functions with different argument types", () => {
+        const mockCallback1 = vi.fn();
+        const mockCallback2 = vi.fn();
+        const mockCallback3 = vi.fn();
+        executeCallbacks(mockCallback1(42), mockCallback2("hello"), mockCallback3(true));
+        expect(mockCallback1).toHaveBeenCalledWith(42);
+        expect(mockCallback2).toHaveBeenCalledWith("hello");
+        expect(mockCallback3).toHaveBeenCalledWith(true);
+    });
+    it("should handle an empty array of callbacks", () => {
+        const executeCombinedCallbacks = executeCallbacks();
+        expect(() => executeCombinedCallbacks(1, 2, 3)).not.toThrow();
+    });
+    it("should handle non-function values in the callbacks array", () => {
+        const mockCallback = vi.fn();
+        const executeCombinedCallbacks = executeCallbacks(mockCallback, undefined, null);
+        executeCombinedCallbacks(1, 2, 3);
+        expect(mockCallback).toHaveBeenCalledWith(1, 2, 3);
+    });
+});
+
+=== 554 src/lib/utils/execute-callbacks.ts	js
+/**
+ * Executes an array of callback functions with the same arguments.
+ * @template T The types of the arguments that the callback functions take.
+ * @param callbacks array of callback functions to execute.
+ * @returns A new function that executes all of the original callback functions with the same arguments.
+ */
+export function executeCallbacks(...callbacks) {
+    return (...args) => {
+        for (const callback of callbacks) {
+            if (typeof callback === "function") {
+                callback(...args);
+            }
+        }
+    };
+}
+
+=== 5116 src/lib/utils/is.test.ts	js
+import { describe, expect, it } from "vitest";
+import { isClassValue } from "./is.js";
+describe("isClassValue", () => {
+    describe("primitive types", () => {
+        it("should return true for string", () => {
+            expect(isClassValue("")).toBe(true);
+            expect(isClassValue("hello")).toBe(true);
+        });
+        it("should return true for number", () => {
+            expect(isClassValue(0)).toBe(true);
+            expect(isClassValue(42)).toBe(true);
+            expect(isClassValue(-1)).toBe(true);
+            expect(isClassValue(Infinity)).toBe(true);
+            expect(isClassValue(Number.NaN)).toBe(true);
+        });
+        it("should return true for bigint", () => {
+            expect(isClassValue(BigInt(0))).toBe(true);
+            expect(isClassValue(BigInt(9007199254740991))).toBe(true);
+        });
+        it("should return true for boolean", () => {
+            expect(isClassValue(true)).toBe(true);
+            expect(isClassValue(false)).toBe(true);
+        });
+        it("should return true for null", () => {
+            expect(isClassValue(null)).toBe(true);
+        });
+        it("should return true for undefined", () => {
+            expect(isClassValue(undefined)).toBe(true);
+        });
+    });
+    describe("arrays", () => {
+        it("should return true for empty arrays", () => {
+            expect(isClassValue([])).toBe(true);
+        });
+        it("should return true for arrays of valid primitive values", () => {
+            expect(isClassValue(["string", 42, true, null])).toBe(true);
+        });
+        it("should return true for nested arrays", () => {
+            expect(isClassValue([["nested"], [1, 2], [true]])).toBe(true);
+            expect(isClassValue(["deep", ["deeper", ["deepest"]]])).toBe(true);
+        });
+        it("should return false for arrays containing invalid values", () => {
+            expect(isClassValue([Symbol("a")])).toBe(false);
+            expect(isClassValue([() => { }])).toBe(false);
+            expect(isClassValue([new Date()])).toBe(false);
+        });
+    });
+    describe("objects", () => {
+        it("should return true for empty objects", () => {
+            expect(isClassValue({})).toBe(true);
+        });
+        it("should return true for objects with valid values", () => {
+            expect(isClassValue({ key: "value" })).toBe(true);
+            expect(isClassValue({ num: 42, bool: true })).toBe(true);
+        });
+        it("should return true for nested objects", () => {
+            expect(isClassValue({
+                nested: {
+                    deeper: {
+                        value: "test"
+                    }
+                }
+            })).toBe(true);
+        });
+        it("should return true for objects with array values", () => {
+            expect(isClassValue({ arr: [1, 2, 3] })).toBe(true);
+            expect(isClassValue({ arr: [{ nested: true }] })).toBe(true);
+        });
+        it("should return false for class instances", () => {
+            expect(isClassValue(new Date())).toBe(false);
+            expect(isClassValue(new RegExp(""))).toBe(false);
+        });
+    });
+    describe("invalid types", () => {
+        it("should return false for symbols", () => {
+            expect(isClassValue(Symbol())).toBe(false);
+            expect(isClassValue(Symbol("test"))).toBe(false);
+        });
+        it("should return false for functions", () => {
+            expect(isClassValue(() => { })).toBe(false);
+            expect(isClassValue(function () { })).toBe(false);
+            expect(isClassValue(Math.random)).toBe(false);
+        });
+        it("should return false for built-in objects", () => {
+            expect(isClassValue(new Map())).toBe(false);
+            expect(isClassValue(new Set())).toBe(false);
+            expect(isClassValue(new WeakMap())).toBe(false);
+            expect(isClassValue(new WeakSet())).toBe(false);
+            expect(isClassValue(Promise.resolve())).toBe(false);
+        });
+    });
+    describe("complex nested structures", () => {
+        it("should handle deeply nested valid structures", () => {
+            const complex = {
+                string: "test",
+                number: 42,
+                boolean: true,
+                null: null,
+                undefined: undefined,
+                array: [
+                    "nested",
+                    {
+                        deeper: [[1, 2, 3], { evenDeeper: true }]
+                    }
+                ]
+            };
+            expect(isClassValue(complex)).toBe(true);
+        });
+        it("should reject deeply nested structures with invalid values", () => {
+            const complex = {
+                valid: "test",
+                nested: {
+                    array: [
+                        "valid",
+                        {
+                            invalid: Symbol() // Invalid value deep in the structure
+                        }
+                    ]
+                }
+            };
+            expect(isClassValue(complex)).toBe(true); // Note: This is true because ClassDictionary accepts any values
+        });
+    });
+});
+
+=== 870 src/lib/utils/is.ts	js
+export function isFunction(value) {
+    return typeof value === "function";
+}
+export function isObject(value) {
+    return value !== null && typeof value === "object";
+}
+const CLASS_VALUE_PRIMITIVE_TYPES = ["string", "number", "bigint", "boolean"];
+export function isClassValue(value) {
+    // handle primitive types
+    if (value === null || value === undefined)
+        return true;
+    if (CLASS_VALUE_PRIMITIVE_TYPES.includes(typeof value))
+        return true;
+    // handle arrays (ClassArray)
+    if (Array.isArray(value))
+        return value.every((item) => isClassValue(item));
+    // handle objects (ClassDictionary)
+    if (typeof value === "object") {
+        // ensure it's a plain object and not some other object type
+        if (Object.getPrototypeOf(value) !== Object.prototype)
+            return false;
+        return true;
+    }
+    return false;
+}
+
+=== 17905 src/lib/utils/merge-props.test.ts	js
+import { describe, expect, it, vi } from "vitest";
+import { mergeProps } from "./merge-props.js";
+describe("mergeProps", () => {
+    it("should merge objects", () => {
+        const props1 = { a: 1, b: 2 };
+        const props2 = { c: 3 };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ a: 1, b: 2, c: 3 });
+    });
+    it("should override values with the last one", () => {
+        const props1 = { a: 1 };
+        const props2 = { a: 2 };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ a: 2 });
+    });
+    it("should compose event handlers", () => {
+        const handler1 = vi.fn();
+        const handler2 = vi.fn();
+        const props1 = { onclick: handler1 };
+        const props2 = { onclick: handler2 };
+        const result = mergeProps(props1, props2);
+        result.onclick(new Event("click"));
+        expect(handler1).toHaveBeenCalled();
+        expect(handler2).toHaveBeenCalled();
+    });
+    it("should chain non-event handler functions", () => {
+        const handler1 = vi.fn();
+        const handler2 = vi.fn();
+        const props1 = { foo: handler1 };
+        const props2 = { foo: handler2 };
+        const result = mergeProps(props1, props2);
+        result.foo();
+        expect(handler1).toHaveBeenCalled();
+        expect(handler2).toHaveBeenCalled();
+    });
+    it("should handle chaining with one property being undefined", () => {
+        const handler1 = vi.fn();
+        const props1 = { foo: handler1 };
+        const props2 = { foo: undefined };
+        const result = mergeProps(props1, props2);
+        // @ts-expect-error - we're testing to see if the undefined value is handled
+        result.foo();
+        expect(handler1).toHaveBeenCalled();
+    });
+    it("should merge class strings", () => {
+        const props1 = { class: "foo" };
+        const props2 = { class: "bar" };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ class: "foo bar" });
+    });
+    it("should merge style objects", () => {
+        const props1 = { style: { color: "red" } };
+        const props2 = { style: { fontSize: "16px" } };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ style: "color: red; font-size: 16px;" });
+    });
+    it("should merge class strings with style objects", () => {
+        const props1 = { style: { fontSize: "16px", pointerEvents: "auto", color: "red" } };
+        const props2 = { style: "pointer-events: none; font-size: 48px;" };
+        const props3 = { style: { backgroundColor: "blue" } };
+        const props4 = { style: "background-color: red;" };
+        const result = mergeProps(props1, props2, props3, props4);
+        expect(result).toEqual({
+            style: "font-size: 48px; pointer-events: none; color: red; background-color: red;"
+        });
+    });
+    it("should merge multiple css variables", () => {
+        const props1 = {
+            style: {
+                "--foo": "red",
+                "--bar": "blue"
+            }
+        };
+        const props2 = {
+            style: {
+                "--foo": "green",
+                "--baz": "yellow"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("--foo: green; --bar: blue; --baz: yellow;");
+    });
+    it("should merge style strings", () => {
+        const props1 = { style: "color: red;" };
+        const props2 = { style: "font-size: 16px;" };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ style: "color: red; font-size: 16px;" });
+    });
+    it("should handle sparse arrays", () => {
+        const props1 = { a: 1 };
+        const props2 = { b: 2 };
+        const result = mergeProps(undefined, props1, null, props2);
+        expect(result).toEqual({ a: 1, b: 2 });
+    });
+    it("should handle nested objects", () => {
+        const props1 = { obj: { a: 1 } };
+        const props2 = { obj: { b: 2 } };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ obj: { b: 2 } });
+    });
+    it("should handle the hidden attribute", () => {
+        const props1 = { hidden: true };
+        const props2 = { hidden: false };
+        const props3 = { hidden: "until-found" };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ hidden: undefined });
+        const result2 = mergeProps(props2, props1);
+        expect(result2).toEqual({ hidden: true });
+        const result3 = mergeProps(props1, props3);
+        expect(result3).toEqual({ hidden: "until-found" });
+    });
+    it("should handle the disabled attribute", () => {
+        const props1 = { disabled: true };
+        const props2 = { disabled: false };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ disabled: undefined });
+        const result2 = mergeProps(props2, props1);
+        expect(result2).toEqual({ disabled: true });
+    });
+    it("should chain non-function event handlers", () => {
+        const handler1 = vi.fn();
+        const handler2 = vi.fn();
+        const props1 = { onValueChange: handler1 };
+        const props2 = { onValueChange: handler2 };
+        const result = mergeProps(props1, props2);
+        result.onValueChange();
+        expect(handler1).toHaveBeenCalled();
+        expect(handler2).toHaveBeenCalled();
+    });
+    it("should handle merging of styles if styles only provided in props2", () => {
+        const props1 = {};
+        const props2 = {
+            style: "color: blue;"
+        };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ style: "color: blue;" });
+    });
+    it("should merge classnames via clsx", () => {
+        const props1 = { class: "text-lg font-bold" };
+        const props2 = { class: ["bg-blue-500", "hover:bg-blue-600"] };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ class: "text-lg font-bold bg-blue-500 hover:bg-blue-600" });
+    });
+    it("should handle symbol as keys", () => {
+        const symbol = Symbol("foo");
+        const symbol2 = Symbol("foo2");
+        const props1 = { [symbol]: "bar" };
+        const props2 = { [symbol]: "baz", [symbol2]: "qux" };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol]: "baz", [symbol2]: "qux" });
+    });
+    it("should handle multiple symbols with same description", () => {
+        const symbol1 = Symbol("foo");
+        const symbol2 = Symbol("foo"); // same description, different symbol
+        const props1 = { [symbol1]: "bar" };
+        const props2 = { [symbol2]: "baz" };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol1]: "bar", [symbol2]: "baz" });
+    });
+    it("should handle mixed string and symbol keys", () => {
+        const symbol = Symbol("foo");
+        const props1 = { [symbol]: "bar", a: 1 };
+        const props2 = { [symbol]: "baz", b: 2 };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol]: "baz", a: 1, b: 2 });
+    });
+    it("should handle undefined symbol values", () => {
+        const symbol = Symbol("foo");
+        const props1 = { [symbol]: "bar" };
+        const props2 = { [symbol]: undefined };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol]: "bar" });
+    });
+    it("should handle null symbol values", () => {
+        const symbol = Symbol("foo");
+        const props1 = { [symbol]: "bar" };
+        const props2 = { [symbol]: null };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol]: null });
+    });
+    it("should handle complex nested objects with symbols", () => {
+        const symbol = Symbol("foo");
+        const props1 = {
+            [symbol]: { nested: { value: 1 } },
+            obj: { a: 1 }
+        };
+        const props2 = {
+            [symbol]: { nested: { value: 2 } },
+            obj: { b: 2 }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({
+            [symbol]: { nested: { value: 2 } },
+            obj: { b: 2 }
+        });
+    });
+    it("should handle symbols with function values", () => {
+        const symbol = Symbol("foo");
+        const handler1 = vi.fn();
+        const handler2 = vi.fn();
+        const props1 = { [symbol]: handler1 };
+        const props2 = { [symbol]: handler2 };
+        const result = mergeProps(props1, props2);
+        result[symbol]();
+        expect(handler1).not.toHaveBeenCalled();
+        expect(handler2).toHaveBeenCalled();
+    });
+    it("should handle symbols with style objects", () => {
+        const symbol = Symbol("style");
+        const props1 = { [symbol]: { color: "red" } };
+        const props2 = { [symbol]: { fontSize: "16px" } };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol]: { fontSize: "16px" } });
+    });
+    it("should handle symbols with class values", () => {
+        const symbol = Symbol("class");
+        const props1 = { [symbol]: "foo" };
+        const props2 = { [symbol]: "bar" };
+        const result = mergeProps(props1, props2);
+        expect(result).toEqual({ [symbol]: "bar" });
+    });
+    it("should handle multiple props with multiple symbols", () => {
+        const symbol1 = Symbol("foo");
+        const symbol2 = Symbol("bar");
+        const symbol3 = Symbol("baz");
+        const props1 = { [symbol1]: "a", [symbol2]: "b" };
+        const props2 = { [symbol2]: "c", [symbol3]: "d" };
+        const props3 = { [symbol1]: "e", [symbol3]: "f" };
+        const result = mergeProps(props1, props2, props3);
+        expect(result).toEqual({
+            [symbol1]: "e",
+            [symbol2]: "c",
+            [symbol3]: "f"
+        });
+    });
+    it("should handle CSS variables and camelCase in styles", () => {
+        const props1 = {
+            style: {
+                "--custom-color": "red",
+                backgroundColor: "blue",
+                "--spacing-unit": "8px",
+                "--border-radius": "4px"
+            }
+        };
+        const props2 = {
+            style: {
+                "--custom-color": "green",
+                backgroundColor: "yellow",
+                "--border-width": "2px"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("--custom-color: green; background-color: yellow; --spacing-unit: 8px; --border-radius: 4px; --border-width: 2px;");
+    });
+    it("should handle complex class combinations with arrays, objects, and conditionals", () => {
+        const props1 = {
+            class: [
+                "base",
+                { "conditional-true": true, "conditional-false": false },
+                ["nested", "array"],
+                undefined,
+                null
+            ]
+        };
+        const props2 = {
+            class: {
+                "override-true": true,
+                "override-false": false
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.class).toEqual("base conditional-true nested array override-true");
+    });
+    it("should handle multiple event handlers with different event types", () => {
+        const clickHandler1 = vi.fn();
+        const clickHandler2 = vi.fn();
+        const inputHandler1 = vi.fn();
+        const inputHandler2 = vi.fn();
+        const keydownHandler1 = vi.fn();
+        const keydownHandler2 = vi.fn();
+        const props1 = {
+            onclick: clickHandler1,
+            oninput: inputHandler1,
+            onkeydown: keydownHandler1
+        };
+        const props2 = {
+            onclick: clickHandler2,
+            oninput: inputHandler2,
+            onkeydown: keydownHandler2
+        };
+        const result = mergeProps(props1, props2);
+        result.onclick(new Event("click"));
+        result.oninput(new Event("input"));
+        result.onkeydown(new Event("keydown"));
+        expect(clickHandler1).toHaveBeenCalled();
+        expect(clickHandler2).toHaveBeenCalled();
+        expect(inputHandler1).toHaveBeenCalled();
+        expect(inputHandler2).toHaveBeenCalled();
+        expect(keydownHandler1).toHaveBeenCalled();
+        expect(keydownHandler2).toHaveBeenCalled();
+    });
+    it("should handle complex function chaining with different return types", () => {
+        const fn1 = vi.fn().mockReturnValue(1);
+        const fn2 = vi.fn().mockReturnValue("string");
+        const fn3 = vi.fn().mockReturnValue({ obj: true });
+        const props1 = { complexFn: fn1 };
+        const props2 = { complexFn: fn2 };
+        const props3 = { complexFn: fn3 };
+        const result = mergeProps(props1, props2, props3);
+        result.complexFn();
+        expect(fn1).toHaveBeenCalled();
+        expect(fn2).toHaveBeenCalled();
+        expect(fn3).toHaveBeenCalled();
+        expect(fn3).toHaveReturnedWith({ obj: true });
+    });
+    it("should handle style merging with !important and vendor prefixes", () => {
+        const props1 = {
+            style: {
+                color: "red !important",
+                WebkitTransition: "all 0.3s",
+                MozTransition: "all 0.3s",
+                msTransition: "all 0.3s"
+            }
+        };
+        const props2 = {
+            style: {
+                color: "blue",
+                WebkitTransform: "scale(1.1)",
+                MozTransform: "scale(1.1)",
+                msTransform: "scale(1.1)"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("color: blue; -webkit-transition: all 0.3s; -moz-transition: all 0.3s; ms-transition: all 0.3s; -webkit-transform: scale(1.1); -moz-transform: scale(1.1); ms-transform: scale(1.1);");
+    });
+    it("should handle merging of custom event handlers with different parameter types", () => {
+        const handler1 = vi.fn();
+        const handler2 = vi.fn();
+        const handler3 = vi.fn();
+        const props1 = { onCustomEvent: handler1 };
+        const props2 = { onCustomEvent: handler2 };
+        const props3 = { onCustomEvent: handler3 };
+        const result = mergeProps(props1, props2, props3);
+        // Test with different parameter types
+        result.onCustomEvent("string");
+        result.onCustomEvent(123);
+        result.onCustomEvent({ complex: "object" });
+        result.onCustomEvent(new Event("custom"));
+        expect(handler1).toHaveBeenCalledTimes(4);
+        expect(handler2).toHaveBeenCalledTimes(4);
+        expect(handler3).toHaveBeenCalledTimes(4);
+    });
+    it("should handle merging of style with calc() and var() functions", () => {
+        const props1 = {
+            style: {
+                width: "calc(100% - 20px)",
+                "--custom-width": "50px",
+                height: "var(--custom-height, 100px)"
+            }
+        };
+        const props2 = {
+            style: {
+                "--custom-width": "75px",
+                "--custom-height": "200px",
+                margin: "calc(var(--custom-width) / 2)"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("width: calc(100% - 20px); --custom-width: 75px; height: var(--custom-height, 100px); --custom-height: 200px; margin: calc(var(--custom-width) / 2);");
+    });
+    it("should handle style merging with complex units and values", () => {
+        const props1 = {
+            style: {
+                width: "100vw",
+                height: "calc(100vh - 60px)",
+                transform: "translate3d(0, 0, 0) rotate(45deg)",
+                background: "linear-gradient(45deg, #ff0000, #00ff00)",
+                boxShadow: "0 0 10px rgba(0,0,0,0.5)",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+            }
+        };
+        const props2 = {
+            style: {
+                transform: "scale(1.1)",
+                background: "radial-gradient(circle, #0000ff, #ff00ff)",
+                boxShadow: "inset 0 0 5px rgba(255,255,255,0.5)"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("width: 100vw; height: calc(100vh - 60px); transform: scale(1.1); background: radial-gradient(circle, #0000ff, #ff00ff); box-shadow: inset 0 0 5px rgba(255,255,255,0.5); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);");
+    });
+    it("should handle style merging with empty and invalid values", () => {
+        const props1 = {
+            style: {
+                color: "",
+                backgroundColor: null,
+                fontSize: undefined,
+                border: "1px solid black",
+                invalid: 123
+            }
+        };
+        const props2 = {
+            style: {
+                color: "red",
+                backgroundColor: "blue",
+                fontSize: "16px",
+                invalid: "string"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("color: red; background-color: blue; font-size: 16px; border: 1px solid black; invalid: string;");
+    });
+    it("should handle style merging with shorthand properties", () => {
+        const props1 = {
+            style: {
+                margin: "10px",
+                padding: "5px 10px",
+                border: "1px solid black",
+                background: "red"
+            }
+        };
+        const props2 = {
+            style: {
+                marginTop: "20px",
+                paddingLeft: "15px",
+                borderColor: "blue",
+                backgroundColor: "green"
+            }
+        };
+        const result = mergeProps(props1, props2);
+        expect(result.style).toEqual("margin: 10px; padding: 5px 10px; border: 1px solid black; background: red; margin-top: 20px; padding-left: 15px; border-color: blue; background-color: green;");
+    });
+});
+
+=== 5266 src/lib/utils/merge-props.ts	js
+/**
+ * Modified from https://github.com/adobe/react-spectrum/blob/main/packages/%40react-aria/utils/src/mergeProps.ts (see NOTICE.txt for source)
+ */
+import { clsx } from "clsx";
+import { composeHandlers } from "./compose-handlers.js";
+import { cssToStyleObj } from "./css-to-style-obj.js";
+import { isClassValue } from "./is.js";
+import { executeCallbacks } from "$lib/utils/execute-callbacks.js";
+import { styleToString } from "$lib/utils/style.js";
+import { EVENT_LIST_SET } from "./event-list.js";
+function isEventHandler(key) {
+    return EVENT_LIST_SET.has(key);
+}
+/**
+ * Given a list of prop objects, merges them into a single object.
+ * - Automatically composes event handlers (e.g. `onclick`, `oninput`, etc.)
+ * - Chains regular functions with the same name so they are called in order
+ * - Merges class strings with `clsx`
+ * - Merges style objects and converts them to strings
+ * - Handles a bug with Svelte where setting the `hidden` attribute to `false` doesn't remove it
+ * - Overrides other values with the last one
+ */
+export function mergeProps(...args) {
+    const result = { ...args[0] };
+    for (let i = 1; i < args.length; i++) {
+        const props = args[i];
+        if (!props)
+            continue;
+        // Handle string keys
+        for (const key of Object.keys(props)) {
+            const a = result[key];
+            const b = props[key];
+            const aIsFunction = typeof a === "function";
+            const bIsFunction = typeof b === "function";
+            // compose event handlers
+            if (aIsFunction && typeof bIsFunction && isEventHandler(key)) {
+                // handle merging of event handlers
+                const aHandler = a;
+                const bHandler = b;
+                result[key] = composeHandlers(aHandler, bHandler);
+            }
+            else if (aIsFunction && bIsFunction) {
+                // chain non-event handler functions
+                result[key] = executeCallbacks(a, b);
+            }
+            else if (key === "class") {
+                // handle merging acceptable class values from clsx
+                const aIsClassValue = isClassValue(a);
+                const bIsClassValue = isClassValue(b);
+                if (aIsClassValue && bIsClassValue) {
+                    result[key] = clsx(a, b);
+                }
+                else if (aIsClassValue) {
+                    result[key] = clsx(a);
+                }
+                else if (bIsClassValue) {
+                    result[key] = clsx(b);
+                }
+            }
+            else if (key === "style") {
+                const aIsObject = typeof a === "object";
+                const bIsObject = typeof b === "object";
+                const aIsString = typeof a === "string";
+                const bIsString = typeof b === "string";
+                if (aIsObject && bIsObject) {
+                    // both are style objects, merge them
+                    result[key] = { ...a, ...b };
+                }
+                else if (aIsObject && bIsString) {
+                    // a is style object, b is string, convert b to style object and merge
+                    const parsedStyle = cssToStyleObj(b);
+                    result[key] = { ...a, ...parsedStyle };
+                }
+                else if (aIsString && bIsObject) {
+                    // a is string, b is style object, convert a to style object and merge
+                    const parsedStyle = cssToStyleObj(a);
+                    result[key] = { ...parsedStyle, ...b };
+                }
+                else if (aIsString && bIsString) {
+                    // both are strings, convert both to objects and merge
+                    const parsedStyleA = cssToStyleObj(a);
+                    const parsedStyleB = cssToStyleObj(b);
+                    result[key] = { ...parsedStyleA, ...parsedStyleB };
+                }
+                else if (aIsObject) {
+                    result[key] = a;
+                }
+                else if (bIsObject) {
+                    result[key] = b;
+                }
+                else if (aIsString) {
+                    result[key] = a;
+                }
+                else if (bIsString) {
+                    result[key] = b;
+                }
+            }
+            else {
+                // override other values
+                result[key] = b !== undefined ? b : a;
+            }
+        }
+        // handle symbol keys (mostly for `Attachments`)
+        for (const key of Object.getOwnPropertySymbols(props)) {
+            const a = result[key];
+            const b = props[key];
+            // for matching symbols, we just override
+            result[key] = b !== undefined ? b : a;
+        }
+    }
+    // convert style object to string
+    if (typeof result.style === "object") {
+        result.style = styleToString(result.style).replaceAll("\n", " ");
+    }
+    // handle weird svelte bug where `hidden` is not removed when set to `false`
+    if (result.hidden === false) {
+        result.hidden = undefined;
+        delete result.hidden;
+    }
+    // handle weird svelte bug where `disabled` is not removed when set to `false`
+    if (result.disabled === false) {
+        result.disabled = undefined;
+        delete result.disabled;
+    }
+    return result;
+}
+
+=== 120 src/lib/utils/on-destroy-effect.svelte.ts	js
+export function onDestroyEffect(fn) {
+    $effect(() => {
+        return () => {
+            fn();
+        };
+    });
+}
+
+=== 169 src/lib/utils/on-mount-effect.svelte.ts	js
+import { untrack } from "svelte";
+export function onMountEffect(fn) {
+    $effect(() => {
+        const cleanup = untrack(() => fn());
+        return cleanup;
+    });
+}
+
+=== 378 src/lib/utils/sr-only-styles.ts	js
+import { styleToString } from "./style.js";
+export const srOnlyStyles = {
+    position: "absolute",
+    width: "1px",
+    height: "1px",
+    padding: "0",
+    margin: "-1px",
+    overflow: "hidden",
+    clip: "rect(0, 0, 0, 0)",
+    whiteSpace: "nowrap",
+    borderWidth: "0",
+    transform: "translateX(-100%)"
+};
+export const srOnlyStylesString = styleToString(srOnlyStyles);
+
+=== 2011 src/lib/utils/strings.ts	js
+const NUMBER_CHAR_RE = /\d/;
+const STR_SPLITTERS = ["-", "_", "/", "."];
+function isUppercase(char = "") {
+    if (NUMBER_CHAR_RE.test(char))
+        return undefined;
+    return char !== char.toLowerCase();
+}
+function splitByCase(str) {
+    const parts = [];
+    let buff = "";
+    let previousUpper;
+    let previousSplitter;
+    for (const char of str) {
+        // Splitter
+        const isSplitter = STR_SPLITTERS.includes(char);
+        if (isSplitter === true) {
+            parts.push(buff);
+            buff = "";
+            previousUpper = undefined;
+            continue;
+        }
+        const isUpper = isUppercase(char);
+        if (previousSplitter === false) {
+            // Case rising edge
+            if (previousUpper === false && isUpper === true) {
+                parts.push(buff);
+                buff = char;
+                previousUpper = isUpper;
+                continue;
+            }
+            // Case falling edge
+            if (previousUpper === true && isUpper === false && buff.length > 1) {
+                const lastChar = buff.at(-1);
+                parts.push(buff.slice(0, Math.max(0, buff.length - 1)));
+                buff = lastChar + char;
+                previousUpper = isUpper;
+                continue;
+            }
+        }
+        // Normal char
+        buff += char;
+        previousUpper = isUpper;
+        previousSplitter = isSplitter;
+    }
+    parts.push(buff);
+    return parts;
+}
+export function pascalCase(str) {
+    if (!str)
+        return "";
+    return splitByCase(str)
+        .map((p) => upperFirst(p))
+        .join("");
+}
+export function camelCase(str) {
+    return lowerFirst(pascalCase(str || ""));
+}
+export function kebabCase(str) {
+    return str
+        ? splitByCase(str)
+            .map((p) => p.toLowerCase())
+            .join("-")
+        : "";
+}
+function upperFirst(str) {
+    return str ? str[0].toUpperCase() + str.slice(1) : "";
+}
+function lowerFirst(str) {
+    return str ? str[0].toLowerCase() + str.slice(1) : "";
+}
+
+=== 946 src/lib/utils/style-to-css.ts	js
+function createParser(matcher, replacer) {
+    const regex = RegExp(matcher, "g");
+    return (str) => {
+        // throw an error if not a string
+        if (typeof str !== "string") {
+            throw new TypeError(`expected an argument of type string, but got ${typeof str}`);
+        }
+        // if no match between string and matcher
+        if (!str.match(regex))
+            return str;
+        // executes the replacer function for each match
+        return str.replace(regex, replacer);
+    };
+}
+const camelToKebab = createParser(/[A-Z]/, (match) => `-${match.toLowerCase()}`);
+export function styleToCSS(styleObj) {
+    if (!styleObj || typeof styleObj !== "object" || Array.isArray(styleObj)) {
+        throw new TypeError(`expected an argument of type object, but got ${typeof styleObj}`);
+    }
+    return Object.keys(styleObj)
+        .map((property) => `${camelToKebab(property)}: ${styleObj[property]};`)
+        .join("\n");
+}
+
+=== 143 src/lib/utils/style.ts	js
+import { styleToCSS } from "./style-to-css.js";
+export function styleToString(style = {}) {
+    return styleToCSS(style).replace("\n", " ");
+}
+
+=== 662 src/lib/utils/use-on-change.svelte.ts	js
+import { watch } from "runed";
+/**
+ * Simple helper function to sync a read-only dependency with writable state. This only syncs
+ * in one direction, from the dependency to the state. If you need to sync both directions, you
+ * should use the `box.with(() => dep, (v) => (dep = v))` pattern.
+ *
+ * @param getDep - A getter that returns the value that may change and whose new value will be
+ * passed to the `onChange` function passed as the second argument.
+ * @param onChange - A function that accepts a new value to react to or keep other state in sync
+ * with the dependency.
+ */
+export function useOnChange(getDep, onChange) {
+    watch(getDep, onChange);
+}
+
+=== 757 src/lib/utils/use-ref-by-id.svelte.ts	js
+import { watch } from "runed";
+import { onDestroyEffect } from "./on-destroy-effect.svelte.js";
+/**
+ * Finds the node with that ID and sets it to the boxed node.
+ * Reactive using `$effect` to ensure when the ID or deps change,
+ * an update is triggered and new node is found.
+ */
+export function useRefById({ id, ref, deps = () => true, onRefChange, getRootNode }) {
+    watch([() => id.current, deps], ([_id]) => {
+        const rootNode = getRootNode?.() ?? document;
+        const node = rootNode?.getElementById(_id);
+        if (node)
+            ref.current = node;
+        else
+            ref.current = null;
+        onRefChange?.(ref.current);
+    });
+    onDestroyEffect(() => {
+        ref.current = null;
+        onRefChange?.(null);
+    });
+}
+
+=== 866 src/lib/watch/watch.svelte.ts	js
+import { untrack } from "svelte";
+export function watch(box, callback, options = {}) {
+    let prev = $state(box.current);
+    let ranOnce = false;
+    const watchEffect = $effect.root(() => {
+        $effect.pre(() => {
+            if (prev === box.current || !options.immediate)
+                return;
+            if (options.once && ranOnce)
+                return;
+            callback(box.current, untrack(() => prev));
+            untrack(() => (prev = box.current));
+            ranOnce = true;
+        });
+        $effect(() => {
+            if (prev === box.current || options.immediate)
+                return;
+            if (options.once && ranOnce)
+                return;
+            callback(box.current, untrack(() => prev));
+            untrack(() => (prev = box.current));
+            ranOnce = true;
+        });
+    });
+    return watchEffect;
+}
+
+=== 266 vite.config.ts	js
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vitest/config";
+export default defineConfig({
+    plugins: [sveltekit()],
+    test: {
+        include: ["src/**/*.{test,test.svelte,spec}.{js,ts}"],
+        environment: "jsdom"
+    }
+});
+
