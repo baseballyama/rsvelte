@@ -343,6 +343,7 @@ impl<'a> Parser<'a, '_> {
             }
             let start_offset = self.position;
             let child = if rest.starts_with('{') {
+                self.block_or_tag_in_sequence("inside <textarea>")?;
                 self.eat_token(TokenType::MustacheOpen, 1);
                 let expression = self.expression()?;
                 self.close_mustache()?;

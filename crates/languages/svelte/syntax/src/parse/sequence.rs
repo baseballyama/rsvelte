@@ -4,6 +4,9 @@ use rsvelte_kernel::source::positions::Span;
 use super::{ParseResult, Parser};
 use crate::syntax_tree::{Part, TokenType};
 
+#[cfg(test)]
+mod tests;
+
 impl Parser<'_, '_> {
     pub(super) fn sequence(&mut self, quote: Option<u8>) -> ParseResult<()> {
         loop {
@@ -30,13 +33,7 @@ impl Parser<'_, '_> {
     }
 
     fn attribute_expression(&mut self) -> ParseResult<()> {
-        let after = super::whitespace::trim_whitespace_start(&self.rest()[1..]);
-        if after.starts_with('#') || after.starts_with('@') {
-            return self.err(
-                "parse_error",
-                "blocks and tags are not allowed in an attribute value",
-            );
-        }
+        self.block_or_tag_in_sequence("in attribute value")?;
         let start_offset = self.position;
         self.eat_token(TokenType::MustacheOpen, 1);
         let expression = self.expression()?;
@@ -46,6 +43,28 @@ impl Parser<'_, '_> {
             span: Span::new(start_offset as u32, self.position as u32),
         });
         Ok(())
+    }
+
+    /// Upstream `read_sequence`'s errors for a block or a tag right after a `{` where only an
+    /// expression may go, at the `{`.
+    pub(super) fn block_or_tag_in_sequence(&self, location: &str) -> ParseResult<()> {
+        let after = &self.rest()[1..];
+        let (kind, code) = match after.as_bytes().first() {
+            Some(b'#') => ("block", "block_invalid_placement"),
+            Some(b'@') => ("tag", "tag_invalid_placement"),
+            _ => return Ok(()),
+        };
+        let name_len = after[1..]
+            .bytes()
+            .take_while(u8::is_ascii_lowercase)
+            .count();
+        let (sigil, name) = (&after[..1], &after[1..=name_len]);
+        let at = self.position as u32;
+        Self::err_at(
+            Span::new(at, at),
+            code,
+            format!("{{{sigil}{name} ...}} {kind} cannot be {location}"),
+        )
     }
 }
 
