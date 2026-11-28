@@ -1,0 +1,107 @@
+# rsvelte pack 1
+=== 60 src/examples/docs/SvelteTweakpaneEventExample.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":26,"endLine":31}]
+=== 57 src/examples/docs/SvelteTweakpaneRange.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":8}]
+=== 29 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 src/examples/docs/SvelteTweakpaneThemeCustom.svelte	folding.json
+[{"startLine":0,"endLine":35}]
+=== 29 src/examples/docs/SvelteTweakpaneThemeExtend.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 29 src/examples/docs/SvelteTweakpaneThemeOverride.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 src/examples/docs/SvelteTweakpaneThemePicker.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 59 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":13,"endLine":19}]
+=== 60 src/examples/docs/VanillaTweakpaneRange.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":32,"endLine":33}]
+=== 90 src/examples/tests/TestAutoObject.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":40,"endLine":48},{"startLine":50,"endLine":58}]
+=== 30 src/examples/tests/TestAutoObjectNesting.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 273 src/examples/tests/TestAutoValue.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":27,"endLine":36},{"startLine":38,"endLine":47},{"startLine":50,"endLine":59},{"startLine":61,"endLine":70},{"startLine":73,"endLine":82},{"startLine":84,"endLine":93},{"startLine":96,"endLine":105},{"startLine":107,"endLine":116}]
+=== 89 src/examples/tests/TestBinding.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":22},{"startLine":24,"endLine":34}]
+=== 90 src/examples/tests/TestCheckbox.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":25},{"startLine":27,"endLine":36}]
+=== 735 src/examples/tests/TestCls.svelte	folding.json
+[{"startLine":0,"endLine":181},{"startLine":184,"endLine":187},{"startLine":190,"endLine":193},{"startLine":276,"endLine":277},{"startLine":289,"endLine":294},{"startLine":297,"endLine":302},{"startLine":334,"endLine":338},{"startLine":333,"endLine":339},{"startLine":349,"endLine":350},{"startLine":348,"endLine":351},{"startLine":356,"endLine":357},{"startLine":359,"endLine":362},{"startLine":355,"endLine":363},{"startLine":368,"endLine":371},{"startLine":373,"endLine":374},{"startLine":367,"endLine":375},{"startLine":379,"endLine":382},{"startLine":389,"endLine":400},{"startLine":405,"endLine":406},{"startLine":409,"endLine":410},{"startLine":413,"endLine":415},{"startLine":423,"endLine":425},{"startLine":428,"endLine":430}]
+=== 299 src/examples/tests/TestCollapseExpand.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":11,"endLine":19},{"startLine":22,"endLine":23},{"startLine":28,"endLine":29},{"startLine":34,"endLine":42},{"startLine":45,"endLine":46},{"startLine":51,"endLine":57},{"startLine":64,"endLine":73},{"startLine":76,"endLine":84},{"startLine":89,"endLine":95}]
+=== 150 src/examples/tests/TestColor.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":25},{"startLine":27,"endLine":36},{"startLine":38,"endLine":47},{"startLine":49,"endLine":58}]
+=== 89 src/examples/tests/TestCubicBezier.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":20},{"startLine":22,"endLine":31}]
+=== 88 src/examples/tests/TestElementIfStatement.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":16},{"startLine":9,"endLine":17}]
+=== 89 src/examples/tests/TestFile.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":20},{"startLine":22,"endLine":31}]
+=== 29 src/examples/tests/TestFormat.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 58 src/examples/tests/TestFpsEvent.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":10}]
+=== 88 src/examples/tests/TestGridLayoutPane.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":9,"endLine":13},{"startLine":16,"endLine":33}]
+=== 177 src/examples/tests/TestGridLayoutWrapper.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":13},{"startLine":15,"endLine":18},{"startLine":20,"endLine":23},{"startLine":7,"endLine":24},{"startLine":27,"endLine":36}]
+=== 120 src/examples/tests/TestImage.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":23},{"startLine":25,"endLine":35},{"startLine":37,"endLine":47}]
+=== 89 src/examples/tests/TestIntervalSlider.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":22},{"startLine":24,"endLine":35}]
+=== 29 src/examples/tests/TestIntervalSliderWide.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 87 src/examples/tests/TestInvisibleFolder.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":9,"endLine":11},{"startLine":7,"endLine":12}]
+=== 89 src/examples/tests/TestList.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":22},{"startLine":24,"endLine":34}]
+=== 120 src/examples/tests/TestOrder.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":33,"endLine":38},{"startLine":51,"endLine":53},{"startLine":31,"endLine":55}]
+=== 60 src/examples/tests/TestPane.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":17,"endLine":18}]
+=== 120 src/examples/tests/TestPaneAdvanced.svelte	folding.json
+[{"startLine":0,"endLine":32},{"startLine":35,"endLine":38},{"startLine":40,"endLine":41},{"startLine":43,"endLine":44}]
+=== 90 src/examples/tests/TestPoint.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":28},{"startLine":30,"endLine":42}]
+=== 89 src/examples/tests/TestRadioGrid.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":21},{"startLine":23,"endLine":33}]
+=== 90 src/examples/tests/TestRing.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":17,"endLine":30},{"startLine":32,"endLine":45}]
+=== 29 src/examples/tests/TestRingWide.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 89 src/examples/tests/TestRotationEuler.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":22},{"startLine":24,"endLine":35}]
+=== 89 src/examples/tests/TestRotationQuaternion.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":22},{"startLine":24,"endLine":35}]
+=== 89 src/examples/tests/TestSlider.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":20},{"startLine":22,"endLine":31}]
+=== 118 src/examples/tests/TestSliderWide.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":13},{"startLine":15,"endLine":21},{"startLine":23,"endLine":29}]
+=== 89 src/examples/tests/TestStepper.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":20},{"startLine":22,"endLine":31}]
+=== 29 src/examples/tests/TestStepperValue.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 30 src/examples/tests/TestStoreInitialization.svelte	folding.json
+[{"startLine":0,"endLine":17}]
+=== 269 src/examples/tests/TestTabIndexBinding.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19},{"startLine":21,"endLine":22},{"startLine":17,"endLine":23},{"startLine":16,"endLine":24},{"startLine":29,"endLine":30},{"startLine":32,"endLine":33},{"startLine":28,"endLine":34},{"startLine":27,"endLine":35}]
+=== 149 src/examples/tests/TestTabIndexBindingAlt.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":17,"endLine":18},{"startLine":20,"endLine":21},{"startLine":16,"endLine":22},{"startLine":15,"endLine":23}]
+=== 450 src/examples/tests/TestTabsNested.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":22,"endLine":23},{"startLine":25,"endLine":26},{"startLine":21,"endLine":27},{"startLine":20,"endLine":28},{"startLine":30,"endLine":31},{"startLine":19,"endLine":32},{"startLine":18,"endLine":33},{"startLine":40,"endLine":41},{"startLine":43,"endLine":44},{"startLine":39,"endLine":45},{"startLine":38,"endLine":46},{"startLine":48,"endLine":49},{"startLine":37,"endLine":50},{"startLine":36,"endLine":51}]
+=== 119 src/examples/tests/TestTabsSort.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":17,"endLine":18},{"startLine":15,"endLine":20},{"startLine":14,"endLine":21}]
+=== 89 src/examples/tests/TestText.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":14,"endLine":24},{"startLine":26,"endLine":36}]
+=== 30 src/examples/tests/TestTextStringDetection.svelte	folding.json
+[{"startLine":0,"endLine":35}]
+=== 89 src/examples/tests/TestTextarea.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":14,"endLine":25},{"startLine":27,"endLine":38}]
+=== 87 src/examples/tests/TestTitlelessDraggable.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":9},{"startLine":12,"endLine":13}]
+=== 89 src/examples/tests/TestWheel.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":23},{"startLine":25,"endLine":37}]
+=== 29 src/examples/tests/TestWheelWide.svelte	folding.json
+[{"startLine":0,"endLine":4}]

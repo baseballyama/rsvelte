@@ -1,0 +1,273 @@
+# rsvelte pack 1
+=== 402 src/lib/components/AiSettingsView.svelte	folding.json
+[{"startLine":0,"endLine":74},{"startLine":80,"endLine":82},{"startLine":78,"endLine":83},{"startLine":88,"endLine":89},{"startLine":92,"endLine":95},{"startLine":91,"endLine":99},{"startLine":86,"endLine":100},{"startLine":105,"endLine":106},{"startLine":111,"endLine":116},{"startLine":108,"endLine":118},{"startLine":103,"endLine":119},{"startLine":121,"endLine":122},{"startLine":77,"endLine":123}]
+=== 120 src/lib/components/AppList.svelte	folding.json
+[{"startLine":0,"endLine":46},{"startLine":57,"endLine":62},{"startLine":64,"endLine":66},{"startLine":51,"endLine":68}]
+=== 120 src/lib/components/BaseList.svelte	folding.json
+[{"startLine":0,"endLine":77},{"startLine":91,"endLine":96},{"startLine":83,"endLine":98},{"startLine":82,"endLine":99}]
+=== 150 src/lib/components/Calculator.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":71,"endLine":72},{"startLine":69,"endLine":73},{"startLine":76,"endLine":79},{"startLine":61,"endLine":80}]
+=== 767 src/lib/components/ClipboardHistoryView.svelte	folding.json
+[{"startLine":0,"endLine":226},{"startLine":232,"endLine":236},{"startLine":240,"endLine":243},{"startLine":245,"endLine":250},{"startLine":239,"endLine":251},{"startLine":231,"endLine":253},{"startLine":267,"endLine":268},{"startLine":273,"endLine":276},{"startLine":272,"endLine":277},{"startLine":259,"endLine":280},{"startLine":283,"endLine":284},{"startLine":258,"endLine":286},{"startLine":292,"endLine":295},{"startLine":302,"endLine":304},{"startLine":301,"endLine":306},{"startLine":309,"endLine":312},{"startLine":316,"endLine":319},{"startLine":315,"endLine":320},{"startLine":323,"endLine":324},{"startLine":290,"endLine":327},{"startLine":330,"endLine":343},{"startLine":288,"endLine":345},{"startLine":257,"endLine":346},{"startLine":229,"endLine":354}]
+=== 330 src/lib/components/CommandDeeplinkConfirm.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":22,"endLine":23},{"startLine":25,"endLine":27},{"startLine":20,"endLine":28},{"startLine":33,"endLine":34},{"startLine":31,"endLine":36},{"startLine":39,"endLine":40},{"startLine":42,"endLine":45},{"startLine":30,"endLine":46},{"startLine":19,"endLine":47},{"startLine":18,"endLine":48}]
+=== 255 src/lib/components/Extensions.svelte	folding.json
+[{"startLine":0,"endLine":264},{"startLine":275,"endLine":279},{"startLine":269,"endLine":286},{"startLine":293,"endLine":297},{"startLine":301,"endLine":305},{"startLine":300,"endLine":306},{"startLine":267,"endLine":315},{"startLine":322,"endLine":326}]
+=== 447 src/lib/components/FileSearchView.svelte	folding.json
+[{"startLine":0,"endLine":131},{"startLine":137,"endLine":142},{"startLine":136,"endLine":143},{"startLine":150,"endLine":151},{"startLine":161,"endLine":165},{"startLine":160,"endLine":166},{"startLine":154,"endLine":168},{"startLine":148,"endLine":169},{"startLine":174,"endLine":179},{"startLine":173,"endLine":182},{"startLine":185,"endLine":194},{"startLine":171,"endLine":196},{"startLine":147,"endLine":197},{"startLine":134,"endLine":205}]
+=== 59 src/lib/components/HeaderInput.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":28}]
+=== 90 src/lib/components/Icon.svelte	folding.json
+[{"startLine":0,"endLine":49},{"startLine":54,"endLine":55},{"startLine":61,"endLine":65}]
+=== 500 src/lib/components/ImportSnippets.svelte	folding.json
+[{"startLine":0,"endLine":79},{"startLine":84,"endLine":85},{"startLine":83,"endLine":86},{"startLine":91,"endLine":95},{"startLine":90,"endLine":96},{"startLine":102,"endLine":104},{"startLine":101,"endLine":105},{"startLine":113,"endLine":115},{"startLine":118,"endLine":120},{"startLine":112,"endLine":122},{"startLine":89,"endLine":128},{"startLine":134,"endLine":141},{"startLine":144,"endLine":155},{"startLine":158,"endLine":166},{"startLine":131,"endLine":169},{"startLine":82,"endLine":170}]
+=== 120 src/lib/components/InfoList.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":18,"endLine":20},{"startLine":16,"endLine":22},{"startLine":14,"endLine":23}]
+=== 60 src/lib/components/KeyboardShortcut.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":46,"endLine":49}]
+=== 59 src/lib/components/LoadingIndicator.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":12,"endLine":15}]
+=== 30 src/lib/components/NodeRenderer.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 390 src/lib/components/OAuthView.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":33,"endLine":34},{"startLine":32,"endLine":35},{"startLine":45,"endLine":48},{"startLine":40,"endLine":50},{"startLine":53,"endLine":54},{"startLine":39,"endLine":56},{"startLine":68,"endLine":70},{"startLine":38,"endLine":72},{"startLine":79,"endLine":84},{"startLine":77,"endLine":85},{"startLine":76,"endLine":86},{"startLine":31,"endLine":88}]
+=== 90 src/lib/components/PasswordInput.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":17,"endLine":29},{"startLine":15,"endLine":30}]
+=== 186 src/lib/components/PluginRunner.svelte	folding.json
+[{"startLine":0,"endLine":77},{"startLine":89,"endLine":94},{"startLine":83,"endLine":106},{"startLine":111,"endLine":117},{"startLine":122,"endLine":127},{"startLine":81,"endLine":129}]
+=== 527 src/lib/components/QuicklinkForm.svelte	folding.json
+[{"startLine":0,"endLine":69},{"startLine":75,"endLine":77},{"startLine":74,"endLine":78},{"startLine":84,"endLine":86},{"startLine":92,"endLine":95},{"startLine":97,"endLine":99},{"startLine":91,"endLine":100},{"startLine":89,"endLine":101},{"startLine":107,"endLine":109},{"startLine":111,"endLine":115},{"startLine":106,"endLine":116},{"startLine":104,"endLine":117},{"startLine":120,"endLine":122},{"startLine":83,"endLine":127},{"startLine":82,"endLine":128},{"startLine":132,"endLine":135},{"startLine":72,"endLine":137}]
+=== 447 src/lib/components/SearchSnippets.svelte	folding.json
+[{"startLine":0,"endLine":159},{"startLine":165,"endLine":169},{"startLine":164,"endLine":170},{"startLine":177,"endLine":178},{"startLine":189,"endLine":190},{"startLine":195,"endLine":199},{"startLine":194,"endLine":200},{"startLine":181,"endLine":203},{"startLine":175,"endLine":205},{"startLine":209,"endLine":210},{"startLine":213,"endLine":220},{"startLine":207,"endLine":222},{"startLine":174,"endLine":223},{"startLine":162,"endLine":231}]
+=== 1471 src/lib/components/SettingsView.svelte	folding.json
+[{"startLine":0,"endLine":167},{"startLine":174,"endLine":176},{"startLine":178,"endLine":179},{"startLine":184,"endLine":185},{"startLine":187,"endLine":190},{"startLine":183,"endLine":191},{"startLine":207,"endLine":208},{"startLine":211,"endLine":212},{"startLine":214,"endLine":215},{"startLine":210,"endLine":216},{"startLine":199,"endLine":217},{"startLine":198,"endLine":218},{"startLine":195,"endLine":220},{"startLine":194,"endLine":221},{"startLine":182,"endLine":222},{"startLine":230,"endLine":233},{"startLine":235,"endLine":238},{"startLine":229,"endLine":239},{"startLine":228,"endLine":242},{"startLine":250,"endLine":252},{"startLine":259,"endLine":261},{"startLine":258,"endLine":263},{"startLine":248,"endLine":264},{"startLine":268,"endLine":270},{"startLine":278,"endLine":285},{"startLine":288,"endLine":295},{"startLine":303,"endLine":309},{"startLine":311,"endLine":314},{"startLine":298,"endLine":315},{"startLine":323,"endLine":327},{"startLine":329,"endLine":332},{"startLine":318,"endLine":333},{"startLine":337,"endLine":345},{"startLine":347,"endLine":351},{"startLine":336,"endLine":352},{"startLine":267,"endLine":354},{"startLine":245,"endLine":357},{"startLine":361,"endLine":362},{"startLine":360,"endLine":363},{"startLine":227,"endLine":365},{"startLine":369,"endLine":370},{"startLine":368,"endLine":371},{"startLine":225,"endLine":373},{"startLine":181,"endLine":374},{"startLine":173,"endLine":375},{"startLine":172,"endLine":376}]
+=== 447 src/lib/components/SnippetForm.svelte	folding.json
+[{"startLine":0,"endLine":166},{"startLine":172,"endLine":174},{"startLine":171,"endLine":175},{"startLine":181,"endLine":183},{"startLine":185,"endLine":187},{"startLine":198,"endLine":204},{"startLine":193,"endLine":207},{"startLine":209,"endLine":214},{"startLine":192,"endLine":215},{"startLine":190,"endLine":216},{"startLine":180,"endLine":221},{"startLine":179,"endLine":222},{"startLine":226,"endLine":239},{"startLine":169,"endLine":241}]
+=== 30 src/lib/components/command-palette/ActionBar.svelte	folding.json
+[{"startLine":0,"endLine":99}]
+=== 639 src/lib/components/command-palette/CommandPalette.svelte	folding.json
+[{"startLine":0,"endLine":115},{"startLine":122,"endLine":129},{"startLine":136,"endLine":137},{"startLine":142,"endLine":146},{"startLine":149,"endLine":154},{"startLine":141,"endLine":155},{"startLine":140,"endLine":156},{"startLine":133,"endLine":157},{"startLine":121,"endLine":159},{"startLine":120,"endLine":160},{"startLine":174,"endLine":179},{"startLine":192,"endLine":193},{"startLine":183,"endLine":195},{"startLine":206,"endLine":207},{"startLine":198,"endLine":209},{"startLine":220,"endLine":221},{"startLine":212,"endLine":223},{"startLine":166,"endLine":226},{"startLine":165,"endLine":227},{"startLine":118,"endLine":233}]
+=== 270 src/lib/components/extensions/CategoryFilter.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":23,"endLine":31},{"startLine":21,"endLine":33},{"startLine":49,"endLine":50},{"startLine":41,"endLine":52},{"startLine":39,"endLine":54},{"startLine":36,"endLine":55},{"startLine":35,"endLine":56},{"startLine":20,"endLine":57}]
+=== 1663 src/lib/components/extensions/ExtensionDetailView.svelte	folding.json
+[{"startLine":0,"endLine":113},{"startLine":118,"endLine":122},{"startLine":128,"endLine":132},{"startLine":127,"endLine":134},{"startLine":137,"endLine":139},{"startLine":144,"endLine":146},{"startLine":143,"endLine":149},{"startLine":126,"endLine":151},{"startLine":124,"endLine":152},{"startLine":156,"endLine":158},{"startLine":155,"endLine":161},{"startLine":117,"endLine":163},{"startLine":174,"endLine":178},{"startLine":173,"endLine":179},{"startLine":172,"endLine":180},{"startLine":170,"endLine":182},{"startLine":169,"endLine":185},{"startLine":193,"endLine":195},{"startLine":212,"endLine":214},{"startLine":211,"endLine":216},{"startLine":210,"endLine":217},{"startLine":202,"endLine":219},{"startLine":200,"endLine":220},{"startLine":192,"endLine":221},{"startLine":236,"endLine":238},{"startLine":230,"endLine":239},{"startLine":228,"endLine":240},{"startLine":243,"endLine":245},{"startLine":257,"endLine":261},{"startLine":251,"endLine":262},{"startLine":249,"endLine":264},{"startLine":247,"endLine":265},{"startLine":272,"endLine":275},{"startLine":270,"endLine":277},{"startLine":268,"endLine":278},{"startLine":290,"endLine":292},{"startLine":284,"endLine":293},{"startLine":282,"endLine":294},{"startLine":226,"endLine":296},{"startLine":191,"endLine":297},{"startLine":116,"endLine":298},{"startLine":313,"endLine":315},{"startLine":311,"endLine":317},{"startLine":339,"endLine":341},{"startLine":338,"endLine":343},{"startLine":331,"endLine":344},{"startLine":323,"endLine":346},{"startLine":320,"endLine":347},{"startLine":319,"endLine":348},{"startLine":310,"endLine":349},{"startLine":352,"endLine":354},{"startLine":301,"endLine":357}]
+=== 390 src/lib/components/extensions/ExtensionInstallConfirm.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":27,"endLine":29},{"startLine":40,"endLine":42},{"startLine":38,"endLine":47},{"startLine":37,"endLine":48},{"startLine":35,"endLine":49},{"startLine":34,"endLine":50},{"startLine":31,"endLine":51},{"startLine":26,"endLine":52},{"startLine":56,"endLine":59},{"startLine":54,"endLine":60},{"startLine":25,"endLine":61},{"startLine":24,"endLine":62}]
+=== 120 src/lib/components/extensions/ExtensionListItem.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":26,"endLine":28},{"startLine":30,"endLine":32},{"startLine":15,"endLine":34}]
+=== 150 src/lib/components/extensions/ExtensionListView.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":24,"endLine":25},{"startLine":29,"endLine":34},{"startLine":48,"endLine":49},{"startLine":38,"endLine":54}]
+=== 90 src/lib/components/extensions/ImageLightbox.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":28,"endLine":34},{"startLine":19,"endLine":35}]
+=== 120 src/lib/components/layout/Content.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":28,"endLine":39},{"startLine":42,"endLine":45},{"startLine":24,"endLine":47}]
+=== 150 src/lib/components/layout/Header.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":44,"endLine":45},{"startLine":49,"endLine":50},{"startLine":54,"endLine":55},{"startLine":42,"endLine":59}]
+=== 59 src/lib/components/layout/MainLayout.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":14}]
+=== 240 src/lib/components/nodes/Grid.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":47,"endLine":48},{"startLine":71,"endLine":77},{"startLine":70,"endLine":78},{"startLine":64,"endLine":80},{"startLine":51,"endLine":85},{"startLine":43,"endLine":87},{"startLine":42,"endLine":88}]
+=== 90 src/lib/components/nodes/GridEmptyView.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":30,"endLine":31},{"startLine":22,"endLine":33}]
+=== 150 src/lib/components/nodes/GridItem.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":65,"endLine":67},{"startLine":47,"endLine":69},{"startLine":79,"endLine":88},{"startLine":42,"endLine":90}]
+=== 89 src/lib/components/nodes/GridSection.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":11,"endLine":12},{"startLine":10,"endLine":16}]
+=== 120 src/lib/components/nodes/List.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":36,"endLine":48},{"startLine":35,"endLine":49},{"startLine":34,"endLine":50}]
+=== 120 src/lib/components/nodes/ListItem.svelte	folding.json
+[{"startLine":0,"endLine":32},{"startLine":67,"endLine":74},{"startLine":47,"endLine":83},{"startLine":35,"endLine":87}]
+=== 59 src/lib/components/nodes/ListSection.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":11}]
+=== 150 src/lib/components/nodes/detail/Detail.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":34,"endLine":37},{"startLine":28,"endLine":39},{"startLine":43,"endLine":49},{"startLine":23,"endLine":51}]
+=== 60 src/lib/components/nodes/detail/Metadata.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":18,"endLine":21}]
+=== 90 src/lib/components/nodes/detail/MetadataLabel.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":36},{"startLine":28,"endLine":37}]
+=== 90 src/lib/components/nodes/detail/MetadataLink.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":25,"endLine":36},{"startLine":23,"endLine":37}]
+=== 29 src/lib/components/nodes/detail/MetadataSeparator.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 90 src/lib/components/nodes/detail/MetadataTagList.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":24,"endLine":27},{"startLine":22,"endLine":28}]
+=== 60 src/lib/components/nodes/detail/MetadataTagListItem.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":28,"endLine":40}]
+=== 90 src/lib/components/nodes/form/Description.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":19,"endLine":20},{"startLine":17,"endLine":23}]
+=== 319 src/lib/components/nodes/form/Dropdown.svelte	folding.json
+[{"startLine":0,"endLine":107},{"startLine":112,"endLine":116},{"startLine":122,"endLine":130},{"startLine":120,"endLine":132},{"startLine":139,"endLine":143},{"startLine":135,"endLine":144},{"startLine":134,"endLine":145},{"startLine":119,"endLine":146},{"startLine":118,"endLine":153},{"startLine":111,"endLine":154}]
+=== 90 src/lib/components/nodes/form/Form.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":20,"endLine":23},{"startLine":19,"endLine":24}]
+=== 60 src/lib/components/nodes/form/LinkAccessory.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":25,"endLine":30}]
+=== 150 src/lib/components/nodes/form/TextArea.svelte	folding.json
+[{"startLine":0,"endLine":63},{"startLine":68,"endLine":72},{"startLine":75,"endLine":82},{"startLine":74,"endLine":89},{"startLine":67,"endLine":90}]
+=== 150 src/lib/components/nodes/form/TextField.svelte	folding.json
+[{"startLine":0,"endLine":63},{"startLine":68,"endLine":72},{"startLine":75,"endLine":82},{"startLine":74,"endLine":89},{"startLine":67,"endLine":90}]
+=== 30 src/lib/components/nodes/list/ItemDetail.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 379 src/lib/components/nodes/shared/AccessoryDropdown.svelte	folding.json
+[{"startLine":0,"endLine":90},{"startLine":107,"endLine":108},{"startLine":111,"endLine":112},{"startLine":105,"endLine":113},{"startLine":115,"endLine":116},{"startLine":97,"endLine":117},{"startLine":95,"endLine":119},{"startLine":127,"endLine":131},{"startLine":124,"endLine":133},{"startLine":122,"endLine":134},{"startLine":121,"endLine":135},{"startLine":94,"endLine":136}]
+=== 406 src/lib/components/nodes/shared/ActionBar.svelte	folding.json
+[{"startLine":0,"endLine":61},{"startLine":70,"endLine":80},{"startLine":89,"endLine":98},{"startLine":88,"endLine":99},{"startLine":118,"endLine":119},{"startLine":122,"endLine":123},{"startLine":126,"endLine":127},{"startLine":106,"endLine":129},{"startLine":104,"endLine":131},{"startLine":103,"endLine":132},{"startLine":135,"endLine":137},{"startLine":84,"endLine":140},{"startLine":66,"endLine":141}]
+=== 150 src/lib/components/nodes/shared/ActionMenu.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":36,"endLine":38},{"startLine":34,"endLine":40},{"startLine":42,"endLine":43},{"startLine":33,"endLine":44}]
+=== 60 src/lib/components/nodes/shared/DropdownItem.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":30,"endLine":42}]
+=== 60 src/lib/components/nodes/shared/DropdownSection.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":26,"endLine":29}]
+=== 120 src/lib/components/nodes/shared/ListItemBase.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":32,"endLine":36},{"startLine":40,"endLine":41},{"startLine":19,"endLine":43}]
+=== 305 src/lib/components/nodes/shared/Toast.svelte	folding.json
+[{"startLine":0,"endLine":65},{"startLine":76,"endLine":77},{"startLine":74,"endLine":83},{"startLine":85,"endLine":87},{"startLine":73,"endLine":91},{"startLine":71,"endLine":93},{"startLine":102,"endLine":103},{"startLine":99,"endLine":105},{"startLine":95,"endLine":107},{"startLine":70,"endLine":108}]
+=== 89 src/lib/components/ui/accordion/accordion-content.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19},{"startLine":12,"endLine":20}]
+=== 59 src/lib/components/ui/accordion/accordion-item.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 120 src/lib/components/ui/accordion/accordion-trigger.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":27,"endLine":28},{"startLine":17,"endLine":29},{"startLine":16,"endLine":30}]
+=== 59 src/lib/components/ui/accordion/accordion.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":14}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-action.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":16}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-cancel.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":16}]
+=== 90 src/lib/components/ui/alert-dialog/alert-dialog-content.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":17,"endLine":24},{"startLine":15,"endLine":25}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-description.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-footer.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-header.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-overlay.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 src/lib/components/ui/alert-dialog/alert-dialog-title.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 29 src/lib/components/ui/alert-dialog/alert-dialog-trigger.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 120 src/lib/components/ui/button/button.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":42,"endLine":53},{"startLine":57,"endLine":67},{"startLine":70,"endLine":78}]
+=== 90 src/lib/components/ui/carousel/carousel-content.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":30,"endLine":40},{"startLine":16,"endLine":41}]
+=== 60 src/lib/components/ui/carousel/carousel-item.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":28}]
+=== 60 src/lib/components/ui/carousel/carousel-next.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":36}]
+=== 60 src/lib/components/ui/carousel/carousel-previous.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":36}]
+=== 60 src/lib/components/ui/carousel/carousel.svelte	folding.json
+[{"startLine":0,"endLine":80},{"startLine":83,"endLine":91}]
+=== 90 src/lib/components/ui/checkbox/checkbox.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":27,"endLine":32},{"startLine":15,"endLine":34}]
+=== 150 src/lib/components/ui/command/command-dialog.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":26,"endLine":28},{"startLine":31,"endLine":36},{"startLine":30,"endLine":37},{"startLine":25,"endLine":38}]
+=== 59 src/lib/components/ui/command/command-empty.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 90 src/lib/components/ui/command/command-group.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":24,"endLine":25},{"startLine":16,"endLine":28}]
+=== 89 src/lib/components/ui/command/command-input.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":13,"endLine":21},{"startLine":12,"endLine":22}]
+=== 59 src/lib/components/ui/command/command-item.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 src/lib/components/ui/command/command-link-item.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 src/lib/components/ui/command/command-list.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 59 src/lib/components/ui/command/command-separator.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 59 src/lib/components/ui/command/command-shortcut.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/command/command.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":20}]
+=== 29 src/lib/components/ui/dialog/dialog-close.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 120 src/lib/components/ui/dialog/dialog-content.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":34,"endLine":38},{"startLine":23,"endLine":40},{"startLine":21,"endLine":41}]
+=== 59 src/lib/components/ui/dialog/dialog-description.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 59 src/lib/components/ui/dialog/dialog-footer.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/dialog/dialog-header.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/dialog/dialog-overlay.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 src/lib/components/ui/dialog/dialog-title.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 29 src/lib/components/ui/dialog/dialog-trigger.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 90 src/lib/components/ui/dropdown-menu/dropdown-menu-checkbox-item.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":31,"endLine":36},{"startLine":19,"endLine":39}]
+=== 90 src/lib/components/ui/dropdown-menu/dropdown-menu-content.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":16,"endLine":24},{"startLine":15,"endLine":25}]
+=== 60 src/lib/components/ui/dropdown-menu/dropdown-menu-group-heading.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":20}]
+=== 29 src/lib/components/ui/dropdown-menu/dropdown-menu-group.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 60 src/lib/components/ui/dropdown-menu/dropdown-menu-item.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":25}]
+=== 60 src/lib/components/ui/dropdown-menu/dropdown-menu-label.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":22}]
+=== 59 src/lib/components/ui/dropdown-menu/dropdown-menu-radio-group.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":14}]
+=== 90 src/lib/components/ui/dropdown-menu/dropdown-menu-radio-item.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":23,"endLine":26},{"startLine":13,"endLine":29}]
+=== 59 src/lib/components/ui/dropdown-menu/dropdown-menu-separator.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 59 src/lib/components/ui/dropdown-menu/dropdown-menu-shortcut.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/dropdown-menu/dropdown-menu-sub-content.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 60 src/lib/components/ui/dropdown-menu/dropdown-menu-sub-trigger.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":27}]
+=== 29 src/lib/components/ui/dropdown-menu/dropdown-menu-trigger.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 90 src/lib/components/ui/input/input.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":22,"endLine":34},{"startLine":37,"endLine":47}]
+=== 90 src/lib/components/ui/kbd/kbd.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":33,"endLine":42},{"startLine":45,"endLine":46}]
+=== 59 src/lib/components/ui/label/label.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 90 src/lib/components/ui/popover/popover-content.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":17,"endLine":26},{"startLine":16,"endLine":27}]
+=== 59 src/lib/components/ui/popover/popover-trigger.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 120 src/lib/components/ui/select/select-content.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":30,"endLine":35},{"startLine":19,"endLine":37},{"startLine":18,"endLine":38}]
+=== 60 src/lib/components/ui/select/select-group-heading.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":19}]
+=== 29 src/lib/components/ui/select/select-group.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 90 src/lib/components/ui/select/select-item.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":26,"endLine":29},{"startLine":15,"endLine":36}]
+=== 59 src/lib/components/ui/select/select-label.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/select/select-scroll-down-button.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/select/select-scroll-up-button.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/lib/components/ui/select/select-separator.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":16}]
+=== 60 src/lib/components/ui/select/select-trigger.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":27}]
+=== 59 src/lib/components/ui/separator/separator.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 89 src/lib/components/ui/switch/switch.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":22,"endLine":26},{"startLine":12,"endLine":27}]
+=== 59 src/lib/components/ui/tabs/tabs-content.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 58 src/lib/components/ui/tabs/tabs-list.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":14}]
+=== 59 src/lib/components/ui/tabs/tabs-trigger.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 src/lib/components/ui/tabs/tabs.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":17}]
+=== 59 src/lib/components/ui/textarea/textarea.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":20}]
+=== 29 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 159 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":216},{"startLine":222,"endLine":225},{"startLine":230,"endLine":237},{"startLine":244,"endLine":249},{"startLine":262,"endLine":265}]
+=== 120 src/routes/hud/+page.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":32,"endLine":36},{"startLine":30,"endLine":38},{"startLine":41,"endLine":44}]

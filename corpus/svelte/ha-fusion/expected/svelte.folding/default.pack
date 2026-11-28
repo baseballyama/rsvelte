@@ -1,0 +1,35 @@
+# rsvelte pack 1
+=== 30 src/lib/Components/CustomJs.svelte	folding.json
+[{"startLine":0,"endLine":30}]
+=== 119 src/lib/Components/Loader.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":14,"endLine":15},{"startLine":13,"endLine":16},{"startLine":20,"endLine":65}]
+=== 90 src/lib/Drawer/AppearanceButton.svelte	folding.json
+[{"startLine":0,"endLine":34},{"startLine":44,"endLine":45},{"startLine":37,"endLine":48}]
+=== 150 src/lib/Drawer/CodeButton.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":28,"endLine":29},{"startLine":32,"endLine":33},{"startLine":21,"endLine":34},{"startLine":37,"endLine":40}]
+=== 159 src/lib/Drawer/SayButton.svelte	folding.json
+[{"startLine":0,"endLine":104},{"startLine":114,"endLine":115},{"startLine":107,"endLine":118},{"startLine":121,"endLine":129},{"startLine":132,"endLine":136}]
+=== 30 src/lib/Drawer/Separator.svelte	folding.json
+[{"startLine":2,"endLine":16}]
+=== 120 src/lib/Drawer/SidebarButton.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":28,"endLine":29},{"startLine":27,"endLine":32},{"startLine":35,"endLine":39}]
+=== 90 src/lib/Drawer/ViewButton.svelte	folding.json
+[{"startLine":0,"endLine":51},{"startLine":55,"endLine":56},{"startLine":54,"endLine":59}]
+=== 86 src/lib/Main/Camera/Broken.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":8,"endLine":15}]
+=== 115 src/lib/Main/DragIndicator.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":8},{"startLine":6,"endLine":9},{"startLine":12,"endLine":27}]
+=== 415 src/lib/Modal/LightModal.svelte	folding.json
+[{"startLine":0,"endLine":122},{"startLine":134,"endLine":144},{"startLine":147,"endLine":159},{"startLine":133,"endLine":161},{"startLine":164,"endLine":179},{"startLine":194,"endLine":195},{"startLine":192,"endLine":196},{"startLine":209,"endLine":214},{"startLine":219,"endLine":224},{"startLine":229,"endLine":234},{"startLine":207,"endLine":236},{"startLine":241,"endLine":246},{"startLine":126,"endLine":250}]
+=== 223 src/lib/Modal/PictureElements/HelpOverlay.svelte	folding.json
+[{"startLine":0,"endLine":101},{"startLine":111,"endLine":114},{"startLine":109,"endLine":115},{"startLine":118,"endLine":119},{"startLine":107,"endLine":120},{"startLine":106,"endLine":121},{"startLine":124,"endLine":216}]
+=== 146 src/lib/Settings/CustomJs.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":8},{"startLine":11,"endLine":12},{"startLine":5,"endLine":15},{"startLine":18,"endLine":40}]
+=== 150 src/lib/Settings/Logout.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":21,"endLine":23},{"startLine":26,"endLine":34},{"startLine":20,"endLine":35},{"startLine":38,"endLine":59}]
+=== 120 src/lib/Settings/Token.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":15,"endLine":17},{"startLine":20,"endLine":27},{"startLine":30,"endLine":43}]
+=== 223 src/lib/Settings/Version.svelte	folding.json
+[{"startLine":0,"endLine":104},{"startLine":118,"endLine":119},{"startLine":110,"endLine":125},{"startLine":108,"endLine":126},{"startLine":129,"endLine":140},{"startLine":107,"endLine":141},{"startLine":144,"endLine":168}]
+=== 178 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":12},{"startLine":16,"endLine":29},{"startLine":32,"endLine":33},{"startLine":15,"endLine":34},{"startLine":39,"endLine":79}]

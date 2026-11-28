@@ -1,0 +1,83 @@
+# rsvelte pack 1
+=== 57 sandboxes/bar/App.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 30 sandboxes/bar/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":21}]
+=== 30 sandboxes/bubble/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 30 sandboxes/doughnut/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 30 sandboxes/events/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":66}]
+=== 30 sandboxes/line/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 30 sandboxes/pie/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 30 sandboxes/polar/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 30 sandboxes/radar/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":21}]
+=== 30 sandboxes/ref/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":67}]
+=== 30 sandboxes/scatter/components/Chart.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 476 sites/docs/src/lib/components/Header.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":10,"endLine":14},{"startLine":9,"endLine":15},{"startLine":8,"endLine":16},{"startLine":19,"endLine":23},{"startLine":18,"endLine":25},{"startLine":7,"endLine":26},{"startLine":36,"endLine":37},{"startLine":35,"endLine":38},{"startLine":29,"endLine":40},{"startLine":49,"endLine":50},{"startLine":48,"endLine":51},{"startLine":42,"endLine":53},{"startLine":28,"endLine":55},{"startLine":6,"endLine":56},{"startLine":59,"endLine":134}]
+=== 301 sites/docs/src/lib/components/Sidebar.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":34,"endLine":39},{"startLine":45,"endLine":48},{"startLine":53,"endLine":56},{"startLine":62,"endLine":65},{"startLine":71,"endLine":74},{"startLine":79,"endLine":82},{"startLine":44,"endLine":83},{"startLine":43,"endLine":84},{"startLine":87,"endLine":154}]
+=== 181 sites/docs/src/lib/components/TableOfContents.svelte	folding.json
+[{"startLine":0,"endLine":40},{"startLine":49,"endLine":50},{"startLine":48,"endLine":51},{"startLine":46,"endLine":53},{"startLine":44,"endLine":54},{"startLine":58,"endLine":120}]
+=== 150 sites/docs/src/lib/components/ThemeToggle.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":32,"endLine":50},{"startLine":53,"endLine":63},{"startLine":30,"endLine":65},{"startLine":68,"endLine":87}]
+=== 30 sites/docs/src/lib/demos/BarDemo.svelte	folding.json
+[{"startLine":0,"endLine":46}]
+=== 30 sites/docs/src/lib/demos/BubbleDemo.svelte	folding.json
+[{"startLine":0,"endLine":35}]
+=== 30 sites/docs/src/lib/demos/DoughnutDemo.svelte	folding.json
+[{"startLine":0,"endLine":34}]
+=== 61 sites/docs/src/lib/demos/EventsDemo.svelte	folding.json
+[{"startLine":0,"endLine":92},{"startLine":98,"endLine":107}]
+=== 60 sites/docs/src/lib/demos/GradientDemo.svelte	folding.json
+[{"startLine":0,"endLine":69},{"startLine":72,"endLine":78}]
+=== 30 sites/docs/src/lib/demos/HorizontalBarDemo.svelte	folding.json
+[{"startLine":0,"endLine":53}]
+=== 30 sites/docs/src/lib/demos/LineDemo.svelte	folding.json
+[{"startLine":0,"endLine":69}]
+=== 30 sites/docs/src/lib/demos/MultitypeDemo.svelte	folding.json
+[{"startLine":0,"endLine":81}]
+=== 30 sites/docs/src/lib/demos/PieDemo.svelte	folding.json
+[{"startLine":0,"endLine":36}]
+=== 30 sites/docs/src/lib/demos/PolarDemo.svelte	folding.json
+[{"startLine":0,"endLine":28}]
+=== 30 sites/docs/src/lib/demos/RadarDemo.svelte	folding.json
+[{"startLine":0,"endLine":45}]
+=== 95 sites/docs/src/lib/demos/ReactiveDemo.svelte	folding.json
+[{"startLine":0,"endLine":122},{"startLine":125,"endLine":130},{"startLine":135,"endLine":155}]
+=== 31 sites/docs/src/lib/demos/RefDemo.svelte	folding.json
+[{"startLine":0,"endLine":100}]
+=== 30 sites/docs/src/lib/demos/ScatterDemo.svelte	folding.json
+[{"startLine":0,"endLine":65}]
+=== 30 sites/docs/src/lib/demos/StackedBarDemo.svelte	folding.json
+[{"startLine":0,"endLine":68}]
+=== 210 sites/docs/src/lib/layouts/DocPage.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":19},{"startLine":27,"endLine":28},{"startLine":26,"endLine":29},{"startLine":23,"endLine":30},{"startLine":22,"endLine":35},{"startLine":38,"endLine":77}]
+=== 120 sites/docs/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":16,"endLine":17},{"startLine":14,"endLine":18},{"startLine":21,"endLine":41}]
+=== 30 src/Bar.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 30 src/Bubble.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 src/Chart.svelte	folding.json
+[{"startLine":0,"endLine":56}]
+=== 30 src/Doughnut.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 src/Line.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 30 src/Pie.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 30 src/PolarArea.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 src/Radar.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 src/Scatter.svelte	folding.json
+[{"startLine":0,"endLine":14}]

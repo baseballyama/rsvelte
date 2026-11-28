@@ -1,0 +1,21 @@
+# rsvelte pack 1
+=== 127 src/lib/VirtualList.svelte	folding.json
+[{"startLine":0,"endLine":330},{"startLine":344,"endLine":349},{"startLine":333,"endLine":354},{"startLine":357,"endLine":368}]
+=== 87 src/lib/VirtualList.test.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":19},{"startLine":7,"endLine":20}]
+=== 1500 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":37,"endLine":38},{"startLine":36,"endLine":40},{"startLine":35,"endLine":41},{"startLine":44,"endLine":46},{"startLine":51,"endLine":52},{"startLine":50,"endLine":53},{"startLine":49,"endLine":54},{"startLine":48,"endLine":56},{"startLine":61,"endLine":62},{"startLine":60,"endLine":63},{"startLine":59,"endLine":64},{"startLine":58,"endLine":66},{"startLine":71,"endLine":76},{"startLine":78,"endLine":83},{"startLine":85,"endLine":90},{"startLine":92,"endLine":97},{"startLine":99,"endLine":104},{"startLine":109,"endLine":111},{"startLine":115,"endLine":116},{"startLine":34,"endLine":117},{"startLine":121,"endLine":122},{"startLine":124,"endLine":125},{"startLine":129,"endLine":130},{"startLine":120,"endLine":131},{"startLine":136,"endLine":137},{"startLine":141,"endLine":142},{"startLine":135,"endLine":143},{"startLine":134,"endLine":144},{"startLine":148,"endLine":154},{"startLine":159,"endLine":160},{"startLine":158,"endLine":161},{"startLine":157,"endLine":162},{"startLine":156,"endLine":164},{"startLine":169,"endLine":170},{"startLine":168,"endLine":171},{"startLine":167,"endLine":172},{"startLine":166,"endLine":174},{"startLine":179,"endLine":185},{"startLine":187,"endLine":193},{"startLine":195,"endLine":201},{"startLine":203,"endLine":209},{"startLine":211,"endLine":217},{"startLine":222,"endLine":228},{"startLine":147,"endLine":229},{"startLine":133,"endLine":230},{"startLine":233,"endLine":234},{"startLine":237,"endLine":238}]
+=== 121 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":17,"endLine":18},{"startLine":21,"endLine":23},{"startLine":26,"endLine":131}]
+=== 588 src/routes/demos/hacker-news/+page.svelte	folding.json
+[{"startLine":0,"endLine":63},{"startLine":66,"endLine":67},{"startLine":73,"endLine":74},{"startLine":72,"endLine":76},{"startLine":71,"endLine":77},{"startLine":86,"endLine":93},{"startLine":96,"endLine":99},{"startLine":85,"endLine":101},{"startLine":105,"endLine":108},{"startLine":110,"endLine":114},{"startLine":117,"endLine":121},{"startLine":103,"endLine":122},{"startLine":84,"endLine":123},{"startLine":83,"endLine":124},{"startLine":129,"endLine":130},{"startLine":81,"endLine":132},{"startLine":80,"endLine":133},{"startLine":70,"endLine":134},{"startLine":137,"endLine":233}]
+=== 210 src/routes/examples/controlled-scroll-offset/+page.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":21,"endLine":22},{"startLine":28,"endLine":30},{"startLine":42,"endLine":43},{"startLine":34,"endLine":45},{"startLine":33,"endLine":46},{"startLine":25,"endLine":49}]
+=== 237 src/routes/examples/elements-of-equal-height/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7},{"startLine":15,"endLine":17},{"startLine":13,"endLine":18},{"startLine":24,"endLine":25},{"startLine":22,"endLine":27},{"startLine":21,"endLine":28},{"startLine":10,"endLine":31}]
+=== 207 src/routes/examples/horizontal-list/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7},{"startLine":23,"endLine":24},{"startLine":15,"endLine":26},{"startLine":14,"endLine":27},{"startLine":13,"endLine":28},{"startLine":10,"endLine":31}]
+=== 330 src/routes/examples/scroll-to-index/+page.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":25,"endLine":26},{"startLine":32,"endLine":34},{"startLine":38,"endLine":42},{"startLine":37,"endLine":45},{"startLine":49,"endLine":52},{"startLine":48,"endLine":55},{"startLine":69,"endLine":70},{"startLine":59,"endLine":72},{"startLine":58,"endLine":73},{"startLine":29,"endLine":76}]
+=== 210 src/routes/examples/variable-heights/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":19,"endLine":20},{"startLine":26,"endLine":28},{"startLine":34,"endLine":35},{"startLine":32,"endLine":37},{"startLine":31,"endLine":38},{"startLine":23,"endLine":41}]

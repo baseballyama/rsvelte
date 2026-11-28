@@ -1,0 +1,1067 @@
+# rsvelte pack 1
+=== 2 packages/adapter-netlify/test/apps/basic/src/routes/+page.svelte	folding.json
+[]
+=== 29 packages/adapter-netlify/test/apps/basic/src/routes/greeting/[name]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/adapter-netlify/test/apps/edge/src/routes/treeshake-server/+page.svelte	folding.json
+[]
+=== 29 packages/adapter-netlify/test/apps/split/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-netlify/test/apps/split/src/routes/dynamic/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-node/test/apps/basic/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-static/test/apps/prerendered/src/routes/public-env/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/adapter-static/test/apps/spa/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 58 packages/adapter-static/test/apps/spa/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":7,"endLine":10}]
+=== 2 packages/adapter-static/test/apps/spa/src/routes/+page.svelte	folding.json
+[]
+=== 2 packages/adapter-static/test/apps/spa/src/routes/about/+page.svelte	folding.json
+[]
+=== 29 packages/adapter-static/test/apps/spa/src/routes/fallback/[...rest]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-vercel/test/apps/basic/src/routes/+page.svelte	folding.json
+[{"startLine":2,"endLine":7}]
+=== 29 packages/adapter-vercel/test/apps/basic/src/routes/deep/nested/route/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-vercel/test/apps/basic/src/routes/isr/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-vercel/test/apps/basic/src/routes/isr/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-vercel/test/apps/basic/src/routes/prerendered/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-vercel/test/apps/basic/src/routes/server-data/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/adapter-vercel/test/apps/split/src/routes/+page.svelte	folding.json
+[{"startLine":2,"endLine":3}]
+=== 2 packages/adapter-vercel/test/apps/split/src/routes/a/+page.svelte	folding.json
+[]
+=== 149 packages/enhanced-img/test/Input.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":17,"endLine":18},{"startLine":29,"endLine":32},{"startLine":35,"endLine":38},{"startLine":55,"endLine":58}]
+=== 180 packages/enhanced-img/test/Output.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":19,"endLine":20},{"startLine":47,"endLine":51},{"startLine":64,"endLine":68},{"startLine":82,"endLine":86},{"startLine":91,"endLine":94}]
+=== 29 packages/enhanced-img/test/apps/basics/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/enhanced-img/test/apps/basics/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/enhanced-img/test/apps/basics/src/routes/image.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/src/core/sync/create_manifest_data/test/samples/named-layouts/+layout.svelte	folding.json
+[]
+=== 2 packages/kit/src/core/sync/create_manifest_data/test/samples/prerendered-dual-route/x/+page.svelte	folding.json
+[]
+=== 2 packages/kit/src/core/sync/write_types/test/slugs-layout-not-all-pages-have-load/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/src/runtime/components/error.svelte	folding.json
+[{"startLine":2,"endLine":3}]
+=== 29 packages/kit/src/runtime/components/layout.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 120 packages/kit/src/runtime/components/root.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":32,"endLine":33},{"startLine":29,"endLine":38},{"startLine":45,"endLine":53}]
+=== 87 packages/kit/test/apps/async/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7},{"startLine":16,"endLine":37}]
+=== 29 packages/kit/test/apps/async/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 86 packages/kit/test/apps/async/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":8},{"startLine":5,"endLine":10}]
+=== 58 packages/kit/test/apps/async/src/routes/fork/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":13}]
+=== 29 packages/kit/test/apps/async/src/routes/plain-lib/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 packages/kit/test/apps/async/src/routes/remote/batch-redirect/+page.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 29 packages/kit/test/apps/async/src/routes/remote/dev/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/error-hydration/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 148 packages/kit/test/apps/async/src/routes/remote/form/as-value/Form.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":16,"endLine":19},{"startLine":26,"endLine":28},{"startLine":7,"endLine":30},{"startLine":33,"endLine":41}]
+=== 88 packages/kit/test/apps/async/src/routes/remote/form/file-upload/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":10,"endLine":12},{"startLine":4,"endLine":16}]
+=== 58 packages/kit/test/apps/async/src/routes/remote/form/for-duplicate/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":8,"endLine":13}]
+=== 150 packages/kit/test/apps/async/src/routes/remote/form/imperative/+page.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":14,"endLine":17},{"startLine":20,"endLine":21},{"startLine":25,"endLine":33},{"startLine":13,"endLine":35}]
+=== 120 packages/kit/test/apps/async/src/routes/remote/form/native-result/+page.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":24,"endLine":26},{"startLine":29,"endLine":31},{"startLine":34,"endLine":36}]
+=== 60 packages/kit/test/apps/async/src/routes/remote/form/preflight-for/+page.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":16,"endLine":22}]
+=== 90 packages/kit/test/apps/async/src/routes/remote/form/preflight-pending/+page.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":28,"endLine":30},{"startLine":37,"endLine":39}]
+=== 115 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":8,"endLine":9},{"startLine":12,"endLine":13}]
+=== 2 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/destination/+page.svelte	folding.json
+[]
+=== 57 packages/kit/test/apps/async/src/routes/remote/form/requested/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/form/reset-id/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":7}]
+=== 87 packages/kit/test/apps/async/src/routes/remote/form/reset-on-redirect/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6},{"startLine":11,"endLine":17}]
+=== 87 packages/kit/test/apps/async/src/routes/remote/form/select-untouched/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":10},{"startLine":4,"endLine":13}]
+=== 59 packages/kit/test/apps/async/src/routes/remote/form/set-ssr/+page.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":10,"endLine":12}]
+=== 89 packages/kit/test/apps/async/src/routes/remote/form/skip-submit/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":14},{"startLine":17,"endLine":23}]
+=== 88 packages/kit/test/apps/async/src/routes/remote/form/snapshot/+page.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":26},{"startLine":29,"endLine":30}]
+=== 59 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":14,"endLine":17}]
+=== 59 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/page2/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":14}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/form/submitter/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":8}]
+=== 147 packages/kit/test/apps/async/src/routes/remote/form/touched/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":8},{"startLine":12,"endLine":14},{"startLine":17,"endLine":19},{"startLine":11,"endLine":22}]
+=== 87 packages/kit/test/apps/async/src/routes/remote/form/underscore/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":8},{"startLine":13,"endLine":16}]
+=== 271 packages/kit/test/apps/async/src/routes/remote/form/validate/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":43,"endLine":44},{"startLine":19,"endLine":45},{"startLine":47,"endLine":48},{"startLine":53,"endLine":54},{"startLine":51,"endLine":56},{"startLine":59,"endLine":78},{"startLine":82,"endLine":83},{"startLine":87,"endLine":100}]
+=== 236 packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":9},{"startLine":12,"endLine":14},{"startLine":17,"endLine":19},{"startLine":21,"endLine":23},{"startLine":26,"endLine":28},{"startLine":30,"endLine":32},{"startLine":6,"endLine":35}]
+=== 58 packages/kit/test/apps/async/src/routes/remote/isomorphic-caching/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":9,"endLine":22}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/live-error-seed/[key]/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 29 packages/kit/test/apps/async/src/routes/remote/live-ssr-value/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 59 packages/kit/test/apps/async/src/routes/remote/live-terminal/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19}]
+=== 2 packages/kit/test/apps/async/src/routes/remote/live-terminal/target/+page.svelte	folding.json
+[]
+=== 90 packages/kit/test/apps/async/src/routes/remote/live/+page.svelte	folding.json
+[{"startLine":0,"endLine":79},{"startLine":87,"endLine":88},{"startLine":90,"endLine":95}]
+=== 119 packages/kit/test/apps/async/src/routes/remote/prerender/+page.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":11,"endLine":12},{"startLine":14,"endLine":18},{"startLine":20,"endLine":21}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/prerender/functions-only/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":8}]
+=== 29 packages/kit/test/apps/async/src/routes/remote/private-query/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	folding.json
+[{"startLine":2,"endLine":3}]
+=== 2 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/redirected/+page.svelte	folding.json
+[]
+=== 120 packages/kit/test/apps/async/src/routes/remote/query-runtime-errors/not-tracked/+page.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":16,"endLine":23},{"startLine":26,"endLine":33},{"startLine":36,"endLine":47}]
+=== 30 packages/kit/test/apps/async/src/routes/remote/redirect-external/+page.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 57 packages/kit/test/apps/async/src/routes/remote/requested-limit/[key]/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":9}]
+=== 30 packages/kit/test/apps/async/src/routes/remote/reserved/+page.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 58 packages/kit/test/apps/async/src/routes/remote/server-action/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":10}]
+=== 88 packages/kit/test/apps/async/src/routes/remote/server-endpoint/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":12},{"startLine":15,"endLine":21}]
+=== 29 packages/kit/test/apps/async/src/routes/remote/server-load-command/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 88 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":11},{"startLine":14,"endLine":18}]
+=== 153 packages/kit/test/apps/async/src/routes/remote/validation/+page.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":35,"endLine":58},{"startLine":61,"endLine":91},{"startLine":94,"endLine":155},{"startLine":158,"endLine":185}]
+=== 57 packages/kit/test/apps/async/src/routes/server-error-boundary/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 29 packages/kit/test/apps/async/src/routes/server-error-boundary/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 2 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+page.svelte	folding.json
+[]
+=== 57 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+error.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8}]
+=== 29 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 87 packages/kit/test/apps/basics/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":12,"endLine":33}]
+=== 29 packages/kit/test/apps/basics/src/routes/accessibility/+layout.svelte	folding.json
+[{"startLine":2,"endLine":6}]
+=== 29 packages/kit/test/apps/basics/src/routes/accessibility/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/+layout.svelte	folding.json
+[]
+=== 87 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":10,"endLine":11}]
+=== 29 packages/kit/test/apps/basics/src/routes/accessibility/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/other/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/page-with-input/+page.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 87 packages/kit/test/apps/basics/src/routes/accessibility/c/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":10,"endLine":11}]
+=== 29 packages/kit/test/apps/basics/src/routes/actions/cross-page/destination/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/actions/cross-page/redirected/+page.svelte	folding.json
+[]
+=== 58 packages/kit/test/apps/basics/src/routes/actions/cross-page/refreshall-false/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":15}]
+=== 29 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 115 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":8,"endLine":9},{"startLine":12,"endLine":13}]
+=== 57 packages/kit/test/apps/basics/src/routes/actions/file-without-enctype/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 29 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 57 packages/kit/test/apps/basics/src/routes/actions/redirect-in-handle/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 30 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/+page.svelte	folding.json
+[{"startLine":3,"endLine":13}]
+=== 59 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-afternavigate/+page.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":11}]
+=== 59 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-onmount/+page.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":11,"endLine":12}]
+=== 31 packages/kit/test/apps/basics/src/routes/anchor/+page.svelte	folding.json
+[{"startLine":15,"endLine":30}]
+=== 115 packages/kit/test/apps/basics/src/routes/anchor/anchor/+page.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":4,"endLine":5},{"startLine":7,"endLine":8},{"startLine":10,"endLine":11}]
+=== 29 packages/kit/test/apps/basics/src/routes/app-environment/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 149 packages/kit/test/apps/basics/src/routes/app-manifest/+page.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":11,"endLine":13},{"startLine":16,"endLine":18},{"startLine":21,"endLine":23},{"startLine":26,"endLine":28}]
+=== 29 packages/kit/test/apps/basics/src/routes/asset-import/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/kit/test/apps/basics/src/routes/asset-preload/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":9}]
+=== 2 packages/kit/test/apps/basics/src/routes/caching/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/caching/server-data/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/cookies/collect-without-re-escaping/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 60 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":23}]
+=== 59 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":17}]
+=== 59 packages/kit/test/apps/basics/src/routes/css/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":17,"endLine":20}]
+=== 57 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":8}]
+=== 29 packages/kit/test/apps/basics/src/routes/css/dynamic/Dynamic.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 29 packages/kit/test/apps/basics/src/routes/css/encöded/+page.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 2 packages/kit/test/apps/basics/src/routes/css/other/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/cyclical-dynamic-import/+page.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 87 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-code/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":9},{"startLine":11,"endLine":12}]
+=== 146 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":9},{"startLine":6,"endLine":10},{"startLine":15,"endLine":19},{"startLine":22,"endLine":23}]
+=== 29 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/+page.svelte	folding.json
+[{"startLine":3,"endLine":6}]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/slow-navigation/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/target/+page.svelte	folding.json
+[]
+=== 116 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":9,"endLine":12},{"startLine":8,"endLine":13},{"startLine":6,"endLine":14}]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/target/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/target/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/+page.svelte	folding.json
+[{"startLine":2,"endLine":4}]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/new/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/target/+page.svelte	folding.json
+[]
+=== 57 packages/kit/test/apps/basics/src/routes/data-sveltekit/replacestate/+page.svelte	folding.json
+[{"startLine":4,"endLine":5},{"startLine":2,"endLine":6}]
+=== 29 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/+page.svelte	folding.json
+[{"startLine":4,"endLine":6}]
+=== 2 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/target/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/delete-route/+page.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/encoded/@[username]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+82d7]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+d83e][u+dd2a]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+23]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+25]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+2f]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3a]-[x+29]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3c]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3f]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x][x+3c][y]/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/encoded/苗条/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 2 packages/kit/test/apps/basics/src/routes/endpoint-output/actions-with-endpoint/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/endpoint-output/fallback-with-page/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/endpoint-output/post-only-with-page/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/env/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/clientside/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/endpoint-shadow-not-ok/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/error-html/+page.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/error-in-handle/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/invalid-load-response/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/kind/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/load-error-page-options/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/module-scope-client/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/module-scope-server/+page.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 58 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+error.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":11}]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/nope/+page.svelte	folding.json
+[]
+=== 58 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+error.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":10}]
+=== 57 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+page.svelte	folding.json
+[{"startLine":3,"endLine":4},{"startLine":7,"endLine":8}]
+=== 2 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/get-explicit/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/serverside/+page.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/kit/test/apps/basics/src/routes/errors/stack-trace/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/get-request-event/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/get-request-event/with-error/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":8}]
+=== 58 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":13}]
+=== 58 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":13}]
+=== 2 packages/kit/test/apps/basics/src/routes/goto/testentry/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/goto/testfinish/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/goto/teststart/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/headers/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/iframes/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/iframes/nested/child/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/iframes/nested/parent/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/ignored-files/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/init-hooks/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/init-hooks/navigate/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/interactivity/toggle-element/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 58 packages/kit/test/apps/basics/src/routes/keepfocus/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":11}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/accumulated/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/devalue/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/load/dynamic-import-styles/_/Thing.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/fetch-cache-control/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/load/fetch-external-non-canonical/+page.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 29 packages/kit/test/apps/basics/src/routes/load/fetch-no-body/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 117 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+layout.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":8,"endLine":13},{"startLine":15,"endLine":20},{"startLine":5,"endLine":21}]
+=== 29 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/+layout.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 29 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/redirect/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/[b]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/b/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/invalidation/route/shared/[x]/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/load/mutated-url/+page.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/no-server-load/+layout.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/no-server-load/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/no-server-load/b/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/load/parent/server/[x]/[y]/[z]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/raw-body/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-collision/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-object/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/unchanged-parent/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/load/unchanged/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/load/url-query-param/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/load/url-to-string/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/load/window-fetch/outside-load/+page.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 59 packages/kit/test/apps/basics/src/routes/load/window-fetch/patching-server-load/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":14}]
+=== 150 packages/kit/test/apps/basics/src/routes/match/+page.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":22,"endLine":23},{"startLine":20,"endLine":25},{"startLine":30,"endLine":31},{"startLine":28,"endLine":33}]
+=== 2 packages/kit/test/apps/basics/src/routes/match/load/foo/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/match/slug/[slug]/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/+layout.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 29 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/b/+page.svelte	folding.json
+[{"startLine":1,"endLine":3}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 29 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/complete/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/event/+layout.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 29 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/hash-links/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/prevent-navigation/+page.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 60 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/on-navigate/[x]/+page.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":29,"endLine":30}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":34}]
+=== 30 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":34}]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/nested-layout/+page.svelte	folding.json
+[{"startLine":2,"endLine":3}]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/error/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/foo/+layout.svelte	folding.json
+[]
+=== 58 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+error.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":11}]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+layout.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/foo/baz/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+layout@.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/no-ssr/+page.svelte	folding.json
+[{"startLine":4,"endLine":7}]
+=== 29 packages/kit/test/apps/basics/src/routes/no-ssr/after-navigate/+page.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 29 packages/kit/test/apps/basics/src/routes/no-ssr/browser-only-global/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 58 packages/kit/test/apps/basics/src/routes/no-ssr/margin/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":12}]
+=== 29 packages/kit/test/apps/basics/src/routes/no-ssr/ssr-page-config/layout/overwrite/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/origin/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/params-prop/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/params-prop/[x]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/preload-code-on-load/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/prerendering/+error.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/prerendering/env/dynamic/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/prerendering/env/prerendered/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/prerendering/log-url/+page.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 2 packages/kit/test/apps/basics/src/routes/prerendering/mutative-endpoint/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/prerendering/no-ssr/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/prerendering/prerendered-endpoint/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/query/echo/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 2 packages/kit/test/apps/basics/src/routes/redirect-on-load/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/redirect-on-load/redirected/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/redirect/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/redirect/c/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/redirect/in-handle/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/reroute/async/+page.svelte	folding.json
+[{"startLine":1,"endLine":2}]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/async/a/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/reroute/async/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/basic/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/basic/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/b/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/error-handling/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error-rewritten/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/error-handling/server-error/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/external/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/reroute/preload-data/+page.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/prerendered/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reroute/prerendered/destination/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/reset-focus/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/cancellation/+layout.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/cancellation/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/cancellation/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/client/bar/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/clobbered-node-name/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/const/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/[a]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/[b]/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/external-popstate/+page.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/focus/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/focus/a/+page.svelte	folding.json
+[]
+=== 59 packages/kit/test/apps/basics/src/routes/routing/form-get/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":15,"endLine":17}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/form-target-blank/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/hashes/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/hashes/b/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/hashes/base/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/hashes/focus/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/routing/hashes/pagestate/+page.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 59 packages/kit/test/apps/basics/src/routes/routing/hashes/target/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":10,"endLine":13}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/source/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/target/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/long-navigation/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/matched/+layout.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/matched/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/matched/[fallback]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=lowercase]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=uppercase]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/matched/[number=numeric]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/missing-href/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/next-paint/+page.svelte	folding.json
+[]
+=== 88 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":11},{"startLine":14,"endLine":18}]
+=== 30 packages/kit/test/apps/basics/src/routes/routing/preloading/hash-route/+page.svelte	folding.json
+[{"startLine":0,"endLine":24}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/deep/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/[dynamic]-bar/[...rest]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/rest/path/+layout.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/route-id/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/route-id/[x]/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/kit/test/apps/basics/src/routes/routing/shadow-dom/+page.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":16}]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/slashes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/split-params/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/routing/split-params/[a]-[b]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/routing/symlink-to/+page.svelte	folding.json
+[]
+=== 58 packages/kit/test/apps/basics/src/routes/routing/trailing-slash-server/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":10}]
+=== 57 packages/kit/test/apps/basics/src/routes/routing/trailing-slash/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":7}]
+=== 2 packages/kit/test/apps/basics/src/routes/scroll/cross-document/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/scroll/cross-document/b/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/scroll/push-state/+page.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 2 packages/kit/test/apps/basics/src/routes/scroll/push-state/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/scroll/top/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/selection/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/serialization-basic/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/kit/test/apps/basics/src/routes/serialization-basic/child/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 57 packages/kit/test/apps/basics/src/routes/serialization-form-enhanced/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 57 packages/kit/test/apps/basics/src/routes/serialization-form-non-enhanced/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 91 packages/kit/test/apps/basics/src/routes/shadowed/+page.svelte	folding.json
+[{"startLine":10,"endLine":11},{"startLine":14,"endLine":15},{"startLine":18,"endLine":20}]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/error-get/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/shadowed/error-post/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/missing-get/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/redirected/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/redirect/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/redirect/[a]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/redirect/b/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/shadowed/same-render-entry/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+layout.svelte	folding.json
+[{"startLine":0,"endLine":48}]
+=== 360 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":33,"endLine":34},{"startLine":36,"endLine":37},{"startLine":39,"endLine":42},{"startLine":44,"endLine":51},{"startLine":53,"endLine":56},{"startLine":58,"endLine":62},{"startLine":64,"endLine":67},{"startLine":72,"endLine":73},{"startLine":75,"endLine":77},{"startLine":70,"endLine":78},{"startLine":82,"endLine":85}]
+=== 2 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/[param]/+page.svelte	folding.json
+[]
+=== 59 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":10,"endLine":16}]
+=== 29 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/effect/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 88 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/foo/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":11},{"startLine":14,"endLine":19}]
+=== 89 packages/kit/test/apps/basics/src/routes/shallow-routing/refresh/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":15,"endLine":16},{"startLine":18,"endLine":19}]
+=== 30 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+layout.svelte	folding.json
+[{"startLine":0,"endLine":36}]
+=== 90 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":21,"endLine":24},{"startLine":26,"endLine":30}]
+=== 29 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/effect/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 2 packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 60 packages/kit/test/apps/basics/src/routes/snapshot/helper/+layout.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":16}]
+=== 90 packages/kit/test/apps/basics/src/routes/snapshot/helper/+page.svelte	folding.json
+[{"startLine":0,"endLine":32},{"startLine":35,"endLine":37},{"startLine":40,"endLine":42}]
+=== 2 packages/kit/test/apps/basics/src/routes/snapshot/helper/b/+page.svelte	folding.json
+[]
+=== 30 packages/kit/test/apps/basics/src/routes/snapshot/order/+page.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 29 packages/kit/test/apps/basics/src/routes/snapshot/stale/Stale.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 2 packages/kit/test/apps/basics/src/routes/snapshot/stale/a/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/snapshot/stale/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 58 packages/kit/test/apps/basics/src/routes/state/client-access/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":11}]
+=== 29 packages/kit/test/apps/basics/src/routes/state/data/+error.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 58 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":10}]
+=== 30 packages/kit/test/apps/basics/src/routes/state/data/state-update/+layout.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 2 packages/kit/test/apps/basics/src/routes/state/data/state-update/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/state/data/state-update/b/+page.svelte	folding.json
+[]
+=== 117 packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":7},{"startLine":13,"endLine":14},{"startLine":10,"endLine":18}]
+=== 2 packages/kit/test/apps/basics/src/routes/state/navigating/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/state/navigating/b/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/state/navigating/c/+page.svelte	folding.json
+[]
+=== 58 packages/kit/test/apps/basics/src/routes/state/url/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":14}]
+=== 2 packages/kit/test/apps/basics/src/routes/streaming/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/tracing/http-error/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/basics/src/routes/tracing/one/two/three/[...four]/+page.svelte	folding.json
+[]
+=== 85 packages/kit/test/apps/basics/src/routes/treeshaking/browser/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":7,"endLine":8}]
+=== 29 packages/kit/test/apps/basics/src/routes/treeshaking/dev/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 packages/kit/test/apps/basics/src/routes/use-action/+page.svelte	folding.json
+[{"startLine":3,"endLine":13}]
+=== 59 packages/kit/test/apps/basics/src/routes/use-action/focus-and-scroll/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":12,"endLine":14}]
+=== 29 packages/kit/test/apps/basics/src/routes/xss/[path]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/basics/src/routes/xss/query-tracking/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/basics/src/routes/xss/query/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/illegal-imports/app-server/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/illegal-imports/env/private/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/path-top-level/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/relative-nested/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-modules/static-import/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+error.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 30 packages/kit/test/apps/dev-only/src/routes/request-abort/+page.svelte	folding.json
+[{"startLine":0,"endLine":22}]
+=== 29 packages/kit/test/apps/embed/src/routes/embed/a/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/embed/src/routes/embed/b/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 59 packages/kit/test/apps/hash-based-routing/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":19,"endLine":20}]
+=== 2 packages/kit/test/apps/hash-based-routing/src/routes/a/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/hash-based-routing/src/routes/anchor/+page.svelte	folding.json
+[]
+=== 87 packages/kit/test/apps/hash-based-routing/src/routes/b/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":8},{"startLine":11,"endLine":14}]
+=== 2 packages/kit/test/apps/hash-based-routing/src/routes/focus/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/hash-based-routing/src/routes/rerouted/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/hash-based-routing/src/routes/resolve/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/no-csr/src/routes/+layout.svelte	folding.json
+[{"startLine":3,"endLine":6}]
+=== 29 packages/kit/test/apps/no-csr/src/routes/assets/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/apps/no-ssr/src/routes/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/no-ssr/src/routes/root-layout-error/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/no-ssr/src/routes/styles/+page.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 29 packages/kit/test/apps/no-ssr/src/routes/styles/prerendered/+page.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 29 packages/kit/test/apps/options-2/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 59 packages/kit/test/apps/options-2/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":11,"endLine":14}]
+=== 29 packages/kit/test/apps/options-2/src/routes/asset-preload/prerendered/+page.svelte	folding.json
+[{"startLine":2,"endLine":7}]
+=== 2 packages/kit/test/apps/options-2/src/routes/csp-trusted-types/+page.svelte	folding.json
+[]
+=== 58 packages/kit/test/apps/options-2/src/routes/deeply/nested/page/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":9,"endLine":12}]
+=== 59 packages/kit/test/apps/options-2/src/routes/env/+page.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":12,"endLine":13}]
+=== 29 packages/kit/test/apps/options-2/src/routes/env/import-all/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/kit/test/apps/options-2/src/routes/env/prerendered/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/[...rest]/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/static/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/options-2/src/routes/hello/+page.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 89 packages/kit/test/apps/options-2/src/routes/remote/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":13,"endLine":20},{"startLine":23,"endLine":24}]
+=== 57 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/prerender/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 58 packages/kit/test/apps/options-3/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":11}]
+=== 29 packages/kit/test/apps/options-3/src/routes/app-manifest/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/options/source/components/Message.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/kit/test/apps/options/source/components/SharedCSS.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":7}]
+=== 29 packages/kit/test/apps/options/source/components/SvelteLogo.svelte	folding.json
+[{"startLine":2,"endLine":7}]
+=== 29 packages/kit/test/apps/options/source/pages/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/options/source/pages/base/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/apps/options/source/pages/csp-trusted-types/+page.svelte	folding.json
+[]
+=== 57 packages/kit/test/apps/options/source/pages/csp/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/kit/test/apps/options/source/pages/custom-extensions/+layout.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 2 packages/kit/test/apps/options/source/pages/custom-extensions/unsafe-replacement/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/options/source/pages/error/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/options/source/pages/fetch/link-outside-base/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 118 packages/kit/test/apps/options/source/pages/fetch/link-root/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":7,"endLine":11},{"startLine":15,"endLine":19},{"startLine":23,"endLine":27}]
+=== 87 packages/kit/test/apps/options/source/pages/inline-style/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8},{"startLine":12,"endLine":15}]
+=== 59 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":14,"endLine":17}]
+=== 29 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/Component.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 29 packages/kit/test/apps/options/source/pages/inline-style/dynamic-import/Thing.svelte	folding.json
+[{"startLine":2,"endLine":6}]
+=== 29 packages/kit/test/apps/options/source/pages/inline-style/import-meta/+page.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 58 packages/kit/test/apps/options/source/pages/inline-style/static-dir/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":7,"endLine":12}]
+=== 29 packages/kit/test/apps/options/source/pages/inline-style/url-encoded/+page.svelte	folding.json
+[{"startLine":2,"endLine":7}]
+=== 60 packages/kit/test/apps/options/source/pages/on-navigate/+layout.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":19,"endLine":21}]
+=== 2 packages/kit/test/apps/options/source/pages/on-navigate/a/+page.svelte	folding.json
+[]
+=== 57 packages/kit/test/apps/options/source/pages/performance/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 2 packages/kit/test/apps/options/source/pages/preloading/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/apps/options/source/pages/preloading/code/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/source/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/target/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/apps/options/source/pages/slash/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+error.svelte	folding.json
+[]
+=== 29 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 58 packages/kit/test/apps/writes/src/routes/double-mount/+page.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":16}]
+=== 2 packages/kit/test/apps/writes/src/routes/new-route/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/build-errors/apps/env-private-dynamic/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/build-errors/apps/env-private-service-worker/src/routes/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/build-errors/apps/prerender-entry-generator-mismatch/src/routes/[slug]/specific/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/build-errors/apps/prerender-remote-function-error/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/foo/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/build-errors/apps/prerenderable-not-prerendered/src/routes/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/build-errors/apps/remote-function-without-flag/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/build-errors/apps/removed-lib-import/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/kit/test/build-errors/apps/removed-service-worker-import/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/kit/test/build-errors/apps/server-only-folder-dynamic-import/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/build-errors/apps/server-only-folder/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/build-errors/apps/server-only-module-dynamic-import/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/build-errors/apps/server-only-module/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 2 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/content-type-charset/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/prerendering/basics/src/routes/content-type-charset/[dynamic]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/prerendering/basics/src/routes/encoding/[path]/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/prerendering/basics/src/routes/encöded-hash-link/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/prerendering/basics/src/routes/fetch-image/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/max-age/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/missing-id/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/optional-params/[[optional]]/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/prerendering/basics/src/routes/origin/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/kit/test/prerendering/basics/src/routes/prerender-origin/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/kit/test/prerendering/basics/src/routes/prerender-origin/[dynamic]/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/prerendering/basics/src/routes/prerendering-true/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/lv2/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/prerendering/basics/src/routes/spa-shell/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/basics/src/routes/初めまして/+page.svelte	folding.json
+[]
+=== 46 packages/kit/test/prerendering/options/src/routes/(group)/+page.svelte	folding.json
+[{"startLine":2,"endLine":3,"kind":"comment"}]
+=== 29 packages/kit/test/prerendering/options/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/kit/test/prerendering/options/src/routes/nested/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/options/src/routes/non-prerendered-page-and-endpoint/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/prerendering/paths-base/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/kit/test/prerendering/paths-base/src/routes/a/b/c/+page.svelte	folding.json
+[]
+=== 2 packages/kit/test/prerendering/paths-base/src/routes/a/b/d/+page.svelte	folding.json
+[]
+=== 29 packages/kit/test/prerendering/paths-base/src/routes/assets/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/kit/test/prerendering/paths-base/src/routes/assets/emitted/+page.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/package/test/fixtures/svelte-3-types/src/lib/Test.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/package/test/fixtures/typescript-declaration-map/expected/Test.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/package/test/fixtures/typescript-declaration-map/src/lib/Test.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/package/test/fixtures/typescript-ts-extension-rewrites/expected/Demo.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/Demo.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/package/test/watch/expected/post-error.svelte	folding.json
+[]
+=== 2 playgrounds/basic/src/routes/+page.svelte	folding.json
+[]

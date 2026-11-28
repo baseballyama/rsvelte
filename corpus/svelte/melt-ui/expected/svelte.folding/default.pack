@@ -1,0 +1,87 @@
+# rsvelte pack 1
+=== 93 docs/src/components/motion.svelte	folding.json
+[{"startLine":0,"endLine":68},{"startLine":71,"endLine":166},{"startLine":171,"endLine":196}]
+=== 403 docs/src/components/preview.svelte	folding.json
+[{"startLine":0,"endLine":55},{"startLine":62,"endLine":63},{"startLine":67,"endLine":74},{"startLine":87,"endLine":92},{"startLine":85,"endLine":93},{"startLine":106,"endLine":112},{"startLine":115,"endLine":130},{"startLine":133,"endLine":136},{"startLine":101,"endLine":138},{"startLine":98,"endLine":140},{"startLine":79,"endLine":141},{"startLine":58,"endLine":143},{"startLine":146,"endLine":162}]
+=== 93 docs/src/components/transition.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":60,"endLine":281},{"startLine":284,"endLine":287}]
+=== 467 docs/src/previews/SpatialMenu.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":53,"endLine":57},{"startLine":52,"endLine":58},{"startLine":97,"endLine":102},{"startLine":104,"endLine":109},{"startLine":111,"endLine":116},{"startLine":89,"endLine":117},{"startLine":119,"endLine":125},{"startLine":74,"endLine":126},{"startLine":63,"endLine":128},{"startLine":62,"endLine":129},{"startLine":133,"endLine":135},{"startLine":48,"endLine":137},{"startLine":47,"endLine":138},{"startLine":141,"endLine":158}]
+=== 301 docs/src/previews/accordion.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":56,"endLine":62},{"startLine":64,"endLine":75},{"startLine":55,"endLine":76},{"startLine":85,"endLine":86},{"startLine":80,"endLine":87},{"startLine":54,"endLine":89},{"startLine":48,"endLine":91},{"startLine":47,"endLine":92},{"startLine":95,"endLine":102}]
+=== 301 docs/src/previews/avatar.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":53,"endLine":63},{"startLine":65,"endLine":66},{"startLine":50,"endLine":67},{"startLine":49,"endLine":68},{"startLine":71,"endLine":77},{"startLine":79,"endLine":85},{"startLine":48,"endLine":86},{"startLine":47,"endLine":87},{"startLine":90,"endLine":106}]
+=== 180 docs/src/previews/collapsible.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":21,"endLine":35},{"startLine":39,"endLine":48},{"startLine":20,"endLine":50},{"startLine":18,"endLine":52},{"startLine":17,"endLine":53}]
+=== 312 docs/src/previews/combobox.svelte	folding.json
+[{"startLine":0,"endLine":81},{"startLine":89,"endLine":94},{"startLine":96,"endLine":101},{"startLine":87,"endLine":102},{"startLine":104,"endLine":110},{"startLine":118,"endLine":129},{"startLine":113,"endLine":133},{"startLine":85,"endLine":134},{"startLine":84,"endLine":135},{"startLine":138,"endLine":156}]
+=== 1010 docs/src/previews/dialog.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":63,"endLine":67},{"startLine":69,"endLine":75},{"startLine":62,"endLine":76},{"startLine":78,"endLine":79},{"startLine":84,"endLine":93},{"startLine":108,"endLine":118},{"startLine":120,"endLine":135},{"startLine":107,"endLine":136},{"startLine":149,"endLine":153},{"startLine":146,"endLine":154},{"startLine":139,"endLine":156},{"startLine":105,"endLine":158},{"startLine":172,"endLine":178},{"startLine":170,"endLine":179},{"startLine":196,"endLine":205},{"startLine":194,"endLine":206},{"startLine":209,"endLine":217},{"startLine":219,"endLine":226},{"startLine":208,"endLine":227},{"startLine":181,"endLine":228},{"startLine":163,"endLine":229},{"startLine":242,"endLine":248},{"startLine":240,"endLine":249},{"startLine":252,"endLine":254},{"startLine":257,"endLine":265},{"startLine":267,"endLine":282},{"startLine":256,"endLine":283},{"startLine":233,"endLine":284},{"startLine":97,"endLine":285},{"startLine":83,"endLine":286},{"startLine":289,"endLine":337}]
+=== 428 docs/src/previews/file-upload.svelte	folding.json
+[{"startLine":0,"endLine":53},{"startLine":74,"endLine":76},{"startLine":78,"endLine":82},{"startLine":71,"endLine":83},{"startLine":59,"endLine":85},{"startLine":94,"endLine":95},{"startLine":93,"endLine":97},{"startLine":99,"endLine":100},{"startLine":92,"endLine":101},{"startLine":103,"endLine":110},{"startLine":91,"endLine":111},{"startLine":89,"endLine":113},{"startLine":57,"endLine":115},{"startLine":56,"endLine":116}]
+=== 120 docs/src/previews/pin-input.svelte	folding.json
+[{"startLine":0,"endLine":45},{"startLine":51,"endLine":55},{"startLine":49,"endLine":57},{"startLine":48,"endLine":58}]
+=== 397 docs/src/previews/popover-multiple-triggers.svelte	folding.json
+[{"startLine":0,"endLine":53},{"startLine":60,"endLine":70},{"startLine":58,"endLine":72},{"startLine":75,"endLine":76},{"startLine":57,"endLine":77},{"startLine":86,"endLine":88},{"startLine":90,"endLine":91},{"startLine":95,"endLine":98},{"startLine":93,"endLine":100},{"startLine":103,"endLine":104},{"startLine":80,"endLine":106},{"startLine":56,"endLine":107},{"startLine":110,"endLine":127}]
+=== 270 docs/src/previews/popover.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":20,"endLine":27},{"startLine":42,"endLine":46},{"startLine":49,"endLine":53},{"startLine":40,"endLine":55},{"startLine":39,"endLine":56},{"startLine":30,"endLine":57},{"startLine":19,"endLine":58},{"startLine":61,"endLine":78}]
+=== 180 docs/src/previews/progress.svelte	folding.json
+[{"startLine":0,"endLine":64},{"startLine":69,"endLine":70},{"startLine":77,"endLine":79},{"startLine":72,"endLine":80},{"startLine":68,"endLine":81},{"startLine":67,"endLine":82}]
+=== 240 docs/src/previews/radio-group.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":69,"endLine":71},{"startLine":58,"endLine":73},{"startLine":76,"endLine":77},{"startLine":53,"endLine":78},{"startLine":50,"endLine":80},{"startLine":48,"endLine":82},{"startLine":47,"endLine":83}]
+=== 240 docs/src/previews/select.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":49,"endLine":51},{"startLine":42,"endLine":53},{"startLine":61,"endLine":72},{"startLine":56,"endLine":74},{"startLine":40,"endLine":75},{"startLine":39,"endLine":76},{"startLine":79,"endLine":97}]
+=== 180 docs/src/previews/slider.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":36,"endLine":38},{"startLine":30,"endLine":39},{"startLine":41,"endLine":48},{"startLine":25,"endLine":49},{"startLine":24,"endLine":50}]
+=== 536 docs/src/previews/tabs.svelte	folding.json
+[{"startLine":0,"endLine":68},{"startLine":93,"endLine":99},{"startLine":88,"endLine":100},{"startLine":79,"endLine":102},{"startLine":108,"endLine":112},{"startLine":106,"endLine":113},{"startLine":135,"endLine":139},{"startLine":142,"endLine":146},{"startLine":149,"endLine":153},{"startLine":156,"endLine":160},{"startLine":133,"endLine":162},{"startLine":125,"endLine":163},{"startLine":122,"endLine":165},{"startLine":117,"endLine":166},{"startLine":72,"endLine":167},{"startLine":71,"endLine":168},{"startLine":171,"endLine":277}]
+=== 403 docs/src/previews/toaster.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":61,"endLine":68},{"startLine":84,"endLine":85},{"startLine":89,"endLine":90},{"startLine":94,"endLine":99},{"startLine":110,"endLine":115},{"startLine":106,"endLine":116},{"startLine":104,"endLine":118},{"startLine":103,"endLine":119},{"startLine":77,"endLine":121},{"startLine":71,"endLine":123},{"startLine":60,"endLine":124},{"startLine":127,"endLine":202}]
+=== 180 docs/src/previews/toggle.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":37,"endLine":39},{"startLine":41,"endLine":42},{"startLine":29,"endLine":43},{"startLine":28,"endLine":44},{"startLine":27,"endLine":45}]
+=== 150 docs/src/previews/tooltip.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":48,"endLine":55},{"startLine":58,"endLine":60},{"startLine":47,"endLine":61},{"startLine":64,"endLine":83}]
+=== 351 docs/src/previews/tree.svelte	folding.json
+[{"startLine":0,"endLine":106},{"startLine":137,"endLine":138},{"startLine":128,"endLine":139},{"startLine":127,"endLine":140},{"startLine":162,"endLine":164},{"startLine":143,"endLine":166},{"startLine":123,"endLine":168},{"startLine":174,"endLine":179},{"startLine":184,"endLine":186},{"startLine":188,"endLine":189},{"startLine":183,"endLine":190}]
+=== 90 packages/melt/src/lib/builders/tests/ComboboxTest.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":21,"endLine":25},{"startLine":19,"endLine":27}]
+=== 120 packages/melt/src/lib/builders/tests/SelectTest.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":17,"endLine":18},{"startLine":23,"endLine":27},{"startLine":21,"endLine":29}]
+=== 271 packages/melt/src/lib/builders/tests/SpatialMenuDisabledTest.svelte	folding.json
+[{"startLine":0,"endLine":48},{"startLine":54,"endLine":57},{"startLine":64,"endLine":78},{"startLine":60,"endLine":80},{"startLine":84,"endLine":85},{"startLine":89,"endLine":90},{"startLine":93,"endLine":94},{"startLine":51,"endLine":95},{"startLine":98,"endLine":211}]
+=== 120 packages/melt/src/lib/builders/tests/SpatialMenuNavTest.svelte	folding.json
+[{"startLine":0,"endLine":46},{"startLine":53,"endLine":54},{"startLine":49,"endLine":57},{"startLine":60,"endLine":79}]
+=== 277 packages/melt/src/lib/builders/tests/SpatialMenuTest.svelte	folding.json
+[{"startLine":0,"endLine":67},{"startLine":73,"endLine":76},{"startLine":82,"endLine":91},{"startLine":79,"endLine":93},{"startLine":97,"endLine":98},{"startLine":102,"endLine":103},{"startLine":106,"endLine":107},{"startLine":70,"endLine":108},{"startLine":111,"endLine":202}]
+=== 119 packages/melt/src/lib/builders/tests/ToastTest.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":13},{"startLine":18,"endLine":21},{"startLine":16,"endLine":23}]
+=== 30 packages/melt/src/lib/components/Accordion.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 30 packages/melt/src/lib/components/Avatar.svelte	folding.json
+[{"startLine":0,"endLine":17}]
+=== 30 packages/melt/src/lib/components/Collapsible.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/melt/src/lib/components/Combobox.svelte	folding.json
+[{"startLine":0,"endLine":29}]
+=== 30 packages/melt/src/lib/components/FileUpload.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 30 packages/melt/src/lib/components/PinInput.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/melt/src/lib/components/Popover.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 30 packages/melt/src/lib/components/Progress.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/melt/src/lib/components/RadioGroup.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/melt/src/lib/components/Select.svelte	folding.json
+[{"startLine":0,"endLine":29}]
+=== 30 packages/melt/src/lib/components/Slider.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/melt/src/lib/components/SpatialMenu.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 packages/melt/src/lib/components/Tabs.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/melt/src/lib/components/Toggle.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 30 packages/melt/src/lib/components/Tooltip.svelte	folding.json
+[{"startLine":0,"endLine":16}]

@@ -1,0 +1,181 @@
+# rsvelte pack 1
+=== 30 src/lib/AttributionControl.svelte	folding.json
+[{"startLine":0,"endLine":34}]
+=== 60 src/lib/BackgroundLayer.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":39,"endLine":63}]
+=== 60 src/lib/CircleLayer.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":41,"endLine":66}]
+=== 60 src/lib/Control.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":41,"endLine":42}]
+=== 120 src/lib/ControlButton.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":27,"endLine":28},{"startLine":26,"endLine":29},{"startLine":32,"endLine":38}]
+=== 59 src/lib/ControlGroup.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 31 src/lib/DeckGlLayer.svelte	folding.json
+[{"startLine":0,"endLine":150}]
+=== 31 src/lib/DefaultMarker.svelte	folding.json
+[{"startLine":0,"endLine":163}]
+=== 60 src/lib/FillExtrusionLayer.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":39,"endLine":63}]
+=== 60 src/lib/FillLayer.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":39,"endLine":63}]
+=== 30 src/lib/FullscreenControl.svelte	folding.json
+[{"startLine":0,"endLine":41}]
+=== 31 src/lib/GeoJSON.svelte	folding.json
+[{"startLine":0,"endLine":125}]
+=== 30 src/lib/GeolocateControl.svelte	folding.json
+[{"startLine":0,"endLine":43}]
+=== 60 src/lib/HeatmapLayer.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":39,"endLine":63}]
+=== 60 src/lib/HillshadeLayer.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":32,"endLine":49}]
+=== 30 src/lib/ImageSource.svelte	folding.json
+[{"startLine":0,"endLine":72}]
+=== 30 src/lib/JoinedData.svelte	folding.json
+[{"startLine":0,"endLine":56}]
+=== 80 src/lib/Layer.svelte	folding.json
+[{"startLine":0,"endLine":333},{"startLine":336,"endLine":341,"kind":"comment"}]
+=== 60 src/lib/LineLayer.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":39,"endLine":63}]
+=== 31 src/lib/MapEvents.svelte	folding.json
+[{"startLine":0,"endLine":108}]
+=== 127 src/lib/MapLibre.svelte	folding.json
+[{"startLine":0,"endLine":522},{"startLine":537,"endLine":539},{"startLine":527,"endLine":550},{"startLine":553,"endLine":560}]
+=== 63 src/lib/Marker.svelte	folding.json
+[{"startLine":0,"endLine":239},{"startLine":243,"endLine":271}]
+=== 112 src/lib/MarkerLayer.svelte	folding.json
+[{"startLine":0,"endLine":220},{"startLine":223,"endLine":230,"kind":"comment"},{"startLine":239,"endLine":264}]
+=== 30 src/lib/NavigationControl.svelte	folding.json
+[{"startLine":0,"endLine":33}]
+=== 95 src/lib/Popup.svelte	folding.json
+[{"startLine":0,"endLine":414},{"startLine":418,"endLine":427},{"startLine":431,"endLine":434}]
+=== 31 src/lib/RasterDEMTileSource.svelte	folding.json
+[{"startLine":0,"endLine":115}]
+=== 60 src/lib/RasterLayer.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":32,"endLine":49}]
+=== 31 src/lib/RasterTileSource.svelte	folding.json
+[{"startLine":0,"endLine":117}]
+=== 30 src/lib/ScaleControl.svelte	folding.json
+[{"startLine":0,"endLine":30}]
+=== 60 src/lib/SymbolLayer.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":41,"endLine":66}]
+=== 30 src/lib/Terrain.svelte	folding.json
+[{"startLine":0,"endLine":24}]
+=== 30 src/lib/TerrainControl.svelte	folding.json
+[{"startLine":0,"endLine":27}]
+=== 63 src/lib/TopoJSON.svelte	folding.json
+[{"startLine":0,"endLine":122},{"startLine":126,"endLine":139}]
+=== 31 src/lib/VectorTileSource.svelte	folding.json
+[{"startLine":0,"endLine":101}]
+=== 77 src/lib/ZoomRange.svelte	folding.json
+[{"startLine":0,"endLine":41},{"startLine":44,"endLine":51,"kind":"comment"}]
+=== 330 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":29,"endLine":30},{"startLine":27,"endLine":32},{"startLine":35,"endLine":37},{"startLine":34,"endLine":39},{"startLine":26,"endLine":40},{"startLine":25,"endLine":43},{"startLine":48,"endLine":49},{"startLine":52,"endLine":53},{"startLine":46,"endLine":54},{"startLine":23,"endLine":55}]
+=== 29 src/routes/+page.svelte	folding.json
+[{"startLine":5,"endLine":8}]
+=== 87 src/routes/LogoAndMenu.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":9,"endLine":12},{"startLine":8,"endLine":13}]
+=== 428 src/routes/NavBar.svelte	folding.json
+[{"startLine":0,"endLine":61},{"startLine":68,"endLine":69},{"startLine":74,"endLine":79},{"startLine":73,"endLine":80},{"startLine":71,"endLine":82},{"startLine":67,"endLine":83},{"startLine":88,"endLine":89},{"startLine":94,"endLine":99},{"startLine":93,"endLine":100},{"startLine":91,"endLine":102},{"startLine":87,"endLine":103},{"startLine":108,"endLine":112},{"startLine":107,"endLine":113},{"startLine":64,"endLine":114}]
+=== 59 src/routes/examples/+layout.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":14}]
+=== 196 src/routes/examples/3d_buildings/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":13,"endLine":15},{"startLine":19,"endLine":21},{"startLine":36,"endLine":38,"kind":"comment"},{"startLine":39,"endLine":77},{"startLine":23,"endLine":78}]
+=== 545 src/routes/examples/3d_terrain/+page.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":24,"endLine":26},{"startLine":28,"endLine":29},{"startLine":23,"endLine":30},{"startLine":36,"endLine":37},{"startLine":33,"endLine":38},{"startLine":45,"endLine":51},{"startLine":43,"endLine":52},{"startLine":56,"endLine":62},{"startLine":54,"endLine":63},{"startLine":41,"endLine":64},{"startLine":81,"endLine":82},{"startLine":84,"endLine":85},{"startLine":88,"endLine":91},{"startLine":98,"endLine":105},{"startLine":93,"endLine":106},{"startLine":109,"endLine":112},{"startLine":67,"endLine":113}]
+=== 60 src/routes/examples/ClusterPopup.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":42,"endLine":43}]
+=== 59 src/routes/examples/background/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 60 src/routes/examples/basic/+page.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":16,"endLine":20}]
+=== 341 src/routes/examples/changing_basemap_style/+page.svelte	folding.json
+[{"startLine":0,"endLine":70},{"startLine":74,"endLine":76},{"startLine":79,"endLine":81},{"startLine":73,"endLine":82},{"startLine":98,"endLine":103},{"startLine":107,"endLine":110},{"startLine":96,"endLine":112},{"startLine":116,"endLine":119},{"startLine":115,"endLine":120},{"startLine":85,"endLine":121},{"startLine":126,"endLine":137}]
+=== 591 src/routes/examples/clusters/+page.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":32,"endLine":33},{"startLine":31,"endLine":34},{"startLine":42,"endLine":43},{"startLine":37,"endLine":44},{"startLine":85,"endLine":88},{"startLine":65,"endLine":89},{"startLine":92,"endLine":114},{"startLine":135,"endLine":136},{"startLine":134,"endLine":137},{"startLine":140,"endLine":141},{"startLine":130,"endLine":144},{"startLine":117,"endLine":145},{"startLine":53,"endLine":146},{"startLine":47,"endLine":147},{"startLine":152,"endLine":154},{"startLine":158,"endLine":159},{"startLine":156,"endLine":160},{"startLine":168,"endLine":172}]
+=== 270 src/routes/examples/controls/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":34,"endLine":35},{"startLine":40,"endLine":48},{"startLine":50,"endLine":57},{"startLine":59,"endLine":66},{"startLine":39,"endLine":67},{"startLine":70,"endLine":71},{"startLine":38,"endLine":72},{"startLine":21,"endLine":74}]
+=== 149 src/routes/examples/cooperative_gestures/+page.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":13},{"startLine":16,"endLine":17},{"startLine":15,"endLine":18},{"startLine":22,"endLine":31}]
+=== 211 src/routes/examples/custom_marker/+page.svelte	folding.json
+[{"startLine":0,"endLine":61},{"startLine":64,"endLine":69},{"startLine":72,"endLine":77},{"startLine":93,"endLine":94},{"startLine":97,"endLine":98},{"startLine":88,"endLine":99},{"startLine":80,"endLine":101}]
+=== 804 src/routes/examples/custom_marker_clusters/+page.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":29,"endLine":30},{"startLine":28,"endLine":31},{"startLine":39,"endLine":40},{"startLine":34,"endLine":41},{"startLine":70,"endLine":72},{"startLine":69,"endLine":73},{"startLine":68,"endLine":74},{"startLine":76,"endLine":77},{"startLine":62,"endLine":79},{"startLine":97,"endLine":98},{"startLine":96,"endLine":99},{"startLine":102,"endLine":103},{"startLine":94,"endLine":104},{"startLine":82,"endLine":106},{"startLine":50,"endLine":107},{"startLine":44,"endLine":108},{"startLine":113,"endLine":115},{"startLine":119,"endLine":120},{"startLine":117,"endLine":121},{"startLine":129,"endLine":133},{"startLine":138,"endLine":141},{"startLine":137,"endLine":142},{"startLine":145,"endLine":146},{"startLine":144,"endLine":147},{"startLine":136,"endLine":148}]
+=== 210 src/routes/examples/data_join/+page.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":24,"endLine":35},{"startLine":38,"endLine":43},{"startLine":59,"endLine":65},{"startLine":67,"endLine":86},{"startLine":55,"endLine":87},{"startLine":48,"endLine":88}]
+=== 341 src/routes/examples/deckgl-arcs/+page.svelte	folding.json
+[{"startLine":0,"endLine":80},{"startLine":88,"endLine":90},{"startLine":92,"endLine":94},{"startLine":87,"endLine":95},{"startLine":85,"endLine":96},{"startLine":110,"endLine":126},{"startLine":108,"endLine":127},{"startLine":146,"endLine":151},{"startLine":130,"endLine":152},{"startLine":99,"endLine":153},{"startLine":156,"endLine":163}]
+=== 180 src/routes/examples/draggable_custom_marker/+page.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":20},{"startLine":30,"endLine":36},{"startLine":39,"endLine":44},{"startLine":23,"endLine":45},{"startLine":48,"endLine":50}]
+=== 60 src/routes/examples/draw/+page.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":47,"endLine":51}]
+=== 210 src/routes/examples/geojson_extrusion/+page.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":18},{"startLine":51,"endLine":53},{"startLine":47,"endLine":56},{"startLine":29,"endLine":57},{"startLine":28,"endLine":58},{"startLine":20,"endLine":59}]
+=== 150 src/routes/examples/geojson_line_layer/+page.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":50,"endLine":51},{"startLine":64,"endLine":71},{"startLine":63,"endLine":72},{"startLine":54,"endLine":73}]
+=== 240 src/routes/examples/geojson_polygon/+page.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":46,"endLine":50},{"startLine":52,"endLine":53},{"startLine":67,"endLine":74},{"startLine":78,"endLine":81},{"startLine":65,"endLine":83},{"startLine":56,"endLine":84},{"startLine":88,"endLine":91}]
+=== 90 src/routes/examples/globe/+page.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":21},{"startLine":24,"endLine":28}]
+=== 213 src/routes/examples/heatmap/+page.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":17,"endLine":19},{"startLine":16,"endLine":20},{"startLine":31,"endLine":63},{"startLine":66,"endLine":103},{"startLine":30,"endLine":104},{"startLine":23,"endLine":105}]
+=== 270 src/routes/examples/image_source/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":20,"endLine":22},{"startLine":19,"endLine":23},{"startLine":40,"endLine":44},{"startLine":31,"endLine":45},{"startLine":47,"endLine":48},{"startLine":50,"endLine":51},{"startLine":26,"endLine":52},{"startLine":57,"endLine":64}]
+=== 564 src/routes/examples/image_symbols/+page.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":23,"endLine":24},{"startLine":22,"endLine":25},{"startLine":50,"endLine":74},{"startLine":77,"endLine":97},{"startLine":100,"endLine":110},{"startLine":38,"endLine":111},{"startLine":28,"endLine":113},{"startLine":118,"endLine":120},{"startLine":124,"endLine":125},{"startLine":122,"endLine":126},{"startLine":137,"endLine":138},{"startLine":135,"endLine":139},{"startLine":146,"endLine":149},{"startLine":145,"endLine":150},{"startLine":153,"endLine":154},{"startLine":152,"endLine":155},{"startLine":144,"endLine":156}]
+=== 167 src/routes/examples/marker/+page.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":58,"endLine":59,"kind":"comment"},{"startLine":61,"endLine":62},{"startLine":60,"endLine":63},{"startLine":50,"endLine":65}]
+=== 180 src/routes/examples/marker_layer/+page.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":25,"endLine":26},{"startLine":28,"endLine":29},{"startLine":23,"endLine":31},{"startLine":22,"endLine":32},{"startLine":15,"endLine":33}]
+=== 107 src/routes/examples/marker_on_click/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":24,"endLine":26,"kind":"comment"},{"startLine":19,"endLine":31}]
+=== 399 src/routes/examples/overlapping_layer_events/+page.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":60,"endLine":62},{"startLine":65,"endLine":67},{"startLine":75,"endLine":76},{"startLine":70,"endLine":77},{"startLine":80,"endLine":85},{"startLine":88,"endLine":92},{"startLine":59,"endLine":93},{"startLine":129,"endLine":137},{"startLine":123,"endLine":139},{"startLine":104,"endLine":140},{"startLine":103,"endLine":141},{"startLine":96,"endLine":143}]
+=== 150 src/routes/examples/pmtile_source/+page.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":15},{"startLine":28,"endLine":34},{"startLine":25,"endLine":35},{"startLine":18,"endLine":36}]
+=== 167 src/routes/examples/popup_remote/+page.svelte	folding.json
+[{"startLine":0,"endLine":52},{"startLine":63,"endLine":64,"kind":"comment"},{"startLine":66,"endLine":82},{"startLine":65,"endLine":83},{"startLine":55,"endLine":85}]
+=== 210 src/routes/examples/raster_source/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":20,"endLine":22},{"startLine":19,"endLine":23},{"startLine":26,"endLine":30},{"startLine":40,"endLine":43},{"startLine":39,"endLine":44},{"startLine":33,"endLine":45}]
+=== 120 src/routes/examples/vector_source/+page.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":27,"endLine":33},{"startLine":22,"endLine":34},{"startLine":15,"endLine":35}]
+=== 526 src/routes/examples/zoom_transition/+page.svelte	folding.json
+[{"startLine":0,"endLine":42},{"startLine":45,"endLine":47},{"startLine":51,"endLine":53},{"startLine":50,"endLine":55},{"startLine":71,"endLine":75},{"startLine":78,"endLine":83},{"startLine":70,"endLine":84},{"startLine":88,"endLine":101},{"startLine":87,"endLine":102},{"startLine":67,"endLine":103},{"startLine":110,"endLine":114},{"startLine":117,"endLine":122},{"startLine":109,"endLine":123},{"startLine":127,"endLine":135},{"startLine":126,"endLine":136},{"startLine":106,"endLine":137},{"startLine":58,"endLine":138}]
+=== 210 src/routes/tests/change_center_zoom/+page.svelte	folding.json
+[{"startLine":0,"endLine":62},{"startLine":67,"endLine":72},{"startLine":75,"endLine":80},{"startLine":66,"endLine":81},{"startLine":83,"endLine":84},{"startLine":65,"endLine":85},{"startLine":88,"endLine":96}]
+=== 90 src/routes/tests/map-style-update/+page.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":18},{"startLine":21,"endLine":24}]
+=== 150 src/routes/tests/marker-class-update/+page.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":19,"endLine":22},{"startLine":33,"endLine":36},{"startLine":32,"endLine":37},{"startLine":25,"endLine":38}]
+=== 180 src/routes/tests/marker-z-index/+page.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":23,"endLine":27},{"startLine":38,"endLine":39},{"startLine":37,"endLine":40},{"startLine":43,"endLine":44},{"startLine":30,"endLine":45}]
+=== 120 src/routes/tests/replace_source/+page.svelte	folding.json
+[{"startLine":0,"endLine":50},{"startLine":65,"endLine":67},{"startLine":64,"endLine":68},{"startLine":55,"endLine":71}]
+=== 60 src/routes/tests/standalone-popup/+page.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":23,"endLine":30}]
+=== 60 src/site/CodeSample.svelte	folding.json
+[{"startLine":0,"endLine":70},{"startLine":73,"endLine":74}]
+=== 135 src/site/components/CodeBlock.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":27},{"startLine":30,"endLine":31,"kind":"comment"},{"startLine":32,"endLine":35}]
+=== 120 src/site/components/ui/button/button.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":50,"endLine":61},{"startLine":65,"endLine":75},{"startLine":78,"endLine":86}]
+=== 29 src/site/components/ui/sheet/sheet-close.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 178 src/site/components/ui/sheet/sheet-content.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":27},{"startLine":46,"endLine":48},{"startLine":44,"endLine":50},{"startLine":32,"endLine":52},{"startLine":30,"endLine":53}]
+=== 59 src/site/components/ui/sheet/sheet-description.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 59 src/site/components/ui/sheet/sheet-footer.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/site/components/ui/sheet/sheet-header.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":18}]
+=== 59 src/site/components/ui/sheet/sheet-overlay.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 29 src/site/components/ui/sheet/sheet-portal.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 59 src/site/components/ui/sheet/sheet-title.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":15}]
+=== 29 src/site/components/ui/sheet/sheet-trigger.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 src/site/components/ui/sheet/sheet.svelte	folding.json
+[{"startLine":0,"endLine":3}]

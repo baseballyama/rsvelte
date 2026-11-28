@@ -1,0 +1,45 @@
+# rsvelte pack 1
+=== 30 attractions/autocomplete/more-horizontal.svelte	folding.json
+[{"startLine":1,"endLine":14}]
+=== 30 attractions/date-picker/chevron-left.svelte	folding.json
+[{"startLine":1,"endLine":12}]
+=== 30 attractions/date-picker/chevron-right.svelte	folding.json
+[{"startLine":1,"endLine":12}]
+=== 30 attractions/dialog/x.svelte	folding.json
+[{"startLine":1,"endLine":13}]
+=== 88 attractions/file-input/paperclip.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":21,"endLine":22},{"startLine":9,"endLine":23}]
+=== 58 attractions/file-input/plus.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":9,"endLine":22}]
+=== 60 attractions/file-input/trash-2.svelte	folding.json
+[{"startLine":13,"endLine":14},{"startLine":1,"endLine":17}]
+=== 58 attractions/loading/loading.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":9,"endLine":12}]
+=== 60 attractions/star-rating/star.svelte	folding.json
+[{"startLine":11,"endLine":12},{"startLine":1,"endLine":13}]
+=== 30 attractions/time-picker/clock.svelte	folding.json
+[{"startLine":1,"endLine":13}]
+=== 87 docs/src/containers/docs/showcase.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":9,"endLine":10},{"startLine":5,"endLine":11}]
+=== 210 docs/src/containers/home/info-tiles.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":21,"endLine":25},{"startLine":27,"endLine":31},{"startLine":34,"endLine":38},{"startLine":41,"endLine":45},{"startLine":48,"endLine":52},{"startLine":20,"endLine":54}]
+=== 30 docs/src/mdsvex/layout-no-head.svelte	folding.json
+[{"startLine":0,"endLine":25}]
+=== 29 docs/src/mdsvex/li.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 docs/src/mdsvex/mark.svelte	folding.json
+[]
+=== 29 docs/src/mdsvex/p.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 docs/src/mdsvex/table.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 docs/src/mdsvex/td.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 85 docs/src/mdsvex/th.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":4,"endLine":7}]
+=== 29 docs/src/mdsvex/tr.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 docs/src/mdsvex/ul.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 387 docs/src/routes/index.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8},{"startLine":16,"endLine":17},{"startLine":13,"endLine":18},{"startLine":20,"endLine":22},{"startLine":25,"endLine":27},{"startLine":29,"endLine":31},{"startLine":24,"endLine":32},{"startLine":12,"endLine":33},{"startLine":38,"endLine":42},{"startLine":44,"endLine":47},{"startLine":37,"endLine":48},{"startLine":11,"endLine":49}]

@@ -1,0 +1,11 @@
+# rsvelte pack 1
+=== 63 example/Example1.svelte	folding.json
+[{"startLine":0,"endLine":127},{"startLine":132,"endLine":138}]
+=== 476 example/Example5.svelte	folding.json
+[{"startLine":0,"endLine":95},{"startLine":100,"endLine":102},{"startLine":108,"endLine":109},{"startLine":104,"endLine":110},{"startLine":112,"endLine":115},{"startLine":99,"endLine":116},{"startLine":98,"endLine":117},{"startLine":122,"endLine":127},{"startLine":129,"endLine":134},{"startLine":136,"endLine":141},{"startLine":143,"endLine":148},{"startLine":150,"endLine":154},{"startLine":120,"endLine":155},{"startLine":158,"endLine":163},{"startLine":168,"endLine":174}]
+=== 60 example/Example6.svelte	folding.json
+[{"startLine":0,"endLine":77},{"startLine":82,"endLine":88}]
+=== 254 example/Example8.svelte	folding.json
+[{"startLine":0,"endLine":97},{"startLine":104,"endLine":109},{"startLine":103,"endLine":110},{"startLine":100,"endLine":111},{"startLine":118,"endLine":123},{"startLine":117,"endLine":124},{"startLine":114,"endLine":125},{"startLine":128,"endLine":135}]
+=== 29 example/example6/HelpButtonComponent.svelte	folding.json
+[{"startLine":0,"endLine":4}]

@@ -1,0 +1,33 @@
+# rsvelte pack 1
+=== 30 src/lib/components/action.svelte	folding.json
+[{"startLine":0,"endLine":25}]
+=== 61 src/lib/components/code.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":17,"endLine":700}]
+=== 127 src/lib/components/embed.svelte	folding.json
+[{"startLine":0,"endLine":141},{"startLine":145,"endLine":146},{"startLine":144,"endLine":147},{"startLine":150,"endLine":158}]
+=== 59 src/lib/components/notes.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":11}]
+=== 95 src/lib/components/presentation.svelte	folding.json
+[{"startLine":0,"endLine":181},{"startLine":185,"endLine":188},{"startLine":184,"endLine":189}]
+=== 191 src/lib/components/recorder.svelte	folding.json
+[{"startLine":0,"endLine":114},{"startLine":122,"endLine":125},{"startLine":121,"endLine":126},{"startLine":129,"endLine":138},{"startLine":120,"endLine":139},{"startLine":143,"endLine":202}]
+=== 60 src/lib/components/slide.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":41,"endLine":60}]
+=== 60 src/lib/components/slides.svelte	folding.json
+[{"startLine":2,"endLine":21},{"startLine":30,"endLine":31}]
+=== 125 src/lib/components/transition.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":141},{"startLine":150,"endLine":159},{"startLine":163,"endLine":166}]
+=== 57 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 620 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":12,"endLine":13},{"startLine":17,"endLine":23},{"startLine":38,"endLine":43},{"startLine":26,"endLine":44},{"startLine":60,"endLine":68},{"startLine":58,"endLine":69},{"startLine":47,"endLine":70},{"startLine":73,"endLine":104},{"startLine":16,"endLine":105},{"startLine":109,"endLine":110},{"startLine":122,"endLine":129},{"startLine":120,"endLine":131},{"startLine":113,"endLine":132},{"startLine":135,"endLine":154},{"startLine":108,"endLine":155},{"startLine":162,"endLine":163},{"startLine":160,"endLine":164},{"startLine":158,"endLine":165},{"startLine":11,"endLine":166}]
+=== 57 src/routes/file-based/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 2 src/slides/100/slide.svelte	folding.json
+[]
+=== 238 src/slides/200/slide.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":15},{"startLine":30,"endLine":35},{"startLine":18,"endLine":36},{"startLine":52,"endLine":60},{"startLine":50,"endLine":61},{"startLine":39,"endLine":62},{"startLine":65,"endLine":96}]
+=== 177 src/slides/300/slide.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8},{"startLine":20,"endLine":27},{"startLine":18,"endLine":29},{"startLine":11,"endLine":30},{"startLine":33,"endLine":52}]
+=== 29 src/slides/400/slide.svelte	folding.json
+[{"startLine":1,"endLine":3}]

@@ -384,6 +384,7 @@ fn main() -> ExitCode {
     rsvelte_svelte_compile::register(&mut registry);
     rsvelte_typescript_compile::register(&mut registry);
     rsvelte_svelte_format::register(&mut registry);
+    rsvelte_svelte_editor::register(&mut registry);
     rsvelte_svelte_lint::register_with_configuration(&mut registry, oracle_lint_configuration());
     // The oracle lints each unit outside any SvelteKit project, with a `svelte.config.js` of
     // `compilerOptions: { runes: true }`.
@@ -489,6 +490,7 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
         .compare("svelte.compileModule/client")
         .compare("svelte.compileModule/server")
         .compare("svelte.format/default")
+        .compare("svelte.folding/default")
         .compare("svelte.lint/default")
         .compare("svelte.check/default")
         .compare("svelte.parse/modern")

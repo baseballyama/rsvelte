@@ -1,0 +1,353 @@
+# rsvelte pack 1
+=== 135 src/_components/Annotations.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":34},{"startLine":37,"endLine":40},{"startLine":43,"endLine":46}]
+=== 165 src/_components/AnnotationsData.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":54},{"startLine":59,"endLine":65},{"startLine":57,"endLine":67},{"startLine":70,"endLine":73}]
+=== 75 src/_components/Area-D3.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":26}]
+=== 75 src/_components/Area.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":41}]
+=== 105 src/_components/AreaStacked.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":15},{"startLine":18,"endLine":21}]
+=== 105 src/_components/ArrowheadMarker.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":12},{"startLine":15,"endLine":16}]
+=== 172 src/_components/Arrows.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":110},{"startLine":115,"endLine":122},{"startLine":113,"endLine":124},{"startLine":127,"endLine":137}]
+=== 165 src/_components/AxisRadial.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":34},{"startLine":44,"endLine":52},{"startLine":54,"endLine":59},{"startLine":37,"endLine":61}]
+=== 226 src/_components/AxisX.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":5,"kind":"comment"},{"startLine":6,"endLine":56},{"startLine":71,"endLine":75},{"startLine":83,"endLine":88},{"startLine":78,"endLine":89},{"startLine":59,"endLine":91},{"startLine":94,"endLine":133}]
+=== 226 src/_components/AxisX.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":66},{"startLine":80,"endLine":85},{"startLine":88,"endLine":89},{"startLine":75,"endLine":90},{"startLine":69,"endLine":92},{"startLine":95,"endLine":120}]
+=== 226 src/_components/AxisXTop.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":5,"kind":"comment"},{"startLine":6,"endLine":56},{"startLine":71,"endLine":75},{"startLine":83,"endLine":88},{"startLine":78,"endLine":89},{"startLine":59,"endLine":91},{"startLine":94,"endLine":133}]
+=== 226 src/_components/AxisXTop.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":66},{"startLine":80,"endLine":85},{"startLine":88,"endLine":89},{"startLine":75,"endLine":90},{"startLine":69,"endLine":92},{"startLine":95,"endLine":120}]
+=== 200 src/_components/AxisY.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":5,"kind":"comment"},{"startLine":6,"endLine":76},{"startLine":93,"endLine":105},{"startLine":83,"endLine":106},{"startLine":79,"endLine":108},{"startLine":111,"endLine":142}]
+=== 196 src/_components/AxisY.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":72},{"startLine":85,"endLine":93},{"startLine":78,"endLine":94},{"startLine":75,"endLine":96},{"startLine":99,"endLine":117}]
+=== 261 src/_components/AxisYRight.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":5,"kind":"comment"},{"startLine":6,"endLine":75},{"startLine":87,"endLine":91},{"startLine":95,"endLine":99},{"startLine":102,"endLine":112},{"startLine":82,"endLine":113},{"startLine":78,"endLine":115},{"startLine":118,"endLine":149}]
+=== 229 src/_components/AxisYRight.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":72},{"startLine":83,"endLine":88},{"startLine":92,"endLine":99},{"startLine":78,"endLine":100},{"startLine":75,"endLine":102},{"startLine":105,"endLine":123}]
+=== 135 src/_components/Bar.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":15},{"startLine":20,"endLine":27},{"startLine":18,"endLine":29}]
+=== 135 src/_components/BarStacked.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":12},{"startLine":18,"endLine":25},{"startLine":15,"endLine":28}]
+=== 166 src/_components/Beeswarm.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":69},{"startLine":74,"endLine":88},{"startLine":72,"endLine":90},{"startLine":93,"endLine":114}]
+=== 135 src/_components/Beeswarm.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":69},{"startLine":74,"endLine":84},{"startLine":72,"endLine":86}]
+=== 166 src/_components/BeeswarmForce.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":74},{"startLine":79,"endLine":93},{"startLine":77,"endLine":95},{"startLine":98,"endLine":119}]
+=== 135 src/_components/BeeswarmForce.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":74},{"startLine":79,"endLine":82},{"startLine":77,"endLine":84}]
+=== 235 src/_components/Brush.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":96},{"startLine":103,"endLine":108},{"startLine":110,"endLine":115},{"startLine":117,"endLine":122},{"startLine":101,"endLine":124},{"startLine":127,"endLine":158}]
+=== 135 src/_components/CalendarMonth.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":68},{"startLine":72,"endLine":80},{"startLine":84,"endLine":89}]
+=== 230 src/_components/CirclePack.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":78},{"startLine":84,"endLine":91},{"startLine":93,"endLine":109},{"startLine":83,"endLine":110},{"startLine":81,"endLine":112},{"startLine":115,"endLine":176}]
+=== 105 src/_components/CirclePackForce.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":71},{"startLine":75,"endLine":84}]
+=== 225 src/_components/ClevelandDotPlot.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":17},{"startLine":25,"endLine":31},{"startLine":35,"endLine":43},{"startLine":24,"endLine":45},{"startLine":20,"endLine":47},{"startLine":50,"endLine":61}]
+=== 195 src/_components/ClevelandDotPlot.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":17},{"startLine":25,"endLine":29},{"startLine":24,"endLine":34},{"startLine":20,"endLine":36},{"startLine":39,"endLine":47}]
+=== 165 src/_components/Column.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":27},{"startLine":37,"endLine":48},{"startLine":30,"endLine":53},{"startLine":56,"endLine":59}]
+=== 134 src/_components/ColumnStacked.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":7},{"startLine":15,"endLine":22},{"startLine":10,"endLine":25}]
+=== 135 src/_components/GroupLabels.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":19},{"startLine":23,"endLine":30},{"startLine":34,"endLine":39}]
+=== 195 src/_components/Key.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":29},{"startLine":35,"endLine":39},{"startLine":34,"endLine":41},{"startLine":32,"endLine":43},{"startLine":46,"endLine":78}]
+=== 135 src/_components/Labels.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":17},{"startLine":21,"endLine":28},{"startLine":32,"endLine":37}]
+=== 105 src/_components/Line-D3.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":21},{"startLine":26,"endLine":32}]
+=== 105 src/_components/Line.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":24},{"startLine":29,"endLine":35}]
+=== 75 src/_components/Map.canvas.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":57}]
+=== 165 src/_components/Map.svg.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":53},{"startLine":59,"endLine":67},{"startLine":57,"endLine":69},{"startLine":72,"endLine":90}]
+=== 165 src/_components/MapLabels.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":25},{"startLine":31,"endLine":38},{"startLine":28,"endLine":40},{"startLine":43,"endLine":55}]
+=== 135 src/_components/MapLabels.svg.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":23},{"startLine":26,"endLine":30},{"startLine":33,"endLine":45}]
+=== 75 src/_components/MapPoints.canvas.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":59}]
+=== 165 src/_components/MapPoints.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":31},{"startLine":37,"endLine":48},{"startLine":34,"endLine":50},{"startLine":53,"endLine":58}]
+=== 135 src/_components/MapPoints.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":35},{"startLine":41,"endLine":48},{"startLine":38,"endLine":50}]
+=== 135 src/_components/MultiLine.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":20},{"startLine":23,"endLine":26},{"startLine":29,"endLine":35}]
+=== 135 src/_components/QuadTree.html.svelte	folding.json
+[{"startLine":0,"endLine":5,"kind":"comment"},{"startLine":6,"endLine":51},{"startLine":54,"endLine":59},{"startLine":63,"endLine":70}]
+=== 135 src/_components/QuadTree.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":5,"kind":"comment"},{"startLine":6,"endLine":55},{"startLine":58,"endLine":63},{"startLine":67,"endLine":74}]
+=== 195 src/_components/Radar.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":60},{"startLine":67,"endLine":73},{"startLine":79,"endLine":85},{"startLine":63,"endLine":88},{"startLine":91,"endLine":95}]
+=== 257 src/_components/Sankey.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":69},{"startLine":75,"endLine":80},{"startLine":73,"endLine":82},{"startLine":87,"endLine":95},{"startLine":84,"endLine":97},{"startLine":72,"endLine":98},{"startLine":101,"endLine":104}]
+=== 75 src/_components/Scatter.canvas.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":51}]
+=== 165 src/_components/Scatter.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":18},{"startLine":23,"endLine":32},{"startLine":21,"endLine":34},{"startLine":37,"endLine":42}]
+=== 135 src/_components/Scatter.svg.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":18},{"startLine":23,"endLine":29},{"startLine":21,"endLine":31}]
+=== 76 src/_components/Scatter.webgl.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":203}]
+=== 196 src/_components/SharedTooltip.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":52},{"startLine":70,"endLine":72},{"startLine":60,"endLine":74},{"startLine":55,"endLine":77},{"startLine":80,"endLine":111}]
+=== 196 src/_components/SharedTooltip.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":52},{"startLine":70,"endLine":72},{"startLine":60,"endLine":74},{"startLine":55,"endLine":77},{"startLine":80,"endLine":110}]
+=== 90 src/_components/SmallMultipleWrapper.percent-range.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":37,"endLine":38},{"startLine":27,"endLine":39}]
+=== 90 src/_components/SmallMultipleWrapper.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":35,"endLine":36},{"startLine":27,"endLine":37}]
+=== 361 src/_components/SyncedBrushWrapper.percent-range.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":52,"endLine":59},{"startLine":51,"endLine":61},{"startLine":63,"endLine":65},{"startLine":42,"endLine":66},{"startLine":41,"endLine":67},{"startLine":72,"endLine":74},{"startLine":76,"endLine":77},{"startLine":71,"endLine":78},{"startLine":70,"endLine":79},{"startLine":40,"endLine":80},{"startLine":83,"endLine":101}]
+=== 330 src/_components/SyncedBrushWrapper.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":50,"endLine":57},{"startLine":49,"endLine":61},{"startLine":42,"endLine":62},{"startLine":41,"endLine":63},{"startLine":68,"endLine":70},{"startLine":72,"endLine":73},{"startLine":67,"endLine":74},{"startLine":66,"endLine":75},{"startLine":40,"endLine":76},{"startLine":79,"endLine":97}]
+=== 135 src/_components/Tooltip.html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":13},{"startLine":17,"endLine":24},{"startLine":28,"endLine":38}]
+=== 135 src/_components/Voronoi.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":43},{"startLine":48,"endLine":53},{"startLine":57,"endLine":69}]
+=== 105 src/lib/layouts/Canvas.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":53},{"startLine":56,"endLine":70}]
+=== 135 src/lib/layouts/Html.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":35},{"startLine":38,"endLine":53},{"startLine":56,"endLine":61}]
+=== 195 src/lib/layouts/ScaledSvg.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":41},{"startLine":60,"endLine":61},{"startLine":65,"endLine":66},{"startLine":44,"endLine":70},{"startLine":73,"endLine":82}]
+=== 195 src/lib/layouts/Svg.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":39},{"startLine":59,"endLine":60},{"startLine":64,"endLine":65},{"startLine":42,"endLine":68},{"startLine":71,"endLine":77}]
+=== 105 src/lib/layouts/Webgl.svelte	folding.json
+[{"startLine":0,"endLine":3,"kind":"comment"},{"startLine":4,"endLine":64},{"startLine":67,"endLine":81}]
+=== 59 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":11}]
+=== 719 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":59,"endLine":62},{"startLine":66,"endLine":68},{"startLine":73,"endLine":76},{"startLine":72,"endLine":84},{"startLine":87,"endLine":91},{"startLine":96,"endLine":97},{"startLine":94,"endLine":100},{"startLine":71,"endLine":101},{"startLine":104,"endLine":106},{"startLine":112,"endLine":113},{"startLine":111,"endLine":115},{"startLine":109,"endLine":117},{"startLine":127,"endLine":130},{"startLine":133,"endLine":136},{"startLine":122,"endLine":137},{"startLine":139,"endLine":142},{"startLine":120,"endLine":143},{"startLine":149,"endLine":150},{"startLine":148,"endLine":152},{"startLine":146,"endLine":154},{"startLine":65,"endLine":155},{"startLine":158,"endLine":278}]
+=== 150 src/routes/_components/Annotations.html.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":21,"endLine":22},{"startLine":20,"endLine":23},{"startLine":19,"endLine":24},{"startLine":27,"endLine":37}]
+=== 180 src/routes/_components/AnnotationsData.html.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":37,"endLine":38},{"startLine":41,"endLine":42},{"startLine":28,"endLine":43},{"startLine":27,"endLine":44},{"startLine":47,"endLine":57}]
+=== 150 src/routes/_components/Area-D3.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":15,"endLine":16},{"startLine":14,"endLine":17},{"startLine":13,"endLine":18},{"startLine":21,"endLine":31}]
+=== 149 src/routes/_components/Area.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":14,"endLine":15},{"startLine":13,"endLine":16},{"startLine":12,"endLine":17},{"startLine":20,"endLine":30}]
+=== 150 src/routes/_components/AreaStacked.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":43,"endLine":44},{"startLine":33,"endLine":45},{"startLine":32,"endLine":46},{"startLine":49,"endLine":59}]
+=== 180 src/routes/_components/Arrows.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":43,"endLine":44},{"startLine":47,"endLine":51},{"startLine":42,"endLine":52},{"startLine":41,"endLine":53},{"startLine":56,"endLine":66}]
+=== 150 src/routes/_components/AxisRadial.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":24,"endLine":25},{"startLine":17,"endLine":26},{"startLine":16,"endLine":27},{"startLine":30,"endLine":40}]
+=== 481 src/routes/_components/AxisX.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":23,"endLine":24},{"startLine":27,"endLine":28},{"startLine":31,"endLine":32},{"startLine":35,"endLine":36},{"startLine":39,"endLine":41},{"startLine":44,"endLine":46},{"startLine":49,"endLine":51},{"startLine":53,"endLine":55},{"startLine":22,"endLine":56},{"startLine":62,"endLine":70},{"startLine":61,"endLine":71},{"startLine":60,"endLine":72},{"startLine":59,"endLine":73},{"startLine":21,"endLine":74},{"startLine":77,"endLine":126}]
+=== 481 src/routes/_components/AxisXTop.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":23,"endLine":24},{"startLine":27,"endLine":28},{"startLine":31,"endLine":32},{"startLine":35,"endLine":36},{"startLine":39,"endLine":41},{"startLine":44,"endLine":46},{"startLine":49,"endLine":51},{"startLine":53,"endLine":55},{"startLine":22,"endLine":56},{"startLine":62,"endLine":70},{"startLine":61,"endLine":71},{"startLine":60,"endLine":72},{"startLine":59,"endLine":73},{"startLine":21,"endLine":74},{"startLine":77,"endLine":126}]
+=== 541 src/routes/_components/AxisY.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":23,"endLine":24},{"startLine":27,"endLine":28},{"startLine":33,"endLine":35},{"startLine":31,"endLine":36},{"startLine":40,"endLine":43},{"startLine":39,"endLine":44},{"startLine":47,"endLine":49},{"startLine":51,"endLine":53},{"startLine":55,"endLine":57},{"startLine":59,"endLine":61},{"startLine":22,"endLine":62},{"startLine":68,"endLine":77},{"startLine":67,"endLine":78},{"startLine":66,"endLine":79},{"startLine":65,"endLine":80},{"startLine":21,"endLine":81},{"startLine":84,"endLine":133}]
+=== 541 src/routes/_components/AxisYRight.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":23,"endLine":24},{"startLine":27,"endLine":28},{"startLine":33,"endLine":35},{"startLine":31,"endLine":36},{"startLine":40,"endLine":43},{"startLine":39,"endLine":44},{"startLine":47,"endLine":49},{"startLine":51,"endLine":53},{"startLine":55,"endLine":57},{"startLine":59,"endLine":61},{"startLine":22,"endLine":62},{"startLine":68,"endLine":77},{"startLine":67,"endLine":78},{"startLine":66,"endLine":79},{"startLine":65,"endLine":80},{"startLine":21,"endLine":81},{"startLine":84,"endLine":133}]
+=== 150 src/routes/_components/Bar.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":23,"endLine":24},{"startLine":14,"endLine":25},{"startLine":13,"endLine":26},{"startLine":29,"endLine":39}]
+=== 150 src/routes/_components/BarStacked.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":36,"endLine":37},{"startLine":23,"endLine":38},{"startLine":22,"endLine":39},{"startLine":42,"endLine":52}]
+=== 150 src/routes/_components/Beeswarm.html.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":38,"endLine":40},{"startLine":29,"endLine":42},{"startLine":28,"endLine":43},{"startLine":46,"endLine":56}]
+=== 150 src/routes/_components/Beeswarm.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":38,"endLine":40},{"startLine":29,"endLine":42},{"startLine":28,"endLine":43},{"startLine":46,"endLine":56}]
+=== 180 src/routes/_components/BeeswarmForce.html.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":41,"endLine":46},{"startLine":40,"endLine":47},{"startLine":30,"endLine":49},{"startLine":29,"endLine":50},{"startLine":53,"endLine":63}]
+=== 180 src/routes/_components/BeeswarmForce.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":41,"endLine":46},{"startLine":40,"endLine":47},{"startLine":30,"endLine":49},{"startLine":29,"endLine":50},{"startLine":53,"endLine":63}]
+=== 270 src/routes/_components/Brush.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":37,"endLine":39},{"startLine":30,"endLine":40},{"startLine":29,"endLine":41},{"startLine":46,"endLine":48},{"startLine":50,"endLine":51},{"startLine":45,"endLine":52},{"startLine":44,"endLine":53},{"startLine":56,"endLine":70}]
+=== 150 src/routes/_components/Calendar.svelte	folding.json
+[{"startLine":0,"endLine":40},{"startLine":59,"endLine":60},{"startLine":51,"endLine":61},{"startLine":44,"endLine":62},{"startLine":66,"endLine":88}]
+=== 179 src/routes/_components/CirclePack.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":15,"endLine":22},{"startLine":14,"endLine":23},{"startLine":13,"endLine":24},{"startLine":12,"endLine":25},{"startLine":28,"endLine":38}]
+=== 180 src/routes/_components/CirclePackForce.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":30,"endLine":32},{"startLine":48,"endLine":49},{"startLine":36,"endLine":50},{"startLine":35,"endLine":51},{"startLine":54,"endLine":70}]
+=== 150 src/routes/_components/ClevelandDotPlot.html.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":29,"endLine":30},{"startLine":16,"endLine":31},{"startLine":15,"endLine":32},{"startLine":35,"endLine":45}]
+=== 150 src/routes/_components/ClevelandDotPlot.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":27,"endLine":28},{"startLine":16,"endLine":29},{"startLine":15,"endLine":30},{"startLine":33,"endLine":43}]
+=== 150 src/routes/_components/Column.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":23,"endLine":24},{"startLine":14,"endLine":25},{"startLine":13,"endLine":26},{"startLine":29,"endLine":39}]
+=== 150 src/routes/_components/ColumnStacked.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":36,"endLine":37},{"startLine":23,"endLine":38},{"startLine":22,"endLine":39},{"startLine":42,"endLine":52}]
+=== 180 src/routes/_components/GroupLabels.html.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":59,"endLine":60},{"startLine":63,"endLine":64},{"startLine":47,"endLine":65},{"startLine":46,"endLine":66},{"startLine":69,"endLine":79}]
+=== 150 src/routes/_components/Labels.html.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":18,"endLine":19},{"startLine":17,"endLine":20},{"startLine":16,"endLine":21},{"startLine":24,"endLine":34}]
+=== 150 src/routes/_components/Line-D3.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":15,"endLine":16},{"startLine":14,"endLine":17},{"startLine":13,"endLine":18},{"startLine":21,"endLine":31}]
+=== 149 src/routes/_components/Line.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":14,"endLine":15},{"startLine":13,"endLine":16},{"startLine":12,"endLine":17},{"startLine":20,"endLine":30}]
+=== 150 src/routes/_components/Map.canvas.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":18,"endLine":19},{"startLine":17,"endLine":20},{"startLine":16,"endLine":21},{"startLine":24,"endLine":34}]
+=== 150 src/routes/_components/Map.svg.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":47,"endLine":48},{"startLine":39,"endLine":49},{"startLine":38,"endLine":50},{"startLine":53,"endLine":63}]
+=== 227 src/routes/_components/MapLabels.html.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":19,"endLine":24,"kind":"comment"},{"startLine":26,"endLine":30},{"startLine":25,"endLine":31},{"startLine":18,"endLine":32},{"startLine":17,"endLine":33},{"startLine":36,"endLine":46}]
+=== 180 src/routes/_components/MapLabels.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":20,"endLine":24},{"startLine":19,"endLine":25},{"startLine":18,"endLine":26},{"startLine":17,"endLine":27},{"startLine":30,"endLine":40}]
+=== 150 src/routes/_components/MapPoints.canvas.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":25,"endLine":26},{"startLine":24,"endLine":27},{"startLine":23,"endLine":28},{"startLine":31,"endLine":41}]
+=== 150 src/routes/_components/MapPoints.html.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":25,"endLine":26},{"startLine":24,"endLine":27},{"startLine":23,"endLine":28},{"startLine":31,"endLine":41}]
+=== 150 src/routes/_components/MapPoints.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":25,"endLine":26},{"startLine":24,"endLine":27},{"startLine":23,"endLine":28},{"startLine":31,"endLine":41}]
+=== 150 src/routes/_components/MultiLine.svelte	folding.json
+[{"startLine":0,"endLine":41},{"startLine":57,"endLine":58},{"startLine":45,"endLine":59},{"startLine":44,"endLine":60},{"startLine":63,"endLine":73}]
+=== 240 src/routes/_components/QuadTree.html.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":25,"endLine":26},{"startLine":32,"endLine":34},{"startLine":30,"endLine":36},{"startLine":29,"endLine":37},{"startLine":17,"endLine":38},{"startLine":16,"endLine":39},{"startLine":42,"endLine":61}]
+=== 150 src/routes/_components/Radar.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":16,"endLine":17},{"startLine":15,"endLine":18},{"startLine":14,"endLine":19},{"startLine":22,"endLine":32}]
+=== 147 src/routes/_components/Sankey.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":10,"endLine":11},{"startLine":9,"endLine":12},{"startLine":8,"endLine":13},{"startLine":16,"endLine":26}]
+=== 150 src/routes/_components/Scatter.canvas.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":24,"endLine":25},{"startLine":16,"endLine":26},{"startLine":15,"endLine":27},{"startLine":30,"endLine":40}]
+=== 150 src/routes/_components/Scatter.svg.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":25,"endLine":26},{"startLine":17,"endLine":27},{"startLine":16,"endLine":28},{"startLine":31,"endLine":41}]
+=== 150 src/routes/_components/ScatterWebgl.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":24,"endLine":25},{"startLine":16,"endLine":26},{"startLine":15,"endLine":27},{"startLine":30,"endLine":40}]
+=== 180 src/routes/_components/SharedTooltip.html.svelte	folding.json
+[{"startLine":0,"endLine":45},{"startLine":61,"endLine":62},{"startLine":65,"endLine":66},{"startLine":49,"endLine":67},{"startLine":48,"endLine":68},{"startLine":71,"endLine":81}]
+=== 270 src/routes/_components/Tooltip.html.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":56,"endLine":65},{"startLine":55,"endLine":66},{"startLine":73,"endLine":75},{"startLine":71,"endLine":77},{"startLine":69,"endLine":79},{"startLine":47,"endLine":80},{"startLine":46,"endLine":81},{"startLine":84,"endLine":94}]
+=== 150 src/routes/_components/Voronoi.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":22,"endLine":23},{"startLine":21,"endLine":24},{"startLine":20,"endLine":25},{"startLine":28,"endLine":38}]
+=== 562 src/routes/_components_ssr/AxisX.html.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":30,"endLine":31},{"startLine":34,"endLine":35},{"startLine":38,"endLine":39},{"startLine":42,"endLine":43},{"startLine":46,"endLine":48},{"startLine":51,"endLine":53},{"startLine":56,"endLine":58},{"startLine":60,"endLine":62},{"startLine":29,"endLine":63},{"startLine":79,"endLine":87},{"startLine":78,"endLine":88},{"startLine":68,"endLine":89},{"startLine":67,"endLine":90},{"startLine":93,"endLine":115,"kind":"comment"},{"startLine":66,"endLine":115},{"startLine":28,"endLine":116},{"startLine":119,"endLine":169}]
+=== 562 src/routes/_components_ssr/AxisXTop.html.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":30,"endLine":31},{"startLine":34,"endLine":35},{"startLine":38,"endLine":39},{"startLine":42,"endLine":43},{"startLine":46,"endLine":48},{"startLine":51,"endLine":53},{"startLine":56,"endLine":58},{"startLine":60,"endLine":62},{"startLine":29,"endLine":63},{"startLine":70,"endLine":78},{"startLine":69,"endLine":79},{"startLine":68,"endLine":80},{"startLine":67,"endLine":81},{"startLine":84,"endLine":105,"kind":"comment"},{"startLine":66,"endLine":105},{"startLine":28,"endLine":106},{"startLine":109,"endLine":159}]
+=== 622 src/routes/_components_ssr/AxisY.html.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":30,"endLine":31},{"startLine":34,"endLine":35},{"startLine":40,"endLine":42},{"startLine":38,"endLine":43},{"startLine":47,"endLine":50},{"startLine":46,"endLine":51},{"startLine":54,"endLine":56},{"startLine":58,"endLine":60},{"startLine":62,"endLine":64},{"startLine":66,"endLine":68},{"startLine":29,"endLine":69},{"startLine":76,"endLine":85},{"startLine":75,"endLine":86},{"startLine":74,"endLine":87},{"startLine":73,"endLine":88},{"startLine":91,"endLine":113,"kind":"comment"},{"startLine":72,"endLine":113},{"startLine":28,"endLine":114},{"startLine":117,"endLine":167}]
+=== 622 src/routes/_components_ssr/AxisYRight.html.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":30,"endLine":31},{"startLine":34,"endLine":35},{"startLine":40,"endLine":42},{"startLine":38,"endLine":43},{"startLine":47,"endLine":50},{"startLine":46,"endLine":51},{"startLine":54,"endLine":56},{"startLine":58,"endLine":60},{"startLine":62,"endLine":64},{"startLine":66,"endLine":68},{"startLine":29,"endLine":69},{"startLine":76,"endLine":85},{"startLine":75,"endLine":86},{"startLine":74,"endLine":87},{"startLine":73,"endLine":88},{"startLine":91,"endLine":113,"kind":"comment"},{"startLine":72,"endLine":113},{"startLine":28,"endLine":114},{"startLine":117,"endLine":167}]
+=== 150 src/routes/_components_ssr/Key.html.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":35,"endLine":40},{"startLine":25,"endLine":41},{"startLine":24,"endLine":42},{"startLine":45,"endLine":58}]
+=== 210 src/routes/_components_ssr/QuadTree.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":31,"endLine":33},{"startLine":29,"endLine":35},{"startLine":27,"endLine":36},{"startLine":17,"endLine":37},{"startLine":16,"endLine":38},{"startLine":41,"endLine":62}]
+=== 150 src/routes/_components_ssr/Scatter.html.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":29,"endLine":30},{"startLine":19,"endLine":31},{"startLine":18,"endLine":32},{"startLine":35,"endLine":45}]
+=== 180 src/routes/_components_ssr/SharedTooltip.percent-range.html.svelte	folding.json
+[{"startLine":0,"endLine":46},{"startLine":64,"endLine":65},{"startLine":68,"endLine":69},{"startLine":50,"endLine":70},{"startLine":49,"endLine":71},{"startLine":74,"endLine":84}]
+=== 117 src/routes/_error.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":10,"endLine":17},{"startLine":21,"endLine":48}]
+=== 150 src/routes/_examples/AreaStacked.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":51,"endLine":54},{"startLine":40,"endLine":55},{"startLine":39,"endLine":56},{"startLine":59,"endLine":69}]
+=== 150 src/routes/_examples/Bar.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":24,"endLine":27},{"startLine":16,"endLine":28},{"startLine":15,"endLine":29},{"startLine":32,"endLine":42}]
+=== 150 src/routes/_examples/BarStacked.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":39,"endLine":42},{"startLine":26,"endLine":43},{"startLine":25,"endLine":44},{"startLine":47,"endLine":57}]
+=== 210 src/routes/_examples/Beeswarm.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":44,"endLine":47},{"startLine":51,"endLine":56},{"startLine":50,"endLine":57},{"startLine":34,"endLine":59},{"startLine":33,"endLine":60},{"startLine":63,"endLine":73}]
+=== 210 src/routes/_examples/BeeswarmForce.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":40,"endLine":45},{"startLine":38,"endLine":46},{"startLine":49,"endLine":50},{"startLine":29,"endLine":51},{"startLine":28,"endLine":52},{"startLine":55,"endLine":65}]
+=== 300 src/routes/_examples/Brush.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":38,"endLine":45},{"startLine":37,"endLine":49},{"startLine":30,"endLine":50},{"startLine":29,"endLine":51},{"startLine":56,"endLine":58},{"startLine":60,"endLine":61},{"startLine":55,"endLine":62},{"startLine":54,"endLine":63},{"startLine":66,"endLine":80}]
+=== 150 src/routes/_examples/Calendar.svelte	folding.json
+[{"startLine":0,"endLine":40},{"startLine":59,"endLine":60},{"startLine":51,"endLine":61},{"startLine":44,"endLine":62},{"startLine":66,"endLine":88}]
+=== 180 src/routes/_examples/CirclePack.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":17,"endLine":24},{"startLine":16,"endLine":25},{"startLine":15,"endLine":26},{"startLine":14,"endLine":27},{"startLine":30,"endLine":40}]
+=== 180 src/routes/_examples/CirclePackForce.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":20,"endLine":22},{"startLine":36,"endLine":37},{"startLine":26,"endLine":38},{"startLine":25,"endLine":39},{"startLine":42,"endLine":58}]
+=== 179 src/routes/_examples/CirclePackNested.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":15,"endLine":21},{"startLine":14,"endLine":22},{"startLine":13,"endLine":23},{"startLine":12,"endLine":24},{"startLine":27,"endLine":37}]
+=== 150 src/routes/_examples/ClevelandDotPlot.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":31,"endLine":34},{"startLine":18,"endLine":35},{"startLine":17,"endLine":36},{"startLine":39,"endLine":49}]
+=== 210 src/routes/_examples/Column.svelte	folding.json
+[{"startLine":0,"endLine":55},{"startLine":68,"endLine":72},{"startLine":75,"endLine":76},{"startLine":79,"endLine":83},{"startLine":59,"endLine":84},{"startLine":58,"endLine":85},{"startLine":88,"endLine":98}]
+=== 150 src/routes/_examples/ColumnStacked.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":39,"endLine":42},{"startLine":26,"endLine":43},{"startLine":25,"endLine":44},{"startLine":47,"endLine":57}]
+=== 210 src/routes/_examples/Histogram.svelte	folding.json
+[{"startLine":0,"endLine":32},{"startLine":37,"endLine":40},{"startLine":35,"endLine":41},{"startLine":54,"endLine":57},{"startLine":45,"endLine":58},{"startLine":44,"endLine":59},{"startLine":62,"endLine":75}]
+=== 150 src/routes/_examples/Line.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":23,"endLine":27},{"startLine":16,"endLine":28},{"startLine":15,"endLine":29},{"startLine":32,"endLine":42}]
+=== 240 src/routes/_examples/MapLayered.svelte	folding.json
+[{"startLine":0,"endLine":54},{"startLine":65,"endLine":66},{"startLine":69,"endLine":70},{"startLine":74,"endLine":78},{"startLine":73,"endLine":79},{"startLine":58,"endLine":80},{"startLine":57,"endLine":81},{"startLine":84,"endLine":94}]
+=== 270 src/routes/_examples/MapSvg.svelte	folding.json
+[{"startLine":0,"endLine":40},{"startLine":52,"endLine":61},{"startLine":51,"endLine":62},{"startLine":75,"endLine":77},{"startLine":67,"endLine":79},{"startLine":65,"endLine":81},{"startLine":44,"endLine":82},{"startLine":43,"endLine":83},{"startLine":86,"endLine":96}]
+=== 210 src/routes/_examples/MultiLine.svelte	folding.json
+[{"startLine":0,"endLine":41},{"startLine":57,"endLine":62},{"startLine":56,"endLine":65},{"startLine":68,"endLine":70},{"startLine":45,"endLine":71},{"startLine":44,"endLine":72},{"startLine":75,"endLine":85}]
+=== 150 src/routes/_examples/Radar.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":23,"endLine":25},{"startLine":16,"endLine":26},{"startLine":15,"endLine":27},{"startLine":30,"endLine":40}]
+=== 147 src/routes/_examples/Sankey.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":10,"endLine":11},{"startLine":9,"endLine":12},{"startLine":8,"endLine":13},{"startLine":16,"endLine":26}]
+=== 210 src/routes/_examples/Scatter.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":33,"endLine":35},{"startLine":38,"endLine":39},{"startLine":42,"endLine":44},{"startLine":25,"endLine":45},{"startLine":24,"endLine":46},{"startLine":49,"endLine":59}]
+=== 270 src/routes/_examples/ScatterWebgl.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":27,"endLine":29},{"startLine":32,"endLine":33},{"startLine":39,"endLine":41},{"startLine":37,"endLine":43},{"startLine":36,"endLine":44},{"startLine":19,"endLine":45},{"startLine":18,"endLine":46},{"startLine":49,"endLine":68}]
+=== 150 src/routes/_examples/SmallMultiples.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":27,"endLine":29},{"startLine":34,"endLine":35},{"startLine":32,"endLine":37},{"startLine":40,"endLine":65}]
+=== 120 src/routes/_examples/SyncedBrush.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":27,"endLine":33},{"startLine":25,"endLine":35},{"startLine":38,"endLine":52}]
+=== 180 src/routes/_examples/Timeplot.svelte	folding.json
+[{"startLine":0,"endLine":54},{"startLine":69,"endLine":71},{"startLine":68,"endLine":74},{"startLine":58,"endLine":75},{"startLine":57,"endLine":76},{"startLine":79,"endLine":89}]
+=== 180 src/routes/_examples_ssr/AreaStacked.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":52,"endLine":54},{"startLine":56,"endLine":57},{"startLine":39,"endLine":58},{"startLine":38,"endLine":59},{"startLine":62,"endLine":72}]
+=== 179 src/routes/_examples_ssr/Bar.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":24,"endLine":26},{"startLine":28,"endLine":29},{"startLine":13,"endLine":30},{"startLine":12,"endLine":31},{"startLine":34,"endLine":44}]
+=== 180 src/routes/_examples_ssr/BarStacked.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":43,"endLine":45},{"startLine":47,"endLine":48},{"startLine":28,"endLine":49},{"startLine":27,"endLine":50},{"startLine":53,"endLine":63}]
+=== 330 src/routes/_examples_ssr/Brush.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":40,"endLine":47},{"startLine":39,"endLine":49},{"startLine":51,"endLine":53},{"startLine":30,"endLine":54},{"startLine":29,"endLine":55},{"startLine":60,"endLine":62},{"startLine":64,"endLine":65},{"startLine":59,"endLine":66},{"startLine":58,"endLine":67},{"startLine":70,"endLine":84}]
+=== 150 src/routes/_examples_ssr/Calendar.svelte	folding.json
+[{"startLine":0,"endLine":41},{"startLine":62,"endLine":63},{"startLine":52,"endLine":64},{"startLine":45,"endLine":65},{"startLine":69,"endLine":91}]
+=== 150 src/routes/_examples_ssr/ClevelandDotPlot.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":33,"endLine":36},{"startLine":18,"endLine":37},{"startLine":17,"endLine":38},{"startLine":41,"endLine":51}]
+=== 292 src/routes/_examples_ssr/Column.svelte	folding.json
+[{"startLine":0,"endLine":55},{"startLine":71,"endLine":72},{"startLine":75,"endLine":78},{"startLine":59,"endLine":79},{"startLine":82,"endLine":85,"kind":"comment"},{"startLine":96,"endLine":100},{"startLine":86,"endLine":101},{"startLine":58,"endLine":102},{"startLine":105,"endLine":110}]
+=== 180 src/routes/_examples_ssr/ColumnStacked.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":43,"endLine":45},{"startLine":47,"endLine":48},{"startLine":28,"endLine":49},{"startLine":27,"endLine":50},{"startLine":53,"endLine":63}]
+=== 240 src/routes/_examples_ssr/Histogram.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":31,"endLine":34},{"startLine":29,"endLine":35},{"startLine":50,"endLine":52},{"startLine":54,"endLine":55},{"startLine":39,"endLine":56},{"startLine":38,"endLine":57},{"startLine":60,"endLine":74}]
+=== 180 src/routes/_examples_ssr/Line.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":25,"endLine":27},{"startLine":29,"endLine":31},{"startLine":16,"endLine":32},{"startLine":15,"endLine":33},{"startLine":36,"endLine":46}]
+=== 300 src/routes/_examples_ssr/MapLayered.svelte	folding.json
+[{"startLine":0,"endLine":48},{"startLine":53,"endLine":54},{"startLine":52,"endLine":55},{"startLine":68,"endLine":71},{"startLine":67,"endLine":72},{"startLine":75,"endLine":80},{"startLine":74,"endLine":81},{"startLine":58,"endLine":82},{"startLine":51,"endLine":83},{"startLine":86,"endLine":97}]
+=== 150 src/routes/_examples_ssr/MapSvg.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":49,"endLine":50},{"startLine":40,"endLine":51},{"startLine":39,"endLine":52},{"startLine":55,"endLine":66}]
+=== 240 src/routes/_examples_ssr/MultiLine.svelte	folding.json
+[{"startLine":0,"endLine":48},{"startLine":66,"endLine":71},{"startLine":65,"endLine":73},{"startLine":76,"endLine":77},{"startLine":80,"endLine":82},{"startLine":52,"endLine":83},{"startLine":51,"endLine":84},{"startLine":87,"endLine":97}]
+=== 150 src/routes/_examples_ssr/Scatter.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":31,"endLine":34},{"startLine":21,"endLine":35},{"startLine":20,"endLine":36},{"startLine":39,"endLine":49}]
+=== 300 src/routes/_examples_ssr/ScatterWebgl.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":31,"endLine":33},{"startLine":20,"endLine":34},{"startLine":46,"endLine":47},{"startLine":53,"endLine":55},{"startLine":51,"endLine":57},{"startLine":50,"endLine":58},{"startLine":37,"endLine":59},{"startLine":19,"endLine":60},{"startLine":63,"endLine":84}]
+=== 150 src/routes/_examples_ssr/SmallMultiples.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":27,"endLine":29},{"startLine":34,"endLine":35},{"startLine":32,"endLine":37},{"startLine":40,"endLine":65}]
+=== 120 src/routes/_examples_ssr/SyncedBrush.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":27,"endLine":33},{"startLine":25,"endLine":35},{"startLine":38,"endLine":52}]
+=== 180 src/routes/_examples_ssr/Timeplot.svelte	folding.json
+[{"startLine":0,"endLine":55},{"startLine":73,"endLine":75},{"startLine":72,"endLine":78},{"startLine":59,"endLine":79},{"startLine":58,"endLine":80},{"startLine":83,"endLine":93}]
+=== 60 src/routes/_site-components/CopyBtn.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":36,"endLine":85}]
+=== 120 src/routes/_site-components/CopyIcon.svelte	folding.json
+[{"startLine":11,"endLine":16},{"startLine":18,"endLine":24},{"startLine":26,"endLine":32},{"startLine":0,"endLine":33}]
+=== 95 src/routes/_site-components/DownloadBtn.svelte	folding.json
+[{"startLine":0,"endLine":139},{"startLine":142,"endLine":147},{"startLine":150,"endLine":212}]
+=== 95 src/routes/_site-components/DownloadComponentBtn.svelte	folding.json
+[{"startLine":0,"endLine":100},{"startLine":103,"endLine":108},{"startLine":111,"endLine":173}]
+=== 180 src/routes/_site-components/GuideContents.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":33},{"startLine":36,"endLine":39},{"startLine":29,"endLine":41},{"startLine":27,"endLine":43},{"startLine":46,"endLine":88}]
+=== 531 src/routes/_site-components/Nav.svelte	folding.json
+[{"startLine":0,"endLine":60},{"startLine":64,"endLine":67},{"startLine":71,"endLine":74},{"startLine":69,"endLine":76},{"startLine":81,"endLine":98},{"startLine":80,"endLine":99},{"startLine":79,"endLine":100},{"startLine":106,"endLine":111},{"startLine":105,"endLine":112},{"startLine":115,"endLine":116},{"startLine":114,"endLine":117},{"startLine":120,"endLine":126},{"startLine":119,"endLine":127},{"startLine":104,"endLine":128},{"startLine":131,"endLine":132},{"startLine":103,"endLine":133},{"startLine":136,"endLine":438}]
+=== 703 src/routes/components/+page.svelte	folding.json
+[{"startLine":0,"endLine":116},{"startLine":121,"endLine":124},{"startLine":132,"endLine":134},{"startLine":130,"endLine":135},{"startLine":128,"endLine":137},{"startLine":127,"endLine":138},{"startLine":149,"endLine":151},{"startLine":145,"endLine":157},{"startLine":161,"endLine":162},{"startLine":160,"endLine":165},{"startLine":169,"endLine":172},{"startLine":175,"endLine":178},{"startLine":168,"endLine":179},{"startLine":144,"endLine":180},{"startLine":192,"endLine":193},{"startLine":191,"endLine":201},{"startLine":203,"endLine":209},{"startLine":190,"endLine":210},{"startLine":188,"endLine":212},{"startLine":185,"endLine":214},{"startLine":141,"endLine":216},{"startLine":219,"endLine":436}]
+=== 543 src/routes/components/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":127},{"startLine":130,"endLine":131},{"startLine":135,"endLine":136},{"startLine":140,"endLine":141},{"startLine":144,"endLine":145},{"startLine":148,"endLine":150},{"startLine":153,"endLine":155},{"startLine":160,"endLine":164},{"startLine":171,"endLine":174},{"startLine":158,"endLine":178},{"startLine":185,"endLine":190},{"startLine":182,"endLine":192},{"startLine":200,"endLine":202},{"startLine":194,"endLine":204},{"startLine":181,"endLine":205},{"startLine":134,"endLine":206},{"startLine":209,"endLine":389}]
+=== 399 src/routes/example-ssr/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":60},{"startLine":63,"endLine":64},{"startLine":68,"endLine":71},{"startLine":74,"endLine":75},{"startLine":78,"endLine":79},{"startLine":83,"endLine":85},{"startLine":94,"endLine":98},{"startLine":90,"endLine":100},{"startLine":105,"endLine":110},{"startLine":102,"endLine":112},{"startLine":89,"endLine":113},{"startLine":67,"endLine":114},{"startLine":117,"endLine":260}]
+=== 398 src/routes/example/[slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":60,"endLine":61},{"startLine":65,"endLine":69},{"startLine":72,"endLine":73},{"startLine":76,"endLine":77},{"startLine":81,"endLine":83},{"startLine":91,"endLine":96},{"startLine":88,"endLine":98},{"startLine":103,"endLine":108},{"startLine":100,"endLine":110},{"startLine":87,"endLine":111},{"startLine":64,"endLine":112},{"startLine":115,"endLine":246}]
+=== 392 src/routes/guide/+page.svelte	folding.json
+[{"startLine":0,"endLine":52},{"startLine":57,"endLine":60},{"startLine":63,"endLine":64},{"startLine":73,"endLine":76},{"startLine":72,"endLine":77},{"startLine":70,"endLine":79},{"startLine":68,"endLine":80},{"startLine":87,"endLine":90},{"startLine":86,"endLine":91},{"startLine":84,"endLine":92},{"startLine":83,"endLine":95},{"startLine":67,"endLine":97},{"startLine":100,"endLine":392}]
+=== 86 src/scripts/svelte-app/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":8,"endLine":12}]

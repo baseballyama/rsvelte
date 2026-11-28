@@ -34,6 +34,14 @@
 			"typescript": "6.0.3"
 		}
 	},
+	"svelte.folding": {
+		"canonicalizer": {
+			"acorn": "8.19.0"
+		},
+		"oracles": {
+			"svelte-language-server": "0.18.6"
+		}
+	},
 	"svelte.format": {
 		"canonicalizer": {
 			"acorn": "8.19.0"

@@ -1,0 +1,987 @@
+# rsvelte pack 1
+=== 29 packages/language-server/test/plugins/svelte/testfiles/diagnostics-module.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action-rel.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/svelte/testfiles/svelte-anchor-missing-attribute-code-action.svelte	folding.json
+[]
+=== 59 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action-ts.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":12,"endLine":13}]
+=== 59 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-code-action.svelte	folding.json
+[{"startLine":5,"endLine":6},{"startLine":10,"endLine":13}]
+=== 29 packages/language-server/test/plugins/svelte/testfiles/svelte-ignore-correct-script-placement.svelte	folding.json
+[{"startLine":5,"endLine":7}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events-usage/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$events/input.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$generic-filter-out-unused/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props-usage/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$props/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 87 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots-usage/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":11},{"startLine":4,"endLine":12}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$slots/input.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$bindable-reassign.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-bind/input.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 58 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-control-flow/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":30}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-undefined/input.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-uninitialized/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 57 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$store-wrong-usage/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":8}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	folding.json
+[{"startLine":0,"endLine":18}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bind-union/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/Runes.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/RunesGeneric.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/bindings/input.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/boolean-literal-props/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-js/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/component-props-ts/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs-nostrict/each-anytype/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs/no-script-tag/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	folding.json
+[]
+=== 147 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/input.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":8,"endLine":9},{"startLine":13,"endLine":14},{"startLine":24,"endLine":25},{"startLine":27,"endLine":28}]
+=== 57 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-slot-prop-in-snippet.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":8}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag-if/input.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/const-tag/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/custom-types/input.svelte	folding.json
+[]
+=== 59 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/declaration-tag.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":15,"endLine":17}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/deprecated-unused-hints/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/each/input.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-attributes/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/element-events/input.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/exports-map-svelte/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/ValueComponent.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics-runes.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 117 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/generics/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":10,"endLine":11},{"startLine":14,"endLine":15}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/component-with-getters.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/getters/input.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/diagnostics-if-control-flow-imported.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 59 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow-shadowed-variables/input.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":28,"endLine":34}]
+=== 60 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/if-control-flow/input.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":33,"endLine":39}]
+=== 59 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ignore-generated-code/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":14,"endLine":19}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/SnippetParent.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 57 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/implicit-snippet.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":9}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/input.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/invalid-import/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/js-untyped/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/modulescript-boolean-not-assignable-to-string/input.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/no-typechecks-for-js/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/input.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/other.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/paths/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/props-untyped/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 85 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/pug/input.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":9},{"startLine":8,"endLine":9}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/script-boolean-not-assignable-to-string/input.svelte	folding.json
+[]
+=== 117 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/slot-typechecks/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":10},{"startLine":13,"endLine":17},{"startLine":4,"endLine":18}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-js.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 57 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/snippet-scope.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":9}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/strictEvents/strictEvents.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/style-directive/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 30 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 115 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-native/input.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":1,"endLine":5},{"startLine":0,"endLine":7},{"startLine":10,"endLine":11}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-ts-file/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings-arrow/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/sveltekit-autotypings/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/tags-without-attrs/input.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/transition-options/input.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 57 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/ts-ignore-attribute.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/typechecks-js-with-ts-check/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/undeclared-component/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-catch/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-peding-catch/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-only/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then-catch/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-pending-then/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch-shorthand/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then-catch/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/await-then/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-block/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-else/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/each-keyed/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/if-block/input.svelte	folding.json
+[]
+=== 2 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/key-block/input.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 2 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$$slots/input.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/$store/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/action/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/animation/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/component-handler/input.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-argument-name-match/input.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-type-name-match/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/each/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/element-handler/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/function-call-in-props/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/property-declaration/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/snippet.v5/input.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/transition/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/another-ref-format-date.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/call-hierarchy-import.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/call-hierarchy/outgoing-component.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 2 packages/language-server/test/plugins/typescript/testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-component-import.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component2.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component3.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component4.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component5.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component6.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-import-all-remove.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-leading-comment.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	folding.json
+[{"startLine":3,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged1.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-unchanged2.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-with-module.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":7}]
+=== 2 packages/language-server/test/plugins/typescript/testfiles/code-actions/remove-imports-inline.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/codelens/importing.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/codelens/references.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 2 packages/language-server/test/plugins/typescript/testfiles/completions/ScndImport.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/UpperCase/dirCasing.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-event-dispatcher.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-interface.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-completion-rune.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/component-props-rune.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-2nd-import.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-new-line.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions2.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":7}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions8.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions9.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 30 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/completions/ts-directive-comment.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/declaration-map/import-from-base64-sourcemap.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/declaration-map/importing.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/definition/definition-rune.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/definition/imported-rune.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 packages/language-server/test/plugins/typescript/testfiles/definitions.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics-imported-js-update.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/language-server/test/plugins/typescript/testfiles/diagnostics/diagnostics.svelte	folding.json
+[]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport2.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/document-highlight/document-highlight.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/documentation.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-no-final-newline.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 89 packages/language-server/test/plugins/typescript/testfiles/documentsymbols-snippets.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":12,"endLine":15},{"startLine":18,"endLine":21}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/find-component-references-child.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":20,"endLine":22}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/find-component-references-parent2.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/find-file-references-parent.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/find-references-$store-other.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/find-references-$store.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":7}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/find-references-ignore-generated.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/hover/hover-$store.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 30 packages/language-server/test/plugins/typescript/testfiles/hover/hover-events-interface.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/hover/hoverinfo.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 90 packages/language-server/test/plugins/typescript/testfiles/performance.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":18},{"startLine":21,"endLine":28}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action-outside-root.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/preferences/code-action.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/preferences/imports.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/preferences/module-specifier-js.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/preferences/with-context-module.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes-importer.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename-runes.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-events-importer.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename-slot-let.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename2.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/rename/rename4.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename5.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range-import.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/language-server/test/plugins/typescript/testfiles/selection-range/selection-range.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/semantic-tokens/jsToken.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 30 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/typedefinition/typedefinition.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/update-imports/+page.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/update-imports/updateimports.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/language-server/test/plugins/typescript/testfiles/workspace-symbols/workspace-symbols.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 30 packages/svelte-check/test-error/Index.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 29 packages/svelte-check/test-success/Index.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/svelte-vscode/test/grammar/samples/action/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/animation/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/await-block/input.svelte	folding.json
+[]
+=== 29 packages/svelte-vscode/test/grammar/samples/bind/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte-vscode/test/grammar/samples/class-directive/input.svelte	folding.json
+[]
+=== 46 packages/svelte-vscode/test/grammar/samples/component-docs/input.svelte	folding.json
+[{"startLine":0,"endLine":2,"kind":"comment"}]
+=== 2 packages/svelte-vscode/test/grammar/samples/const/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/debug/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/each-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/element-namespace/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/elements/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/handler/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/if-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/namespaced-component/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/props/input.svelte	folding.json
+[]
+=== 29 packages/svelte-vscode/test/grammar/samples/script-coffee/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte-vscode/test/grammar/samples/script-context-lang/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte-vscode/test/grammar/samples/script-type-no-semicolon/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte-vscode/test/grammar/samples/script-type-single-line/input.svelte	folding.json
+[]
+=== 2 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	folding.json
+[]
+=== 29 packages/svelte-vscode/test/grammar/samples/style-less/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte-vscode/test/grammar/samples/style-postcss/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	folding.json
+[]
+=== 29 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	folding.json
+[]
+=== 29 packages/svelte-vscode/test/grammar/samples/style/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte-vscode/test/grammar/samples/template-pug/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte-vscode/test/grammar/samples/transition/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/repl/index.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/emitDts/samples/javascript/src/TestNoScript.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/emitDts/samples/typescript-runes-generics.v5/src/TestRunes.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/emitDts/samples/typescript-runes.v5/src/TestRunes2.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 30 packages/svelte2tsx/test/emitDts/samples/typescript/src/Interfaces.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/action-bare/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/action-nested/input.svelte	folding.json
+[{"startLine":1,"endLine":4}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/action-params/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-bare/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-data/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-element/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	folding.json
+[]
+=== 59 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	folding.json
+[{"startLine":4,"endLine":5},{"startLine":12,"endLine":13}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-nullish-coalescing/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-number/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-optional-chaining/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-quoted/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-shorthand/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-text/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-value-escape/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic-catch/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-basic/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-array/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-default/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-object/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-destruct-rest/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-no-then/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-parentheses/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending-catch/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-pending/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch-no-var/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-catch/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/await-block-shorthand-then-no-var/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-get-set.v5/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-body/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-component/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-svelte-self/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/class-bare/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/class-parentheses/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/class/input.svelte	folding.json
+[]
+=== 46 packages/svelte2tsx/test/htmlx2jsx/samples/comment/input.svelte	folding.json
+[{"startLine":1,"endLine":2,"kind":"comment"}]
+=== 271 packages/svelte2tsx/test/htmlx2jsx/samples/comments-around-if/input.svelte	folding.json
+[{"startLine":0,"endLine":1,"kind":"comment"},{"startLine":1,"endLine":2,"kind":"comment"},{"startLine":2,"endLine":3,"kind":"comment"},{"startLine":3,"endLine":4,"kind":"comment"},{"startLine":4,"endLine":5,"kind":"comment"},{"startLine":5,"endLine":6,"kind":"comment"}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-empty/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let-destructure/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot-let/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/component-default-slot/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 85 packages/svelte2tsx/test/htmlx2jsx/samples/component-multi-slot/input.svelte	folding.json
+[{"startLine":2,"endLine":3},{"startLine":7,"endLine":8},{"startLine":0,"endLine":9}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/component-name-dot/input.svelte	folding.json
+[]
+=== 85 packages/svelte2tsx/test/htmlx2jsx/samples/component-named-slot/input.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":4,"endLine":5},{"startLine":0,"endLine":6}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/component-no-slots/input.svelte	folding.json
+[]
+=== 57 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-attribute-as-prop.v5/input.svelte	folding.json
+[{"startLine":3,"endLine":4},{"startLine":0,"endLine":6}]
+=== 85 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-infer-props/input.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":4,"endLine":5},{"startLine":0,"endLine":6}]
+=== 30 packages/svelte2tsx/test/htmlx2jsx/samples/component-slot-shadowed-prop/input.svelte	folding.json
+[{"startLine":0,"endLine":17}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-attribute/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/custom-element-builtin-attribute/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/debug-block/input.svelte	folding.json
+[]
+=== 57 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	folding.json
+[{"startLine":2,"endLine":3},{"startLine":1,"endLine":4}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic-sequence/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-basic/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-index/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key-else/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-key/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-nullish-coalescing/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-optional-chaining/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-bare/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-bare/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component-infer-props/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-component/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-customname/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-modifiers/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-quoted/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler-svelte-component/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/event-handler/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/expression-nullish-coalescing-optional-chaining/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/html-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-block-const/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-comma-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block-nested/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-nullish-coalescing/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-else-if-optional-chaining/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block-shadowed/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-await-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block-shadowed/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-each-block/input.svelte	folding.json
+[]
+=== 507 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let-shadowed/input.svelte	folding.json
+[{"startLine":3,"endLine":6},{"startLine":8,"endLine":11},{"startLine":13,"endLine":16},{"startLine":18,"endLine":21},{"startLine":23,"endLine":26},{"startLine":29,"endLine":32},{"startLine":34,"endLine":38},{"startLine":1,"endLine":40},{"startLine":43,"endLine":44},{"startLine":48,"endLine":49},{"startLine":47,"endLine":50},{"startLine":54,"endLine":55},{"startLine":53,"endLine":56},{"startLine":69,"endLine":76},{"startLine":78,"endLine":85},{"startLine":87,"endLine":95},{"startLine":61,"endLine":96}]
+=== 176 packages/svelte2tsx/test/htmlx2jsx/samples/if-nested-slot-let/input.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":5,"endLine":6},{"startLine":10,"endLine":11},{"startLine":9,"endLine":12},{"startLine":16,"endLine":17},{"startLine":15,"endLine":18}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/namespaced-attributes/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/nested-if-else-if-and-each-block/input.svelte	folding.json
+[]
+=== 61 packages/svelte2tsx/test/htmlx2jsx/samples/nested-snippet.v5/input.svelte	folding.json
+[{"startLine":27,"endLine":29},{"startLine":32,"endLine":34}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/quotes-inside-quotes/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-noscroll/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/sapper-prefetch/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/simple-expression/input.svelte	folding.json
+[]
+=== 121 packages/svelte2tsx/test/htmlx2jsx/samples/snippet.v5/input.svelte	folding.json
+[{"startLine":20,"endLine":24},{"startLine":27,"endLine":33},{"startLine":36,"endLine":37},{"startLine":40,"endLine":47}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/style-directive/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-boundary.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 175 packages/svelte2tsx/test/htmlx2jsx/samples/svelte-fragment/input.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":5,"endLine":6},{"startLine":0,"endLine":7},{"startLine":11,"endLine":12},{"startLine":15,"endLine":16},{"startLine":10,"endLine":17}]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/sveltehead-title/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/sveltekit-anchor-attrs/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/svg-attributes/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/transition-modifiers/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/transition-params/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/sourcemaps/samples/simple-element/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/sourcemaps/samples/slot-let/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/sourcemaps/samples/slots/input.svelte	folding.json
+[{"startLine":6,"endLine":9}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	folding.json
+[{"startLine":0,"endLine":20}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/$store-prop-init/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/await-with-$store/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 233 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	folding.json
+[{"startLine":0,"endLine":6,"kind":"comment"},{"startLine":8,"endLine":64},{"startLine":67,"endLine":98},{"startLine":101,"endLine":103},{"startLine":108,"endLine":114},{"startLine":106,"endLine":116},{"startLine":120,"endLine":122}]
+=== 74 packages/svelte2tsx/test/svelte2tsx/samples/commented-out-script/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5,"kind":"comment"}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":3,"endLine":4}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-constant/input.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-dispatcher/input.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface-string-literals/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-events-interface/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-events-strictEvents/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-events-type/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/component-multiple-slots/input.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":5,"endLine":8}]
+=== 59 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-interface/input.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":14}]
+=== 59 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-$$slot-type/input.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":14}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-crazy-attributes/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":3,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-fallback/input.svelte	folding.json
+[{"startLine":1,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-forward-with-props/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-await/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-inside-each/input.svelte	folding.json
+[]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward-named-slot/input.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-let-forward/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-nest-scope/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-no-space/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/component-with-documentation/input.svelte	folding.json
+[]
+=== 47 packages/svelte2tsx/test/svelte2tsx/samples/component-with-indented-multiline-documentation/input.svelte	folding.json
+[{"startLine":0,"endLine":13,"kind":"comment"}]
+=== 46 packages/svelte2tsx/test/svelte2tsx/samples/component-with-multiline-documentation/input.svelte	folding.json
+[{"startLine":0,"endLine":7,"kind":"comment"}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/creates-no-script-dts/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-multi/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component-with-props/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-component/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-element/input.svelte	folding.json
+[]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/event-bubble-svelte-element/input.svelte	folding.json
+[]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events-alias/input.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatcher-events/input.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/event-dispatchers/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/export-class/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/export-const-array-destructuring/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/export-const-object-destructuring/input.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/export-list-runes.v5/input.svelte	folding.json
+[{"startLine":2,"endLine":17}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/export-list/input.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/generics-attribute.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/import-leading-comment/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/import-single-quote/input.svelte	folding.json
+[{"startLine":1,"endLine":2}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/imports-module-instance/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/js-jsdoc-before-first-import/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-runes.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-sveltekit-autotypes-runes.v5/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/jsdoc-various.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-not-$props-init.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-spread.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 88 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":17},{"startLine":20,"endLine":27}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes-best-effort-types.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable-reserved-name.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes-bindable.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes-looking-like-stores.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes-only-export.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes-with-slots.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/runes.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/script-in-rawhtml/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 116 packages/svelte2tsx/test/svelte2tsx/samples/script-inside-head-after-toplevel-script/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5},{"startLine":10,"endLine":11},{"startLine":8,"endLine":12}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/script-style-like-component/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/script-tag-in-style-comment-with-real-script/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/script-with-src/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/self-closing-component/input.svelte	folding.json
+[{"startLine":1,"endLine":3}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-1.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-2.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-4.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-5.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-6.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/snippet-module-hoist-7.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/store-derived-import/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/store-import/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/store-property-access/input.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/stores-looking-like-runes/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	folding.json
+[{"startLine":1,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute-bare/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/style-attribute/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/style-in-script/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/style-tag-in-script-comment-with-real-style/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/style/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/svelte-element/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/svelte-self-forward-event/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune-no-changes.v5/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes-$props-rune.v5/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 59 packages/svelte2tsx/test/svelte2tsx/samples/ts-declaration-tag.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":15,"endLine":17}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed-non-literal/input.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-generics.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 58 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":18}]
+=== 58 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":10}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-4.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 58 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-5.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":13}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-6.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-7.v5/input.svelte	folding.json
+[{"startLine":3,"endLine":11}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-8.v5/input.svelte	folding.json
+[{"startLine":3,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 58 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-13.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":11}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	folding.json
+[{"startLine":3,"endLine":9}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-3.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":6}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-4.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-5.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-8.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-9.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-with-slot.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes.v5/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/ts-type-assertion/input.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":5}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots/input.svelte	folding.json
+[]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/uses-$property/input.svelte	folding.json
+[{"startLine":0,"endLine":9}]
+=== 30 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-assignment-operators/input.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-increments/input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store-with-unary-operators/input.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 57 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":5,"endLine":6}]

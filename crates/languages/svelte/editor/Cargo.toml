@@ -1,0 +1,17 @@
+[package]
+name = "rsvelte_svelte_editor"
+description = "What an editor shows of a Svelte component, such as where it folds"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+doctest = false
+
+[dependencies]
+rsvelte_kernel.workspace = true
+rsvelte_svelte_syntax.workspace = true
+
+[lints]
+workspace = true

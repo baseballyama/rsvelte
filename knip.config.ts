@@ -19,9 +19,15 @@ export default {
 			// Loaded by URL into a browser, a worker or a child process, not imported.
 			entry: ['behaviour/{browser-runner,client,server,worker}.ts'],
 			project: ['**/*.{ts,svelte,vue}', '!behaviour/tests/**'],
-			// Oracles run from their installed path or named in reports, and the CLI's tests link
-			// a project's Tailwind CSS sorter from here, not imported.
-			ignoreDependencies: ['svelte-check', 'vue-tsc', 'prettier-plugin-tailwindcss', 'tailwindcss'],
+			// Oracles run or load from their installed path or are named in reports, and the CLI's
+			// tests link a project's Tailwind CSS sorter from here, not imported.
+			ignoreDependencies: [
+				'svelte-check',
+				'svelte-language-server',
+				'vue-tsc',
+				'prettier-plugin-tailwindcss',
+				'tailwindcss',
+			],
 		},
 		'apps/cli': {
 			// The command of the npm package and the lookup the VS Code extension imports from a

@@ -1,0 +1,43 @@
+# rsvelte pack 1
+=== 238 packages/logo/src/routes/+page.svelte	folding.json
+[{"startLine":2,"endLine":5},{"startLine":12,"endLine":14},{"startLine":9,"endLine":15},{"startLine":20,"endLine":35},{"startLine":19,"endLine":36},{"startLine":39,"endLine":41},{"startLine":18,"endLine":42},{"startLine":45,"endLine":87}]
+=== 91 packages/test-site/src/invalid.svelte	folding.json
+[{"startLine":3,"endLine":4},{"startLine":7,"endLine":160},{"startLine":163,"endLine":219}]
+=== 116 packages/test-site/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":9},{"startLine":11,"endLine":12},{"startLine":4,"endLine":14}]
+=== 57 packages/test-site/src/routes/hello-world/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 58 packages/test-site/src/routes/hello-world/webgl/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":7,"endLine":22}]
+=== 58 packages/test-site/src/routes/hello-world/webgpu/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":7,"endLine":24}]
+=== 57 packages/test-site/src/routes/landing-page-bubbles/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 210 packages/test-site/src/routes/landing-page-bubbles/webgl/+page.svelte	folding.json
+[{"startLine":2,"endLine":15},{"startLine":22,"endLine":24},{"startLine":19,"endLine":25},{"startLine":30,"endLine":54},{"startLine":29,"endLine":55},{"startLine":28,"endLine":58},{"startLine":61,"endLine":98}]
+=== 210 packages/test-site/src/routes/landing-page-bubbles/webgpu/+page.svelte	folding.json
+[{"startLine":2,"endLine":15},{"startLine":22,"endLine":24},{"startLine":19,"endLine":25},{"startLine":30,"endLine":53},{"startLine":29,"endLine":54},{"startLine":28,"endLine":57},{"startLine":60,"endLine":97}]
+=== 57 packages/test-site/src/routes/landing-page-halo/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 208 packages/test-site/src/routes/landing-page-halo/webgl/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":11,"endLine":13},{"startLine":8,"endLine":14},{"startLine":19,"endLine":30},{"startLine":18,"endLine":31},{"startLine":17,"endLine":34},{"startLine":37,"endLine":73}]
+=== 208 packages/test-site/src/routes/landing-page-halo/webgpu/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":11,"endLine":13},{"startLine":8,"endLine":14},{"startLine":19,"endLine":32},{"startLine":18,"endLine":33},{"startLine":17,"endLine":36},{"startLine":39,"endLine":75}]
+=== 57 packages/test-site/src/routes/oversized-canvas/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 58 packages/test-site/src/routes/oversized-canvas/webgl/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":7,"endLine":22}]
+=== 58 packages/test-site/src/routes/oversized-canvas/webgpu/+page.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":7,"endLine":24}]
+=== 57 packages/test-site/src/routes/remount/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 59 packages/test-site/src/routes/remount/webgl/+page.svelte	folding.json
+[{"startLine":2,"endLine":6},{"startLine":12,"endLine":27}]
+=== 59 packages/test-site/src/routes/remount/webgpu/+page.svelte	folding.json
+[{"startLine":2,"endLine":6},{"startLine":12,"endLine":29}]
+=== 57 packages/test-site/src/routes/slider/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 178 packages/test-site/src/routes/slider/webgl/+page.svelte	folding.json
+[{"startLine":2,"endLine":6},{"startLine":14,"endLine":34},{"startLine":13,"endLine":35},{"startLine":12,"endLine":37},{"startLine":9,"endLine":38},{"startLine":41,"endLine":78}]
+=== 178 packages/test-site/src/routes/slider/webgpu/+page.svelte	folding.json
+[{"startLine":2,"endLine":6},{"startLine":14,"endLine":37},{"startLine":13,"endLine":38},{"startLine":12,"endLine":40},{"startLine":9,"endLine":41},{"startLine":44,"endLine":81}]

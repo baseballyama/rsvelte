@@ -1,0 +1,55 @@
+# rsvelte pack 1
+=== 120 examples/example-svelte/src/App.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":31,"endLine":36},{"startLine":41,"endLine":46},{"startLine":40,"endLine":51}]
+=== 95 examples/example-svelte/src/routes/Dependencies.svelte	folding.json
+[{"startLine":0,"endLine":142},{"startLine":145,"endLine":155},{"startLine":158,"endLine":160}]
+=== 95 examples/example-svelte/src/routes/Events.svelte	folding.json
+[{"startLine":0,"endLine":173},{"startLine":176,"endLine":194},{"startLine":197,"endLine":199}]
+=== 95 examples/example-svelte/src/routes/External.svelte	folding.json
+[{"startLine":0,"endLine":142},{"startLine":145,"endLine":167},{"startLine":170,"endLine":173}]
+=== 95 examples/example-svelte/src/routes/LargeDataset.svelte	folding.json
+[{"startLine":0,"endLine":112},{"startLine":115,"endLine":125},{"startLine":128,"endLine":130}]
+=== 95 examples/example-svelte/src/routes/Tree.svelte	folding.json
+[{"startLine":0,"endLine":180},{"startLine":183,"endLine":193},{"startLine":196,"endLine":198}]
+=== 145 examples/example-sveltekit/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":7},{"startLine":9,"endLine":20},{"startLine":5,"endLine":21},{"startLine":24,"endLine":86}]
+=== 210 packages/demo/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":19,"endLine":20},{"startLine":23,"endLine":33},{"startLine":22,"endLine":38},{"startLine":18,"endLine":39},{"startLine":17,"endLine":41},{"startLine":44,"endLine":94}]
+=== 117 packages/demo/src/routes/+page.svelte	folding.json
+[{"startLine":3,"endLine":4},{"startLine":7,"endLine":11},{"startLine":6,"endLine":12},{"startLine":15,"endLine":23}]
+=== 29 packages/docs-mdsvex/src/lib/icons/CloseIcon.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/docs-mdsvex/src/lib/icons/GithubIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 29 packages/docs-mdsvex/src/lib/icons/MenuIcon.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 packages/docs-mdsvex/src/lib/icons/MoonIcon.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":0,"endLine":5}]
+=== 57 packages/docs-mdsvex/src/lib/icons/SunIcon.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":0,"endLine":5}]
+=== 690 packages/docs-mdsvex/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":26,"endLine":27},{"startLine":30,"endLine":31},{"startLine":33,"endLine":35},{"startLine":39,"endLine":43},{"startLine":38,"endLine":44},{"startLine":29,"endLine":45},{"startLine":25,"endLine":46},{"startLine":50,"endLine":53},{"startLine":49,"endLine":54},{"startLine":48,"endLine":55},{"startLine":24,"endLine":56},{"startLine":62,"endLine":64},{"startLine":66,"endLine":68},{"startLine":70,"endLine":72},{"startLine":74,"endLine":76},{"startLine":61,"endLine":77},{"startLine":60,"endLine":78},{"startLine":59,"endLine":79},{"startLine":84,"endLine":85},{"startLine":83,"endLine":86},{"startLine":82,"endLine":87},{"startLine":23,"endLine":88}]
+=== 85 packages/docs-mdsvex/src/routes/FeatureCard.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":4,"endLine":5},{"startLine":0,"endLine":6}]
+=== 117 packages/docs-mdsvex/src/routes/docs/data/rows/RowsExample.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":13},{"startLine":5,"endLine":14},{"startLine":17,"endLine":20}]
+=== 117 packages/docs-mdsvex/src/routes/docs/data/rows/TreeExample.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":7,"endLine":33},{"startLine":5,"endLine":34},{"startLine":37,"endLine":49}]
+=== 90 packages/docs-mdsvex/src/routes/docs/data/tasks/TaskComponentExample.svelte	folding.json
+[{"startLine":0,"endLine":46},{"startLine":50,"endLine":84},{"startLine":49,"endLine":85}]
+=== 117 packages/docs-mdsvex/src/routes/docs/data/tasks/TasksExample.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":24},{"startLine":5,"endLine":25},{"startLine":28,"endLine":34}]
+=== 117 packages/docs-mdsvex/src/routes/docs/data/time-ranges/TimeRangesExample.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":35},{"startLine":5,"endLine":36},{"startLine":39,"endLine":46}]
+=== 29 packages/docs-mdsvex/src/routes/docs/layout.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 120 packages/docs-mdsvex/src/routes/docs/modules/create-tasks/CreateTasksExample.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":23,"endLine":24},{"startLine":27,"endLine":42},{"startLine":22,"endLine":43}]
+=== 150 packages/docs-mdsvex/src/routes/docs/modules/external/ExternalExample.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":33,"endLine":34},{"startLine":32,"endLine":35},{"startLine":38,"endLine":49},{"startLine":31,"endLine":50}]
+=== 87 packages/docs-mdsvex/src/routes/docs/modules/table/TableExample.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":19},{"startLine":5,"endLine":20}]
+=== 207 packages/docs-mdsvex/src/routes/docs/options/layout/LayoutExample.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":12,"endLine":14},{"startLine":9,"endLine":16},{"startLine":20,"endLine":39},{"startLine":19,"endLine":40},{"startLine":8,"endLine":41},{"startLine":44,"endLine":53}]
+=== 245 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	folding.json
+[{"startLine":0,"endLine":45},{"startLine":48,"endLine":71},{"startLine":78,"endLine":79},{"startLine":75,"endLine":81},{"startLine":85,"endLine":105},{"startLine":84,"endLine":106},{"startLine":74,"endLine":107},{"startLine":110,"endLine":119}]

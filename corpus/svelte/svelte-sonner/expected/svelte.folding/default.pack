@@ -1,0 +1,61 @@
+# rsvelte pack 1
+=== 346 src/components/CodeBlock.svelte	folding.json
+[{"startLine":0,"endLine":83},{"startLine":90,"endLine":101},{"startLine":89,"endLine":102},{"startLine":117,"endLine":118},{"startLine":106,"endLine":119},{"startLine":105,"endLine":120},{"startLine":87,"endLine":122},{"startLine":126,"endLine":127},{"startLine":125,"endLine":128},{"startLine":86,"endLine":129},{"startLine":132,"endLine":193}]
+=== 2 src/components/Custom.svelte	folding.json
+[]
+=== 209 src/components/Expand.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":13,"endLine":14},{"startLine":12,"endLine":15},{"startLine":18,"endLine":28},{"startLine":30,"endLine":40},{"startLine":17,"endLine":41},{"startLine":10,"endLine":43}]
+=== 173 src/components/Footer.svelte	folding.json
+[{"startLine":6,"endLine":7},{"startLine":4,"endLine":8},{"startLine":2,"endLine":9},{"startLine":1,"endLine":10},{"startLine":0,"endLine":11},{"startLine":14,"endLine":49}]
+=== 237 src/components/Hero.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":8},{"startLine":11,"endLine":13},{"startLine":16,"endLine":26},{"startLine":28,"endLine":33},{"startLine":15,"endLine":34},{"startLine":4,"endLine":35},{"startLine":38,"endLine":192}]
+=== 300 src/components/Installation.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":23,"endLine":34},{"startLine":22,"endLine":35},{"startLine":50,"endLine":51},{"startLine":39,"endLine":52},{"startLine":38,"endLine":53},{"startLine":20,"endLine":55},{"startLine":18,"endLine":56},{"startLine":14,"endLine":57},{"startLine":60,"endLine":96}]
+=== 159 src/components/Other.svelte	folding.json
+[{"startLine":0,"endLine":106},{"startLine":113,"endLine":125},{"startLine":111,"endLine":127},{"startLine":129,"endLine":135},{"startLine":109,"endLine":136}]
+=== 120 src/components/Position.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":29,"endLine":46},{"startLine":27,"endLine":48},{"startLine":24,"endLine":50}]
+=== 178 src/components/Test.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":17,"endLine":18},{"startLine":16,"endLine":19},{"startLine":10,"endLine":20},{"startLine":7,"endLine":21},{"startLine":24,"endLine":69}]
+=== 57 src/components/TestWithProps.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 159 src/components/Types.svelte	folding.json
+[{"startLine":0,"endLine":118},{"startLine":123,"endLine":125},{"startLine":129,"endLine":138},{"startLine":127,"endLine":140},{"startLine":121,"endLine":142}]
+=== 57 src/components/Usage.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":8}]
+=== 298 src/lib/Icon.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":14,"endLine":17},{"startLine":7,"endLine":18},{"startLine":28,"endLine":31},{"startLine":21,"endLine":32},{"startLine":42,"endLine":45},{"startLine":35,"endLine":46},{"startLine":56,"endLine":57},{"startLine":59,"endLine":60},{"startLine":49,"endLine":61}]
+=== 116 src/lib/Loader.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6},{"startLine":13,"endLine":16},{"startLine":9,"endLine":17}]
+=== 381 src/lib/Toast.svelte	folding.json
+[{"startLine":0,"endLine":53},{"startLine":56,"endLine":500},{"startLine":505,"endLine":509},{"startLine":512,"endLine":514},{"startLine":564,"endLine":575},{"startLine":584,"endLine":607},{"startLine":614,"endLine":625},{"startLine":628,"endLine":642},{"startLine":610,"endLine":644},{"startLine":650,"endLine":665},{"startLine":673,"endLine":687},{"startLine":520,"endLine":691}]
+=== 190 src/lib/Toaster.svelte	folding.json
+[{"startLine":0,"endLine":72},{"startLine":75,"endLine":382},{"startLine":443,"endLine":509},{"startLine":405,"endLine":511},{"startLine":387,"endLine":514},{"startLine":517,"endLine":1301}]
+=== 30 src/lib/icons/CloseIcon.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 59 src/lib/icons/ErrorIcon.svelte	folding.json
+[{"startLine":9,"endLine":12},{"startLine":0,"endLine":13}]
+=== 59 src/lib/icons/InfoIcon.svelte	folding.json
+[{"startLine":9,"endLine":12},{"startLine":0,"endLine":13}]
+=== 59 src/lib/icons/SuccessIcon.svelte	folding.json
+[{"startLine":9,"endLine":12},{"startLine":0,"endLine":13}]
+=== 89 src/lib/icons/WarningIcon.svelte	folding.json
+[{"startLine":9,"endLine":10},{"startLine":12,"endLine":13},{"startLine":0,"endLine":14}]
+=== 29 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 300 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":27,"endLine":29},{"startLine":34,"endLine":36},{"startLine":40,"endLine":42},{"startLine":47,"endLine":49},{"startLine":52,"endLine":54},{"startLine":24,"endLine":55},{"startLine":67,"endLine":69},{"startLine":61,"endLine":70},{"startLine":59,"endLine":71}]
+=== 300 src/routes/test/+page.svelte	folding.json
+[{"startLine":0,"endLine":33},{"startLine":36,"endLine":45},{"startLine":53,"endLine":57},{"startLine":59,"endLine":63},{"startLine":65,"endLine":66},{"startLine":68,"endLine":69},{"startLine":71,"endLine":75},{"startLine":77,"endLine":84},{"startLine":86,"endLine":90},{"startLine":52,"endLine":91}]
+=== 29 src/routes/test/CustomIcon.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 2 src/routes/test/WideDescription.svelte	folding.json
+[]
+=== 88 src/tests/MultiToasterTest.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":10},{"startLine":13,"endLine":14}]
+=== 30 src/tests/PropsToastTest.svelte	folding.json
+[{"startLine":0,"endLine":11}]
+=== 29 src/tests/TestIcon.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 src/tests/ToastTest.svelte	folding.json
+[{"startLine":0,"endLine":6}]

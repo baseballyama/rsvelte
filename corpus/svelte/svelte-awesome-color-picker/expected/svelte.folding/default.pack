@@ -1,0 +1,29 @@
+# rsvelte pack 1
+=== 432 src/lib/components/ColorPicker.svelte	folding.json
+[{"startLine":0,"endLine":350},{"startLine":353,"endLine":358},{"startLine":371,"endLine":378},{"startLine":381,"endLine":389},{"startLine":380,"endLine":390},{"startLine":394,"endLine":402},{"startLine":393,"endLine":403},{"startLine":412,"endLine":427},{"startLine":431,"endLine":436},{"startLine":367,"endLine":438},{"startLine":361,"endLine":439},{"startLine":442,"endLine":480,"kind":"comment"},{"startLine":481,"endLine":552}]
+=== 268 src/lib/components/Picker.svelte	folding.json
+[{"startLine":0,"endLine":82},{"startLine":99,"endLine":104},{"startLine":98,"endLine":105},{"startLine":108,"endLine":114},{"startLine":107,"endLine":115},{"startLine":88,"endLine":116},{"startLine":119,"endLine":136,"kind":"comment"},{"startLine":137,"endLine":175}]
+=== 137 src/lib/components/variant/accessibility/A11yHorizontalWrapper.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":22},{"startLine":25,"endLine":43,"kind":"comment"},{"startLine":44,"endLine":87}]
+=== 228 src/lib/components/variant/accessibility/A11yNotice.svelte	folding.json
+[{"startLine":0,"endLine":41},{"startLine":45,"endLine":46},{"startLine":49,"endLine":55},{"startLine":59,"endLine":60},{"startLine":44,"endLine":62},{"startLine":65,"endLine":84,"kind":"comment"},{"startLine":85,"endLine":121}]
+=== 167 src/lib/components/variant/accessibility/A11ySingleNotice.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":31,"endLine":32},{"startLine":34,"endLine":39},{"startLine":42,"endLine":63,"kind":"comment"},{"startLine":64,"endLine":96}]
+=== 137 src/lib/components/variant/chrome-picker/Wrapper.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":22},{"startLine":25,"endLine":43,"kind":"comment"},{"startLine":44,"endLine":69}]
+=== 198 src/lib/components/variant/default/Input.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":25,"endLine":31},{"startLine":24,"endLine":34},{"startLine":23,"endLine":36},{"startLine":39,"endLine":56,"kind":"comment"},{"startLine":57,"endLine":110}]
+=== 120 src/lib/components/variant/default/NullabilityCheckbox.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":14,"endLine":16},{"startLine":13,"endLine":18},{"startLine":21,"endLine":53}]
+=== 59 src/lib/components/variant/default/PickerIndicator.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":11,"endLine":26}]
+=== 120 src/lib/components/variant/default/Swatches.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":18,"endLine":23},{"startLine":16,"endLine":25},{"startLine":29,"endLine":52}]
+=== 232 src/lib/components/variant/default/TextInput.svelte	folding.json
+[{"startLine":0,"endLine":66},{"startLine":83,"endLine":90},{"startLine":70,"endLine":92},{"startLine":96,"endLine":98},{"startLine":69,"endLine":102},{"startLine":105,"endLine":123,"kind":"comment"},{"startLine":124,"endLine":199}]
+=== 137 src/lib/components/variant/default/Wrapper.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":22},{"startLine":25,"endLine":39,"kind":"comment"},{"startLine":40,"endLine":58}]
+=== 60 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":15}]
+=== 89 src/routes/standalone/+page.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":11,"endLine":25},{"startLine":10,"endLine":26}]
