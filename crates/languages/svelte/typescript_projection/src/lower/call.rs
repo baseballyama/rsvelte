@@ -10,7 +10,8 @@ use super::directive::Directives;
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
-    /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
+    /// `new (__rsvelte_component(C))(internals, { props: properties })`, as svelte2tsx constructs
+    /// the component, with the name it gives the component when
     /// the snippets' names are declared from its props or its instance is checked. A call that
     /// `constructs` makes the instance, of the generics its props infer.
     pub(super) fn component_call(
@@ -21,11 +22,17 @@ impl Builder<'_> {
         name_it: bool,
         constructs: bool,
     ) -> (NodeIdentifier, Option<NodeIdentifier>) {
-        // svelte-check reports a finding on the call itself, such as that the value is no
-        // component, at the component's expression.
-        let at = component.map_or(name.start_offset, |component| {
-            node_span(self.expression(component)).start_offset
-        });
+        // svelte-check reports that the value is no component at the component's expression, and
+        // that it constructs nothing at the tag name's last character, or after the expression
+        // `<svelte:component this>` gives.
+        let span = component.map_or(name, |component| node_span(self.expression(component)));
+        let at = span.start_offset;
+        let constructs_at = if span == name {
+            let last = name.text(self.source).chars().next_back();
+            name.end_offset - last.map_or(0, |last| last.len_utf8() as u32)
+        } else {
+            span.end_offset
+        };
         let component = match component {
             Some(component) => self.expression_source(component, None),
             None => self.tree.push(Node::AnyComponent),
@@ -59,8 +66,26 @@ impl Builder<'_> {
             callee: internals,
             arguments: Range::default(),
         });
-        let arguments = self.tree.list(&[internals, properties]);
-        (self.tree.push(Node::Call { callee, arguments }), named)
+        // svelte-check reports that a prop is missing at the component's name.
+        let key = self.tree.push(Node::Identifier("props"));
+        let key = self.tree.push(Node::Located {
+            value: key,
+            open: name,
+            close: None,
+        });
+        let property = self.tree.push(Node::NamedProperty {
+            name: key,
+            value: properties,
+        });
+        let properties = self.tree.list(&[property]);
+        let options = self.tree.push(Node::Object { properties });
+        let arguments = self.tree.list(&[internals, options]);
+        let call = self.tree.push(Node::New {
+            callee,
+            arguments,
+            at: constructs_at,
+        });
+        (call, named)
     }
 
     /// `svelteHTML.createElement("name", properties)`, with the attributes its actions add

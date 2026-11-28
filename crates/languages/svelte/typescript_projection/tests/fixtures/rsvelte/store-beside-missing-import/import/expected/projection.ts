@@ -11,7 +11,9 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(Absent)(__rsvelte_internals(), {});
+      new (__rsvelte_component(Absent))(__rsvelte_internals(), {
+        props: {},
+      });
     }
   };
   return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});

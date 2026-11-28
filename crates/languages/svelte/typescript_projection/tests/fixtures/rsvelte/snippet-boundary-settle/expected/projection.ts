@@ -23,8 +23,10 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(Input);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        value,
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          value,
+        },
       });
       () => {
         // @ts-ignore

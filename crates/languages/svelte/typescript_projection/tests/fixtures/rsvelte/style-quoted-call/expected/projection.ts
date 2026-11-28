@@ -22,10 +22,12 @@ function $$render() {
       __sveltets_2_ensureType(String, Number, `${f(x)}px`);
     }
     {
-      __rsvelte_component(Comp)(__rsvelte_internals(), {
-        ...(__sveltets_2_cssProp({
-          "--a": `${f(n)}px`,
-        })),
+      new (__rsvelte_component(Comp))(__rsvelte_internals(), {
+        props: {
+          ...(__sveltets_2_cssProp({
+            "--a": `${f(n)}px`,
+          })),
+        },
       });
     }
     {

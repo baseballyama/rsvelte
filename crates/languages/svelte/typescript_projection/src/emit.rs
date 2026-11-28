@@ -186,7 +186,7 @@ impl Printer<'_> {
                 self.output.push(".");
                 self.node(property);
             }
-            Node::Call { callee, arguments } => self.call(callee, arguments),
+            node @ (Node::Call { .. } | Node::New { .. }) => self.call(node),
             Node::Let { name, value } => self.declaration("let ", name, value),
             Node::ForOf {
                 binding,
@@ -389,8 +389,25 @@ impl Printer<'_> {
         }
     }
 
-    fn call(&mut self, callee: NodeIdentifier, arguments: Range) {
-        self.node(callee);
+    fn call(&mut self, node: Node) {
+        let arguments = match node {
+            Node::Call { callee, arguments } => {
+                self.node(callee);
+                arguments
+            }
+            Node::New {
+                callee,
+                arguments,
+                at,
+            } => {
+                self.output.push("new ");
+                self.output.atom("(", Span::new(at, at));
+                self.node(callee);
+                self.output.push(")");
+                arguments
+            }
+            _ => unreachable!("only a call or a construction is emitted as one"),
+        };
         self.output.push("(");
         for (index, &argument) in self.tree.children(arguments).iter().enumerate() {
             if index != 0 {

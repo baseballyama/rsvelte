@@ -43,7 +43,9 @@ function $$render() {
       const double = test * 2;
       const { a, b: [c] } = o;
       {
-        __rsvelte_component(Flaky)(__rsvelte_internals(), {});
+        new (__rsvelte_component(Flaky))(__rsvelte_internals(), {
+          props: {},
+        });
       }
       {
         svelteHTML.createElement("b", {});

@@ -7,7 +7,9 @@ import Icon from "./Icon.svelte";;
 const plain = () => {
   async () => {
     {
-      __rsvelte_component(Icon)(__rsvelte_internals(), {});
+      new (__rsvelte_component(Icon))(__rsvelte_internals(), {
+        props: {},
+      });
     }
     greeting;
   };

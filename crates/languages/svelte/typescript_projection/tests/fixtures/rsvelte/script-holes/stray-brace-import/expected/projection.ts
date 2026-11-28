@@ -22,39 +22,53 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(StrayBrace)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(StrayBrace))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Legacy)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Legacy))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(JavaScript)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(JavaScript))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Async)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Async))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Slot)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Slot))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Generic)(__rsvelte_internals(), {
-        "v": 1,
-        "n": "x",
+      new (__rsvelte_component(Generic))(__rsvelte_internals(), {
+        props: {
+          "v": 1,
+          "n": "x",
+        },
       });
     }
     {
-      legacy = __rsvelte_bind_this(__rsvelte_component(Legacy))(__rsvelte_internals(), {
-        "n": 1,
+      legacy = new (__rsvelte_bind_this(__rsvelte_component(Legacy)))(__rsvelte_internals(), {
+        props: {
+          "n": 1,
+        },
       });
     }
   };

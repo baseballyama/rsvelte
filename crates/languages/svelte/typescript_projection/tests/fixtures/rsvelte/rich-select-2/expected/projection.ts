@@ -13,7 +13,9 @@ function $$render() {
       {
         svelteHTML.createElement("select", {});
         {
-          __rsvelte_component(Option)(__rsvelte_internals(), {});
+          new (__rsvelte_component(Option))(__rsvelte_internals(), {
+            props: {},
+          });
         }
       }
     }
@@ -24,7 +26,9 @@ function $$render() {
           "label": "G",
         });
         {
-          __rsvelte_component(Option)(__rsvelte_internals(), {});
+          new (__rsvelte_component(Option))(__rsvelte_internals(), {
+            props: {},
+          });
         }
       }
       html;
@@ -34,7 +38,9 @@ function $$render() {
         "value": x,
       });
       {
-        __rsvelte_component(Option)(__rsvelte_internals(), {});
+        new (__rsvelte_component(Option))(__rsvelte_internals(), {
+          props: {},
+        });
       }
       {
         svelteHTML.createElement("option", {});

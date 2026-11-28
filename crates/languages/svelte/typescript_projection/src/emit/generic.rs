@@ -67,13 +67,22 @@ impl Printer<'_> {
             arguments,
             ">['props']>): ReturnType<__rsvelte_Render<",
             arguments,
-            // svelte2tsx's construct signature, whose instance `bind:this` assigns.
-            ">['exports']>; __rsvelte_instance: <",
+            // The projection constructs a component, so that an instantiation expression's type
+            // arguments reach the props.
+            ">['exports']>; new <",
             plain,
-            ">(internals: Parameters<import('svelte').Component>[0], props: \
+            ">(internals: Parameters<import('svelte').Component>[0], options: { props: \
                 ReturnType<__rsvelte_Render<",
             arguments,
-            ">['props']>) => ReturnType<__rsvelte_Render<",
+            ">['props']> }): ReturnType<__rsvelte_Render<",
+            arguments,
+            // svelte2tsx's construct signature, whose instance `bind:this` assigns.
+            ">['exports']>; __rsvelte_instance: new <",
+            plain,
+            ">(internals: Parameters<import('svelte').Component>[0], options: { props: \
+                ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['props']> }) => ReturnType<__rsvelte_Render<",
             arguments,
             ">['instance']>; element?: typeof HTMLElement; z_$$bindings?: NonNullable<",
         ] {

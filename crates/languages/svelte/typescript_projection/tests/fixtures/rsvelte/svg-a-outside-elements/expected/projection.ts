@@ -28,8 +28,10 @@ function $$render() {
       __rsvelte_ensure_snippet(link());
     }
     {
-      __rsvelte_component(Chart)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(Chart))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       {
         svelteHTML.createElement("a", {

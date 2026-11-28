@@ -136,6 +136,12 @@ pub(crate) enum Node {
         callee: NodeIdentifier,
         arguments: Range,
     },
+    /// `new (callee)(arguments)`, whose finding that `callee` constructs nothing falls on `at`.
+    New {
+        callee: NodeIdentifier,
+        arguments: Range,
+        at: u32,
+    },
     /// `let name = value;`, on a line of its own.
     Let {
         name: NodeIdentifier,

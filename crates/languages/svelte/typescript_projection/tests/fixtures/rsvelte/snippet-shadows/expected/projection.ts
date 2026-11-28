@@ -64,12 +64,14 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(List);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        label: () => {
-          async () => {
-            __rsvelte_ensure_snippet(label?.());
-          };
-          return __rsvelte_snippet_return;
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          label: () => {
+            async () => {
+              __rsvelte_ensure_snippet(label?.());
+            };
+            return __rsvelte_snippet_return;
+          },
         },
       });
       const { label } = __rsvelte_component_props(__rsvelte_component_0);

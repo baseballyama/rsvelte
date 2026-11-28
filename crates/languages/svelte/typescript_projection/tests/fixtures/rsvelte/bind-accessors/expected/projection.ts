@@ -27,12 +27,14 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        "a": 1,
-        "value": __rsvelte_get_set(() => v, (x) => (v = x)),
-        ...(rest),
-        "other": v,
-        "b": 2,
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          "a": 1,
+          "value": __rsvelte_get_set(() => v, (x) => (v = x)),
+          ...(rest),
+          "other": v,
+          "b": 2,
+        },
       });
       () => {
         // @ts-ignore
@@ -47,9 +49,11 @@ function $$render() {
       }
       {
         const __rsvelte_component_0 = __rsvelte_component(C);
-        const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-          children: __rsvelte_children,
-          "open": __rsvelte_get_set(() => v, (x) => (v = x)),
+        const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+          props: {
+            children: __rsvelte_children,
+            "open": __rsvelte_get_set(() => v, (x) => (v = x)),
+          },
         });
         __rsvelte_bindings(__rsvelte_component_0).$$bindings = "open";
         v;

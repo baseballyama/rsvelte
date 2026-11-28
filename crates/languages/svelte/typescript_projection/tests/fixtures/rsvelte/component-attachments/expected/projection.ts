@@ -14,35 +14,45 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        [Symbol("@attach")]: a,
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          [Symbol("@attach")]: a,
+        },
       });
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        "a": 1,
-        [Symbol("@attach")]: (n) => console.log(n, x),
-        "b": x,
-        [Symbol("@attach")]: a,
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          "a": 1,
+          [Symbol("@attach")]: (n) => console.log(n, x),
+          "b": x,
+          [Symbol("@attach")]: a,
+        },
       });
     }
     {
-      __rsvelte_component(D)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        [Symbol("@attach")]: a,
+      new (__rsvelte_component(D))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          [Symbol("@attach")]: a,
+        },
       });
       D;
     }
     {
-      __rsvelte_component(D)(__rsvelte_internals(), {
-        [Symbol("@attach")]: a,
+      new (__rsvelte_component(D))(__rsvelte_internals(), {
+        props: {
+          [Symbol("@attach")]: a,
+        },
       });
     }
     if (x) {
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {
-          ...({ y: 1 }),
-          [Symbol("@attach")]: a,
+        new (__rsvelte_component(C))(__rsvelte_internals(), {
+          props: {
+            ...({ y: 1 }),
+            [Symbol("@attach")]: a,
+          },
         });
       }
     }
@@ -52,9 +62,11 @@ function $$render() {
       });
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        [Symbol("@attach")]: x > 1 ? a : null,
-        [Symbol("@attach")]: (n) => a(n, x),
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          [Symbol("@attach")]: x > 1 ? a : null,
+          [Symbol("@attach")]: (n) => a(n, x),
+        },
       });
     }
   };

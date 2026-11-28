@@ -13,8 +13,10 @@ function $$render() {
 
   async () => {
     {
-      component = __rsvelte_bind_this(__rsvelte_component(Component))(__rsvelte_internals(), {
-        "n": "no",
+      component = new (__rsvelte_bind_this(__rsvelte_component(Component)))(__rsvelte_internals(), {
+        props: {
+          "n": "no",
+        },
       });
     }
   };

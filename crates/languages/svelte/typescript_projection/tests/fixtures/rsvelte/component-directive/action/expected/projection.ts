@@ -13,8 +13,10 @@ function $$render() {
   async () => {
     {
       const __rsvelte_action0 = __sveltets_2_ensureAction(a(__rsvelte_any_node, ('s')));
-      __rsvelte_component(Comp)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(Comp))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       Comp;
     }

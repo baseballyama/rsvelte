@@ -4,10 +4,9 @@ use crate::typecheck::Native;
 use crate::typecheck_events::check;
 
 /// A value that is no component is one TS2345 at the tag, with svelte-check's note, against
-/// svelte2tsx's constraint, which TypeScript 7 prints in another order. `null` or `undefined` is a
-/// call of `never`, where svelte-check reports TS2351 "This expression is not constructable." at
-/// the same place: the projection calls a component where svelte2tsx constructs one. svelte-check
-/// 4.7.8 reports the positions.
+/// svelte2tsx's constraint, which TypeScript 7 prints in another order. `null`, `undefined` or a
+/// function that returns no object constructs `never`: TS2351 at the tag name's last character, or
+/// after the expression of `<svelte:component this>`. svelte-check 4.7.8 reports these lines.
 #[test]
 fn typecheck_reports_a_value_that_is_no_component_at_its_tag() {
     let tsconfig = (
@@ -27,6 +26,14 @@ fn typecheck_reports_a_value_that_is_no_component_at_its_tag() {
             "Number(5)",
             "<svelte:component this={P} />",
         ),
+        ("DynamicNull", "null", "<svelte:component this={P} />"),
+        ("Function", "() => 1", "<P />"),
+        (
+            "DynamicFunction",
+            "() => 1",
+            "<svelte:component this={P} />",
+        ),
+        ("Member", "{ x: null }", "<P.x />"),
     ];
     let mut sources = vec![(
         "src/Real.svelte".to_owned(),
@@ -62,6 +69,15 @@ fn typecheck_reports_a_value_that_is_no_component_at_its_tag() {
     while lines.last() == Some(&"") {
         lines.pop();
     }
+    assert_eq!(
+        lines,
+        expected().iter().map(|l| l.native()).collect::<Vec<_>>()
+    );
+}
+
+/// The lines svelte-check 4.7.8 reports for the cells of
+/// `typecheck_reports_a_value_that_is_no_component_at_its_tag`, in its order.
+fn expected() -> Vec<String> {
     let constraint = "'Component<any, any, any> | ConstructorOfATypedSvelteComponent | null | \
                       undefined'";
     let not_a_component = |at: &str, value: &str| {
@@ -79,8 +95,8 @@ fn typecheck_reports_a_value_that_is_no_component_at_its_tag() {
     };
     let never = |at: &str| {
         vec![
-            format!("src/{at}: error TS2349: This expression is not callable."),
-            "  Type 'never' has no call signatures.".to_owned(),
+            format!("src/{at}: error TS2351: This expression is not constructable."),
+            "  Type 'never' has no construct signatures.".to_owned(),
         ]
     };
     let mut expected = Vec::new();
@@ -92,12 +108,28 @@ fn typecheck_reports_a_value_that_is_no_component_at_its_tag() {
             not_a_component(&format!("Number{suffix}.svelte(5,2)"), "number"),
             never(&format!("Null{suffix}.svelte(5,2)")),
             never(&format!("Undefined{suffix}.svelte(5,2)")),
+            never(&format!("DynamicNull{suffix}.svelte(5,26)")),
+            never(&format!("Function{suffix}.svelte(5,2)")),
+            never(&format!("DynamicFunction{suffix}.svelte(5,26)")),
+            never(&format!("Member{suffix}.svelte(5,4)")),
         ]);
     }
     expected.sort();
-    let expected: Vec<_> = expected.concat();
+    expected.concat()
+}
+
+/// svelte-check 4.7.8 reports the TS2351 of `<P.𝒜 />` at column 5, the second UTF-16 unit of `𝒜`,
+/// which is no character position. rsvelte reports it at column 4, the start of `𝒜`.
+#[test]
+fn typecheck_reports_a_tag_that_ends_in_an_astral_character_at_its_start() {
+    let report = check(&[(
+        "src/App.svelte",
+        "<script lang=\"ts\">\n\tconst P = { \u{1d49c}: null };\n</script>\n\n<P.\u{1d49c} />\n",
+    )]);
     assert_eq!(
-        lines,
-        expected.iter().map(|l| l.native()).collect::<Vec<_>>()
+        report,
+        "src/App.svelte(5,4): error TS2351: This expression is not constructable.\n  \
+         Type 'never' has no construct signatures.\n\nFound 1 error in 1 file.\n"
+            .native()
     );
 }

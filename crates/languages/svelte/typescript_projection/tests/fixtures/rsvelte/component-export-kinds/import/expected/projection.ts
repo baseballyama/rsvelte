@@ -37,68 +37,94 @@ function $$render() {
 
   async () => {
     {
-      legacy = __rsvelte_bind_this(__rsvelte_component(Legacy))(__rsvelte_internals(), {
-        "foo": "s",
+      legacy = new (__rsvelte_bind_this(__rsvelte_component(Legacy)))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(LegacyExport)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(LegacyExport))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(TemplateAwait)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(TemplateAwait))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(Events)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(Events))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(Slots)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(Slots))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(OwnRecord)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(OwnRecord))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(RunesSlotsInterface)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(RunesSlotsInterface))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(RunesSlotsRead)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(RunesSlotsRead))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(LegacySlotsInterface)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(LegacySlotsInterface))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(EmptyEvents)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(EmptyEvents))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(DispatchedEvents)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(DispatchedEvents))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(ForwardedEvents)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(ForwardedEvents))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
     {
-      __rsvelte_component(StoreNamedState)(__rsvelte_internals(), {
-        "foo": "s",
+      new (__rsvelte_component(StoreNamedState))(__rsvelte_internals(), {
+        props: {
+          "foo": "s",
+        },
       });
     }
   };

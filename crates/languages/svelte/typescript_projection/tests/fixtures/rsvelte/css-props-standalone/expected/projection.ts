@@ -13,30 +13,36 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        ...(__sveltets_2_cssProp({
-          "--w": `${w}px`,
-        })),
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          ...(__sveltets_2_cssProp({
+            "--w": `${w}px`,
+          })),
+        },
       });
     }
     if (show) {
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {
-          ...(__sveltets_2_cssProp({
-            "--a": items.length,
-          })),
+        new (__rsvelte_component(C))(__rsvelte_internals(), {
+          props: {
+            ...(__sveltets_2_cssProp({
+              "--a": items.length,
+            })),
+          },
         });
       }
     }
     {
       for (let item of __rsvelte_each(items)) {
         {
-          __rsvelte_component(C)(__rsvelte_internals(), {
-            children: __rsvelte_children,
-            ...(__sveltets_2_cssProp({
-              "--b": item,
-            })),
-            "c": item,
+          new (__rsvelte_component(C))(__rsvelte_internals(), {
+            props: {
+              children: __rsvelte_children,
+              ...(__sveltets_2_cssProp({
+                "--b": item,
+              })),
+              "c": item,
+            },
           });
           item;
           C;
@@ -46,10 +52,12 @@ function $$render() {
     {
       svelteHTML.createElement("div", {});
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {
-          ...(__sveltets_2_cssProp({
-            "--x": Math.max(w, 2),
-          })),
+        new (__rsvelte_component(C))(__rsvelte_internals(), {
+          props: {
+            ...(__sveltets_2_cssProp({
+              "--x": Math.max(w, 2),
+            })),
+          },
         });
       }
     }

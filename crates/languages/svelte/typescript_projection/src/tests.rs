@@ -157,9 +157,9 @@ fn svelte_self_renders_a_component_whose_props_are_not_checked() {
     let source = "<script lang=\"ts\">let a = 1;</script>{#if a}<svelte:self b={a} />{/if}";
     let (_, output) = project(source);
     assert!(
-        output
-            .out
-            .contains("__rsvelte_component(__rsvelte_any_component)(__rsvelte_internals(), {")
+        output.out.contains(
+            "new (__rsvelte_component(__rsvelte_any_component))(__rsvelte_internals(), {"
+        )
     );
 }
 

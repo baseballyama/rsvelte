@@ -36,9 +36,11 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(Child);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        "value": $count,
-        "other": $obj.a,
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          "value": $count,
+          "other": $obj.a,
+        },
       });
       () => {
         // @ts-ignore
