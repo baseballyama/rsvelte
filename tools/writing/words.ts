@@ -78,7 +78,7 @@ export const words = [
 	'crypto',
 	'destructured',
 	'destructuring',
-	'enums',
+	'enums?',
 	'ESLint',
 	'eslint',
 	'Executables',
