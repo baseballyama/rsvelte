@@ -45,7 +45,9 @@
 	<code>.svelte</code>
 	file with the <code>svelte/</code> rules, and runs
 	<code>no-unused-vars</code> and <code>no-undef</code> there instead of oxlint, because they read
-	the template.
+	the template. They take ESLint's options, and <code>no-unused-vars</code> follows
+	typescript-eslint's: without options it ignores no name, where oxlint's ignores names that start
+	with <code>_</code>.
 </p>
 
 <p>

@@ -237,6 +237,49 @@ fn lint_checks_the_svelte_configuration_once() {
 }
 
 #[test]
+fn lint_gives_a_built_in_rule_its_options_in_a_component() {
+    let project = Project::new(&[
+        (
+            ".oxlintrc.json",
+            r#"{ "rules": {
+                "no-unused-vars": ["error", { "varsIgnorePattern": "^_" }],
+                "no-undef": ["error", { "typeof": true }]
+            } }"#,
+        ),
+        (
+            "App.svelte",
+            "<script lang=\"ts\">\n\tconst _unused = 1;\n\tconst b = 2;\
+             \n\tif (typeof missing === 'undefined') {}\n</script>\n",
+        ),
+    ]);
+    let lint = project.rsvelte(&["lint", "App.svelte"]);
+    let output = format!("{}{}", text(&lint.stdout), text(&lint.stderr));
+    assert_eq!(lint.status.code(), Some(1), "{output}");
+    assert!(!output.contains("'_unused'"), "{output}");
+    assert!(
+        output.contains(
+            "'b' is assigned a value but never used. Allowed unused vars must match /^_/u."
+        ),
+        "{output}"
+    );
+    assert!(output.contains("'missing' is not defined."), "{output}");
+    // An option oxlint takes and the Svelte linter does not fails when the configuration is read.
+    std::fs::write(
+        project.0.join(".oxlintrc.json"),
+        r#"{ "rules": { "no-unused-vars": ["error", { "typo": 1 }] } }"#,
+    )
+    .unwrap();
+    let lint = project.rsvelte(&["lint", "App.svelte"]);
+    let output = format!("{}{}", text(&lint.stdout), text(&lint.stderr));
+    assert_eq!(lint.status.code(), Some(1), "{output}");
+    assert_eq!(
+        output.matches("unknown field `typo`").count(),
+        1,
+        "{output}"
+    );
+}
+
+#[test]
 fn version_names_the_oracles_of_the_corpus_and_the_type_checker() {
     #[derive(serde::Deserialize)]
     struct Task {

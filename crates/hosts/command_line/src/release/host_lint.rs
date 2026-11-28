@@ -153,21 +153,16 @@ impl HostLinter for Svelte {
     }
 
     fn check_options(&self, rule: &str, options: &[serde_json::Value]) -> Result<(), String> {
-        // As in oxlint, a rule that needs options does nothing without them.
-        if options.is_empty() {
-            return Ok(());
-        }
-        let options: Vec<Box<RawValue>> = (options.iter())
-            .map(|option| to_raw_value(option).map_err(|e| e.to_string()))
-            .collect::<Result<_, _>>()?;
-        Configuration::new(LintSettings::default())
-            .rule(
-                &format!("{PLUGIN}/{rule}"),
-                Severity::Warning,
-                &options,
-                &[],
-            )
-            .map(drop)
+        check(&format!("{PLUGIN}/{rule}"), options)
+    }
+
+    fn check_builtin_options(
+        &self,
+        _plugin: &str,
+        rule: &str,
+        options: &[serde_json::Value],
+    ) -> Result<(), String> {
+        check(rule, options)
     }
 
     fn check_settings(
@@ -240,6 +235,20 @@ impl Svelte {
             )],
         }
     }
+}
+
+/// Whether the Svelte linter takes `options` for rule `name`.
+fn check(name: &str, options: &[serde_json::Value]) -> Result<(), String> {
+    // As in oxlint, a rule that needs options does nothing without them.
+    if options.is_empty() {
+        return Ok(());
+    }
+    let options: Vec<Box<RawValue>> = (options.iter())
+        .map(|option| to_raw_value(option).map_err(|e| e.to_string()))
+        .collect::<Result<_, _>>()?;
+    Configuration::new(LintSettings::default())
+        .rule(name, Severity::Warning, &options, &[])
+        .map(drop)
 }
 
 fn is_component(path: &Path) -> bool {
